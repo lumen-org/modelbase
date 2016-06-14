@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Probabilistic Model Webservice</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+</head>
+
+<body>
+
+<header> This is a webservice for all your needs to query probabilistic models </header>
+
+<section>
+    <h2>More content to come!</h2>
+</section>
+
+ <script>
+$(document).ready(function() {
+   "use strict"
+   
+   var onAnswer = function (data) {
+      console.log(data);
+   };
+   
+   var runQuery = function () {
+      $.ajax({
+         type: "POST",
+         url: "http://127.0.0.1:5000/webservice",
+         data: '{"hello":"world"}',
+         success: onAnswer,
+         contentType: 'application/json',
+         dataType: 'json'
+      });
+      console.log("query sent!");
+   };
+   
+   // run repeadingly
+   window.setInterval(runQuery, 5000);
+});
+</script> 
+</body>
+</html>
