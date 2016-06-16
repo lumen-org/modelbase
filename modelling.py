@@ -39,6 +39,10 @@ what about using a different syntax for the model, like the following:
     model['A'] : to select a submodel only on random variable with name 'A' // marginalize
     model['B'] = ...some domain...   // condition
     model.
+    
+    
+Somehow, I get the feeling I'm using numpy not correctly. it's too complicated to always have to write matrix() explicitely 
+    
 '''
 
 
@@ -93,7 +97,7 @@ class Model:
             self._aggrMethods = None
             
     def fit (self):
-        pass        
+        raise NotImplementedError()        
             
     def marginalize (self, keep = [], remove = []):
         if keep:
@@ -102,19 +106,23 @@ class Model:
             raise NotImplementedError()    
     
     def _marginalize (self, keep):
-        pass
+        raise NotImplementedError()
     
     def condition (self, pairs):
-        pass
+        raise NotImplementedError()
     
     def aggregate (self, method):
         if (method in self._aggrMethods):
             return self._aggrMethods[method]()
         else:
             raise NotImplementedError()
+            
+    def sample (self, n=1):
+        '''returns n many samples drawn from the model'''
+        raise NotImplementedError()
     
     def copy(self):
-        pass
+        raise NotImplementedError()
 
 
 class MultiVariateGaussianModel (Model):
@@ -132,6 +140,7 @@ class MultiVariateGaussianModel (Model):
     def fit (self):
         model = mixture.GMM(n_components=1, covariance_type='full')
         model.fit(self.data)
+        self._model = model        
         self._mu = matrix(model.means_).T
         self._S = matrix(model.covars_)
         self._update()
@@ -172,6 +181,9 @@ class MultiVariateGaussianModel (Model):
         
     def _argmax (self):
         return self._mu
+    
+    def sample  (self, n=1):
+        return self._S * np.matrix(np.random.randn(self._n)).T + self._mu
         
     def copy (self):
         mycopy = MultiVariateGaussianModel(name = self.name, data = self.data)
@@ -185,8 +197,7 @@ class ModelBase:
     '''a ModelBase is like a DataBase(-Management System): it holds models and allows queries against them'''
     def _loadIrisModel ():
         # load data set as pandas DataFrame
-        data = sns.load_dataset('iris')                              
-
+        data = sns.load_dataset('iris')
         # train model on continuous part of the data
         model = MultiVariateGaussianModel('iris', data.iloc[:, 0:-1])
         model.fit()        
@@ -198,18 +209,19 @@ class ModelBase:
         model.fit()
         return model
 
-    def __init__ (self):
-        
+    def __init__ (self):        
         # load some default models
+        # more data sets here: https://github.com/mwaskom/seaborn-data
         self.models = {}
         self.models['iris'] =  ModelBase._loadIrisModel()
         self.models['car_crashes'] = ModelBase._loadCarCrashModel()
     
     def execute (self, query):
-        pass           
-        
+        raise NotImplementedError()        
         
 if __name__ == '__main__':
      mvg = MultiVariateGaussianModel()
      mvg.fit()
      print(mvg._density(np.matrix('1 1 1 1').T))
+     mb = ModelBase()
+     cc = mb.models['car_crashes']
