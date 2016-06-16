@@ -2,24 +2,51 @@
 """
 Created on Mon Jun 13 13:43:29 2016
 
-@author: philipp
+@author: Philipp Lucas
 """
 
+import pdb
 import numpy as np
 from numpy import pi, exp, matrix, ix_
 
+import seaborn.apionly as sns
 
-'''class MultiVariateGaussian ():
-    def __init__(self, mu = 0, S = 0):
-        self.mu = mu
-        self.S = S
-        
-    def d (v): 
-        return 
-
-def mvGaussian (mu, S, )'''
+import sklearn as skl
+from sklearn import mixture
    
+
+    
+''' 
+ ## how to get from data to model ##
+   
+1. provide some data file
+2. open that data file
+3. read that file into a tabular structure and guess its header, i.e. its columns and its data types
+4. use it to train a model
+5. return the model
+
+https://github.com/rasbt/pattern_classification/blob/master/resources/python_data_libraries.md !!!
+
+## query a model
+
+1. receive JSON object that describes the query
+2. execute query: either do moddeling?
+
+
+
+what about using a different syntax for the model, like the following:
+
+    model['A'] : to select a submodel only on random variable with name 'A' // marginalize
+    model['B'] = ...some domain...   // condition
+    model.
+'''
+
+
+#LoadDataFromCsv    
+
+
 def invertedIdxList (idx, len) :
+    '''utility function that returns an inverted index list, e.g. given [0,1,4] and len=6 it returns [2,3,5].'''
     return list( set(range(0, len)) - set(idx) )   
     
 def UpperSchurCompl (M, idx):
@@ -29,16 +56,42 @@ def UpperSchurCompl (M, idx):
     j = invertedIdxList(i, M.shape[0])
 
     # that the definition of the upper Schur complement
-    return M[ix_(i,i)] - M[ix_(i,j)] * M[ix_(j,j)].I * M[ix_(j,i)]    
+    return M[ix_(i,i)] - M[ix_(i,j)] * M[ix_(j,j)].I * M[ix_(j,i)]        
+
     
+class Field:    
+    def __init__ (self, label=None, domain=None, dtype=None, base=None):        
+        if label is not None and domain is not None:
+            # label of the field, i.e a string descriptor
+            self.label = label
+            # data type: either 'float' or 'categorical'
+            self.dtype = dtype
+            # range of possible values, either a tuple (dtype == 'categorial') or a numerical range as a tuple (min, max)
+            self.domain = domain
+        elif base is not None:
+            raise NotImplementedError()
+        else:
+            raise ValueError()
+    
+        
 class Model:
        
-    def __init__ (self, name, data):
+    def _getHeader (df):
+        # derive fields from data
+        fields = []
+        for column in df:
+            ''' todo: this only works for continuous data'''
+            field = Field( label = column, domain = (df[column].min(), df[column].max()), dtype = 'continuous' )
+            fields.append(field)
+        return fields
+       
+    def __init__ (self, name, dataframe):
             self.name = name
-            self.data = data
-            self._aggrMethods = {}
+            self.data = dataframe
+            self.fields = Model._getHeader(self.data)
+            self._aggrMethods = None
             
-    def train (self):
+    def fit (self):
         pass        
             
     def marginalize (self, keep = [], remove = []):
@@ -65,24 +118,23 @@ class Model:
 
 class MultiVariateGaussianModel (Model):
     
-    def __init__ (self, name = "foo", data = []):
+    def __init__ (self, name = "iris", data = sns.load_dataset('iris').iloc[:, 0:4]):
         # make sure these are matrix types (numpy.matrix)
-        #self._mu = 0
-        #self._S = 0                
-        super().__init__(name, data)
-        
-        self._mu = matrix('1  2 .5').T
-        self._S = matrix(
-            '1   0.1 0   ;\
-             0.1 0.3 0.6 ;\
-             0   0.6 0.2 ')        
-        self._update()
-        
+        super().__init__(name, data)              
+        self._mu = np.nan
+        self._S = np.nan        
         self._aggrMethods = {
             'argmax': self._argmax,
             'argavg': self._argmax
         }
-        
+    
+    def fit (self):
+        model = mixture.GMM(n_components=1, covariance_type='full')
+        model.fit(self.data)
+        self._mu = matrix(model.means_).T
+        self._S = matrix(model.covars_)
+        self._update()
+    
     def summary (self):
         return( "Multivariate Gaussian Model '" + self.name + "':\n" + \
                 "dimension:\n" + str(self._n) + "\n" + \
@@ -91,7 +143,7 @@ class MultiVariateGaussianModel (Model):
         
     def _update (self):
         self._n = self._mu.shape[0]        
-        self._detS = np.linalg.det(self._S)        
+        self._detS = np.abs(np.linalg.det(self._S))
         self._SInv = self._S.I
         
     def condition (self, pairs):        
@@ -115,7 +167,7 @@ class MultiVariateGaussianModel (Model):
     
     def _density (self, x):   
         xmu = x - self._mu
-        return (2*pi)**(-self._n/2) * self._detS**-.5 * exp( -.5 * xmu.T * self._SInv * xmu )
+        return (2*pi)**(-self._n/2) * (self._detS**-.5) * exp( -.5 * xmu.T * self._SInv * xmu )
         
     def _argmax (self):
         return self._mu
@@ -126,3 +178,37 @@ class MultiVariateGaussianModel (Model):
         mycopy._S = self._S
         mycopy._update()
         return mycopy
+        
+        
+class ModelBase:
+
+    def _loadIrisModel ():
+        # load data set as pandas DataFrame
+        data = sns.load_dataset('iris')                              
+
+        # train model on continuous part of the data
+        model = MultiVariateGaussianModel('iris', data.iloc[:, 0:-1])
+        model.fit()        
+        return model
+        
+    def _loadCarCrashModel ():        
+        data = sns.load_dataset('car_crashes')
+        model = MultiVariateGaussianModel('car_crashes', data.iloc[:, 0:-1])
+        model.fit()
+        return model
+
+    def __init__ (self):
+        
+        # load some default models
+        self.models = {}
+        self.models['iris'] =  ModelBase._loadIrisModel()
+        self.models['car_crashes'] = ModelBase._loadCarCrashModel()
+    
+    def execute (self, query):
+        pass           
+        
+        
+if __name__ == '__main__':
+     mvg = MultiVariateGaussianModel()
+     mvg.fit()
+     print(mvg._density(np.matrix('1 1 1 1').T))
