@@ -60,6 +60,7 @@ def UpperSchurCompl (M, idx):
 
     
 class Field:    
+    '''a random variable of a probability model'''
     def __init__ (self, label=None, domain=None, dtype=None, base=None):        
         if label is not None and domain is not None:
             # label of the field, i.e a string descriptor
@@ -75,12 +76,12 @@ class Field:
     
         
 class Model:
-       
+    '''an abstract base model that provides an interface to derive submodels from it or query density and other aggregations of it'''
     def _getHeader (df):
         # derive fields from data
         fields = []
         for column in df:
-            ''' todo: this only works for continuous data'''
+            ''' todo: this only works for continuous data '''
             field = Field( label = column, domain = (df[column].min(), df[column].max()), dtype = 'continuous' )
             fields.append(field)
         return fields
@@ -117,7 +118,7 @@ class Model:
 
 
 class MultiVariateGaussianModel (Model):
-    
+    '''a multivariate gaussian model and methods to derive submodels from it or query density and other aggregations of it'''
     def __init__ (self, name = "iris", data = sns.load_dataset('iris').iloc[:, 0:4]):
         # make sure these are matrix types (numpy.matrix)
         super().__init__(name, data)              
@@ -181,7 +182,7 @@ class MultiVariateGaussianModel (Model):
         
         
 class ModelBase:
-
+    '''a ModelBase is like a DataBase(-Management System): it holds models and allows queries against them'''
     def _loadIrisModel ():
         # load data set as pandas DataFrame
         data = sns.load_dataset('iris')                              
