@@ -6,6 +6,7 @@ Created on Mon Jun 13 13:43:29 2016
 """
 
 import pdb
+
 import numpy as np
 from numpy import pi, exp, matrix, ix_
 
@@ -14,8 +15,7 @@ import seaborn.apionly as sns
 import sklearn as skl
 from sklearn import mixture
    
-
-    
+   
 ''' 
  ## how to get from data to model ##
    
@@ -30,24 +30,17 @@ https://github.com/rasbt/pattern_classification/blob/master/resources/python_dat
 ## query a model
 
 1. receive JSON object that describes the query
-2. execute query: either do moddeling?
+2. execute query:
 
-
-
-what about using a different syntax for the model, like the following:
+### what about using a different syntax for the model, like the following:
 
     model['A'] : to select a submodel only on random variable with name 'A' // marginalize
     model['B'] = ...some domain...   // condition
     model.
     
-    
+### other    
 Somehow, I get the feeling I'm using numpy not correctly. it's too complicated to always have to write matrix() explicitely 
-    
 '''
-
-
-#LoadDataFromCsv    
-
 
 def invertedIdxList (idx, len) :
     '''utility function that returns an inverted index list, e.g. given [0,1,4] and len=6 it returns [2,3,5].'''
@@ -55,11 +48,11 @@ def invertedIdxList (idx, len) :
     
 def UpperSchurCompl (M, idx):
     '''Returns the upper Schur complement of matrix M with the 'upper block' indexed by i'''
-    # derive correct index lists (using set opreations)
+    # derive index lists
     i = idx
     j = invertedIdxList(i, M.shape[0])
 
-    # that the definition of the upper Schur complement
+    # that's the definition of the upper Schur complement
     return M[ix_(i,i)] - M[ix_(i,j)] * M[ix_(j,j)].I * M[ix_(j,i)]        
 
     
@@ -77,24 +70,35 @@ class Field:
             raise NotImplementedError()
         else:
             raise ValueError()
-    
+            
         
 class Model:
     '''an abstract base model that provides an interface to derive submodels from it or query density and other aggregations of it'''
+    
     def _getHeader (df):
-        # derive fields from data
+        ''' derive fields from data'''
         fields = []
         for column in df:
             ''' todo: this only works for continuous data '''
             field = Field( label = column, domain = (df[column].min(), df[column].max()), dtype = 'continuous' )
             fields.append(field)
         return fields
+
+    def _asIndex (self, names):
+        #return sorted( map( lambda name: self.fields))        
+        #return sorted( map( lambda i: self.fields[i], names ) )        
+        #return [ for name in names if self.fields.index()]        
+        indices = []
+        for idx, field in enumerate(self.fields):
+            if field.label in names:
+                indices.push(idx)
+        return indices        
        
     def __init__ (self, name, dataframe):
-            self.name = name
-            self.data = dataframe
-            self.fields = Model._getHeader(self.data)
-            self._aggrMethods = None
+        self.name = name
+        self.data = dataframe
+        self.fields = Model._getHeader(self.data)
+        self._aggrMethods = None
             
     def fit (self):
         raise NotImplementedError()        
@@ -145,7 +149,7 @@ class MultiVariateGaussianModel (Model):
         self._S = matrix(model.covars_)
         self._update()
     
-    def summary (self):
+    def describe (self):
         return( "Multivariate Gaussian Model '" + self.name + "':\n" + \
                 "dimension:\n" + str(self._n) + "\n" + \
                 "mu:\n" + str(self._mu) + "\n" + \
@@ -193,8 +197,63 @@ class MultiVariateGaussianModel (Model):
         return mycopy
         
         
+class QuerySyntaxError(Exception):
+    '''This error indicates that a PQL query was incomplete and hence could not be executed'''    
+    meaning = 'This error indicates that a PQL query was incomplete and hence could not be executed'
+    
+    def __init__(self, message="", value=None):
+        self.value = value
+        self.message = message
+        
+    def __str__(self):
+        return repr(self.value)
+        
+
+class QueryValueError(Exception):
+    meaning = 'This error indicates that a PQL query contains a value that is semantically invalid, such as referring to a model that does not exist.'
+
+    def __init__(self, message="", value=None):
+        self.value = value
+        self.message = message
+    def __str__(self):
+        return repr(self.value)
+    
+        
 class ModelBase:
-    '''a ModelBase is like a DataBase(-Management System): it holds models and allows queries against them'''
+    '''a ModelBase is the analogon of a DataBase(-Management System) but for models: it holds models and allows queries against them'''
+    def __init__ (self):        
+        # load some default models
+        # more data sets here: https://github.com/mwaskom/seaborn-data
+        self.models = {}
+        self.models['iris'] =  ModelBase._loadIrisModel()
+        self.models['car_crashes'] = ModelBase._loadCarCrashModel()
+    
+    def execute (self, query):
+        '''executes the given query on this model base'''
+        # what's the command?
+        if 'MODEL' in query:
+            # do basic syntax and semantics checking of the given query
+            if 'FROM' not in query:
+                raise QuerySyntaxError("'FROM'-statement missing")
+            if 'AS' not in query:
+                raise QuerySyntaxError("'AS'-statement missing")            
+            if 'WHERE' not in query:
+                raise QuerySyntaxError("'FROM'-statement missing")                
+            if query['FROM'] not in self.models:
+                raise QueryValueError("The specified model does not exist.")
+            
+            self._model(randVars = list( map( lambda v: v['randVar'], query['MODEL'] ) ), 
+                        baseModel = self.models[query['FROM']], 
+                        name = query['AS'], 
+                        filters = query.get('WHERE') )
+
+        elif 'PREDICT' in query:
+            raise NotImplementedError()
+        
+        elif 'DROP' in query:
+            modelToDrop = query['DROP']
+            self._drop(modelToDrop)
+
     def _loadIrisModel ():
         # load data set as pandas DataFrame
         data = sns.load_dataset('iris')
@@ -208,16 +267,29 @@ class ModelBase:
         model = MultiVariateGaussianModel('car_crashes', data.iloc[:, 0:-1])
         model.fit()
         return model
-
-    def __init__ (self):        
-        # load some default models
-        # more data sets here: https://github.com/mwaskom/seaborn-data
-        self.models = {}
-        self.models['iris'] =  ModelBase._loadIrisModel()
-        self.models['car_crashes'] = ModelBase._loadCarCrashModel()
+       
+    def _add  (self, model, name):
+        if name in self.models:
+            pass
+        self.models[name] = model
     
-    def execute (self, query):
-        raise NotImplementedError()        
+    def _drop (self, name):
+        del self.models[name]
+        
+    def _model (self, randVars, baseModel, name, filters=None):
+        # 1. copy model        
+        derivedModel = baseModel.copy()        
+        randVarIdxs = derivedModel._asIndex(randVars)
+        # 2. apply filter, i.e. condition
+        if filters is not None:
+            raise NotImplementedError()
+        # 3. remove unneeded random variables
+        derivedModel._marginalize(keep = randVarIdxs)        
+        # 4. store model in model base
+        self._add(derivedModel, name)        
+        
+    def _predict (self, query):
+        raise NotImplementedError()
         
 if __name__ == '__main__':
      mvg = MultiVariateGaussianModel()

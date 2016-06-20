@@ -1,0 +1,10 @@
+{  "MODEL": [
+    {"randVar": "sex"}, 
+    {"randVar": "income"}
+  ],
+  "AS": "my-sub-model",
+  "FROM": "census",
+  "WHERE": [
+    {"randVar": "age", "operator": "=", "args": [20] }
+  ]
+}

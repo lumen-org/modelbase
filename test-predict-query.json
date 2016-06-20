@@ -1,0 +1,12 @@
+{  "PREDICT": [
+      {"randVar": "sex"}, 
+      {"aggregation": "average", "randVar": "income"}
+   ],
+   "FROM": "census",
+   "WHERE": [
+      {"randVar": "age", "operator": ">", "args": [35] }
+   ],
+   "GROUP BY": [
+      {"randVar": "sex", "splitFct": "elements"}
+   ]
+}
