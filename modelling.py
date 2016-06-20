@@ -91,13 +91,14 @@ class Model:
         indices = []
         for idx, field in enumerate(self.fields):
             if field.label in names:
-                indices.push(idx)
+                indices.append(idx)
         return indices        
        
     def __init__ (self, name, dataframe):
         self.name = name
         self.data = dataframe
         self.fields = Model._getHeader(self.data)
+        #self.fields.__str__ = lambda f: 
         self._aggrMethods = None
             
     def fit (self):
@@ -175,6 +176,7 @@ class MultiVariateGaussianModel (Model):
     
     def _marginalize (self, keep):
         # just select the part of mu and sigma that remains
+        raise Exception("i have to throw the fields from the model!")        
         self._mu = self._mu[keep]  
         self._S = self._S[np.ix_(keep, keep)]
         self._update()
@@ -237,8 +239,6 @@ class ModelBase:
                 raise QuerySyntaxError("'FROM'-statement missing")
             if 'AS' not in query:
                 raise QuerySyntaxError("'AS'-statement missing")            
-            if 'WHERE' not in query:
-                raise QuerySyntaxError("'FROM'-statement missing")                
             if query['FROM'] not in self.models:
                 raise QueryValueError("The specified model does not exist.")
             
@@ -284,7 +284,7 @@ class ModelBase:
         if filters is not None:
             raise NotImplementedError()
         # 3. remove unneeded random variables
-        derivedModel._marginalize(keep = randVarIdxs)        
+        derivedModel.marginalize(keep = randVarIdxs)        
         # 4. store model in model base
         self._add(derivedModel, name)        
         
