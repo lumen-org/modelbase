@@ -3,6 +3,7 @@
 """
 import seaborn.apionly as sns
 import models as gm
+from functools import reduce
 
 class QuerySyntaxError(Exception):
     '''This error indicates that a PQL query was incomplete and hence could not be executed'''    
@@ -24,19 +25,27 @@ class QueryValueError(Exception):
         self.message = message
     def __str__(self):
         return repr(self.value)
-        
+
+ReturnCode = {
+    "SUCCESS" : "success",
+    "FAIL": "fail"
+}
 
 class ModelBase:
     '''a ModelBase is the analogon of a DataBase(-Management System) but for models: it holds models and allows queries against them'''
-    def __init__ (self):        
+    def __init__ (self, name):
         # load some default models
         # more data sets here: https://github.com/mwaskom/seaborn-data
+        self.name = name        
         self.models = {}
         self.models['iris'] =  ModelBase._loadIrisModel()
         self.models['car_crashes'] = ModelBase._loadCarCrashModel()
         
     def __repr__ (self):
-        return str(self.models)    
+        return " -- Model Base > " + self.name+ " < -- \n" + \
+            "contains " + str(len(self.models)) + " models, as follows:\n\n" + \
+            reduce(lambda p, m: p + str(m) + "\n\n", self.models.values(), "")
+        #return str(self.models)    
     
     def execute (self, query):
         '''executes the given query on this model base'''
@@ -53,7 +62,9 @@ class ModelBase:
             self._model(randVars = list( map( lambda v: v['randVar'], query['MODEL'] ) ), 
                         baseModel = self.models[query['FROM']], 
                         name = query['AS'], 
-                        filters = query.get('WHERE') )
+                        filters = query.get('WHERE') )            
+                        
+            return ReturnCode["SUCCESS"]
 
         elif 'PREDICT' in query:
             raise NotImplementedError()
@@ -107,5 +118,5 @@ if __name__ == '__main__':
      mvg.fit()
      print(mvg._density(np.matrix('1 1 1 1').T))
      print(mvg._density(mvg._sample()))
-     mb = ModelBase()
+     mb = ModelBase("mymodelbase")
      cc = mb.models['car_crashes']

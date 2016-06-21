@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/html">
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Project Template</title>    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+
+    <script>
+    "use strict";
+    var queryUrl="http://127.0.0.1:5000/sample_query"
+    var modelbaseUrl="http://127.0.0.1:5000/webservice"    
+    var error
+
+    // loads a JSON query from a remote server and calls the callback with the query its only parameter
+    function loadQuery (url, callback, method="d3") {
+      var query = "";
+      
+      function parseAndCallback (data) {
+        console.log("successfully loaded query")
+        callback(JSON.parse(data))
+      }
+      
+      if (method === "d3")
+      // the d3 way
+        d3.text(url).post(
+          function (error, data) {
+            if (error)
+              return console.log(error)            
+            parseAndCallback(data)
+          })
+      else if (method === "ajax")
+      // the jQuery way
+        $.ajax({
+          type: "POST",
+          url: url,
+          success: parseAndCallback
+          //contentType: 'application/json',
+          //dataType: 'json'
+        });
+      else
+        return console.log("invalid method type")
+    }
+    
+    // runs a query and reports success, if any
+    function executeQuery (query, url) {
+      $.ajax({
+        type: "POST",
+        url: url,
+        data: JSON.stringify(query),
+        success: retVal => {window.alert("query sent sucessfully")},
+        error: info => {error = info; window.alert("query failed to sent: " + info)},
+        contentType: 'application/json',
+        dataType: 'json'
+      })
+      console.log("sent query to webserver")
+    }        
+
+    loadQuery(queryUrl, query => {executeQuery(query, modelbaseUrl)}, "ajax")
+
+    </script>
+</head>
+
+<body>
+    Hello Philipp - smile!
+</body>
+</html>

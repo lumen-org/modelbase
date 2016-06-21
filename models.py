@@ -158,8 +158,8 @@ class MultiVariateGaussianModel (Model):
     
     def __str__ (self):
         return( "Multivariate Gaussian Model '" + self.name + "':\n" + \
-                "dimension:\n" + str(self._n) + "\n" + \
-                "random variables:\n" + str(self.fields) )
+                "dimension: " + str(self._n) + "\n" + \
+                "random variables: " + str(self.fields) )
 #                "mu:\n" + str(self._mu) + "\n" + \
 #               "sigma:\n" + str(self._S) + "\n")
     
