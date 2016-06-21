@@ -1,0 +1,7 @@
+{  "MODEL": [
+    {"randVar": "total"}, 
+    {"randVar": "alcohol"}
+  ],
+  "AS": "my-sub-model",
+  "FROM": "car_crashes"
+}

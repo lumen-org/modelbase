@@ -71,6 +71,11 @@ class Field:
         else:
             raise ValueError()
             
+    def __str__ (self):
+        return self.label + "(" + self.dtype + ")"
+        
+    def __repr__ (self):
+        return self.__str__()            
         
 class Model:
     '''an abstract base model that provides an interface to derive submodels from it or query density and other aggregations of it'''
@@ -124,6 +129,9 @@ class Model:
             
     def sample (self, n=1):
         '''returns n many samples drawn from the model'''
+        return [self._sample() for i in range(n)]
+
+    def _sample(self):
         raise NotImplementedError()
     
     def copy(self):
@@ -150,35 +158,39 @@ class MultiVariateGaussianModel (Model):
         self._S = matrix(model.covars_)
         self._update()
     
-    def describe (self):
+    def __str__ (self):
         return( "Multivariate Gaussian Model '" + self.name + "':\n" + \
                 "dimension:\n" + str(self._n) + "\n" + \
-                "mu:\n" + str(self._mu) + "\n" + \
-                "sigma:\n" + str(self._S) + "\n" )
+                "random variables:\n" + str(self.fields) )
+#                "mu:\n" + str(self._mu) + "\n" + \
+#               "sigma:\n" + str(self._S) + "\n")
+    
+    def __repr__ (self):
+        return self.__str__()
         
     def _update (self):
+        '''updates dependent parameters / precalculated values of the model'''
         self._n = self._mu.shape[0]        
         self._detS = np.abs(np.linalg.det(self._S))
         self._SInv = self._S.I
         
-    def condition (self, pairs):        
+    def condition (self, pairs):
+        '''conditions this model according to the list of 2-tuples (<index>, <condition-value>)'''
         i, xj = zip(*pairs)
-        j = invertedIdxList(i, self._n)
-        
+        j = invertedIdxList(i, self._n)        
         # store old sigma and mu
         S = self._S
-        mu = self._mu
-        
+        mu = self._mu                
         # update sigma and mu according to GM script
         self._S = MultiVariateGaussianModel.UpperSchurCompl(S, i)        
-        self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (xj - mu[j])
+        self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (xj - mu[j])        
         self._update()
     
     def _marginalize (self, keep):
         # just select the part of mu and sigma that remains
-        raise Exception("i have to throw the fields from the model!")        
         self._mu = self._mu[keep]  
         self._S = self._S[np.ix_(keep, keep)]
+        self.fields = [self.fields[idx] for idx in keep]
         self._update()
     
     def _density (self, x):   
@@ -188,7 +200,7 @@ class MultiVariateGaussianModel (Model):
     def _argmax (self):
         return self._mu
     
-    def sample  (self, n=1):
+    def _sample  (self):
         return self._S * np.matrix(np.random.randn(self._n)).T + self._mu
         
     def copy (self):
@@ -229,6 +241,9 @@ class ModelBase:
         self.models = {}
         self.models['iris'] =  ModelBase._loadIrisModel()
         self.models['car_crashes'] = ModelBase._loadCarCrashModel()
+        
+    def __repr__ (self):
+        return str(self.models)    
     
     def execute (self, query):
         '''executes the given query on this model base'''
@@ -295,5 +310,6 @@ if __name__ == '__main__':
      mvg = MultiVariateGaussianModel()
      mvg.fit()
      print(mvg._density(np.matrix('1 1 1 1').T))
+     print(mvg._density(mvg._sample()))
      mb = ModelBase()
      cc = mb.models['car_crashes']
