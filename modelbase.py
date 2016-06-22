@@ -13,7 +13,7 @@ class QuerySyntaxError(Exception):
         self.value = value
         self.message = message
         
-    def __str__(self):
+    def __repr__(self):
         return repr(self.value)
         
 
@@ -23,7 +23,8 @@ class QueryValueError(Exception):
     def __init__(self, message="", value=None):
         self.value = value
         self.message = message
-    def __str__(self):
+        
+    def __repr__(self):
         return repr(self.value)
 
 ReturnCode = {
@@ -46,24 +47,37 @@ class ModelBase:
             "contains " + str(len(self.models)) + " models, as follows:\n\n" + \
             reduce(lambda p, m: p + str(m) + "\n\n", self.models.values(), "")
         #return str(self.models)    
+
+    def _extractFrom (self, query):
+        '''returns the model that the value of the "FROM"-statement of query refers to and checks basic syntax and semantics'''
+        if 'FROM' not in query:
+            raise QuerySyntaxError("'FROM'-statement missing")
+        modelName = query['FROM']
+        if modelName not in self.models:
+            raise QueryValueError("The specified model does not exist: " + modelName)            
+        return self.models[modelName]
+    
+    def _extractShow (self, query):
+        '''extracts the value of the "SHOW"-statement from query and checks basic syntax and semantics'''        
+        if 'SHOW' not in query:
+            raise QuerySyntaxError("'SHOW'-statement missing")
+        what = query['SHOW']
+        if what not in ["HEADER"]:
+            raise QueryValueError("Invalid value of SHOW-statement: " + what)
+        return what
     
     def execute (self, query):
-        '''executes the given query on this model base'''
+        '''executes the given query'''
         # what's the command?
         if 'MODEL' in query:
             # do basic syntax and semantics checking of the given query
-            if 'FROM' not in query:
-                raise QuerySyntaxError("'FROM'-statement missing")
+            model = self._extractFrom(query)
             if 'AS' not in query:
-                raise QuerySyntaxError("'AS'-statement missing")            
-            if query['FROM'] not in self.models:
-                raise QueryValueError("The specified model does not exist.")
-            
-            self._model(randVars = list( map( lambda v: v['randVar'], query['MODEL'] ) ), 
-                        baseModel = self.models[query['FROM']], 
+                raise QuerySyntaxError("'AS'-statement missing")
+            self._model(randVars = list( map( lambda v: v['randVar'], query['MODEL'] ) ),
+                        baseModel = model,
                         name = query['AS'], 
-                        filters = query.get('WHERE') )            
-                        
+                        filters = query.get('WHERE') )                        
             return ReturnCode["SUCCESS"], True
 
         elif 'PREDICT' in query:
@@ -72,7 +86,10 @@ class ModelBase:
         elif 'DROP' in query:
             modelToDrop = query['DROP']
             self._drop(modelToDrop)
-
+            
+        elif 'SHOW' in query:
+            self._show( self._extractFrom(query), self._extractShow(query))
+            
     def _loadIrisModel ():
         # load data set as pandas DataFrame
         data = sns.load_dataset('iris')
@@ -110,13 +127,16 @@ class ModelBase:
     def _predict (self, query):
         raise NotImplementedError()
         
-        
+    def _show (self, what, model):
+        if what == "HEADER": 
+            pass
+            
         
 if __name__ == '__main__':
-     import numpy as np
-     mvg = gm.MultiVariateGaussianModel()
-     mvg.fit()
-     print(mvg._density(np.matrix('1 1 1 1').T))
-     print(mvg._density(mvg._sample()))
-     mb = ModelBase("mymodelbase")
-     cc = mb.models['car_crashes']
+    import numpy as np
+    mvg = gm.MultiVariateGaussianModel()
+    mvg.fit()
+    print(mvg._density(np.matrix('1 1 1 1').T))
+    print(mvg._density(mvg._sample()))
+    mb = ModelBase("mymodelbase")
+    cc = mb.models['car_crashes']

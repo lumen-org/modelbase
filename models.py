@@ -52,27 +52,35 @@ def UpperSchurCompl (M, idx):
     return M[ix_(i,i)] - M[ix_(i,j)] * M[ix_(j,j)].I * M[ix_(j,i)]        
 
 ### GENERIC / ABSTRACT MODELS and other base classes ###
-    
-class Field:    
-    '''a random variable of a probability model'''
-    def __init__ (self, label=None, domain=None, dtype=None, base=None):        
-        if label is not None and domain is not None:
-            # label of the field, i.e a string descriptor
-            self.label = label
-            # data type: either 'float' or 'categorical'
-            self.dtype = dtype
-            # range of possible values, either a tuple (dtype == 'categorial') or a numerical range as a tuple (min, max)
-            self.domain = domain
+      
+class Field(dict):    
+    '''a random variable of a probability model
+       name ... name of the field, i.e a string descriptor
+       domain ... range of possible values, either a list (dtype == 'categorial') or a numerical range as a tuple (min, max)
+       dtype ... data type: either 'float' or 'categorical'
+    '''
+    def __init__ (self, name=None, domain=None, dtype=None, base=None):        
+        # just a fancy way of providing a clean interface to actually nothing more than a python dict
+        if name is not None and domain is not None:
+            super().__init__(name=name, domain=domain, dtype=dtype)
         elif base is not None:
             raise NotImplementedError()
         else:
             raise ValueError()
-            
+    
     def __str__ (self):
-        return self.label + "(" + self.dtype + ")"
-        
+        return self['name'] + "(" + self['dtype'] + ")" 
+    
     def __repr__ (self):
-        return self.__str__()            
+        return self['name'] + "(" + self['dtype'] + ")"
+    
+'''
+ {
+     name: <name>,
+     dtype: <dtype>,
+     domain: either an interval (continuous), i.e. a two element array for start and end, or a list
+ }'''
+        
         
 class Model:
     '''an abstract base model that provides an interface to derive submodels from it or query density and other aggregations of it'''
@@ -82,7 +90,7 @@ class Model:
         fields = []
         for column in df:
             ''' todo: this only works for continuous data '''
-            field = Field( label = column, domain = (df[column].min(), df[column].max()), dtype = 'continuous' )
+            field = Field( name = column, domain = (df[column].min(), df[column].max()), dtype = 'continuous' )
             fields.append(field)
         return fields
 
@@ -92,7 +100,7 @@ class Model:
         #return [ for name in names if self.fields.index()]        
         indices = []
         for idx, field in enumerate(self.fields):
-            if field.label in names:
+            if field.name in names:
                 indices.append(idx)
         return indices        
        
@@ -155,16 +163,13 @@ class MultiVariateGaussianModel (Model):
         self._mu = matrix(model.means_).T
         self._S = matrix(model.covars_)
         self._update()
-    
+        
     def __str__ (self):
         return( "Multivariate Gaussian Model '" + self.name + "':\n" + \
                 "dimension: " + str(self._n) + "\n" + \
                 "random variables: " + str(self.fields) )
 #                "mu:\n" + str(self._mu) + "\n" + \
 #               "sigma:\n" + str(self._S) + "\n")
-    
-    def __repr__ (self):
-        return self.__str__()
         
     def _update (self):
         '''updates dependent parameters / precalculated values of the model'''
