@@ -34,7 +34,8 @@
         $.ajax({
           type: "POST",
           url: url,
-          success: parseAndCallback
+          success: parseAndCallback,
+          error: info => {error = info; window.alert("failed to fetch query: " + info)}
           //contentType: 'application/json',
           //dataType: 'json'
         });

@@ -64,7 +64,7 @@ class ModelBase:
                         name = query['AS'], 
                         filters = query.get('WHERE') )            
                         
-            return ReturnCode["SUCCESS"]
+            return ReturnCode["SUCCESS"], True
 
         elif 'PREDICT' in query:
             raise NotImplementedError()

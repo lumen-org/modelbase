@@ -33,19 +33,14 @@ def service():
    else:
       # extract json formatted query
       query = request.get_json() 
-      logger.info(query)
-      
+      logger.info(query)      
       # validate query
-      # ...
-      
+      # ...      
       # process     
-      result = mb.execute(query)      
-      logger.info(result)
-      
+      status, result = mb.execute(query)
+      logger.info(result)      
       # return answer      
-      #return '{"age":[0,5,2,3,2,561,0], "income":[1,2,3,4,5,6,7]}'
-      return result
-
+      return json.dumps( {"status":status, "result": result} )
 
 # webservice interface that returns a valid sample query 
 @app.route('/sample_query', methods=['GET', 'POST'])
