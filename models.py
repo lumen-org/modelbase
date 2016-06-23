@@ -70,10 +70,7 @@ class Field(dict):
     
     def __str__ (self):
         return self['name'] + "(" + self['dtype'] + ")" 
-    
-    def __repr__ (self):
-        return self['name'] + "(" + self['dtype'] + ")"
-    
+        
 '''
  {
      name: <name>,
@@ -86,7 +83,7 @@ class Model:
     '''an abstract base model that provides an interface to derive submodels from it or query density and other aggregations of it'''
     
     def _getHeader (df):
-        ''' derive fields from data'''
+        ''' derive fields from a given pandas dataframe'''
         fields = []
         for column in df:
             ''' todo: this only works for continuous data '''
@@ -95,6 +92,7 @@ class Model:
         return fields
 
     def _asIndex (self, names):
+        '''given a list of names of random variables, returns the indexes of these in the .field attribute of the model'''
         #return sorted( map( lambda name: self.fields))        
         #return sorted( map( lambda i: self.fields[i], names ) )        
         #return [ for name in names if self.fields.index()]        
@@ -167,7 +165,7 @@ class MultiVariateGaussianModel (Model):
     def __str__ (self):
         return( "Multivariate Gaussian Model '" + self.name + "':\n" + \
                 "dimension: " + str(self._n) + "\n" + \
-                "random variables: " + str(self.fields) )
+                "random variables: " + str( [str(field) for field in self.fields] ))
 #                "mu:\n" + str(self._mu) + "\n" + \
 #               "sigma:\n" + str(self._S) + "\n")
         

@@ -33,7 +33,9 @@ ReturnCode = {
 }
 
 class ModelBase:
-    '''a ModelBase is the analogon of a DataBase(-Management System) but for models: it holds models and allows queries against them'''
+    '''a ModelBase is the analogon of a DataBase(-Management System) but for models: it holds models and allows queries against them
+       all input and output is provided as JSON like objects, or simple strings / number if applicable
+    '''
     def __init__ (self, name):
         # load some default models
         # more data sets here: https://github.com/mwaskom/seaborn-data
@@ -67,7 +69,7 @@ class ModelBase:
         return what
     
     def execute (self, query):
-        '''executes the given query'''
+        '''executes the given query and returns a status code and the result (or None)'''
         # what's the command?
         if 'MODEL' in query:
             # do basic syntax and semantics checking of the given query
@@ -78,7 +80,7 @@ class ModelBase:
                         baseModel = model,
                         name = query['AS'], 
                         filters = query.get('WHERE') )                        
-            return ReturnCode["SUCCESS"], True
+            return ReturnCode["SUCCESS"], None
 
         elif 'PREDICT' in query:
             raise NotImplementedError()
@@ -86,9 +88,11 @@ class ModelBase:
         elif 'DROP' in query:
             modelToDrop = query['DROP']
             self._drop(modelToDrop)
+            return ReturnCode["SUCCESS"], None
             
         elif 'SHOW' in query:
-            self._show( self._extractFrom(query), self._extractShow(query))
+            header = self._show( model = self._extractFrom(query), what = self._extractShow(query))
+            return ReturnCode["SUCCESS"], header
             
     def _loadIrisModel ():
         # load data set as pandas DataFrame
@@ -129,8 +133,8 @@ class ModelBase:
         
     def _show (self, what, model):
         if what == "HEADER": 
-            pass
-            
+            return model.fields
+            #return json.dumps(model.fields)            
         
 if __name__ == '__main__':
     import numpy as np

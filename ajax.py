@@ -33,13 +33,13 @@ def service():
    else:
       # extract json formatted query
       query = request.get_json() 
-      logger.info(query)      
+      logger.info(query)
       # validate query
       # ...      
       # process     
       status, result = mb.execute(query)
       logger.info(result)      
-      # return answer      
+      # return answer as a serialized json
       return json.dumps( {"status":status, "result": result} )
 
 # webservice interface that returns a valid sample query 
@@ -48,7 +48,8 @@ def sample_query():
     if request.method == 'GET':
         return "send a POST request to this url to get a valid query that you can use at the '/webservice' interface"
     else:
-        filePath = 'test-model-query_02.json'
+        #filePath = 'test-model-query_02.json'
+        filePath = 'test-show-query.json'
         # open file, read as json
         query = json.load( open(filePath) )
         # serialize to string and return

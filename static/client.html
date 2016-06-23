@@ -7,57 +7,33 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
 
     <script>
-    "use strict";
+    "use strict";   
     var queryUrl="http://127.0.0.1:5000/sample_query"
     var modelbaseUrl="http://127.0.0.1:5000/webservice"    
-    var error
 
-    // loads a JSON query from a remote server and calls the callback with the query its only parameter
-    function loadQuery (url, callback, method="d3") {
-      var query = "";
-      
-      function parseAndCallback (data) {
-        console.log("successfully loaded query")
-        callback(JSON.parse(data))
-      }
-      
-      if (method === "d3")
-      // the d3 way
-        d3.text(url).post(
-          function (error, data) {
-            if (error)
-              return console.log(error)            
-            parseAndCallback(data)
-          })
-      else if (method === "ajax")
-      // the jQuery way
-        $.ajax({
-          type: "POST",
-          url: url,
-          success: parseAndCallback,
-          error: info => {error = info; window.alert("failed to fetch query: " + info)}
-          //contentType: 'application/json',
-          //dataType: 'json'
-        });
-      else
-        return console.log("invalid method type")
+    function onError(error, msg) {
+        console.error("ERROR " + msg + " : " + error)
     }
-    
-    // runs a query and reports success, if any
-    function executeQuery (query, url) {
-      $.ajax({
-        type: "POST",
-        url: url,
-        data: JSON.stringify(query),
-        success: retVal => {window.alert("query sent sucessfully")},
-        error: info => {error = info; window.alert("query failed to sent: " + info)},
-        contentType: 'application/json',
-        dataType: 'json'
-      })
-      console.log("sent query to webserver")
-    }        
 
-    loadQuery(queryUrl, query => {executeQuery(query, modelbaseUrl)}, "ajax")
+    function onSuccess(data, msg) {
+        console.log("SUCCESS " + msg + " : " + data)
+    }
+
+    function onQueryFetched (error, json) {
+        if (error) onError(error, "onQueryFetched")
+        else onSuccess(JSON.stringify(json), "onQueryFetched")
+        d3.json(modelbaseUrl)
+            .header("Content-Type", "application/json")
+            .post(JSON.stringify(json), onQueryExecuted)
+    }
+
+    function onQueryExecuted (error, json) {
+        if (error) onError(error, "onQueryExecuted")
+        else onSuccess(JSON.stringify(json), "onQueryExecuted")
+    }
+
+    // load a json query. When loaded send the query
+    d3.json(queryUrl).post( onQueryFetched )
 
     </script>
 </head>
