@@ -1,6 +1,8 @@
 """
 @author: Philipp Lucas
 """
+import string
+import random
 import seaborn.apionly as sns
 import models as gm
 from functools import reduce
@@ -48,7 +50,7 @@ class ModelBase:
         return " -- Model Base > " + self.name+ " < -- \n" + \
             "contains " + str(len(self.models)) + " models, as follows:\n\n" + \
             reduce(lambda p, m: p + str(m) + "\n\n", self.models.values(), "")
-        #return str(self.models)    
+        #return str(self.models)       
 
     def _extractFrom (self, query):
         '''returns the model that the value of the "FROM"-statement of query refers to and checks basic syntax and semantics'''
@@ -67,27 +69,67 @@ class ModelBase:
         if what not in ["HEADER"]:
             raise QueryValueError("Invalid value of SHOW-statement: " + what)
         return what
+        
+    def _extractGroupBy (self, query, required=False):        
+        if required and 'GROUP BY' not in query:
+            raise QuerySyntaxError("'GROUP BY'-statement missing")
+        elif not required and 'GROUP BY' not in query:
+            return None            
+        return list( map( lambda v: v['randVar'], query['GROUP BY'] ) )
+            
+    def _extractModel (self, query):
+        if 'MODEL' not in query:
+            raise QuerySyntaxError("'MODEL'-statement missing")
+        return list( map( lambda v: v['randVar'], query['MODEL'] ) )
+        
+    def _extractPredict (self, query): 
+        if 'PREDICT' not in query:
+            raise QuerySyntaxError("'PREDICT'-statement missing")
+        # return in one list                    
+        return query['PREDICT'] 
+        # return as splitted lists. Problem: order is lost...
+#        randVar = []
+#        aggrRandVar = []        
+#        for e in query['PREDICT']:
+#            if 'aggregation' in e:
+#                aggrRandVar.append(e)
+#            else:
+#                randVar.append(e)        
+#        return (randVar, aggrRandVar)        
+        
+    def _extractAs (self, query):        
+        if 'AS' not in query:
+            raise QuerySyntaxError("'AS'-statement missing")
+        return query['AS']
+        
+    def _extractWhere (self, query, required=False):
+        if required and 'WHERE' not in query:
+            raise QuerySyntaxError("'WHERE'-statement missing")
+        elif not required and 'WHERE' not in query:
+            return None            
+        else:
+            return query['WHERE']
     
     def execute (self, query):
         '''executes the given query and returns a status code and the result (or None)'''
         # what's the command?
         if 'MODEL' in query:
             # do basic syntax and semantics checking of the given query
-            model = self._extractFrom(query)
-            if 'AS' not in query:
-                raise QuerySyntaxError("'AS'-statement missing")
-            self._model(randVars = list( map( lambda v: v['randVar'], query['MODEL'] ) ),
-                        baseModel = model,
-                        name = query['AS'], 
-                        filters = query.get('WHERE') )                        
+            self._model( randVars = self._extractModel(query),
+                        baseModel = self._extractFrom(query),
+                        name = self._extractAs(query), 
+                        filters = self._extractWhere(query) )
             return ReturnCode["SUCCESS"], None
 
         elif 'PREDICT' in query:
-            raise NotImplementedError()
+            result = self._predict( aggrRandVars = self._extractPredict(query),
+                    model = self._extractFrom(query),
+                    filters = self._extractWhere(query),
+                    groupBy = self._extractGroupBy (query) )
+            return ReturnCode["SUCCESS"], result
         
         elif 'DROP' in query:
-            modelToDrop = query['DROP']
-            self._drop(modelToDrop)
+            self._drop(name = query['DROP'])
             return ReturnCode["SUCCESS"], None
             
         elif 'SHOW' in query:
@@ -107,14 +149,20 @@ class ModelBase:
         model = gm.MultiVariateGaussianModel('car_crashes', data.iloc[:, 0:-1])
         model.fit()
         return model
+
+    def _id_generator(size=15, chars=string.ascii_letters + string.digits):
+        return ''.join(random.choice(chars) for _ in range(size))        
        
     def _add  (self, model, name):
         if name in self.models:
             pass
         self.models[name] = model
+        return model
     
     def _drop (self, name):
+        model = self.models[name]
         del self.models[name]
+        return model
         
     def _model (self, randVars, baseModel, name, filters=None):
         # 1. copy model        
@@ -126,10 +174,23 @@ class ModelBase:
         # 3. remove unneeded random variables
         derivedModel.marginalize(keep = randVarIdxs)        
         # 4. store model in model base
-        self._add(derivedModel, name)        
+        return self._add(derivedModel, name)        
         
-    def _predict (self, query):
-        raise NotImplementedError()
+    def _predict (self, aggrRandVars, model, filters=None, groupBy=None):
+        if groupBy is not None:
+            raise NotImplementedError()
+            # make sure to implement non-aggregated randVars in the PREDICT-clause when implemening groupBy
+        # assume: there should be aggregations attached to the randVars
+        # assume: only 1 randVar, 
+        if len(aggrRandVars) > 1:
+            raise NotImplementedError()        
+        aggrRandVar = aggrRandVars[0]
+        # 1. derive required submodel
+        predictionModel = self._model(randVars = [aggrRandVar["randVar"]], baseModel = model, name = ModelBase._id_generator(), filters = filters)
+        # 2. query it
+        result = predictionModel.aggregate(aggrRandVar["aggregation"])
+        # 3. convert 
+        return result.item(0,0)
         
     def _show (self, what, model):
         if what == "HEADER": 

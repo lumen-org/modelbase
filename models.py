@@ -98,7 +98,7 @@ class Model:
         #return [ for name in names if self.fields.index()]        
         indices = []
         for idx, field in enumerate(self.fields):
-            if field.name in names:
+            if field['name'] in names:
                 indices.append(idx)
         return indices        
        
@@ -150,8 +150,8 @@ class MultiVariateGaussianModel (Model):
         self._mu = nan
         self._S = nan
         self._aggrMethods = {
-            'argmax': self._argmax,
-            'argavg': self._argmax
+            'maximum': self._maximum,
+            'average': self._maximum
         }
     
     def fit (self):
@@ -198,7 +198,7 @@ class MultiVariateGaussianModel (Model):
         xmu = x - self._mu
         return (2*pi)**(-self._n/2) * (self._detS**-.5) * exp( -.5 * xmu.T * self._SInv * xmu )
         
-    def _argmax (self):
+    def _maximum (self):
         return self._mu
     
     def _sample  (self):
