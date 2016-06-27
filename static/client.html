@@ -18,27 +18,74 @@
     function onSuccess(data, msg) {
         console.log("SUCCESS " + msg + " : " + data)
     }
-
-    function onQueryFetched (error, json) {
-        if (error) onError(error, "onQueryFetched")
-        else onSuccess(JSON.stringify(json), "onQueryFetched")
-        d3.json(modelbaseUrl)
+    
+    function executeQuery(json) {
+     d3.json(modelbaseUrl)
             .header("Content-Type", "application/json")
             .post(JSON.stringify(json), onQueryExecuted)
     }
 
-    function onQueryExecuted (error, json) {
-        if (error) onError(error, "onQueryExecuted")
-        else onSuccess(JSON.stringify(json), "onQueryExecuted")
+    function onQueryFetched (error, json) {
+        if (error) onError(error, "onQueryFetched")
+        onSuccess(JSON.stringify(json), "onQueryFetched")
+        executeQuery(json)
     }
 
-    // load a json query. When loaded send the query
-    d3.json(queryUrl).post( onQueryFetched )
-
+    function onQueryExecuted (error, json) {
+        if (error) onError(error, "onQueryExecuted")
+        var resultStr = JSON.stringify(json, null, 2)
+        onSuccess(resultStr, "onQueryExecuted")
+        queryOutputField[0][0].value = resultStr
+    }
     </script>
 </head>
 
 <body>
-    Hello Philipp - smile!
+
+Put your query here:
+<br>
+<textarea id="jsonQueryInput" rows="25" cols="80">
+{  "MODEL": [
+    {"randVar": "total"}
+  ],
+   "WHERE": [{
+      "randVar": "alcohol",
+      "operator": "EQUALS",
+      "value": 10
+   }],
+  "AS": "my-sub-model",
+  "FROM": "car_crashes"
+}
+</textarea>
+<br>
+<button id="submitButton">Submit</button>
+<br>
+The answer is:
+<br>
+<textarea id="queryResult" rows="25" cols="80"> </textarea>
+
+
+<script>
+    // load a json query. When loaded send the query
+    d3.json(queryUrl).post( onQueryFetched )
+    
+    var submitButton = d3.select("#submitButton")
+    var queryInputField = d3.select("#jsonQueryInput")
+    var queryOutputField = d3.select("#queryResult")    
+    submitButton.on("click", function () {      
+      try{
+        let json = JSON.parse( queryInputField[0][0].value )
+        console.log(json)
+        executeQuery(json)
+      }
+      catch (e) {
+        if (e.name === 'SyntaxError') 
+          queryOutputField[0][0].value = "invalid query"
+        else 
+          throw(e)
+      }
+      console.log("submitted query from textarea")
+    })
+</script>
 </body>
 </html>

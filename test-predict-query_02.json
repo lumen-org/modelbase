@@ -1,5 +1,5 @@
 {  "PREDICT": [ 
-      {"aggregation": "average", "randVar": "alcohol"}
+      {"aggregation": "maximum", "randVar": "alcohol"}
    ],
    "FROM": "car_crashes"
 }

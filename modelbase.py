@@ -74,7 +74,7 @@ class ModelBase:
         if required and 'GROUP BY' not in query:
             raise QuerySyntaxError("'GROUP BY'-statement missing")
         elif not required and 'GROUP BY' not in query:
-            return None            
+            return []            
         return list( map( lambda v: v['randVar'], query['GROUP BY'] ) )
             
     def _extractModel (self, query):
@@ -106,7 +106,7 @@ class ModelBase:
         if required and 'WHERE' not in query:
             raise QuerySyntaxError("'WHERE'-statement missing")
         elif not required and 'WHERE' not in query:
-            return None            
+            return []            
         else:
             return query['WHERE']
     
@@ -164,20 +164,24 @@ class ModelBase:
         del self.models[name]
         return model
         
-    def _model (self, randVars, baseModel, name, filters=None):
+    def _model (self, randVars, baseModel, name, filters=[]):
         # 1. copy model        
-        derivedModel = baseModel.copy()        
-        randVarIdxs = derivedModel._asIndex(randVars)
+        derivedModel = baseModel.copy()
+        
         # 2. apply filter, i.e. condition
-        if filters is not None:
-            raise NotImplementedError()
+        equalConditions =  filter( lambda cond: "operator" in cond and cond["operator"] == "EQUALS", filters)
+        pairs = list( map( lambda cond : ( cond["randVar"], cond["value"] ), equalConditions ) )
+        derivedModel.condition(pairs)
+        
         # 3. remove unneeded random variables
-        derivedModel.marginalize(keep = randVarIdxs)        
+        derivedModel.marginalize(keep = randVars)        
         # 4. store model in model base
         return self._add(derivedModel, name)        
         
-    def _predict (self, aggrRandVars, model, filters=None, groupBy=None):
-        if groupBy is not None:
+    def _predict (self, aggrRandVars, model, filters=[], groupBy=[]):
+        '''runs the prediction  query against the model and returns the results
+        NOTE: SO FAR ONLY A VERY LIMITED VERSION IS IMPLEMENTED: only a single aggrRandVar and no groupBys are allowed'''
+        if groupBy:
             raise NotImplementedError()
             # make sure to implement non-aggregated randVars in the PREDICT-clause when implemening groupBy
         # assume: there should be aggregations attached to the randVars
@@ -189,13 +193,12 @@ class ModelBase:
         predictionModel = self._model(randVars = [aggrRandVar["randVar"]], baseModel = model, name = ModelBase._id_generator(), filters = filters)
         # 2. query it
         result = predictionModel.aggregate(aggrRandVar["aggregation"])
-        # 3. convert 
+        # 3. convert to python scalar
         return result.item(0,0)
         
     def _show (self, what, model):
         if what == "HEADER": 
             return model.fields
-            #return json.dumps(model.fields)            
         
 if __name__ == '__main__':
     import numpy as np

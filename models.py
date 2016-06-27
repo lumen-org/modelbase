@@ -70,14 +70,7 @@ class Field(dict):
     
     def __str__ (self):
         return self['name'] + "(" + self['dtype'] + ")" 
-        
-'''
- {
-     name: <name>,
-     dtype: <dtype>,
-     domain: either an interval (continuous), i.e. a two element array for start and end, or a list
- }'''
-        
+       
         
 class Model:
     '''an abstract base model that provides an interface to derive submodels from it or query density and other aggregations of it'''
@@ -94,13 +87,17 @@ class Model:
     def _asIndex (self, names):
         '''given a list of names of random variables, returns the indexes of these in the .field attribute of the model'''
         #return sorted( map( lambda name: self.fields))        
-        #return sorted( map( lambda i: self.fields[i], names ) )        
+        #return sorted( map( lambda i: self.fields[i], names ) )
         #return [ for name in names if self.fields.index()]        
+        noArrayFlag = False        
+        if type(names) is not list:
+            names = [names]
+            noArrayFlag = True            
         indices = []
         for idx, field in enumerate(self.fields):
             if field['name'] in names:
-                indices.append(idx)
-        return indices        
+                indices.append(idx)        
+        return  indices[0] if noArrayFlag else indices
        
     def __init__ (self, name, dataframe):
         self.name = name
@@ -176,22 +173,36 @@ class MultiVariateGaussianModel (Model):
         self._SInv = self._S.I
         
     def condition (self, pairs):
-        '''conditions this model according to the list of 2-tuples (<index>, <condition-value>)'''
+        '''conditions this model according to the list of 2-tuples (<name-of-random-variable>, <condition-value>)'''
+        if len(pairs) == 0:
+            return
         i, xj = zip(*pairs)
+        i = list(i)
+        xj = list(xj)
+        i = self._asIndex(i)
         j = invertedIdxList(i, self._n)        
         # store old sigma and mu
         S = self._S
         mu = self._mu                
         # update sigma and mu according to GM script
-        self._S = MultiVariateGaussianModel.UpperSchurCompl(S, i)        
+        self._S = UpperSchurCompl(S, i)        
         self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (xj - mu[j])        
         self._update()
     
-    def _marginalize (self, keep):
+    def _marginalize (self, keep):        
+        '''marginalizes all but the variables given by their name in keep out
+        of this model.
+        
+        Note for Future: Note that marginalization is done depending on the available domain of 
+        a random variable. That is, if only a single value is left in the 
+        domain it is conditioned on this value and marginalized out. Otherwise
+        it is marginalized out (assuming that the full domain is available)'''                 
+        #remove = invertedIdxList(keep)        
         # just select the part of mu and sigma that remains
-        self._mu = self._mu[keep]  
-        self._S = self._S[np.ix_(keep, keep)]
-        self.fields = [self.fields[idx] for idx in keep]
+        keepIdx = self._asIndex(keep)
+        self._mu = self._mu[keepIdx]  
+        self._S = self._S[np.ix_(keepIdx, keepIdx)]
+        self.fields = [self.fields[idx] for idx in keepIdx]
         self._update()
     
     def _density (self, x):   
