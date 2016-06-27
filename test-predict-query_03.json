@@ -1,0 +1,10 @@
+{  "PREDICT": [ 
+      {"aggregation": "maximum", "randVar": "alcohol"}
+   ],
+   "FROM": "car_crashes",
+   "WHERE": [{
+      "randVar": "alcohol",
+      "operator": "EQUALS",
+      "value": 10
+   }]
+}
