@@ -1,11 +1,15 @@
 """
 @author: Philipp Lucas
 """
+
+import logging
 import string
 import random
 import seaborn.apionly as sns
 import models as gm
 from functools import reduce
+
+logger = logging.getLogger(__name__)
 
 class QuerySyntaxError(Exception):
     '''This error indicates that a PQL query was incomplete and hence could not be executed'''    
@@ -151,11 +155,12 @@ class ModelBase:
         return model
 
     def _id_generator(size=15, chars=string.ascii_letters + string.digits):
+        '''Returns a random string of letters and digits'''
         return ''.join(random.choice(chars) for _ in range(size))        
        
     def _add  (self, model, name):
         if name in self.models:
-            pass
+            logger.warn('Overwriting existing model in model base: ' + name)
         self.models[name] = model
         return model
     
@@ -166,16 +171,15 @@ class ModelBase:
         
     def _model (self, randVars, baseModel, name, filters=[]):
         # 1. copy model        
-        derivedModel = baseModel.copy()
-        derivedModel.name = name        
+        derivedModel = baseModel.copy(name = name)    
         # 2. apply filter, i.e. condition
         equalConditions =  filter( lambda cond: "operator" in cond and cond["operator"] == "EQUALS", filters)
         pairs = list( map( lambda cond : ( cond["randVar"], cond["value"] ), equalConditions ) )
-        derivedModel.condition(pairs)        
+        derivedModel.condition(pairs)
         # 3. remove unneeded random variables
         derivedModel.marginalize(keep = randVars)        
         # 4. store model in model base
-        return self._add(derivedModel, name)        
+        return self._add(derivedModel, name)
         
     def _predict (self, aggrRandVars, model, filters=[], groupBy=[]):
         '''runs a prediction query against the model and returns the result

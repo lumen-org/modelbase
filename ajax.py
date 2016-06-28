@@ -33,11 +33,11 @@ def service():
    else:
       # extract json formatted query
       query = request.get_json() 
-      logger.info('received query: ' + query)
+      logger.info('received query: ' + str(query))
       # process     
       status, result = mb.execute(query)
-      logger.info('status of query: ' + status)
-      logger.info('result of query: ' + result)      
+      logger.info('status of query: ' + str(status))
+      logger.info('result of query: ' + str(result))
       # return answer as a serialized json
       return json.dumps( {"status":status, "result": result} )
 
@@ -60,8 +60,8 @@ def sample_query():
 # the webclient
 @app.route('/client', methods=['GET'])
 def client():
-    return app.send_static_file('client.html')        
-        
+    return app.send_static_file('client.html')       
+    
 # example for dynamic routes
 @app.route('/user/<username>')
 def show_profile(username):
@@ -71,5 +71,5 @@ if __name__ == "__main__":
     import pdb
     from functools import reduce
     logger.setLevel(logging.INFO)
-    pdb.run('app.run()')
+    pdb.run('app.run()')    
     #app.run()

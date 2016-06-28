@@ -172,33 +172,67 @@ class MultiVariateGaussianModel (Model):
         self._detS = np.abs(np.linalg.det(self._S))
         self._SInv = self._S.I
         
+#    def conditionOld (self, pairs):
+#        '''conditions this model according to the list of 2-tuples (<name-of-random-variable>, <condition-value>)'''
+#        if len(pairs) == 0:
+#            return
+#        names, condValues = zip(*pairs)
+#        names, condValues = list(names), list(condValues)
+#        i = self._asIndex(names)
+#        j = invertedIdxList(i, self._n)        
+#        # store old sigma and mu
+#        S = self._S
+#        mu = self._mu                
+#        # update sigma and mu according to GM script
+#        self._S = UpperSchurCompl(S, i)        
+#        self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (condValues - mu[j])        
+#        self._update()
+        
     def condition (self, pairs):
-        '''conditions this model according to the list of 2-tuples (<name-of-random-variable>, <condition-value>)'''
-        if len(pairs) == 0:
-            return
-        i, xj = zip(*pairs)
-        i = list(i)
-        xj = list(xj)
-        i = self._asIndex(i)
-        j = invertedIdxList(i, self._n)        
+        '''conditions this model according to the list of 2-tuples (<name-of-random-variable>, <condition-value>).
+        
+        Note: This simply restricts the domains of the random variables. To remove the conditioned random variable you
+        need to call marginalize with the appropiate paramters'''   
+        
+        for pair in pairs:
+            idx = self._asIndex(pair[0])
+            self.fields[idx]["domain"] = pair[1]
+        
+        
+    def _conditionAndMarginalize (self, names):
+        '''conditions the random variables with name in names on their available domain and marginalizes them out'''
+        if len(names) == 0:
+            return        
+        i = self._asIndex(names)
+        j = invertedIdxList(i, self._n)  
+        condValues = [self.fields[idx]["domain"] for idx in i]
         # store old sigma and mu
         S = self._S
         mu = self._mu                
         # update sigma and mu according to GM script
         self._S = UpperSchurCompl(S, i)        
-        self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (xj - mu[j])        
-        self._update()
+        self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (condValues - mu[j])        
+        self._update()        
     
     def _marginalize (self, keep):        
         '''marginalizes all but the variables given by their name in keep out
         of this model.
         
-        Note for Future: Note that marginalization is done depending on the available domain of 
+        Note that marginalization is done depending on the domain of 
         a random variable. That is, if only a single value is left in the 
         domain it is conditioned on this value and marginalized out. Otherwise
-        it is marginalized out (assuming that the full domain is available)'''                 
-        #remove = invertedIdxList(keep)        
-        # just select the part of mu and sigma that remains
+        it is marginalized out (assuming that the full domain is available)'''
+        
+        # there is two types of random variable v that are removed: 
+        # (i) v's domain is a single value, i.e. they are 'conditioned out'
+        # (ii) v's domain is a range (continuous random variable) or a set (discrete random variable), i.e. they are 'normally' marginalized out
+        
+        # "is not tuple" means it must be a scalar value, hence a random variable to condition on for marginalizing it out
+        condNames = [randVar["name"] for idx, randVar in enumerate(self.fields) if (randVar["name"] not in keep) and (type(randVar["domain"]) is not tuple)]
+        self._conditionAndMarginalize(condNames)
+        
+        # marginalize all other not wanted random variables
+        # i.e.: just select the part of mu and sigma that remains
         keepIdx = self._asIndex(keep)
         self._mu = self._mu[keepIdx]  
         self._S = self._S[np.ix_(keepIdx, keepIdx)]
@@ -215,8 +249,8 @@ class MultiVariateGaussianModel (Model):
     def _sample  (self):
         return self._S * np.matrix(np.random.randn(self._n)).T + self._mu
         
-    def copy (self):
-        mycopy = MultiVariateGaussianModel(name = self.name, data = self.data)
+    def copy (self, name = None):        
+        mycopy = MultiVariateGaussianModel(name = (self.name if name is None else name), data = self.data)
         mycopy._mu = self._mu
         mycopy._S = self._S
         mycopy._update()
