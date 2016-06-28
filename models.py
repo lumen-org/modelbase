@@ -98,10 +98,16 @@ class Model:
             if field['name'] in names:
                 indices.append(idx)        
         return  indices[0] if noArrayFlag else indices
+        
+    def _isRandomVariableName (self, names):
+        if type(names) is not list:
+            names = [names]
+        return all(map(lambda name: any(map(lambda field: field["name"] == name, self.fields)), names))
        
     def __init__ (self, name, dataframe):
         self.name = name
         self.data = dataframe
+        # TODO: I really need an alternative, fast and clean way of accessing fields by their names...
         self.fields = Model._getHeader(self.data)
         #self.fields.__str__ = lambda f: 
         self._aggrMethods = None
@@ -109,11 +115,16 @@ class Model:
     def fit (self):
         raise NotImplementedError()        
             
-    def marginalize (self, keep = [], remove = []):
-        if keep:
+    def marginalize (self, keep = None, remove = None):
+        if keep is not None:
+            if not self._isRandomVariableName(keep):
+                raise ValueError()
             self._marginalize(keep)
-        else:
-            raise NotImplementedError()    
+        elif remove is not None:
+            if not self._isRandomVariableName(remove):
+                raise ValueError()
+            keep = list( set( map(lambda f: f["name"], self.fields)) - set(remove) )   
+            self._marginalize(keep)        
     
     def _marginalize (self, keep):
         raise NotImplementedError()

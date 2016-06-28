@@ -12,8 +12,7 @@ from functools import reduce
 logger = logging.getLogger(__name__)
 
 class QuerySyntaxError(Exception):
-    '''This error indicates that a PQL query was incomplete and hence could not be executed'''    
-    meaning = 'This error indicates that a PQL query was incomplete and hence could not be executed'
+    meaning = '''This error indicates that a PQL query was incomplete and hence could not be executed'''
     
     def __init__(self, message="", value=None):
         self.value = value
@@ -23,8 +22,8 @@ class QuerySyntaxError(Exception):
         return repr(self.value)
         
 
-class QueryValueError(Exception):
-    meaning = 'This error indicates that a PQL query contains a value that is semantically invalid, such as referring to a model that does not exist.'
+class QueryValueError(Exception):    
+    meaning = '''This error indicates that a PQL query contains a value that is semantically invalid, such as referring to a model that does not exist.'''
 
     def __init__(self, message="", value=None):
         self.value = value
@@ -38,17 +37,39 @@ ReturnCode = {
     "FAIL": "fail"
 }
 
+def _loadIrisModel ():
+    '''loads the iris data set and returns a MultiVariateGaussianModel of it'''    
+    # load data set as pandas DataFrame
+    data = sns.load_dataset('iris')
+    # train model on continuous part of the data
+    model = gm.MultiVariateGaussianModel('iris', data.iloc[:, 0:-1])
+    model.fit()        
+    return model
+    
+def _loadCarCrashModel ():     
+    '''loads the car crash data set and returns a MultiVariateGaussianModel of it'''
+    data = sns.load_dataset('car_crashes')
+    model = gm.MultiVariateGaussianModel('car_crashes', data.iloc[:, 0:-1])
+    model.fit()
+    return model
+
+def _id_generator(size=15, chars=string.ascii_letters + string.digits):
+    '''Returns a random string of letters and digits'''
+    return ''.join(random.choice(chars) for _ in range(size))    
+
+
 class ModelBase:
-    '''a ModelBase is the analogon of a DataBase(-Management System) but for models: it holds models and allows queries against them
-       all input and output is provided as JSON like objects, or simple strings / number if applicable
+    '''a ModelBase is the analogon of a DataBase(-Management System) but for models: it holds models and allows queries against them.
+       
+       All input and output is provided as JSON like objects, or simple strings / number if applicable.
     '''
     def __init__ (self, name):
         # load some default models
         # more data sets here: https://github.com/mwaskom/seaborn-data
         self.name = name        
-        self.models = {}
-        self.models['iris'] =  ModelBase._loadIrisModel()
-        self.models['car_crashes'] = ModelBase._loadCarCrashModel()
+        self.models = {} # models is a dictionary, using the name of a model as its k
+        self.models['iris'] =  _loadIrisModel()
+        self.models['car_crashes'] = _loadCarCrashModel()
         
     def __repr__ (self):
         return " -- Model Base > " + self.name+ " < -- \n" + \
@@ -90,16 +111,7 @@ class ModelBase:
         if 'PREDICT' not in query:
             raise QuerySyntaxError("'PREDICT'-statement missing")
         # return in one list                    
-        return query['PREDICT'] 
-        # return as splitted lists. Problem: order is lost...
-#        randVar = []
-#        aggrRandVar = []        
-#        for e in query['PREDICT']:
-#            if 'aggregation' in e:
-#                aggrRandVar.append(e)
-#            else:
-#                randVar.append(e)        
-#        return (randVar, aggrRandVar)        
+        return query['PREDICT']        
         
     def _extractAs (self, query):        
         if 'AS' not in query:
@@ -138,25 +150,7 @@ class ModelBase:
             
         elif 'SHOW' in query:
             header = self._show( query = query, show = self._extractShow(query))
-            return ReturnCode["SUCCESS"], header
-            
-    def _loadIrisModel ():
-        # load data set as pandas DataFrame
-        data = sns.load_dataset('iris')
-        # train model on continuous part of the data
-        model = gm.MultiVariateGaussianModel('iris', data.iloc[:, 0:-1])
-        model.fit()        
-        return model
-        
-    def _loadCarCrashModel ():        
-        data = sns.load_dataset('car_crashes')
-        model = gm.MultiVariateGaussianModel('car_crashes', data.iloc[:, 0:-1])
-        model.fit()
-        return model
-
-    def _id_generator(size=15, chars=string.ascii_letters + string.digits):
-        '''Returns a random string of letters and digits'''
-        return ''.join(random.choice(chars) for _ in range(size))        
+            return ReturnCode["SUCCESS"], header            
        
     def _add  (self, model, name):
         if name in self.models:
@@ -194,7 +188,7 @@ class ModelBase:
             raise NotImplementedError()        
         aggrRandVar = aggrRandVars[0]
         # 1. derive required submodel
-        predictionModel = self._model(randVars = [aggrRandVar["randVar"]], baseModel = model, name = ModelBase._id_generator(), filters = filters)
+        predictionModel = self._model(randVars = [aggrRandVar["randVar"]], baseModel = model, name = _id_generator(), filters = filters)
         # 2. query it
         result = predictionModel.aggregate(aggrRandVar["aggregation"])
         # 3. convert to python scalar
