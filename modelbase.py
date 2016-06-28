@@ -66,7 +66,7 @@ class ModelBase:
         if 'SHOW' not in query:
             raise QuerySyntaxError("'SHOW'-statement missing")
         what = query['SHOW']
-        if what not in ["HEADER"]:
+        if what not in ["HEADER", "MODELS"]:
             raise QueryValueError("Invalid value of SHOW-statement: " + what)
         return what
         
@@ -133,7 +133,7 @@ class ModelBase:
             return ReturnCode["SUCCESS"], None
             
         elif 'SHOW' in query:
-            header = self._show( model = self._extractFrom(query), what = self._extractShow(query))
+            header = self._show( query = query, show = self._extractShow(query))
             return ReturnCode["SUCCESS"], header
             
     def _loadIrisModel ():
@@ -167,19 +167,19 @@ class ModelBase:
     def _model (self, randVars, baseModel, name, filters=[]):
         # 1. copy model        
         derivedModel = baseModel.copy()
-        
+        derivedModel.name = name        
         # 2. apply filter, i.e. condition
         equalConditions =  filter( lambda cond: "operator" in cond and cond["operator"] == "EQUALS", filters)
         pairs = list( map( lambda cond : ( cond["randVar"], cond["value"] ), equalConditions ) )
-        derivedModel.condition(pairs)
-        
+        derivedModel.condition(pairs)        
         # 3. remove unneeded random variables
         derivedModel.marginalize(keep = randVars)        
         # 4. store model in model base
         return self._add(derivedModel, name)        
         
     def _predict (self, aggrRandVars, model, filters=[], groupBy=[]):
-        '''runs the prediction  query against the model and returns the results
+        '''runs a prediction query against the model and returns the result
+        
         NOTE: SO FAR ONLY A VERY LIMITED VERSION IS IMPLEMENTED: only a single aggrRandVar and no groupBys are allowed'''
         if groupBy:
             raise NotImplementedError()
@@ -196,9 +196,12 @@ class ModelBase:
         # 3. convert to python scalar
         return result.item(0,0)
         
-    def _show (self, what, model):
-        if what == "HEADER": 
+    def _show (self, query, show):
+        if show == "HEADER": 
+            model = self._extractFrom(query)
             return model.fields
+        elif show == "MODELS":
+            return list(map(lambda m: m.name, self.models.values()))
         
 if __name__ == '__main__':
     import numpy as np

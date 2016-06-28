@@ -33,12 +33,11 @@ def service():
    else:
       # extract json formatted query
       query = request.get_json() 
-      logger.info(query)
-      # validate query
-      # ...      
+      logger.info('received query: ' + query)
       # process     
       status, result = mb.execute(query)
-      logger.info(result)      
+      logger.info('status of query: ' + status)
+      logger.info('result of query: ' + result)      
       # return answer as a serialized json
       return json.dumps( {"status":status, "result": result} )
 

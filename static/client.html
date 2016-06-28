@@ -69,8 +69,20 @@ The answer is:
     // load a json query. When loaded send the query
     d3.json(queryUrl).post( onQueryFetched )
     
-    var submitButton = d3.select("#submitButton")
     var queryInputField = d3.select("#jsonQueryInput")
+    queryInputField.on("keydown", function () {
+      let ev = d3.event
+      let id = ev.keyIdentifier
+      let code = ev.keyCode
+      if (id === "Enter" && (ev.shiftKey || ev.ctrlKey)) {
+        let json = JSON.parse( queryInputField[0][0].value )
+        console.log(json)
+        executeQuery(json)
+      }      
+    })
+
+    var submitButton = d3.select("#submitButton")
+    
     var queryOutputField = d3.select("#queryResult")    
     submitButton.on("click", function () {      
       try{
