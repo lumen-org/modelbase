@@ -47,7 +47,6 @@ def UpperSchurCompl (M, idx):
     # derive index lists
     i = idx
     j = invertedIdxList(i, M.shape[0])
-
     # that's the definition of the upper Schur complement
     return M[ix_(i,i)] - M[ix_(i,j)] * M[ix_(j,j)].I * M[ix_(j,i)]        
 
@@ -56,8 +55,8 @@ def UpperSchurCompl (M, idx):
 class Field(dict):    
     '''a random variable of a probability model
        name ... name of the field, i.e a string descriptor
-       domain ... range of possible values, either a list (dtype == 'categorial') or a numerical range as a tuple (min, max)
-       dtype ... data type: either 'float' or 'categorical'
+       domain ... range of possible values, either a list (dtype == 'string') or a numerical range as a tuple (min, max) (dtype == 'numerical')
+       dtype ... data type: either 'numerical' or 'string'
     '''
     def __init__ (self, name=None, domain=None, dtype=None, base=None):        
         # just a fancy way of providing a clean interface to actually nothing more than a python dict
@@ -66,7 +65,7 @@ class Field(dict):
         elif base is not None:
             raise NotImplementedError()
         else:
-            raise ValueError()
+            raise ValueError("invalid argument values")
     
     def __str__ (self):
         return self['name'] + "(" + self['dtype'] + ")" 
@@ -80,7 +79,7 @@ class Model:
         fields = []
         for column in df:
             ''' todo: this only works for continuous data '''
-            field = Field( name = column, domain = (df[column].min(), df[column].max()), dtype = 'continuous' )
+            field = Field( name = column, domain = (df[column].min(), df[column].max()), dtype = 'numerical' )
             fields.append(field)
         return fields
 
@@ -100,6 +99,7 @@ class Model:
         return  indices[0] if noArrayFlag else indices
         
     def _isRandomVariableName (self, names):
+        '''Returns true iff the name or names of variables given are names of random variables of this model'''
         if type(names) is not list:
             names = [names]
         return all(map(lambda name: any(map(lambda field: field["name"] == name, self.fields)), names))
@@ -113,40 +113,62 @@ class Model:
         self._aggrMethods = None
             
     def fit (self):
-        raise NotImplementedError()        
+        raise NotImplementedError("This method must be overwritten by your subclass of Model")
             
     def marginalize (self, keep = None, remove = None):
+        '''Marginalizes random variables out of the model. Either specify which random variables to keep
+        or specify which to remove. 
+        
+        Note that marginalization is depending on the domain of a random 
+        variable. That is: if nothing but a single value is left in the 
+        domain it is conditioned on this value (and marginalized out). 
+        Otherwise it is 'normally' marginalized out (assuming that the full 
+        domain is available)'''        
         if keep is not None:
             if not self._isRandomVariableName(keep):
-                raise ValueError()
+                raise ValueError("invalid random variable names")
             self._marginalize(keep)
         elif remove is not None:
             if not self._isRandomVariableName(remove):
-                raise ValueError()
+                raise ValueError("invalid random variable names")
             keep = list( set( map(lambda f: f["name"], self.fields)) - set(remove) )   
             self._marginalize(keep)        
     
     def _marginalize (self, keep):
-        raise NotImplementedError()
+        raise NotImplementedError("This method must be overwritten by your subclass of Model")
     
     def condition (self, pairs):
-        raise NotImplementedError()
+        '''conditions this model according to the list of 2-tuples (<name-of-random-variable>, <condition-value>).
+        
+        Note: This simply restricts the domains of the random variables. To remove the conditioned random variable you
+        need to call marginalize with the appropiate paramters'''
+        for (name, value) in pairs:            
+            if not self._isRandomVariableName(name):
+                raise ValueError("")
+            randVar = self.fields[self._asIndex(name)]
+            if ((randVar["dtype"] == "string" and value not in randVar["domain"]) or 
+                (randVar["dtype"] == "numerical" and (value < randVar["domain"][0] or value > randVar["domain"][1]))):
+                raise ValueError("value to condition on not in the domain of random variable " + name)
+        self._condition(pairs)
+    
+    def _condition (self, keep):
+        raise NotImplementedError("This method must be overwritten by your subclass of Model")
     
     def aggregate (self, method):
         if (method in self._aggrMethods):
             return self._aggrMethods[method]()
         else:
-            raise NotImplementedError()
+            raise NotImplementedError("Your Model does not provide the requested aggregation '" + method + "'")
             
     def sample (self, n=1):
         '''returns n many samples drawn from the model'''
         return [self._sample() for i in range(n)]
 
     def _sample(self):
-        raise NotImplementedError()
+        raise NotImplementedError("This method must be overwritten by your subclass of Model")
     
     def copy(self):
-        raise NotImplementedError()
+        raise NotImplementedError("This method must be overwritten by your subclass of Model")
 
 ### ACTUAL MODEL IMPLEMENTATIONS ###
 
@@ -182,29 +204,9 @@ class MultiVariateGaussianModel (Model):
         self._n = self._mu.shape[0]        
         self._detS = np.abs(np.linalg.det(self._S))
         self._SInv = self._S.I
+
         
-#    def conditionOld (self, pairs):
-#        '''conditions this model according to the list of 2-tuples (<name-of-random-variable>, <condition-value>)'''
-#        if len(pairs) == 0:
-#            return
-#        names, condValues = zip(*pairs)
-#        names, condValues = list(names), list(condValues)
-#        i = self._asIndex(names)
-#        j = invertedIdxList(i, self._n)        
-#        # store old sigma and mu
-#        S = self._S
-#        mu = self._mu                
-#        # update sigma and mu according to GM script
-#        self._S = UpperSchurCompl(S, i)        
-#        self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (condValues - mu[j])        
-#        self._update()
-        
-    def condition (self, pairs):
-        '''conditions this model according to the list of 2-tuples (<name-of-random-variable>, <condition-value>).
-        
-        Note: This simply restricts the domains of the random variables. To remove the conditioned random variable you
-        need to call marginalize with the appropiate paramters'''   
-        
+    def _condition (self, pairs):
         for pair in pairs:
             idx = self._asIndex(pair[0])
             self.fields[idx]["domain"] = pair[1]
@@ -225,15 +227,7 @@ class MultiVariateGaussianModel (Model):
         self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (condValues - mu[j])        
         self._update()        
     
-    def _marginalize (self, keep):        
-        '''marginalizes all but the variables given by their name in keep out
-        of this model.
-        
-        Note that marginalization is done depending on the domain of 
-        a random variable. That is, if only a single value is left in the 
-        domain it is conditioned on this value and marginalized out. Otherwise
-        it is marginalized out (assuming that the full domain is available)'''
-        
+    def _marginalize (self, keep):                
         # there is two types of random variable v that are removed: 
         # (i) v's domain is a single value, i.e. they are 'conditioned out'
         # (ii) v's domain is a range (continuous random variable) or a set (discrete random variable), i.e. they are 'normally' marginalized out
