@@ -1,7 +1,9 @@
 from flask import Flask, request
+from flask_cors import CORS, cross_origin
 import logging
 import json
 import modelbase as mb
+
 
 logger = logging.getLogger(__name__)
 app = Flask(__name__, static_url_path='/static/')
@@ -25,6 +27,7 @@ def playground():
       
 # webservice interface to the model base
 @app.route('/webservice', methods=['GET', 'POST'])
+@cross_origin()
 def service():
    # return usage information
    if request.method == 'GET':
