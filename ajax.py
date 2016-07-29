@@ -1,13 +1,22 @@
+"""
+@author: Philipp Lucas
+
+Provides a webservice to query graphical models at the route '/webservice'. 
+Run this script to start the server locally!
+"""
+
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
 import logging
 import json
-import modelbase as mb
-
+import modelbase as mbase
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
+
 app = Flask(__name__, static_url_path='/static/')
-mb = mb.ModelBase("Philipps ModelBase")
+mb = mbase.ModelBase("Philipps ModelBase")
 
 # the (static) start page
 @app.route('/')
@@ -27,20 +36,20 @@ def playground():
       
 # webservice interface to the model base
 @app.route('/webservice', methods=['GET', 'POST'])
-@cross_origin()
+@cross_origin() # allows cross origin requests
 def service():
    # return usage information
    if request.method == 'GET':
-      return "send a POST request to this url containing your model query and you will get your answer back :-)"
+      return "send a POST request to this url containing your model query and you will get your answer :-)"
    # handle model request
    else:
       # extract json formatted query
       query = request.get_json() 
-      logger.info('received query: ' + str(query))
+      logger.warning('received query: ' + str(query))
       # process     
       status, result = mb.execute(query)
-      logger.info('status of query: ' + str(status))
-      logger.info('result of query: ' + str(result))
+      logger.warning('status of query: ' + str(status))
+      logger.warning('result of query: ' + str(result))
       # return answer as a serialized json
       return json.dumps( {"status":status, "result": result} )
 
@@ -71,8 +80,7 @@ def show_profile(username):
    return 'User %s' % username  
 
 if __name__ == "__main__":
-    import pdb
-    from functools import reduce
-    logger.setLevel(logging.INFO)
-    pdb.run('app.run()')    
-    #app.run()
+    from functools import reduce    
+    import pdb    
+    pdb.run('app.run()')
+    #app.run()    

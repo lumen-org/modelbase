@@ -59,12 +59,12 @@ def _id_generator(size=15, chars=string.ascii_letters + string.digits):
 
 
 class ModelBase:
-    '''a ModelBase is the analogon of a DataBase(-Management System) but for models: it holds models and allows queries against them.
+    '''A ModelBase is the analogon of a DataBase(-Management System) but for models: it holds models and allows queries against them.
        
-       All input and output is provided as JSON like objects, or simple strings / number if applicable.
+       All input and output is provided as JSON like objects, or simple strings / numbers if applicable.
     '''
     def __init__ (self, name):
-        # load some default models
+        '''loads some default models into the ModelBase'''
         # more data sets here: https://github.com/mwaskom/seaborn-data
         self.name = name        
         self.models = {} # models is a dictionary, using the name of a model as its k
@@ -104,8 +104,11 @@ class ModelBase:
             
     def _extractModel (self, query):
         if 'MODEL' not in query:
-            raise QuerySyntaxError("'MODEL'-statement missing")
-        return list( map( lambda v: v['randVar'], query['MODEL'] ) )
+            raise QuerySyntaxError("'MODEL'-statement missing")            
+        if query['MODEL'] == '*':
+            return list( map( lambda field: field["name"], self.models[query['FROM']].fields ) )
+        else:            
+            return list( map( lambda v: v['randVar'], query['MODEL'] ) )
         
     def _extractPredict (self, query): 
         if 'PREDICT' not in query:
@@ -127,10 +130,13 @@ class ModelBase:
             return query['WHERE']
     
     def execute (self, query):
-        '''executes the given query and returns a status code and the result (or None)'''
+        '''executes the given query and returns a status code and the result (or None)
+        
+        query must be a word of the PQL language.'''
+        
+        # basic syntax and semantics checking of the given query is done in the _extract* methods
         # what's the command?
-        if 'MODEL' in query:
-            # do basic syntax and semantics checking of the given query
+        if 'MODEL' in query:            
             self._model( randVars = self._extractModel(query),
                         baseModel = self._extractFrom(query),
                         name = self._extractAs(query), 
@@ -164,8 +170,8 @@ class ModelBase:
         return model
         
     def _model (self, randVars, baseModel, name, filters=[]):
-        # 1. copy model        
-        derivedModel = baseModel.copy(name = name)    
+        # 1. copy model (if necessary)
+        derivedModel = baseModel if baseModel.name == name else baseModel.copy(name = name)
         # 2. apply filter, i.e. condition
         equalConditions =  filter( lambda cond: "operator" in cond and cond["operator"] == "EQUALS", filters)
         pairs = list( map( lambda cond : ( cond["randVar"], cond["value"] ), equalConditions ) )

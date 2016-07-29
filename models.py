@@ -9,6 +9,9 @@ from sklearn import mixture
 
 # probably remove this import later. Just for convenience to have default data for models available
 import seaborn.apionly as sns
+
+import logging 
+logger = logging.getLogger(__name__)
    
 ''' 
  ## how to get from data to model ##
@@ -123,10 +126,13 @@ class Model:
         variable. That is: if nothing but a single value is left in the 
         domain it is conditioned on this value (and marginalized out). 
         Otherwise it is 'normally' marginalized out (assuming that the full 
-        domain is available)'''        
+        domain is available)'''
+        
+        logger.debug('marginalizing: keep = ' + str(keep) + ', remove = ' + str(remove) )
+        
         if keep is not None:
             if not self._isRandomVariableName(keep):
-                raise ValueError("invalid random variable names")
+                raise ValueError("invalid random variable names: " + str(keep))
             self._marginalize(keep)
         elif remove is not None:
             if not self._isRandomVariableName(remove):
@@ -145,10 +151,10 @@ class Model:
         for (name, value) in pairs:            
             if not self._isRandomVariableName(name):
                 raise ValueError("")
-            randVar = self.fields[self._asIndex(name)]
+            randVar = self.fields[self._asIndex(name)]           
             if ((randVar["dtype"] == "string" and value not in randVar["domain"]) or 
-                (randVar["dtype"] == "numerical" and (value < randVar["domain"][0] or value > randVar["domain"][1]))):
-                raise ValueError("value to condition on not in the domain of random variable " + name)
+                (randVar["dtype"] == "numerical" and (value + 0.0001 < randVar["domain"][0] or value - 0.0001 > randVar["domain"][1]))):
+                raise ValueError("value to condition on is not in the domain of random variable " + name)
         self._condition(pairs)
     
     def _condition (self, keep):
@@ -201,17 +207,19 @@ class MultiVariateGaussianModel (Model):
         
     def _update (self):
         '''updates dependent parameters / precalculated values of the model'''
-        self._n = self._mu.shape[0]        
-        self._detS = np.abs(np.linalg.det(self._S))
-        self._SInv = self._S.I
-
-        
+        self._n = self._mu.shape[0]
+        if self._n == 0:
+            self._detS = None
+            self._SInv = None
+        else:
+            self._detS = np.abs(np.linalg.det(self._S))
+            self._SInv = self._S.I
+       
     def _condition (self, pairs):
         for pair in pairs:
             idx = self._asIndex(pair[0])
             self.fields[idx]["domain"] = pair[1]
-        
-        
+                
     def _conditionAndMarginalize (self, names):
         '''conditions the random variables with name in names on their available domain and marginalizes them out'''
         if len(names) == 0:
