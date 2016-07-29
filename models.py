@@ -3,6 +3,7 @@ Created on Mon Jun 13 13:43:29 2016
 
 @author: Philipp Lucas
 """
+import copy as cp
 import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
 from sklearn import mixture
@@ -12,6 +13,7 @@ import seaborn.apionly as sns
 
 import logging 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
    
 ''' 
  ## how to get from data to model ##
@@ -73,7 +75,7 @@ class Field(dict):
     def __str__ (self):
         return self['name'] + "(" + self['dtype'] + ")" 
        
-        
+#TODO: I really need an alternative, fast and clean way of accessing fields by their names...        
 class Model:
     '''an abstract base model that provides an interface to derive submodels from it or query density and other aggregations of it'''
     
@@ -109,13 +111,14 @@ class Model:
        
     def __init__ (self, name, dataframe):
         self.name = name
-        self.data = dataframe
-        # TODO: I really need an alternative, fast and clean way of accessing fields by their names...
-        self.fields = Model._getHeader(self.data)
-        #self.fields.__str__ = lambda f: 
+        self.data = dataframe                
         self._aggrMethods = None
             
     def fit (self):
+        self.fields = Model._getHeader(self.data)
+        self._fit()
+        
+    def _fit (self):
         raise NotImplementedError("This method must be overwritten by your subclass of Model")
             
     def marginalize (self, keep = None, remove = None):
@@ -190,7 +193,7 @@ class MultiVariateGaussianModel (Model):
             'average': self._maximum
         }
     
-    def fit (self):
+    def _fit (self):
         model = mixture.GMM(n_components=1, covariance_type='full')
         model.fit(self.data)
         self._model = model        
@@ -232,7 +235,8 @@ class MultiVariateGaussianModel (Model):
         mu = self._mu                
         # update sigma and mu according to GM script
         self._S = UpperSchurCompl(S, i)        
-        self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (condValues - mu[j])        
+        self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (condValues - mu[j])   
+        self.fields = [self.fields[idx] for idx in j]
         self._update()        
     
     def _marginalize (self, keep):                
@@ -264,6 +268,7 @@ class MultiVariateGaussianModel (Model):
         
     def copy (self, name = None):        
         mycopy = MultiVariateGaussianModel(name = (self.name if name is None else name), data = self.data)
+        mycopy.fields = cp.deepcopy(self.fields)
         mycopy._mu = self._mu
         mycopy._S = self._S
         mycopy._update()

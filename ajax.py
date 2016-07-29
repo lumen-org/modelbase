@@ -10,13 +10,15 @@ from flask_cors import CORS, cross_origin
 import logging
 import json
 import modelbase as mbase
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(logging.StreamHandler())
+import traceback
 
 app = Flask(__name__, static_url_path='/static/')
 mb = mbase.ModelBase("Philipps ModelBase")
+logging.basicConfig(
+    level = logging.WARNING,
+    format = '%(asctime)s %(levelname)s %(filename)s %(message)s')
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # the (static) start page
 @app.route('/')
@@ -43,15 +45,21 @@ def service():
       return "send a POST request to this url containing your model query and you will get your answer :-)"
    # handle model request
    else:
-      # extract json formatted query
-      query = request.get_json() 
-      logger.warning('received query: ' + str(query))
-      # process     
-      status, result = mb.execute(query)
-      logger.warning('status of query: ' + str(status))
-      logger.warning('result of query: ' + str(result))
-      # return answer as a serialized json
-      return json.dumps( {"status":status, "result": result} )
+      try:
+          # extract json formatted query
+          query = request.get_json() 
+          logger.info('received query:' + str(query))
+          # process           
+          status, result = mb.execute(query)
+          logger.info('status of query:' + str(status))
+          logger.info('result of query:' + str(result))
+          # return answer as a serialized json
+          return json.dumps( {"status":status, "result": result} )
+      except Exception as inst:
+          msg = "failed to execute query: " + str(inst)
+          logger.error(msg)
+          logger.error(traceback.format_exc())
+          return json.dumps( {"status":"error", "result": msg} )
 
 # webservice interface that returns a valid sample query 
 @app.route('/sample_query', methods=['GET', 'POST'])
@@ -82,5 +90,5 @@ def show_profile(username):
 if __name__ == "__main__":
     from functools import reduce    
     import pdb    
-    pdb.run('app.run()')
-    #app.run()    
+    #pdb.run('app.run()')
+    app.run()    

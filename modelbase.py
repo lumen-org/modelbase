@@ -10,6 +10,7 @@ import models as gm
 from functools import reduce
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class QuerySyntaxError(Exception):
     meaning = '''This error indicates that a PQL query was incomplete and hence could not be executed'''
@@ -203,6 +204,12 @@ class ModelBase:
     def _show (self, query, show):
         if show == "HEADER": 
             model = self._extractFrom(query)
+
+            logger.debug("n = " + str(model._n))
+            logger.debug("S = \n" + str(model._S))
+            logger.debug("mu = \n" + str(model._mu))
+            logger.debug("fields = \n" + str(model.fields))           
+            
             return model.fields
         elif show == "MODELS":
             return list(map(lambda m: m.name, self.models.values()))
