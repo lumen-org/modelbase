@@ -1,8 +1,15 @@
 """
 @author: Philipp Lucas
 
-Provides a webservice to query graphical models at the route '/webservice'. 
+This module provides a webinterface to graphical models my means of various routes, as follows.
 Run this script to start the server locally!
+
+  * '/': the index page
+  * '/webservice': a user can send PQL queries in a POST-request to this route
+  * '/webqueryclient': provides a simple website to sent PQL queries to the model base
+
+There is other routes available: 
+  * '/playground': just for debugging / testing / playground purposes
 """
 
 from flask import Flask, request
@@ -14,6 +21,8 @@ import traceback
 
 app = Flask(__name__, static_url_path='/static/')
 mb = mbase.ModelBase("Philipps ModelBase")
+
+# setup root logger and local logger
 logging.basicConfig(
     level = logging.WARNING,
     format = '%(asctime)s %(levelname)s %(filename)s %(message)s')
@@ -25,16 +34,6 @@ logger.setLevel(logging.DEBUG)
 def index():
    return app.send_static_file('index.html')
 
-# a "playground" webservice interface
-@app.route('/playground', methods=['GET', 'POST'])
-def playground():
-   # return usage information
-   if request.method == 'GET':
-      return "this is just for playing around and testing how HTTP POST is working..."
-   # handle model request
-   else:      
-      result = '{"age":[0,5,2,3,2,561,0], "income":[1,2,3,4,5,6,7]}'
-      return result
       
 # webservice interface to the model base
 @app.route('/webservice', methods=['GET', 'POST'])
@@ -53,13 +52,18 @@ def service():
           status, result = mb.execute(query)
           logger.info('status of query:' + str(status))
           logger.info('result of query:' + str(result))
-          # return answer as a serialized json
+          # return answer as serialized json
           return json.dumps( {"status":status, "result": result} )
       except Exception as inst:
           msg = "failed to execute query: " + str(inst)
           logger.error(msg)
           logger.error(traceback.format_exc())
           return json.dumps( {"status":"error", "result": msg} )
+
+# the webclient
+@app.route('/webquery', methods=['GET'])
+def webquery():
+    return app.send_static_file('webqueryclient.html')
 
 # webservice interface that returns a valid sample query 
 @app.route('/sample_query', methods=['GET', 'POST'])
@@ -76,19 +80,20 @@ def sample_query():
         query = json.load( open(filePath) )
         # serialize to string and return
         return json.dumps(query)
-
-# the webclient
-@app.route('/client', methods=['GET'])
-def client():
-    return app.send_static_file('client.html')       
     
-# example for dynamic routes
-@app.route('/user/<username>')
-def show_profile(username):
-   return 'User %s' % username  
+# a "playground" webservice interface
+@app.route('/playground', methods=['GET', 'POST'])
+def playground():
+   # return usage information
+   if request.method == 'GET':
+      return "this is just for playing around and testing how HTTP POST is working..."
+   # handle model request
+   else:      
+      result = '{"age":[0,5,2,3,2,561,0], "income":[1,2,3,4,5,6,7]}'
+      return result
 
+# trigger to start the web server if this script is run 
 if __name__ == "__main__":
-    from functools import reduce    
     import pdb    
-    #pdb.run('app.run()')
-    app.run()    
+    pdb.run('app.run()')
+    #app.run()    

@@ -1,22 +1,32 @@
 """
-Created on Mon Jun 13 13:43:29 2016
-
 @author: Philipp Lucas
+
+This module defines:
+
+   * *var* Model: an abstract base class for models.
+   * *var* Field: a class that represent random variables in a model.
+   
+It also defines models that implement that base model:
+   
+   * *var* MultiVariateGaussianModel
 """
 import copy as cp
 import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
 from sklearn import mixture
-
-# probably remove this import later. Just for convenience to have default data for models available
-import seaborn.apionly as sns
-
 import logging 
+import seaborn.apionly as sns # probably remove this import later. Just for convenience to have default data for models available
+
+# setup logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-   
-''' 
- ## how to get from data to model ##
+  
+''' Development Notes (Philipp)
+
+## TODO
+  * I really need an alternative, fast and clean way of accessing fields by their names...        
+
+## how to get from data to model ##
    
 1. provide some data file
 2. open that data file
@@ -63,45 +73,39 @@ class Field(dict):
        domain ... range of possible values, either a list (dtype == 'string') or a numerical range as a tuple (min, max) (dtype == 'numerical')
        dtype ... data type: either 'numerical' or 'string'
     '''
-    def __init__ (self, name=None, domain=None, dtype=None, base=None):        
+    def __init__ (self, name=None, domain=None, dtype=None):        
         # just a fancy way of providing a clean interface to actually nothing more than a python dict
-        if name is not None and domain is not None:
+        if (name is not None) and (domain is not None):
             super().__init__(name=name, domain=domain, dtype=dtype)
-        elif base is not None:
-            raise NotImplementedError()
         else:
             raise ValueError("invalid argument values")
     
     def __str__ (self):
         return self['name'] + "(" + self['dtype'] + ")" 
        
-#TODO: I really need an alternative, fast and clean way of accessing fields by their names...        
 class Model:
     '''an abstract base model that provides an interface to derive submodels from it or query density and other aggregations of it'''
     
     def _getHeader (df):
-        ''' derive fields from a given pandas dataframe'''
+        ''' derive fields from a given pandas dataframe. 
+            
+            TODO: at the moment this only works for continuous data '''
         fields = []
         for column in df:
-            ''' todo: this only works for continuous data '''
-            field = Field( name = column, domain = (df[column].min(), df[column].max()), dtype = 'numerical' )
+            field = Field(name = column, domain = (df[column].min(), df[column].max()), dtype = 'numerical' )
             fields.append(field)
         return fields
 
     def _asIndex (self, names):
-        '''given a list of names of random variables, returns the indexes of these in the .field attribute of the model'''
-        #return sorted( map( lambda name: self.fields))        
-        #return sorted( map( lambda i: self.fields[i], names ) )
-        #return [ for name in names if self.fields.index()]        
-        noArrayFlag = False        
-        if type(names) is not list:
+        '''given a list of names of random variables, returns the indexes of these in the .field attribute of the model'''        
+        notArrayFlag = type(names) is not list
+        if notArrayFlag:
             names = [names]
-            noArrayFlag = True            
         indices = []
         for idx, field in enumerate(self.fields):
             if field['name'] in names:
                 indices.append(idx)        
-        return  indices[0] if noArrayFlag else indices
+        return  indices[0] if notArrayFlag else indices
         
     def _isRandomVariableName (self, names):
         '''Returns true iff the name or names of variables given are names of random variables of this model'''
@@ -115,11 +119,12 @@ class Model:
         self._aggrMethods = None
             
     def fit (self):
+        '''fits the model to the dataframe assigned to this model in at construction time'''
         self.fields = Model._getHeader(self.data)
         self._fit()
         
     def _fit (self):
-        raise NotImplementedError("This method must be overwritten by your subclass of Model")
+        raise NotImplementedError()
             
     def marginalize (self, keep = None, remove = None):
         '''Marginalizes random variables out of the model. Either specify which random variables to keep
@@ -144,7 +149,7 @@ class Model:
             self._marginalize(keep)        
     
     def _marginalize (self, keep):
-        raise NotImplementedError("This method must be overwritten by your subclass of Model")
+        raise NotImplementedError()
     
     def condition (self, pairs):
         '''conditions this model according to the list of 2-tuples (<name-of-random-variable>, <condition-value>).
@@ -161,9 +166,10 @@ class Model:
         self._condition(pairs)
     
     def _condition (self, keep):
-        raise NotImplementedError("This method must be overwritten by your subclass of Model")
+        raise NotImplementedError()
     
     def aggregate (self, method):
+        '''aggregates this model using the given method'''
         if (method in self._aggrMethods):
             return self._aggrMethods[method]()
         else:
@@ -174,10 +180,10 @@ class Model:
         return [self._sample() for i in range(n)]
 
     def _sample(self):
-        raise NotImplementedError("This method must be overwritten by your subclass of Model")
+        raise NotImplementedError()
     
     def copy(self):
-        raise NotImplementedError("This method must be overwritten by your subclass of Model")
+        raise NotImplementedError()
 
 ### ACTUAL MODEL IMPLEMENTATIONS ###
 
@@ -207,7 +213,7 @@ class MultiVariateGaussianModel (Model):
                 "random variables: " + str( [str(field) for field in self.fields] ))
 #                "mu:\n" + str(self._mu) + "\n" + \
 #               "sigma:\n" + str(self._S) + "\n")
-        
+
     def _update (self):
         '''updates dependent parameters / precalculated values of the model'''
         self._n = self._mu.shape[0]

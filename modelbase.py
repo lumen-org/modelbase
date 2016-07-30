@@ -1,13 +1,15 @@
 """
 @author: Philipp Lucas
+
+The modelbase module primarly provides the ModelBase class.
 """
 
 import logging
 import string
 import random
-import seaborn.apionly as sns
 import models as gm
 from functools import reduce
+import seaborn.apionly as sns
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -54,21 +56,30 @@ def _loadCarCrashModel ():
     model.fit()
     return model
 
-def _id_generator(size=15, chars=string.ascii_letters + string.digits):
-    '''Returns a random string of letters and digits'''
-    return ''.join(random.choice(chars) for _ in range(size))    
-
+def _id_generator(size=15, chars=string.ascii_letters + string.digits, prefix='__'):
+    '''Returns a prefixed, random string of letters and digits '''
+    return prefix + ''.join(random.choice(chars) for _ in range(size))    
 
 class ModelBase:
-    '''A ModelBase is the analogon of a DataBase(-Management System) but for models: it holds models and allows queries against them.
+    '''A ModelBase is the analogon of a DataBase(-Management System) for models: it holds models and allows PQL queries against them.
+    
+       A Modelbase provides only one 'public' method:
+         * *var* ModelBase.execute: It executes a given PQL query. All input
+         and output is provided as JSON objects, or simple strings / numbers 
+         if applicable.
        
-       All input and output is provided as JSON like objects, or simple strings / numbers if applicable.
+       Furthermore it provides to 'public' attributes: 
+       
+         * *var* ModelBase.name: the id/name of this modelbase, and
+         * *var* ModelBase.models: a dictionary of all models in the modelbase. 
+         Each model must have a unique string as its name, and this name is used
+         as a key in the dictionary.
     '''
     def __init__ (self, name):
-        '''loads some default models into the ModelBase'''
+        '''creats a new instance and loads some default models '''
         # more data sets here: https://github.com/mwaskom/seaborn-data
         self.name = name        
-        self.models = {} # models is a dictionary, using the name of a model as its k
+        self.models = {} # models is a dictionary, using the name of a model as its key
         self.models['iris'] =  _loadIrisModel()
         self.models['car_crashes'] = _loadCarCrashModel()
         
@@ -76,8 +87,8 @@ class ModelBase:
         return " -- Model Base > " + self.name+ " < -- \n" + \
             "contains " + str(len(self.models)) + " models, as follows:\n\n" + \
             reduce(lambda p, m: p + str(m) + "\n\n", self.models.values(), "")
-        #return str(self.models)       
 
+###   _extract* functions are helpers to extract a certain part of a PQL query and do some basic syntax and semantic checks
     def _extractFrom (self, query):
         '''returns the model that the value of the "FROM"-statement of query refers to and checks basic syntax and semantics'''
         if 'FROM' not in query:
@@ -131,12 +142,11 @@ class ModelBase:
             return query['WHERE']
     
     def execute (self, query):
-        '''executes the given query and returns a status code and the result (or None)
+        '''executes the given PQL query and returns a status code and the result (or None)
         
-        query must be a word of the PQL language.'''
+        *var* query must be a word of the PQL language.'''
         
         # basic syntax and semantics checking of the given query is done in the _extract* methods
-        # what's the command?
         if 'MODEL' in query:            
             self._model( randVars = self._extractModel(query),
                         baseModel = self._extractFrom(query),
@@ -160,17 +170,24 @@ class ModelBase:
             return ReturnCode["SUCCESS"], header            
        
     def _add  (self, model, name):
+        ''' adds a model to the model base'''
         if name in self.models:
             logger.warn('Overwriting existing model in model base: ' + name)
         self.models[name] = model
         return model
     
     def _drop (self, name):
-        model = self.models[name]
-        del self.models[name]
-        return model
+        ''' drops a model from the model base and returns the dropped model.
+            Returns None if there is no model with name *var* name. '''
+        if name in self.models:
+            model = self.models[name]
+            del self.models[name]
+            return model
+        else:
+            return None
         
     def _model (self, randVars, baseModel, name, filters=[]):
+        ''' runs a 'model' query against the model base and returns its result'''
         # 1. copy model (if necessary)
         derivedModel = baseModel if baseModel.name == name else baseModel.copy(name = name)
         # 2. apply filter, i.e. condition
@@ -183,9 +200,9 @@ class ModelBase:
         return self._add(derivedModel, name)
         
     def _predict (self, aggrRandVars, model, filters=[], groupBy=[]):
-        '''runs a prediction query against the model and returns the result
+        '''runs a prediction query against the model base and returns its result
         
-        NOTE: SO FAR ONLY A VERY LIMITED VERSION IS IMPLEMENTED: only a single aggrRandVar and no groupBys are allowed'''
+        NOTE/TODO: SO FAR ONLY A VERY LIMITED VERSION IS IMPLEMENTED: only a single aggrRandVar and no groupBys are allowed'''
         if groupBy:
             raise NotImplementedError()
             # make sure to implement non-aggregated randVars in the PREDICT-clause when implemening groupBy
@@ -202,14 +219,13 @@ class ModelBase:
         return result.item(0,0)
         
     def _show (self, query, show):
+        '''runs a 'SHOW'-query against the model base and returns its results'''
         if show == "HEADER": 
             model = self._extractFrom(query)
-
-            logger.debug("n = " + str(model._n))
-            logger.debug("S = \n" + str(model._S))
-            logger.debug("mu = \n" + str(model._mu))
-            logger.debug("fields = \n" + str(model.fields))           
-            
+#            logger.debug("n = " + str(model._n))
+#            logger.debug("S = \n" + str(model._S))
+#            logger.debug("mu = \n" + str(model._mu))
+#            logger.debug("fields = \n" + str(model.fields))
             return model.fields
         elif show == "MODELS":
             return list(map(lambda m: m.name, self.models.values()))
