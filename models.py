@@ -97,15 +97,29 @@ class Model:
         return fields
 
     def _asIndex (self, names):
-        '''given a list of names of random variables, returns the indexes of these in the .field attribute of the model'''        
-        notArrayFlag = type(names) is not list
-        if notArrayFlag:
-            names = [names]
-        indices = []
-        for idx, field in enumerate(self.fields):
-            if field['name'] in names:
-                indices.append(idx)        
-        return  indices[0] if notArrayFlag else indices
+        '''given a single name or a list of names of random variables, returns the indexes of these in the .field attribute of the model'''                
+        if type(names) is not list:
+            return self._name2idx[names]
+        else:
+            return [self._name2idx[name] for name in names]
+            
+    def _byNames (self, names):
+        '''given a list of names of random variables, returns the corresponding fields of this model'''        
+        if type(names) is not list:
+            return self.fields[self._name2idx[names]]
+        else:
+            return [self.fields[self._name2idx[name]] for name in names]
+            
+#    def _asIndex (self, names):
+#        '''given a list of names of random variables, returns the indexes of these in the .field attribute of the model'''        
+#        notArrayFlag = type(names) is not list
+#        if notArrayFlag:
+#            names = [names]
+#        indices = []
+#        for idx, field in enumerate(self.fields):
+#            if field['name'] in names:
+#                indices.append(idx)        
+#        return  indices[0] if notArrayFlag else indices
         
     def _isRandomVariableName (self, names):
         '''Returns true iff the name or names of variables given are names of random variables of this model'''
@@ -117,10 +131,11 @@ class Model:
         self.name = name
         self.data = dataframe                
         self._aggrMethods = None
+        self.field = []        
             
     def fit (self):
         '''fits the model to the dataframe assigned to this model in at construction time'''
-        self.fields = Model._getHeader(self.data)
+        self.fields = Model._getHeader(self.data)        
         self._fit()
         
     def _fit (self):
@@ -184,6 +199,10 @@ class Model:
     
     def copy(self):
         raise NotImplementedError()
+        
+    def _update(self):
+        '''updates the name2idx dictionary based on the fields in .fields'''        
+        self._name2idx = dict.fromkeys( range(len(self.fields)), [f['name'] for f in self.fields])
 
 ### ACTUAL MODEL IMPLEMENTATIONS ###
 
@@ -205,7 +224,7 @@ class MultiVariateGaussianModel (Model):
         self._model = model        
         self._mu = matrix(model.means_).T
         self._S = matrix(model.covars_)
-        self._update()
+        self.update()
         
     def __str__ (self):
         return( "Multivariate Gaussian Model '" + self.name + "':\n" + \
@@ -214,7 +233,7 @@ class MultiVariateGaussianModel (Model):
 #                "mu:\n" + str(self._mu) + "\n" + \
 #               "sigma:\n" + str(self._S) + "\n")
 
-    def _update (self):
+    def update (self):
         '''updates dependent parameters / precalculated values of the model'''
         self._n = self._mu.shape[0]
         if self._n == 0:
@@ -223,6 +242,7 @@ class MultiVariateGaussianModel (Model):
         else:
             self._detS = np.abs(np.linalg.det(self._S))
             self._SInv = self._S.I
+        self._update()
        
     def _condition (self, pairs):
         for pair in pairs:
@@ -243,7 +263,7 @@ class MultiVariateGaussianModel (Model):
         self._S = UpperSchurCompl(S, i)        
         self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (condValues - mu[j])   
         self.fields = [self.fields[idx] for idx in j]
-        self._update()        
+        self.update()        
     
     def _marginalize (self, keep):                
         # there is two types of random variable v that are removed: 
@@ -260,7 +280,7 @@ class MultiVariateGaussianModel (Model):
         self._mu = self._mu[keepIdx]  
         self._S = self._S[np.ix_(keepIdx, keepIdx)]
         self.fields = [self.fields[idx] for idx in keepIdx]
-        self._update()
+        self.update()
     
     def _density (self, x):   
         xmu = x - self._mu

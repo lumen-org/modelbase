@@ -186,10 +186,16 @@ class ModelBase:
         else:
             return None
         
-    def _model (self, randVars, baseModel, name, filters=[]):
-        ''' runs a 'model' query against the model base and returns its result'''
-        # 1. copy model (if necessary)
-        derivedModel = baseModel if baseModel.name == name else baseModel.copy(name = name)
+    def _model (self, randVars, baseModel, name, filters=[], persistent = True):
+        ''' runs a 'model' query against the model base and returns the resulting model.
+        
+        The persistent flag controls whether or not the model will actually cause
+        any modification or addition to the model base, i.e. if persistent is
+        set to false, the requested model will still be generated and returned,
+        but not added to the model base itself.'''
+        overwrite = baseModel.name == name 
+        # 1. copy model (if necessary)        
+        derivedModel = baseModel if (persistent and overwrite) else baseModel.copy(name = name)
         # 2. apply filter, i.e. condition
         equalConditions =  filter( lambda cond: "operator" in cond and cond["operator"] == "EQUALS", filters)
         pairs = list( map( lambda cond : ( cond["randVar"], cond["value"] ), equalConditions ) )
@@ -197,7 +203,7 @@ class ModelBase:
         # 3. remove unneeded random variables
         derivedModel.marginalize(keep = randVars)        
         # 4. store model in model base
-        return self._add(derivedModel, name)
+        return derivedModel if not persistent else self._add(derivedModel, name)
         
     def _predict (self, aggrRandVars, model, filters=[], groupBy=[]):
         '''runs a prediction query against the model base and returns its result
@@ -212,7 +218,7 @@ class ModelBase:
             raise NotImplementedError()        
         aggrRandVar = aggrRandVars[0]
         # 1. derive required submodel
-        predictionModel = self._model(randVars = [aggrRandVar["randVar"]], baseModel = model, name = _id_generator(), filters = filters)
+        predictionModel = self._model(randVars = [aggrRandVar["randVar"]], baseModel = model, name = _id_generator(), filters = filters, persistent = False)
         # 2. query it
         result = predictionModel.aggregate(aggrRandVar["aggregation"])
         # 3. convert to python scalar
