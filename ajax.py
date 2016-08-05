@@ -62,11 +62,13 @@ def service():
 
 # the webclient
 @app.route('/webquery', methods=['GET'])
+@cross_origin() # allows cross origin requests
 def webquery():
     return app.send_static_file('webqueryclient.html')
 
 # webservice interface that returns a valid sample query 
 @app.route('/sample_query', methods=['GET', 'POST'])
+@cross_origin() # allows cross origin requests
 def sample_query():
     if request.method == 'GET':
         return "send a POST request to this url to get a valid query that you can use at the '/webservice' interface"
@@ -95,5 +97,5 @@ def playground():
 # trigger to start the web server if this script is run 
 if __name__ == "__main__":
     import pdb    
-    #pdb.run('app.run()')
-    app.run()    
+    pdb.run('app.run()')
+    #app.run()    

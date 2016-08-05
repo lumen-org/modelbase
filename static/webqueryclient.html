@@ -1,48 +1,29 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/html">
+<!--<html xmlns="http://www.w3.org/1999/html">-->
+
 <head lang="en">
     <meta charset="UTF-8">
-    <title>Project Template</title>    
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
-
-    <script>
-    "use strict";   
-    var queryUrl="http://127.0.0.1:5000/sample_query"
-    var modelbaseUrl="http://127.0.0.1:5000/webservice"    
-
-    function onError(error, msg) {
-        console.error("ERROR " + msg + " : " + error)
-    }
-
-    function onSuccess(data, msg) {
-        console.log("SUCCESS " + msg + " : " + data)
-    }
-    
-    function executeQuery(json) {
-     d3.json(modelbaseUrl)
-            .header("Content-Type", "application/json")
-            .post(JSON.stringify(json), onQueryExecuted)
-    }
-
-    function onQueryFetched (error, json) {
-        if (error) onError(error, "onQueryFetched")
-        onSuccess(JSON.stringify(json), "onQueryFetched")
-        executeQuery(json)
-    }
-
-    function onQueryExecuted (error, json) {
-        if (error) onError(error, "onQueryExecuted")
-        var resultStr = JSON.stringify(json, null, 2)
-        onSuccess(resultStr, "onQueryExecuted")
-        queryOutputField[0][0].value = resultStr
-    }
-    </script>
+    <title>Simple Web Client to Access the Model Base</title>    
+<!--    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>  -->
+	<script src="jquery.js"></script>
+    <script src="d3.js"></script> 
 </head>
 
 <body>
+Select from a template and/or edit it below:
 
-Put your query here:
+<br>
+<button id="showModelsButton">List all Models</button>
+<button id="showHeaderButton">Describe a Model</button>
+<button id="cloneButton">Clone a Model</button>
+</br>
+<br>
+<button id="conditionButton">Condition a Random Variable</button>
+<button id="marginalizeButton">Marginalize a Random Variable</button>
+<button id="predictButton">Make an aggregated prediction</button>
+</br>
+
 <br>
 <textarea id="jsonQueryInput" rows="25" cols="80">
 {  "MODEL": [
@@ -58,46 +39,17 @@ Put your query here:
 }
 </textarea>
 <br>
+
 <button id="submitButton">Submit</button>
+
 <br>
 The answer is:
 <br>
+
 <textarea id="queryResult" rows="25" cols="80"> </textarea>
 
+<script src="queryTemplates.js"></script> 
 
-<script>
-    // load a json query. When loaded send the query
-    d3.json(queryUrl).post( onQueryFetched )
-    
-    var queryInputField = d3.select("#jsonQueryInput")
-    queryInputField.on("keydown", function () {
-      let ev = d3.event
-      let id = ev.keyIdentifier
-      let code = ev.keyCode
-      if (id === "Enter" && (ev.shiftKey || ev.ctrlKey)) {
-        let json = JSON.parse( queryInputField[0][0].value )
-        console.log(json)
-        executeQuery(json)
-      }      
-    })
 
-    var submitButton = d3.select("#submitButton")
-    
-    var queryOutputField = d3.select("#queryResult")    
-    submitButton.on("click", function () {      
-      try{
-        let json = JSON.parse( queryInputField[0][0].value )
-        console.log(json)
-        executeQuery(json)
-      }
-      catch (e) {
-        if (e.name === 'SyntaxError') 
-          queryOutputField[0][0].value = "invalid query"
-        else 
-          throw(e)
-      }
-      console.log("submitted query from textarea")
-    })
-</script>
 </body>
 </html>

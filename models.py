@@ -17,20 +17,22 @@ from sklearn import mixture
 import logging 
 import seaborn.apionly as sns # probably remove this import later. Just for convenience to have default data for models available
 
+# for fuzzy comparision. 
+# TODO: make it nicer?
+eps = 0.000001
+
 # setup logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
   
 ''' Development Notes (Philipp)
 
-## TODO
-  * I really need an alternative, fast and clean way of accessing fields by their names...        
-
 ## how to get from data to model ##
    
 1. provide some data file
 2. open that data file
 3. read that file into a tabular structure and guess its header, i.e. its columns and its data types
+    * pandas dataframes can aparently guess headers/data types 
 4. use it to train a model
 5. return the model
 
@@ -68,7 +70,8 @@ def UpperSchurCompl (M, idx):
 ### GENERIC / ABSTRACT MODELS and other base classes ###
       
 class Field(dict):    
-    '''a random variable of a probability model
+    '''a random variable of a probability model.
+    
        name ... name of the field, i.e a string descriptor
        domain ... range of possible values, either a list (dtype == 'string') or a numerical range as a tuple (min, max) (dtype == 'numerical')
        dtype ... data type: either 'numerical' or 'string'
@@ -103,28 +106,19 @@ class Model:
         else:
             return [self._name2idx[name] for name in names]
             
-    def _byNames (self, names):
+    def _byName (self, names):
         '''given a list of names of random variables, returns the corresponding fields of this model'''        
         if type(names) is not list:
             return self.fields[self._name2idx[names]]
         else:
             return [self.fields[self._name2idx[name]] for name in names]
-            
-#    def _asIndex (self, names):
-#        '''given a list of names of random variables, returns the indexes of these in the .field attribute of the model'''        
-#        notArrayFlag = type(names) is not list
-#        if notArrayFlag:
-#            names = [names]
-#        indices = []
-#        for idx, field in enumerate(self.fields):
-#            if field['name'] in names:
-#                indices.append(idx)        
-#        return  indices[0] if notArrayFlag else indices
-        
+                    
     def _isRandomVariableName (self, names):
         '''Returns true iff the name or names of variables given are names of random variables of this model'''
         if type(names) is not list:
             names = [names]
+#        return all(map(lambda name: name in self._name2idx, names))
+        
         return all(map(lambda name: any(map(lambda field: field["name"] == name, self.fields)), names))
        
     def __init__ (self, name, dataframe):
@@ -160,24 +154,27 @@ class Model:
         elif remove is not None:
             if not self._isRandomVariableName(remove):
                 raise ValueError("invalid random variable names")
-            keep = list( set( map(lambda f: f["name"], self.fields)) - set(remove) )   
+# CHANGED            #keep = list( set( map(lambda f: f["name"], self.fields)) - set(remove) )
+            keep = set( map(lambda f: f["name"], self.fields)) - set(remove)
             self._marginalize(keep)        
     
     def _marginalize (self, keep):
         raise NotImplementedError()
     
     def condition (self, pairs):
-        '''conditions this model according to the list of 2-tuples (<name-of-random-variable>, <condition-value>).
+        '''conditions this model according to the list of 2-tuples 
+        (<name-of-random-variable>, <condition-value>).
         
-        Note: This simply restricts the domains of the random variables. To remove the conditioned random variable you
+        Note: This simply restricts the domains of the random variables. To 
+        remove the conditioned random variable you
         need to call marginalize with the appropiate paramters'''
         for (name, value) in pairs:            
             if not self._isRandomVariableName(name):
                 raise ValueError("")
-            randVar = self.fields[self._asIndex(name)]           
+            randVar = self._byName(name)
             if ((randVar["dtype"] == "string" and value not in randVar["domain"]) or 
-                (randVar["dtype"] == "numerical" and (value + 0.0001 < randVar["domain"][0] or value - 0.0001 > randVar["domain"][1]))):
-                raise ValueError("value to condition on is not in the domain of random variable " + name)
+                (randVar["dtype"] == "numerical" and (value + eps < randVar["domain"][0] or value - eps > randVar["domain"][1]))):
+                raise ValueError("the value to condition on is not in the domain of random variable " + name)
         self._condition(pairs)
     
     def _condition (self, keep):
@@ -202,7 +199,7 @@ class Model:
         
     def _update(self):
         '''updates the name2idx dictionary based on the fields in .fields'''        
-        self._name2idx = dict.fromkeys( range(len(self.fields)), [f['name'] for f in self.fields])
+        self._name2idx = dict(zip([f['name'] for f in self.fields], range(len(self.fields))))
 
 ### ACTUAL MODEL IMPLEMENTATIONS ###
 
@@ -246,8 +243,7 @@ class MultiVariateGaussianModel (Model):
        
     def _condition (self, pairs):
         for pair in pairs:
-            idx = self._asIndex(pair[0])
-            self.fields[idx]["domain"] = pair[1]
+            self._byName(pair[0])["domain"] = pair[1]
                 
     def _conditionAndMarginalize (self, names):
         '''conditions the random variables with name in names on their available domain and marginalizes them out'''
@@ -297,5 +293,5 @@ class MultiVariateGaussianModel (Model):
         mycopy.fields = cp.deepcopy(self.fields)
         mycopy._mu = self._mu
         mycopy._S = self._S
-        mycopy._update()
+        mycopy.update()
         return mycopy

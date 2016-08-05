@@ -2,14 +2,27 @@
 @author: Philipp Lucas
 
 The modelbase module primarly provides the ModelBase class.
+
+Idiomatically the model base does the following:
+  
+  # recieve a query
+  # parse the query
+  # execute the query
+      # 
+
 """
 
 import logging
 import string
 import random
-import models as gm
+import pandas as pd
+
 from functools import reduce
 import seaborn.apionly as sns
+
+import models as gm
+# cross join for pandas data frams
+from crossjoin import crossjoin
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -207,20 +220,55 @@ class ModelBase:
         
     def _predict (self, aggrRandVars, model, filters=[], groupBy=[]):
         '''runs a prediction query against the model base and returns its result
+        by means of a data frame.
+
+        Fhe data frame contains exactly those columns/random variables which
+        are specified in the aggrRandVars parameter. Its order is preserved.
         
-        NOTE/TODO: SO FAR ONLY A VERY LIMITED VERSION IS IMPLEMENTED: only a single aggrRandVar and no groupBys are allowed'''
+        NOTE/TODO: SO FAR ONLY A VERY LIMITED VERSION IS IMPLEMENTED: 
+        only a single aggrRandVar and no groupBys are allowed
+        '''
+        
+        # get list of RVs to group by
+        
+        """
+
+        def crossJoin (dataframe, randVar):
+            # extract split fct
+            split = randVar
+            series = split(randVar)            
+            #todo: filter on series            
+            # do cross join
+            return crossjoin(dataframe, series)
+                             
+        # iteratively build input table           
+        groupFrame = reduce(crossJoin, groupBy, pd.DataFrame())
+        
+        #2. setup input tuple, i.e. calculate the cross product of all dim.splitToValues()
+        # pair-wise joins of dimension domains, i.e. create all combinations of dimension domain values
+        '''let inputTable = dimensions.reduce(
+        function (table, dim) {
+            return _join(table, [dim.splitToValues()]);
+            }, []);'''        
+        """
+        
         if groupBy:
             raise NotImplementedError()
-            # make sure to implement non-aggregated randVars in the PREDICT-clause when implemening groupBy
+            # TODO make sure to implement non-aggregated randVars in the 
+            # PREDICT-clause when implemening groupBy
+        
         # assume: there should be aggregations attached to the randVars
         # assume: only 1 randVar, 
         if len(aggrRandVars) > 1:
             raise NotImplementedError()        
         aggrRandVar = aggrRandVars[0]
+        
         # 1. derive required submodel
         predictionModel = self._model(randVars = [aggrRandVar["randVar"]], baseModel = model, name = _id_generator(), filters = filters, persistent = False)
+
         # 2. query it
         result = predictionModel.aggregate(aggrRandVar["aggregation"])
+
         # 3. convert to python scalar
         return result.item(0,0)
         
