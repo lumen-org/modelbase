@@ -38,7 +38,7 @@
 		},
 		"predict":  
 		{	"PREDICT": [
-				{"randVar": "speeding"},
+				{"randVar": "speeding", "split": "equidist"},
 				{"randVar": "alcohol", "aggregation": "average"}
 			],
 			"FROM": "car_crashes_cp",
@@ -112,5 +112,4 @@
         else 
           throw(e)
       }
-      console.log("submitted query from textarea")
     })

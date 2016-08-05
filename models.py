@@ -25,7 +25,7 @@ eps = 0.000001
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
   
-''' Development Notes (Philipp)
+""" Development Notes (Philipp)
 
 ## how to get from data to model ##
    
@@ -51,16 +51,16 @@ https://github.com/rasbt/pattern_classification/blob/master/resources/python_dat
     
 ### other    
 Somehow, I get the feeling I'm using numpy not correctly. it's too complicated to always have to write matrix() explicitely 
-'''
+"""
 
 ### UTILITY FUNCTIONS ###
 
 def invertedIdxList (idx, len) :
-    '''utility function that returns an inverted index list, e.g. given [0,1,4] and len=6 it returns [2,3,5].'''
+    """utility function that returns an inverted index list, e.g. given [0,1,4] and len=6 it returns [2,3,5]."""
     return list( set(range(0, len)) - set(idx) )   
     
 def UpperSchurCompl (M, idx):
-    '''Returns the upper Schur complement of matrix M with the 'upper block' indexed by i'''
+    """Returns the upper Schur complement of matrix M with the 'upper block' indexed by i"""
     # derive index lists
     i = idx
     j = invertedIdxList(i, M.shape[0])
@@ -70,12 +70,12 @@ def UpperSchurCompl (M, idx):
 ### GENERIC / ABSTRACT MODELS and other base classes ###
       
 class Field(dict):    
-    '''a random variable of a probability model.
+    """a random variable of a probability model.
     
        name ... name of the field, i.e a string descriptor
        domain ... range of possible values, either a list (dtype == 'string') or a numerical range as a tuple (min, max) (dtype == 'numerical')
        dtype ... data type: either 'numerical' or 'string'
-    '''
+    """
     def __init__ (self, name=None, domain=None, dtype=None):        
         # just a fancy way of providing a clean interface to actually nothing more than a python dict
         if (name is not None) and (domain is not None):
@@ -87,12 +87,12 @@ class Field(dict):
         return self['name'] + "(" + self['dtype'] + ")" 
        
 class Model:
-    '''an abstract base model that provides an interface to derive submodels from it or query density and other aggregations of it'''
+    """an abstract base model that provides an interface to derive submodels from it or query density and other aggregations of it"""
     
     def _getHeader (df):
-        ''' derive fields from a given pandas dataframe. 
+        """ derive fields from a given pandas dataframe. 
             
-            TODO: at the moment this only works for continuous data '''
+            TODO: at the moment this only works for continuous data """
         fields = []
         for column in df:
             field = Field(name = column, domain = (df[column].min(), df[column].max()), dtype = 'numerical' )
@@ -100,21 +100,21 @@ class Model:
         return fields
 
     def _asIndex (self, names):
-        '''given a single name or a list of names of random variables, returns the indexes of these in the .field attribute of the model'''                
+        """given a single name or a list of names of random variables, returns the indexes of these in the .field attribute of the model"""                
         if type(names) is not list:
             return self._name2idx[names]
         else:
             return [self._name2idx[name] for name in names]
             
     def _byName (self, names):
-        '''given a list of names of random variables, returns the corresponding fields of this model'''        
+        """given a list of names of random variables, returns the corresponding fields of this model"""        
         if type(names) is not list:
             return self.fields[self._name2idx[names]]
         else:
             return [self.fields[self._name2idx[name]] for name in names]
                     
     def _isRandomVariableName (self, names):
-        '''Returns true iff the name or names of variables given are names of random variables of this model'''
+        """Returns true iff the name or names of variables given are names of random variables of this model"""
         if type(names) is not list:
             names = [names]
 #        return all(map(lambda name: name in self._name2idx, names))
@@ -128,7 +128,7 @@ class Model:
         self.field = []        
             
     def fit (self):
-        '''fits the model to the dataframe assigned to this model in at construction time'''
+        """fits the model to the dataframe assigned to this model in at construction time"""
         self.fields = Model._getHeader(self.data)        
         self._fit()
         
@@ -136,14 +136,14 @@ class Model:
         raise NotImplementedError()
             
     def marginalize (self, keep = None, remove = None):
-        '''Marginalizes random variables out of the model. Either specify which random variables to keep
+        """Marginalizes random variables out of the model. Either specify which random variables to keep
         or specify which to remove. 
         
         Note that marginalization is depending on the domain of a random 
         variable. That is: if nothing but a single value is left in the 
         domain it is conditioned on this value (and marginalized out). 
         Otherwise it is 'normally' marginalized out (assuming that the full 
-        domain is available)'''
+        domain is available)"""
         
         logger.debug('marginalizing: keep = ' + str(keep) + ', remove = ' + str(remove) )
         
@@ -162,12 +162,12 @@ class Model:
         raise NotImplementedError()
     
     def condition (self, pairs):
-        '''conditions this model according to the list of 2-tuples 
+        """conditions this model according to the list of 2-tuples 
         (<name-of-random-variable>, <condition-value>).
         
         Note: This simply restricts the domains of the random variables. To 
         remove the conditioned random variable you
-        need to call marginalize with the appropiate paramters'''
+        need to call marginalize with the appropiate paramters"""
         for (name, value) in pairs:            
             if not self._isRandomVariableName(name):
                 raise ValueError("")
@@ -181,14 +181,14 @@ class Model:
         raise NotImplementedError()
     
     def aggregate (self, method):
-        '''aggregates this model using the given method'''
+        """aggregates this model using the given method"""
         if (method in self._aggrMethods):
             return self._aggrMethods[method]()
         else:
             raise NotImplementedError("Your Model does not provide the requested aggregation '" + method + "'")
             
     def sample (self, n=1):
-        '''returns n many samples drawn from the model'''
+        """returns n many samples drawn from the model"""
         return [self._sample() for i in range(n)]
 
     def _sample(self):
@@ -198,13 +198,13 @@ class Model:
         raise NotImplementedError()
         
     def _update(self):
-        '''updates the name2idx dictionary based on the fields in .fields'''        
+        """updates the name2idx dictionary based on the fields in .fields"""        
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(len(self.fields))))
 
 ### ACTUAL MODEL IMPLEMENTATIONS ###
 
 class MultiVariateGaussianModel (Model):
-    '''a multivariate gaussian model and methods to derive submodels from it or query density and other aggregations of it'''
+    """a multivariate gaussian model and methods to derive submodels from it or query density and other aggregations of it"""
     def __init__ (self, name = "iris", data = sns.load_dataset('iris').iloc[:, 0:4]):
         # make sure these are matrix types (numpy.matrix)
         super().__init__(name, data)              
@@ -231,7 +231,7 @@ class MultiVariateGaussianModel (Model):
 #               "sigma:\n" + str(self._S) + "\n")
 
     def update (self):
-        '''updates dependent parameters / precalculated values of the model'''
+        """updates dependent parameters / precalculated values of the model"""
         self._n = self._mu.shape[0]
         if self._n == 0:
             self._detS = None
@@ -246,7 +246,7 @@ class MultiVariateGaussianModel (Model):
             self._byName(pair[0])["domain"] = pair[1]
                 
     def _conditionAndMarginalize (self, names):
-        '''conditions the random variables with name in names on their available domain and marginalizes them out'''
+        """conditions the random variables with name in names on their available domain and marginalizes them out"""
         if len(names) == 0:
             return        
         i = self._asIndex(names)
