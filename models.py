@@ -130,7 +130,8 @@ class Model:
     def fit (self):
         """fits the model to the dataframe assigned to this model in at construction time"""
         self.fields = Model._getHeader(self.data)        
-        self._fit()
+        self._fit()        
+        return self
         
     def _fit (self):
         raise NotImplementedError()
@@ -158,6 +159,7 @@ class Model:
 # CHANGED            #keep = list( set( map(lambda f: f["name"], self.fields)) - set(remove) )
             keep = set( map(lambda f: f["name"], self.fields)) - set(remove)
             self._marginalize(keep)        
+        return self
     
     def _marginalize (self, keep):
         raise NotImplementedError()
@@ -177,6 +179,7 @@ class Model:
                 (randVar["dtype"] == "numerical" and (value + eps < randVar["domain"][0] or value - eps > randVar["domain"][1]))):
                 raise ValueError("the value to condition on is not in the domain of random variable " + name)
         self._condition(pairs)
+        return self
     
     def _condition (self, keep):
         raise NotImplementedError()
@@ -187,6 +190,19 @@ class Model:
             return self._aggrMethods[method]()
         else:
             raise NotImplementedError("Your Model does not provide the requested aggregation '" + method + "'")
+
+    #def aggregateOnCondition (self, aggregations, conditions):
+        """Calcuates the given aggregation of this model for each given condition.
+        
+        Args:
+            aggregation: A string that identifies the aggregation to use.
+            conditions: A DataFrame that contains the conditions to use. The
+                columns labels refer to the random variable to condition.
+                
+        Returns: 
+            A DataFrame that holds the result of the aggregations for each of
+            the conditions.
+        """
             
     def sample (self, n=1):
         """returns n many samples drawn from the model"""
@@ -201,6 +217,11 @@ class Model:
     def _update(self):
         """updates the name2idx dictionary based on the fields in .fields"""        
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(len(self.fields))))
+        
+# TODO: implement the following two high-level functions. They should better 
+#   part of the model, and not the model base. Move functionality to the core.
+#    def predict(self, predict, group_by, condition): pass
+#    def model(self, keep, remove, condition): pass
 
 ### ACTUAL MODEL IMPLEMENTATIONS ###
 
@@ -260,7 +281,7 @@ class MultiVariateGaussianModel (Model):
         self._S = UpperSchurCompl(S, i)
         self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (condValues - mu[j])
         self.fields = [self.fields[idx] for idx in i]
-        self.update()        # should that be in?
+        self.update()
     
     def _marginalize (self, keep):                
         # there is two types of random variable v that are removed: 
@@ -280,6 +301,7 @@ class MultiVariateGaussianModel (Model):
         self.update()
     
     def _density (self, x):   
+        """Returns the density of the model at point x."""
         xmu = x - self._mu
         return (2*pi)**(-self._n/2) * (self._detS**-.5) * exp( -.5 * xmu.T * self._SInv * xmu )
         

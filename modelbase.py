@@ -319,13 +319,13 @@ class ModelBase:
         # derive the list of dimensions to split by
         split_names = list(map(lambda f: f['randVar'], group_by))
         # derive the list of aggregations and dimensions to include in result table        
-        aggr, aggr_names, dim_names, predict_names = [], [], [], []
+        aggrs, aggr_names, dim_names, predict_names = [], [], [], []
         for f in predict:
             name = f['randVar']
             predict_names.append(name)
             if 'aggregation' in f:
                 aggr_names.append(name)
-                aggr.append(f)
+                aggrs.append(f)
             else:
                 dim_names.append(name)        
         # from that derive the set of (names of) random variables that are to be kept for the base model
@@ -338,9 +338,9 @@ class ModelBase:
                             persistent = True) #TODO: REMOVE THAT LATER!
         
         # (2) derive a sub-model for each requested aggregation
-        # i.e. remove all random variables of other measures which are not also a used as a dimension
+        # i.e. remove all random variables of other measures which are not also a used for splitting
         # or equivalently: keep all random variables of dimensions, plus the once for the current aggregation
-        dim_names_unique = set(dim_names)
+        dim_names_unique = set(split_names) # WHICH ARE NOT ALSO USED AS A DIMENSION
         i = 0
         def derive_aggregation_model (aggr_name):
             nonlocal i
@@ -352,6 +352,9 @@ class ModelBase:
             return model
         # TODO: use a different naming scheme later, e.g.: name = _id_generator(),                
         aggr_models = list(map(derive_aggregation_model, aggr_names))
+
+        # TODO: derive model for density
+        # TODO: is density really just another aggregation?        
         
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
@@ -372,19 +375,39 @@ class ModelBase:
             }, []);'''
                             
         # (4) query models and fill result data frme
-        # now question is:
-####        # * how to efficiently query the model? 
-####        # * how can I vectorize it?
-        # just start simple: don't do it vectorized! provide a vectorized
-        # interface, but default to scalar implementation if the vectorized one
-        # isn't implemented for a model
-                
+        """ question is: how to efficiently query the model? how can I vectorize it?
+            I believe that depends on the query. A typical query is consists of
+            dimensions for splits and then aggregations and densities. 
+            For the case of aggregations a new conditioned model has to be 
+            calculated for every split. I don't see how to vectorize / speed
+            this up easily.
+            For densities it might be very well possible, as the split are
+            now simply input to some density function.
+        """
+                            
+        # just start simple: don't do it vectorized! 
+        # TODO: it might actually be faster to first condition the model on the
+        # dimensions (values) and then derive the measure models... 
+        result_frame = []# pd.DataFrame()        
+        for idx, aggr in enumerate(aggrs):
+            aggr_results = []
+            aggr_model = aggr_models[idx]
+            aggregation = aggr["aggregation"]
+            name = aggr["randVar"]
+            for row in input_frame.iterrows():
+                # derive model for these specific conditions...
+                pairs = zip(split_names, row[1])
+                mymodel = aggr_model.copy().condition(pairs).marginalize(keep = [name])
+                # now do the aggregation
+                aggr_results.append(mymodel.aggregate(aggregation))
+            result_frame.append(aggr_results)
+               
         # (5) filter on aggregations?
         # TODO?
         
         # (6) collect data frame to return, i.e. only include requested
         #   variables, and make sure the order is right
-        return_frame = result_frame[predict_names]
+        return_frame = result_frame[predict_names] # this misses the input_frame out...
                 
         # (7) return
         return return_frame
