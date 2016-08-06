@@ -145,6 +145,7 @@ class Model:
         Otherwise it is 'normally' marginalized out (assuming that the full 
         domain is available)"""
         
+        # this is confusing a it logs the parameters, but not what is actually done...
         logger.debug('marginalizing: keep = ' + str(keep) + ', remove = ' + str(remove) )
         
         if keep is not None:
@@ -248,25 +249,25 @@ class MultiVariateGaussianModel (Model):
     def _conditionAndMarginalize (self, names):
         """conditions the random variables with name in names on their available domain and marginalizes them out"""
         if len(names) == 0:
-            return        
-        i = self._asIndex(names)
-        j = invertedIdxList(i, self._n)  
-        condValues = [self.fields[idx]["domain"] for idx in i]
+            return
+        j = self._asIndex(names)
+        i = invertedIdxList(j, self._n)
+        condValues = [self.fields[idx]["domain"] for idx in j]
         # store old sigma and mu
         S = self._S
-        mu = self._mu                
+        mu = self._mu
         # update sigma and mu according to GM script
-        self._S = UpperSchurCompl(S, i)        
-        self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (condValues - mu[j])   
-        self.fields = [self.fields[idx] for idx in j]
-        self.update()        
+        self._S = UpperSchurCompl(S, i)
+        self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (condValues - mu[j])
+        self.fields = [self.fields[idx] for idx in i]
+        self.update()        # should that be in?
     
     def _marginalize (self, keep):                
         # there is two types of random variable v that are removed: 
         # (i) v's domain is a single value, i.e. they are 'conditioned out'
         # (ii) v's domain is a range (continuous random variable) or a set (discrete random variable), i.e. they are 'normally' marginalized out
         
-        # "is not tuple" means it must be a scalar value, hence a random variable to condition on for marginalizing it out
+        # "is not tuple" means it must be a scalar value, hence a random variable to condition on for marginalizing it out # TODO: this is ugly, hard to read and maybe even slow
         condNames = [randVar["name"] for idx, randVar in enumerate(self.fields) if (randVar["name"] not in keep) and (type(randVar["domain"]) is not tuple)]
         self._conditionAndMarginalize(condNames)
         

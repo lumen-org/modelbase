@@ -41,13 +41,13 @@
 				{"randVar": "speeding"},
 				{"randVar": "alcohol", "aggregation": "average"}
 			],
-			"FROM": "car_crashes_cp",
+			"FROM": "car_crashes",
 			"WHERE": [
 				{"randVar": "alcohol", "operator": "EQUALS", "value": 2.3}
 				
 			],
 			"GROUP BY": [
-				{"randVar": "speeding", "split": "equidist"}
+				{"randVar": "speeding", "split": "equiDist"}
 			]
 		},
 		"showModels": {	"SHOW": "MODELS" }

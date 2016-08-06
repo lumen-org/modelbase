@@ -30,6 +30,12 @@ def crossjoin(df1, df2, **kwargs):
     :param kwargs keyword arguments that will be passed to pd.merge()
     :return cross join of df1 and df2
     """
+    
+    if df1.size == 0:
+        return df2
+    if df2.size == 0:
+        return df1
+    
     df1['_tmpkey'] = 1
     df2['_tmpkey'] = 1
 

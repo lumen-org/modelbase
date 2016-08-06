@@ -18,6 +18,7 @@ from functools import reduce
 import seaborn.apionly as sns
 
 import models as gm
+import splitter as sp
 # cross join for pandas data frams
 from crossjoin import crossjoin
 
@@ -310,32 +311,21 @@ class ModelBase:
         
         NOTE/TODO: SO FAR ONLY A VERY LIMITED VERSION IS IMPLEMENTED: 
         only a single aggrRandVar and no groupBys are allowed
-        """
-        
-        def unique_list(iter_):
-            """ Creates and returns a list from given iterable which only 
-            contains each item once. Order is preserved. """
-            ex = set()
-            list_ = list()
-            for i in iter_:
-                if i not in ex:
-                    set.add(i)
-                    list_.append(i)
-            return list_
-        
+        """       
         # (1) derive the base model,
         # i.e. a model on all requested dimensions and measures, respecting filters 
-        # TODO: apply filters
         # TODO: is there any filter that cannot be applied yet?        
         
         # derive the list of dimensions to split by
         split_names = list(map(lambda f: f['randVar'], group_by))
         # derive the list of aggregations and dimensions to include in result table        
-        aggr_names = dim_names = []
+        aggr, aggr_names, dim_names, predict_names = [], [], [], []
         for f in predict:
             name = f['randVar']
+            predict_names.append(name)
             if 'aggregation' in f:
                 aggr_names.append(name)
+                aggr.append(f)
             else:
                 dim_names.append(name)        
         # from that derive the set of (names of) random variables that are to be kept for the base model
@@ -346,67 +336,80 @@ class ModelBase:
                             name = '__' + model.name + '_base',
                             filters = filters,
                             persistent = True) #TODO: REMOVE THAT LATER!
-        logger.debug(base_model)
         
         # (2) derive a sub-model for each requested aggregation
         # i.e. remove all random variables of other measures which are not also a used as a dimension
+        # or equivalently: keep all random variables of dimensions, plus the once for the current aggregation
+        dim_names_unique = set(dim_names)
+        i = 0
+        def derive_aggregation_model (aggr_name):
+            nonlocal i
+            model = self._model(randVars = list(dim_names_unique | set([aggr_name])),
+                                baseModel = base_model,
+                                name = base_model.name + "_" + aggr_name + str(i),
+                                persistent = True) # TODO: REMOVE THAT LATER
+            i+=1
+            return model
+        # TODO: use a different naming scheme later, e.g.: name = _id_generator(),                
+        aggr_models = list(map(derive_aggregation_model, aggr_names))
         
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
         # note: filters on dimensions should already have been applied
-                
-        # (4) query models and fill result data frme
-        # now question is:
-        # * how to efficiently query the model?
-        # * how can I vectorize it?
-        # just start simple: don't do it vectorized! provide a vectorized
-        # interface, but default to scalar implementation if the vectorized one
-        # isn't implemented for a model
-                
-        # (5) return data frame
+        def _get_group_frame (randVar):
+            name = randVar["randVar"]
+            domain = base_model._byName(name)["domain"]
+            domain = sp.NumericDomain(domain[0], domain[1])
+            splitFct = sp.splitter[randVar["split"]]            
+            return pd.DataFrame( splitFct(domain, 3), columns = [name] )
+        group_frames = map(_get_group_frame, group_by)
+        input_frame = reduce(crossjoin, group_frames, pd.DataFrame())        
+        print(input_frame)
         
-        # get list of RVs to group by
-        
-        """
-
-        def crossJoin (dataframe, randVar):
-            # extract split fct
-            split = randVar
-            series = split(randVar)            
-            #todo: filter on series            
-            # do cross join
-            return crossjoin(dataframe, series)
-                             
-        # iteratively build input table           
-        groupFrame = reduce(crossJoin, groupBy, pd.DataFrame())
-        
-        #2. setup input tuple, i.e. calculate the cross product of all dim.splitToValues()
-        # pair-wise joins of dimension domains, i.e. create all combinations of dimension domain values
         '''let inputTable = dimensions.reduce(
         function (table, dim) {
             return _join(table, [dim.splitToValues()]);
             }, []);'''
-        """
+                            
+        # (4) query models and fill result data frme
+        # now question is:
+####        # * how to efficiently query the model? 
+####        # * how can I vectorize it?
+        # just start simple: don't do it vectorized! provide a vectorized
+        # interface, but default to scalar implementation if the vectorized one
+        # isn't implemented for a model
+                
+        # (5) filter on aggregations?
+        # TODO?
         
-        if group_by:
-            raise NotImplementedError()
-            # TODO make sure to implement non-aggregated randVars in the 
-            # PREDICT-clause when implemening groupBy
+        # (6) collect data frame to return, i.e. only include requested
+        #   variables, and make sure the order is right
+        return_frame = result_frame[predict_names]
+                
+        # (7) return
+        return return_frame
+                
         
         # assume: there should be aggregations attached to the randVars
         # assume: only 1 randVar, 
+        """
         if len(predict) > 1:
             raise NotImplementedError()        
         predict = predict[0]
         
         # 1. derive required submodel
-        predictionModel = self._model(randVars = [predict["randVar"]], baseModel = model, name = _id_generator(), filters = filters, persistent = False)
+        predictionModel = self._model(randVars = [predict["randVar"]], 
+                                      baseModel = model,
+                                      name = _id_generator(), 
+                                      filters = filters, 
+                                      persistent = False)
 
         # 2. query it
         result = predictionModel.aggregate(predict["aggregation"])
 
         # 3. convert to python scalar
         return result.item(0,0)
+        """
         
     def _show (self, query, show):
         """ Runs a 'SHOW'-query against the model base and returns its results. """

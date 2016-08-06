@@ -1,12 +1,13 @@
 """
 @author: Philipp Lucas
 
-This module provides a webinterface to graphical models my means of various routes, as follows.
-Run this script to start the server locally!
+This module provides a webinterface to graphical models my means of various
+routes, as follows. Run this script to start the server locally!
 
   * '/': the index page
   * '/webservice': a user can send PQL queries in a POST-request to this route
-  * '/webqueryclient': provides a simple website to sent PQL queries to the model base
+  * '/webqueryclient': provides a simple website to sent PQL queries to the 
+      model base
 
 There is other routes available: 
   * '/playground': just for debugging / testing / playground purposes
@@ -41,7 +42,8 @@ def index():
 def service():
    # return usage information
    if request.method == 'GET':
-      return "send a POST request to this url containing your model query and you will get your answer :-)"
+      return "send a POST request to this url containing your model query and "
+      "you will get your answer :-)"
    # handle model request
    else:
       try:
@@ -70,7 +72,8 @@ def webquery():
 @cross_origin() # allows cross origin requests
 def sample_query():
     if request.method == 'GET':
-        return "send a POST request to this url to get a valid query that you can use at the '/webservice' interface"
+        return "send a POST request to this url to get a valid query that you"
+        "can use at the '/webservice' interface"
     else:
         #filePath = 'test-model-query_02.json'
         filePath = 'test-model-query_03.json'        
