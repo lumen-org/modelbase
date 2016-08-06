@@ -74,6 +74,9 @@ class ModelBase:
     """A ModelBase is the analogon of a DataBase(-Management System) for
     models: it holds models and allows PQL queries against them.
     
+    It is, in that sense, the PQL-interface for models. It is build against the
+    'raw' python interface for models, provided by the Model class.
+    
     A Modelbase provides only one 'public' method:
         ModelBase.execute: It executes a given PQL query. All input and output 
             is provided as JSON objects, or simple strings / numbers if applicable.
@@ -118,21 +121,25 @@ class ModelBase:
         return what
         
     def _extractGroupBy (self, query, required=False):    
-        """ Extracts from query the list of conditions in the statement. The 
-        order is preserved.
+        """ Extracts from query the list of groupings. The order is preserved.
         
         Args:
+            query: The query.
             required: Optional flag. Set to True to allow for a missing 
-                "WHERE" statement in the query.
+                "GROUP BY" statement in the query.
             
         Returns:
-            The list of names to group by or an empty list.
+            The list of fields to group by. The Fields are dicts that are 
+            identical to the JSON in the query, i.e. they have two keys: 
+            'randVar' which holds the name of the random variable, and
+            'split', the split method to use.
         """
         if required and 'GROUP BY' not in query:
             raise QuerySyntaxError("'GROUP BY'-statement missing")
         elif not required and 'GROUP BY' not in query:
             return []            
-        return list( map( lambda v: v['randVar'], query['GROUP BY'] ) )
+        #return list( map( lambda v: v['randVar'], query['GROUP BY'] ) )
+        return query['GROUP BY']
             
     def _extractModel (self, query):
         """ Extracts the names of the random variables to model and returns it
@@ -154,7 +161,7 @@ class ModelBase:
         """ Extracts from query the fields to predict and returns them in a list. The order
         is preserved.
         
-        The Fields are dicts that are identical to the JSON in the query.        
+        The Fields are dicts that are identical to the JSON in the query.
         """
         if 'PREDICT' not in query:
             raise QuerySyntaxError("'PREDICT'-statement missing")
@@ -212,10 +219,10 @@ class ModelBase:
             return None
 
         elif 'PREDICT' in query:
-            result = self._predict( aggrRandVars = self._extractPredict(query),
+            result = self._predict( predict = self._extractPredict(query),
                     model = self._extractFrom(query),
                     filters = self._extractWhere(query),
-                    groupBy = self._extractGroupBy (query) )
+                    group_by = self._extractGroupBy (query) )
             return result
         
         elif 'DROP' in query:
@@ -251,7 +258,7 @@ class ModelBase:
         
         Args:
             randVars: A list of strings, representing the names of random 
-                variables to model.
+                variables to model. 
             baseModel: the model of which to derive the new model from.
             filters: Optional list of filters.
             persistent: Optional flag that controls whether or not the model 
@@ -278,7 +285,7 @@ class ModelBase:
         # 4. store model in model base
         return derivedModel if not persistent else self._add(derivedModel, name)
  
-    def _predict (self, aggrRandVars, model, filters=[], groupBy=[]):
+    def _predict (self, predict, model, filters=[], group_by=[]):
         """ Runs a prediction query against the model base and returns its result
         by means of a data frame.
 
@@ -286,19 +293,60 @@ class ModelBase:
         are specified in the aggrRandVars parameter. Its order is preserved.
         
         Args:
-            aggrRandVars: 
+            predict: A list of the random variables to predict, i.e. to include
+                in the result table. The random variables are either be 
+                aggregations of one or more random variables, or dimensions, i.e.
+                random variables that are split by. Hence, each RV is a dict with 
+                (at least) one key:
+                    'randVar': the name of the RV. 
+                Furthemore, if existent, another key is respected:
+                    'aggregation': the aggregation to use for the RV
+            model: The model to predict from.
+            filters: A list of filters to use. 
+            groupBy: A list of random variables to group by. Each RV is a dict 
+                with (at least) two keys:
+                    'randVar': the name of the RV, and
+                    'split': the split method to use.
         
         NOTE/TODO: SO FAR ONLY A VERY LIMITED VERSION IS IMPLEMENTED: 
         only a single aggrRandVar and no groupBys are allowed
         """
         
+        def unique_list(iter_):
+            """ Creates and returns a list from given iterable which only 
+            contains each item once. Order is preserved. """
+            ex = set()
+            list_ = list()
+            for i in iter_:
+                if i not in ex:
+                    set.add(i)
+                    list_.append(i)
+            return list_
+        
         # (1) derive the base model,
         # i.e. a model on all requested dimensions and measures, respecting filters 
-        # var fields = query.fields();
-       # usedRVs = set(map(lambda rv: rv["randVar"], aggrRandVars))
-     #   base_model = _model()        
-        # TODO: is there any filter that cannot be applied yet?
+        # TODO: apply filters
+        # TODO: is there any filter that cannot be applied yet?        
         
+        # derive the list of dimensions to split by
+        split_names = list(map(lambda f: f['randVar'], group_by))
+        # derive the list of aggregations and dimensions to include in result table        
+        aggr_names = dim_names = []
+        for f in predict:
+            name = f['randVar']
+            if 'aggregation' in f:
+                aggr_names.append(name)
+            else:
+                dim_names.append(name)        
+        # from that derive the set of (names of) random variables that are to be kept for the base model
+        base_names = list(set(split_names) | set(aggr_names) | set(dim_names))
+        # now get the base model    
+        base_model = self._model(randVars = base_names, 
+                            baseModel = model,
+                            name = '__' + model.name + '_base',
+                            filters = filters,
+                            persistent = True) #TODO: REMOVE THAT LATER!
+        logger.debug(base_model)
         
         # (2) derive a sub-model for each requested aggregation
         # i.e. remove all random variables of other measures which are not also a used as a dimension
@@ -340,22 +388,22 @@ class ModelBase:
             }, []);'''
         """
         
-        if groupBy:
+        if group_by:
             raise NotImplementedError()
             # TODO make sure to implement non-aggregated randVars in the 
             # PREDICT-clause when implemening groupBy
         
         # assume: there should be aggregations attached to the randVars
         # assume: only 1 randVar, 
-        if len(aggrRandVars) > 1:
+        if len(predict) > 1:
             raise NotImplementedError()        
-        aggrRandVar = aggrRandVars[0]
+        predict = predict[0]
         
         # 1. derive required submodel
-        predictionModel = self._model(randVars = [aggrRandVar["randVar"]], baseModel = model, name = _id_generator(), filters = filters, persistent = False)
+        predictionModel = self._model(randVars = [predict["randVar"]], baseModel = model, name = _id_generator(), filters = filters, persistent = False)
 
         # 2. query it
-        result = predictionModel.aggregate(aggrRandVar["aggregation"])
+        result = predictionModel.aggregate(predict["aggregation"])
 
         # 3. convert to python scalar
         return result.item(0,0)
