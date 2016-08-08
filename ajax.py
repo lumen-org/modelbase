@@ -1,16 +1,20 @@
 """
 @author: Philipp Lucas
 
-This module provides a webinterface to graphical models my means of various
-routes, as follows. Run this script to start the server locally!
+This module provides a webinterface to a modelbase, i.e. the equivalent of a 
+data base, but for graphical models. That interface provides various routes, 
+as follows. 
 
   * '/': the index page
   * '/webservice': a user can send PQL queries in a POST-request to this route
-  * '/webqueryclient': provides a simple website to sent PQL queries to the 
+  * '/webqueryclient': provides a simple website to sent PQL queries to this 
       model base
 
 There is other routes available: 
   * '/playground': just for debugging / testing / playground purposes
+  
+Usage:
+    Run this script to start the server locally!
 """
 
 from flask import Flask, request
@@ -54,12 +58,14 @@ def service():
           result = mb.execute(query)
           logger.info('result of query:' + str(result))
           # return answer as serialized json
-          return json.dumps( {"status":"success", "result": result} )
+          #return json.dumps( {"status":"success", "result": result} )
+#          return '{"status":"success", "result": ' + result + '}'
+          return "{}" if result is None else str(result)
       except Exception as inst:
           msg = "failed to execute query: " + str(inst)
           logger.error(msg)
           logger.error(traceback.format_exc())
-          return json.dumps( {"status":"error", "result": msg} )
+          return json.dumps( {"status":"error", "result": msg} ), 400
 
 # the webclient
 @app.route('/webquery', methods=['GET'])

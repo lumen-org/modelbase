@@ -23,7 +23,8 @@ import pandas as pd
 def crossjoin(df1, df2, **kwargs):
     """
     Make a cross join (cartesian product) between two dataframes by using a constant temporary key.
-    Also sets a MultiIndex which is the cartesian product of the indices of the input dataframes.
+    NOT ANYMORE: Also sets a MultiIndex which is the cartesian product of the indices of the input dataframes.
+    INSTEAD: resets the index
     See: https://github.com/pydata/pandas/issues/5401
     :param df1 dataframe 1
     :param df1 dataframe 2
@@ -39,8 +40,8 @@ def crossjoin(df1, df2, **kwargs):
     df1['_tmpkey'] = 1
     df2['_tmpkey'] = 1
 
-    res = pd.merge(df1, df2, on='_tmpkey', **kwargs).drop('_tmpkey', axis=1)
-    res.index = pd.MultiIndex.from_product((df1.index, df2.index))
+    res = pd.merge(df1, df2, on='_tmpkey', **kwargs).drop('_tmpkey', axis=1)#.reset_index()
+    #res.index = pd.MultiIndex.from_product((df1.index, df2.index))
 
     df1.drop('_tmpkey', axis=1, inplace=True)
     df2.drop('_tmpkey', axis=1, inplace=True)

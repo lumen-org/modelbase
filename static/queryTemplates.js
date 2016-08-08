@@ -13,41 +13,42 @@
 		  "MODEL": "*",
 		  "AS": "car_crashes_cp_cond",
 		  "WHERE": [
-			{"randVar": "no_previous", "operator": "EQUALS", "value": 11 }
+			{"name": "no_previous", "operator": "EQUALS", "value": 11 }
 		  ]
 		}, 
 		"marginalize": 
 		{	"FROM": "car_crashes_cp",
 			"MODEL": [
-				{"randVar": "speeding"},
-				{"randVar": "alcohol"},
-				{"randVar": "total"}
+				{"name": "speeding"},
+				{"name": "alcohol"},
+				{"name": "total"}
 			],
 			"AS": "car_crashes_cp_marg"
 		},
 		"model": 
 		{  "MODEL": [ 
-				{"randVar" : "speeding"}, 
-				{"randVar": "alcohol"}
+				{"name" : "speeding"}, 
+				{"name": "alcohol"}
 			],
 			"AS:":"car_crashes_speedAlc",
 			"FROM": "car_crashes",
 			"WHERE": [
-				{"randVar": "no_previous", "operator": "EQUALS", "value": 10 }
+				{"name": "no_previous", "operator": "EQUALS", "value": 10 }
 			]
 		},
 		"predict":  
 		{	"PREDICT": [
-				{"randVar": "speeding"},
-				{"randVar": "alcohol", "aggregation": "average"}
+				{"name": "speeding"},
+				{"name": "alcohol", "aggregation": "average"}
 			],
 			"FROM": "car_crashes",
 			"WHERE": [
-				{"randVar": "alcohol", "operator": "EQUALS", "value": 2.3}
+				{"name": "alcohol", "operator": "EQUALS", "value": 2.3}
 				
 			],
 			"GROUP BY": [
-				{"randVar": "speeding", "split": "equiDist"}
+				{"name": "speeding", "split": "equiDist"},
+				{"name": "total", "split": "equiDist"}
 			]
 		},
 		"showModels": {	"SHOW": "MODELS" }
@@ -74,7 +75,10 @@
     }
 
     function onQueryExecuted (error, json) {
-        if (error) onError(error, "onQueryExecuted")
+        if (error) {
+        	onError(error, "onQueryExecuted")
+        	return
+        }
         var resultStr = JSON.stringify(json, null, 2)
         onSuccess(resultStr, "onQueryExecuted")
         queryOutputField[0][0].value = resultStr

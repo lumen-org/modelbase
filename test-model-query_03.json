@@ -1,11 +1,5 @@
-{  "MODEL": [
-    {"randVar": "total"}
-  ],
-   "WHERE": [{
-      "randVar": "alcohol",
-      "operator": "EQUALS",
-      "value": 10
-   }],
-  "AS": "my-sub-model",
-  "FROM": "car_crashes"
+{
+  "FROM": "car_crashes",
+  "MODEL": "*",
+  "AS": "car_crashes_cp"
 }

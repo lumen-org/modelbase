@@ -31,17 +31,13 @@ logger.setLevel(logging.DEBUG)
    
 1. provide some data file
 2. open that data file
-3. read that file into a tabular structure and guess its header, i.e. its columns and its data types
+3. read that file into a tabular structure and guess its header, i.e. its 
+    columns and its data types
     * pandas dataframes can aparently guess headers/data types 
 4. use it to train a model
 5. return the model
 
 https://github.com/rasbt/pattern_classification/blob/master/resources/python_data_libraries.md !!!
-
-## query a model
-
-1. receive JSON object that describes the query
-2. execute query:
 
 ### what about using a different syntax for the model, like the following:
 
@@ -50,17 +46,22 @@ https://github.com/rasbt/pattern_classification/blob/master/resources/python_dat
     model.
     
 ### other    
-Somehow, I get the feeling I'm using numpy not correctly. it's too complicated to always have to write matrix() explicitely 
+Somehow, I get the feeling I'm using numpy not correctly. it's too complicated
+to always have to write matrix() explicitely 
 """
 
 ### UTILITY FUNCTIONS ###
 
 def invertedIdxList (idx, len) :
-    """utility function that returns an inverted index list, e.g. given [0,1,4] and len=6 it returns [2,3,5]."""
+    """utility function that returns an inverted index list, e.g. given [0,1,4]
+    and len=6 it returns [2,3,5].
+    """
     return list( set(range(0, len)) - set(idx) )   
     
 def UpperSchurCompl (M, idx):
-    """Returns the upper Schur complement of matrix M with the 'upper block' indexed by i"""
+    """Returns the upper Schur complement of matrix M with the 'upper block' 
+    indexed by i.
+    """
     # derive index lists
     i = idx
     j = invertedIdxList(i, M.shape[0])
@@ -73,7 +74,8 @@ class Field(dict):
     """a random variable of a probability model.
     
        name ... name of the field, i.e a string descriptor
-       domain ... range of possible values, either a list (dtype == 'string') or a numerical range as a tuple (min, max) (dtype == 'numerical')
+       domain ... range of possible values, either a list (dtype == 'string') 
+           or a numerical range as a tuple (min, max) (dtype == 'numerical')
        dtype ... data type: either 'numerical' or 'string'
     """
     def __init__ (self, name=None, domain=None, dtype=None):        
@@ -87,7 +89,9 @@ class Field(dict):
         return self['name'] + "(" + self['dtype'] + ")" 
        
 class Model:
-    """an abstract base model that provides an interface to derive submodels from it or query density and other aggregations of it"""
+    """an abstract base model that provides an interface to derive submodels
+    from it or query density and other aggregations of it.
+    """
     
     def _getHeader (df):
         """ derive fields from a given pandas dataframe. 
@@ -100,21 +104,27 @@ class Model:
         return fields
 
     def _asIndex (self, names):
-        """given a single name or a list of names of random variables, returns the indexes of these in the .field attribute of the model"""                
+        """given a single name or a list of names of random variables, returns
+        the indexes of these in the .field attribute of the model.
+        """                
         if type(names) is not list:
             return self._name2idx[names]
         else:
             return [self._name2idx[name] for name in names]
             
     def _byName (self, names):
-        """given a list of names of random variables, returns the corresponding fields of this model"""        
+        """given a list of names of random variables, returns the corresponding
+        fields of this model.
+        """        
         if type(names) is not list:
             return self.fields[self._name2idx[names]]
         else:
             return [self.fields[self._name2idx[name]] for name in names]
                     
     def _isRandomVariableName (self, names):
-        """Returns true iff the name or names of variables given are names of random variables of this model"""
+        """Returns true iff the name or names of variables given are names of 
+        random variables of this model.
+        """
         if type(names) is not list:
             names = [names]
 #        return all(map(lambda name: name in self._name2idx, names))
@@ -137,15 +147,15 @@ class Model:
         raise NotImplementedError()
             
     def marginalize (self, keep = None, remove = None):
-        """Marginalizes random variables out of the model. Either specify which random variables to keep
-        or specify which to remove. 
+        """Marginalizes random variables out of the model. Either specify which 
+        random variables to keep or specify which to remove. 
         
         Note that marginalization is depending on the domain of a random 
         variable. That is: if nothing but a single value is left in the 
         domain it is conditioned on this value (and marginalized out). 
         Otherwise it is 'normally' marginalized out (assuming that the full 
-        domain is available)"""
-        
+        domain is available)
+        """        
         # this is confusing a it logs the parameters, but not what is actually done...
         logger.debug('marginalizing: keep = ' + str(keep) + ', remove = ' + str(remove) )
         
@@ -170,7 +180,8 @@ class Model:
         
         Note: This simply restricts the domains of the random variables. To 
         remove the conditioned random variable you
-        need to call marginalize with the appropiate paramters"""
+        need to call marginalize with the appropiate paramters
+        """
         for (name, value) in pairs:            
             if not self._isRandomVariableName(name):
                 raise ValueError("")
@@ -185,7 +196,10 @@ class Model:
         raise NotImplementedError()
     
     def aggregate (self, method):
-        """aggregates this model using the given method"""
+        """aggregates this model using the given method and returns the 
+        aggregation as a list. The order of elements in the list, matches the 
+        order of random variables in the models field.
+        """
         if (method in self._aggrMethods):
             return self._aggrMethods[method]()
         else:
@@ -215,7 +229,8 @@ class Model:
         raise NotImplementedError()
         
     def _update(self):
-        """updates the name2idx dictionary based on the fields in .fields"""        
+        """updates the name2idx dictionary based on the fields in .fields"""    
+# TODO": call it from aggregate, ... make it transparent to subclasses!        
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(len(self.fields))))
         
 # TODO: implement the following two high-level functions. They should better 
@@ -226,7 +241,9 @@ class Model:
 ### ACTUAL MODEL IMPLEMENTATIONS ###
 
 class MultiVariateGaussianModel (Model):
-    """a multivariate gaussian model and methods to derive submodels from it or query density and other aggregations of it"""
+    """a multivariate gaussian model and methods to derive submodels from it
+    or query density and other aggregations of it
+    """
     def __init__ (self, name = "iris", data = sns.load_dataset('iris').iloc[:, 0:4]):
         # make sure these are matrix types (numpy.matrix)
         super().__init__(name, data)              
@@ -268,7 +285,9 @@ class MultiVariateGaussianModel (Model):
             self._byName(pair[0])["domain"] = pair[1]
                 
     def _conditionAndMarginalize (self, names):
-        """conditions the random variables with name in names on their available domain and marginalizes them out"""
+        """conditions the random variables with name in names on their 
+        available domain and marginalizes them out
+        """
         if len(names) == 0:
             return
         j = self._asIndex(names)
@@ -286,10 +305,14 @@ class MultiVariateGaussianModel (Model):
     def _marginalize (self, keep):                
         # there is two types of random variable v that are removed: 
         # (i) v's domain is a single value, i.e. they are 'conditioned out'
-        # (ii) v's domain is a range (continuous random variable) or a set (discrete random variable), i.e. they are 'normally' marginalized out
+        # (ii) v's domain is a range (continuous random variable) or a set
+        #   (discrete random variable), i.e. they are 'normally' marginalized out
         
-        # "is not tuple" means it must be a scalar value, hence a random variable to condition on for marginalizing it out # TODO: this is ugly, hard to read and maybe even slow
-        condNames = [randVar["name"] for idx, randVar in enumerate(self.fields) if (randVar["name"] not in keep) and (type(randVar["domain"]) is not tuple)]
+        # "is not tuple" means it must be a scalar value, hence a random variable 
+        # to condition on for marginalizing it out # TODO: this is ugly, hard to 
+        # read and maybe even slow
+        condNames = [randVar["name"] for idx, randVar in enumerate(self.fields)
+            if (randVar["name"] not in keep) and (type(randVar["domain"]) is not tuple)]
         self._conditionAndMarginalize(condNames)
         
         # marginalize all other not wanted random variables
@@ -306,13 +329,16 @@ class MultiVariateGaussianModel (Model):
         return (2*pi)**(-self._n/2) * (self._detS**-.5) * exp( -.5 * xmu.T * self._SInv * xmu )
         
     def _maximum (self):
-        return self._mu
+        # _mu is a np matrix, but I want to return a list
+        return self._mu.tolist()[0] 
     
     def _sample  (self):
         return self._S * np.matrix(np.random.randn(self._n)).T + self._mu
         
     def copy (self, name = None):        
-        mycopy = MultiVariateGaussianModel(name = (self.name if name is None else name), data = self.data)
+        mycopy = MultiVariateGaussianModel(
+            name = (self.name if name is None else name),
+            data = self.data)
         mycopy.fields = cp.deepcopy(self.fields)
         mycopy._mu = self._mu
         mycopy._S = self._S

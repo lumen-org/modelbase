@@ -19,14 +19,13 @@ import seaborn.apionly as sns
 
 import models as gm
 import splitter as sp
-# cross join for pandas data frams
-from crossjoin import crossjoin
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 class QuerySyntaxError(Exception):
-    meaning = """This error indicates that a PQL query was incomplete and hence could not be executed"""
+    meaning = """This error indicates that a PQL query was incomplete and\
+ hence could not be executed"""
     
     def __init__(self, message="", value=None):
         self.value = value
@@ -37,7 +36,8 @@ class QuerySyntaxError(Exception):
         
 
 class QueryValueError(Exception):    
-    meaning = """This error indicates that a PQL query contains a value that is semantically invalid, such as referring to a model that does not exist."""
+    meaning = """This error indicates that a PQL query contains a value that is\
+ semantically invalid, such as referring to a model that does not exist."""
 
     def __init__(self, message="", value=None):
         self.value = value
@@ -80,7 +80,8 @@ class ModelBase:
     
     A Modelbase provides only one 'public' method:
         ModelBase.execute: It executes a given PQL query. All input and output 
-            is provided as JSON objects, or simple strings / numbers if applicable.
+            is provided as JSON objects, or a single string / number if 
+            applicable.
        
     Furthermore it provides to 'public' attributes: 
         ModelBase.name: the id/name of this modelbase
@@ -101,7 +102,8 @@ class ModelBase:
             "contains " + str(len(self.models)) + " models, as follows:\n\n" + \
             reduce(lambda p, m: p + str(m) + "\n\n", self.models.values(), "")
 
-###   _extract* functions are helpers to extract a certain part of a PQL query and do some basic syntax and semantic checks
+### _extract* functions are helpers to extract a certain part of a PQL query
+#   and do some basic syntax and semantic checks
     def _extractFrom (self, query):
         """ Returns the model that the value of the "FROM"-statement of query
         refers to. """
@@ -132,14 +134,14 @@ class ModelBase:
         Returns:
             The list of fields to group by. The Fields are dicts that are 
             identical to the JSON in the query, i.e. they have two keys: 
-            'randVar' which holds the name of the random variable, and
+            'name' which holds the name of the random variable, and
             'split', the split method to use.
         """
         if required and 'GROUP BY' not in query:
             raise QuerySyntaxError("'GROUP BY'-statement missing")
         elif not required and 'GROUP BY' not in query:
             return []            
-        #return list( map( lambda v: v['randVar'], query['GROUP BY'] ) )
+        #return list( map( lambda v: v['name'], query['GROUP BY'] ) )
         return query['GROUP BY']
             
     def _extractModel (self, query):
@@ -156,11 +158,11 @@ class ModelBase:
         if query['MODEL'] == '*':
             return list( map( lambda field: field["name"], self.models[query['FROM']].fields ) )
         else:            
-            return list( map( lambda v: v['randVar'], query['MODEL'] ) )
+            return list( map( lambda v: v['name'], query['MODEL'] ) )
         
     def _extractPredict (self, query): 
-        """ Extracts from query the fields to predict and returns them in a list. The order
-        is preserved.
+        """ Extracts from query the fields to predict and returns them in a
+        list. The order is preserved.
         
         The Fields are dicts that are identical to the JSON in the query.
         """
@@ -213,11 +215,11 @@ class ModelBase:
         
         # basic syntax and semantics checking of the given query is done in the _extract* methods
         if 'MODEL' in query:            
-            self._model( randVars = self._extractModel(query),
+            derived_model = self._model( randVars = self._extractModel(query),
                         baseModel = self._extractFrom(query),
                         name = self._extractAs(query), 
                         filters = self._extractWhere(query) )
-            return None
+            return self._show(query=derived_model, show="HEADER")
 
         elif 'PREDICT' in query:
             result = self._predict( predict = self._extractPredict(query),
@@ -231,15 +233,14 @@ class ModelBase:
             return None
             
         elif 'SHOW' in query:
-            header = self._show( query = query, show = self._extractShow(query))
-            return header            
+            return self._show( query = query, show = self._extractShow(query))
        
     def _add  (self, model, name):
         """ Adds a model to the model base using the given name. """
         if name in self.models:
             logger.warn('Overwriting existing model in model base: ' + name)
         self.models[name] = model
-        return model
+        return None
     
     def _drop (self, name):
         """ Drops a model from the model base and returns the dropped model.
@@ -279,7 +280,7 @@ class ModelBase:
         derivedModel = baseModel if (persistent and overwrite) else baseModel.copy(name = name)
         # 2. apply filter, i.e. condition
         equalConditions =  filter( lambda cond: "operator" in cond and cond["operator"] == "EQUALS", filters)
-        pairs = list( map( lambda cond : ( cond["randVar"], cond["value"] ), equalConditions ) )
+        pairs = list( map( lambda cond : ( cond['name'], cond["value"] ), equalConditions ) )
         derivedModel.condition(pairs)
         # 3. remove unneeded random variables
         derivedModel.marginalize(keep = randVars)
@@ -299,14 +300,14 @@ class ModelBase:
                 aggregations of one or more random variables, or dimensions, i.e.
                 random variables that are split by. Hence, each RV is a dict with 
                 (at least) one key:
-                    'randVar': the name of the RV. 
+                    'name': the name of the RV. 
                 Furthemore, if existent, another key is respected:
                     'aggregation': the aggregation to use for the RV
             model: The model to predict from.
             filters: A list of filters to use. 
             groupBy: A list of random variables to group by. Each RV is a dict 
                 with (at least) two keys:
-                    'randVar': the name of the RV, and
+                    'name': the name of the RV, and
                     'split': the split method to use.
         
         NOTE/TODO: SO FAR ONLY A VERY LIMITED VERSION IS IMPLEMENTED: 
@@ -317,11 +318,11 @@ class ModelBase:
         # TODO: is there any filter that cannot be applied yet?        
         
         # derive the list of dimensions to split by
-        split_names = list(map(lambda f: f['randVar'], group_by))
+        split_names = list(map(lambda f: f['name'], group_by))
         # derive the list of aggregations and dimensions to include in result table        
         aggrs, aggr_names, dim_names, predict_names = [], [], [], []
         for f in predict:
-            name = f['randVar']
+            name = f['name']
             predict_names.append(name)
             if 'aggregation' in f:
                 aggr_names.append(name)
@@ -360,19 +361,17 @@ class ModelBase:
         # i.e. a cross join of splits of all dimensions
         # note: filters on dimensions should already have been applied
         def _get_group_frame (randVar):
-            name = randVar["randVar"]
+            name = randVar['name']
             domain = base_model._byName(name)["domain"]
             domain = sp.NumericDomain(domain[0], domain[1])
-            splitFct = sp.splitter[randVar["split"]]            
-            return pd.DataFrame( splitFct(domain, 3), columns = [name] )
+            splitFct = sp.splitter[randVar["split"]]
+            frame = pd.DataFrame( splitFct(domain, 3), columns = [name])
+            frame['__crossIdx__'] = 0 # we need that index to crossjoin later
+            return frame
+        def _crossjoin (df1, df2):
+            return pd.merge(df1, df2, on='__crossIdx__', copy=False)
         group_frames = map(_get_group_frame, group_by)
-        input_frame = reduce(crossjoin, group_frames, pd.DataFrame())        
-        print(input_frame)
-        
-        '''let inputTable = dimensions.reduce(
-        function (table, dim) {
-            return _join(table, [dim.splitToValues()]);
-            }, []);'''
+        input_frame = reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
                             
         # (4) query models and fill result data frme
         """ question is: how to efficiently query the model? how can I vectorize it?
@@ -388,51 +387,34 @@ class ModelBase:
         # just start simple: don't do it vectorized! 
         # TODO: it might actually be faster to first condition the model on the
         # dimensions (values) and then derive the measure models... 
-        result_frame = []# pd.DataFrame()        
+        result_list = [input_frame]
         for idx, aggr in enumerate(aggrs):
             aggr_results = []
             aggr_model = aggr_models[idx]
-            aggregation = aggr["aggregation"]
-            name = aggr["randVar"]
+            aggr_method = aggr["aggregation"]
+            aggr_name = aggr['name']
             for row in input_frame.iterrows():
                 # derive model for these specific conditions...
                 pairs = zip(split_names, row[1])
-                mymodel = aggr_model.copy().condition(pairs).marginalize(keep = [name])
+                mymodel = aggr_model.copy().condition(pairs).marginalize(keep = [aggr_name])
                 # now do the aggregation
-                aggr_results.append(mymodel.aggregate(aggregation))
-            result_frame.append(aggr_results)
+                # TODO: in the future, there may be multidimensional aggregations
+                # for now, it's just 1d --> [0]
+                res = mymodel.aggregate(aggr_method)[0]                
+                aggr_results.append(res)
+            series = pd.Series(aggr_results, name=aggr_name)
+            result_list.append(series)
                
         # (5) filter on aggregations?
         # TODO?
         
-        # (6) collect data frame to return, i.e. only include requested
-        #   variables, and make sure the order is right
-        return_frame = result_frame[predict_names] # this misses the input_frame out...
+        # (6) collect all into one data frame
+        return_frame = pd.concat(result_list, axis=1)
                 
-        # (7) return
-        return return_frame
-                
-        
-        # assume: there should be aggregations attached to the randVars
-        # assume: only 1 randVar, 
-        """
-        if len(predict) > 1:
-            raise NotImplementedError()        
-        predict = predict[0]
-        
-        # 1. derive required submodel
-        predictionModel = self._model(randVars = [predict["randVar"]], 
-                                      baseModel = model,
-                                      name = _id_generator(), 
-                                      filters = filters, 
-                                      persistent = False)
+        # (7) return correctly ordered frame that only contain requested variables
+        # TOOD: this is buggy for the case of a field being returned multiple times...
+        return return_frame[predict_names].to_json()
 
-        # 2. query it
-        result = predictionModel.aggregate(predict["aggregation"])
-
-        # 3. convert to python scalar
-        return result.item(0,0)
-        """
         
     def _show (self, query, show):
         """ Runs a 'SHOW'-query against the model base and returns its results. """
@@ -442,9 +424,9 @@ class ModelBase:
 #            logger.debug("S = \n" + str(model._S))
 #            logger.debug("mu = \n" + str(model._mu))
 #            logger.debug("fields = \n" + str(model.fields))
-            return model.fields
+            return str(model.fields)
         elif show == "MODELS":
-            return list(map(lambda m: m.name, self.models.values()))
+            return str(list(map(lambda m: m.name, self.models.values())))
         
 if __name__ == '__main__':
     import numpy as np
