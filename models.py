@@ -10,12 +10,16 @@ It also defines models that implement that base model:
    
    * *var* MultiVariateGaussianModel
 """
-import copy as cp
+import pandas as pd
 import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
+import copy as cp
+from collections import namedtuple
+from functools import reduce
 from sklearn import mixture
 import logging 
 import seaborn.apionly as sns # probably remove this import later. Just for convenience to have default data for models available
+import splitter as sp
 
 # for fuzzy comparision. 
 # TODO: make it nicer?
@@ -69,6 +73,10 @@ def UpperSchurCompl (M, idx):
     return M[ix_(i,i)] - M[ix_(i,j)] * M[ix_(j,j)].I * M[ix_(j,i)]        
 
 ### GENERIC / ABSTRACT MODELS and other base classes ###
+
+AggregationTuple = namedtuple('AggregationTuple', ['name', 'method'])
+SplitTuple = namedtuple('SplitTuple', ['name', 'method'])
+ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
       
 class Field(dict):    
     """a random variable of a probability model.
@@ -89,14 +97,15 @@ class Field(dict):
         return self['name'] + "(" + self['dtype'] + ")" 
        
 class Model:
-    """an abstract base model that provides an interface to derive submodels
+    """An abstract base model that provides an interface to derive submodels
     from it or query density and other aggregations of it.
     """
     
     def _getHeader (df):
-        """ derive fields from a given pandas dataframe. 
+        """Returns suitable fields for a model from a given pandas dataframe. 
             
-            TODO: at the moment this only works for continuous data """
+            TODO: at the moment this only works for continuous data.
+        """
         fields = []
         for column in df:
             field = Field(name = column, domain = (df[column].min(), df[column].max()), dtype = 'numerical' )
@@ -104,16 +113,17 @@ class Model:
         return fields
 
     def _asIndex (self, names):
-        """given a single name or a list of names of random variables, returns
+        """Given a single name or a list of names of random variables, returns
         the indexes of these in the .field attribute of the model.
         """                
+# TODO: fix list check. remember the principle of duck typing        
         if type(names) is not list:
             return self._name2idx[names]
         else:
             return [self._name2idx[name] for name in names]
             
     def _byName (self, names):
-        """given a list of names of random variables, returns the corresponding
+        """Given a list of names of random variables, returns the corresponding
         fields of this model.
         """        
         if type(names) is not list:
@@ -127,9 +137,9 @@ class Model:
         """
         if type(names) is not list:
             names = [names]
-#        return all(map(lambda name: name in self._name2idx, names))
-        
-        return all(map(lambda name: any(map(lambda field: field["name"] == name, self.fields)), names))
+        return all([name in self._name2idx for name in names])
+#        return all(map(lambda name: name in self._name2idx, names))       
+#        return all(map(lambda name: any(map(lambda field: field["name"] == name, self.fields)), names))
        
     def __init__ (self, name, dataframe):
         self.name = name
@@ -138,7 +148,12 @@ class Model:
         self.field = []        
             
     def fit (self):
-        """fits the model to the dataframe assigned to this model in at construction time"""
+        """Fits the model to the dataframe assigned to this model in at 
+        construction time.
+        
+        Returns:
+            The modified model.
+        """
         self.fields = Model._getHeader(self.data)        
         self._fit()        
         return self
@@ -155,36 +170,42 @@ class Model:
         domain it is conditioned on this value (and marginalized out). 
         Otherwise it is 'normally' marginalized out (assuming that the full 
         domain is available)
+        
+        Returns:
+            The modified model.
         """        
         # this is confusing a it logs the parameters, but not what is actually done...
-        logger.debug('marginalizing: keep = ' + str(keep) + ', remove = ' + str(remove) )
+        logger.debug('marginalizing: '
+            + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
         
         if keep is not None:
             if not self._isRandomVariableName(keep):
                 raise ValueError("invalid random variable names: " + str(keep))
-            self._marginalize(keep)
         elif remove is not None:
             if not self._isRandomVariableName(remove):
                 raise ValueError("invalid random variable names")
-# CHANGED            #keep = list( set( map(lambda f: f["name"], self.fields)) - set(remove) )
             keep = set( map(lambda f: f["name"], self.fields)) - set(remove)
-            self._marginalize(keep)        
+        
+        self._marginalize(keep)        
         return self
     
     def _marginalize (self, keep):
         raise NotImplementedError()
     
     def condition (self, pairs):
-        """conditions this model according to the list of 2-tuples 
+        """Conditions this model according to the list of 2-tuples 
         (<name-of-random-variable>, <condition-value>).
         
         Note: This simply restricts the domains of the random variables. To 
-        remove the conditioned random variable you
-        need to call marginalize with the appropiate paramters
+        remove the conditioned random variable you need to call marginalize
+        with the appropiate paramters.
+        
+        Returns:
+            The modified model.
         """
         for (name, value) in pairs:            
             if not self._isRandomVariableName(name):
-                raise ValueError("")
+                raise ValueError(name + " is not a name of a field in the model")
             randVar = self._byName(name)
             if ((randVar["dtype"] == "string" and value not in randVar["domain"]) or 
                 (randVar["dtype"] == "numerical" and (value + eps < randVar["domain"][0] or value - eps > randVar["domain"][1]))):
@@ -192,34 +213,38 @@ class Model:
         self._condition(pairs)
         return self
     
-    def _condition (self, keep):
+    def _condition (self, pairs):
         raise NotImplementedError()
     
     def aggregate (self, method):
-        """aggregates this model using the given method and returns the 
+        """Aggregates this model using the given method and returns the 
         aggregation as a list. The order of elements in the list, matches the 
         order of random variables in the models field.
+        
+        Returns:
+            The aggregation of the model.
         """
         if (method in self._aggrMethods):
             return self._aggrMethods[method]()
         else:
-            raise NotImplementedError("Your Model does not provide the requested aggregation '" + method + "'")
-
-    #def aggregateOnCondition (self, aggregations, conditions):
-        """Calcuates the given aggregation of this model for each given condition.
-        
-        Args:
-            aggregation: A string that identifies the aggregation to use.
-            conditions: A DataFrame that contains the conditions to use. The
-                columns labels refer to the random variable to condition.
-                
-        Returns: 
-            A DataFrame that holds the result of the aggregations for each of
-            the conditions.
+            raise NotImplementedError("Your Model does not provide the requested aggregation '" + method + "'")     
+       
+    def density(self, names, values=None):
+        """Returns the density at given point. You may either pass both, names
+        and values or only one list with values. In the latter case values is
+        assumed to be in the same order as the fields of the model.
         """
+        if values is None:
+            # in that case the only argument must hold the (correctly sorted) values
+            values = names 
+        else:
+            sorted_ = sorted(zip(self._asIndex(names), values), lambda pair: pair[0])
+            values = [pair[0] for pair in sorted_]
+        return self._density(values)
             
     def sample (self, n=1):
-        """returns n many samples drawn from the model"""
+        """Returns n samples drawn from the model."""
+# TODO: let it return a dataframe
         return [self._sample() for i in range(n)]
 
     def _sample(self):
@@ -229,21 +254,156 @@ class Model:
         raise NotImplementedError()
         
     def _update(self):
-        """updates the name2idx dictionary based on the fields in .fields"""    
+        """Updates the name2idx dictionary based on the fields in .fields"""    
 # TODO": call it from aggregate, ... make it transparent to subclasses!? is that possible?    
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(len(self.fields))))
+
+    def model (self, model, where, as_ = None):
+        """Returns a model with name 'as_' that models the fields in 'model'
+        respecting conditions in 'where'
         
+        Args:
+            model:  A list of strings, representing the names of fields to model. 
+            where: A list of 'conditiontuple's, representing the conditions to
+                model. 
+            as_: A string. The name for the model to derive. If set to None the
+                name of the base model is used.
         
+        Returns:
+            The derived model.
+        """
+        as_ = self._name if as_ is None else as_        
+        # 1. copy model 
+        derivedModel = self.copy(name = as_)
+        # 2. apply filter, i.e. condition
+        equalpairs = [(cond.name, cond.value) for cond in where if cond.operator == 'EQUALS']        
+        # 3. + 4. + 5: condition, marginalize and return
+        return derivedModel.condition(equalpairs).marginalize(keep = model)
+    
+    def predict (self, predict, where=[], splitby=[], returnbasemodel = False):
+        """ Calculates the prediction against the model and returns its result
+        by means of a data frame.
         
-# TODO: implement the following two high-level functions. They should better 
-#   part of the model, and not the model base. Move functionality to the core.
-#    def predict(self, predict, group_by, condition): pass
-#    def model(self, keep, remove, condition): pass
+        The data frame contains exactly those columns/random variables which
+        are specified in 'predict'. Its order is preserved.
+        
+        Args:
+            predict: A list of names of fields (strings) and 'AggregationTuple's. 
+                This is hence the list of fields to be included in the returned 
+                dataframe.
+            where: A list of filters to use. The list consists of 'ConditionTuple's.
+            splitby: A list of 'SplitTuple's, i.e. a list of fields on which to 
+                split the model and the method how to do the split.
+            returnbasemodel: A boolean flag. If set this method will return a pair 
+                constisting of the dataframe and the basemodel for the prediction.
+                Defaults to False.
+        Returns:
+            A dataframe with the fields as given in 'predict', or a tuple (see 
+            parameter returnbasemodel).
+        """       
+        # (1) derive the base model,
+        # i.e. a model on all requested dimensions and measures, respecting filters 
+        # TODO: is there any filter that cannot be applied yet?        
+        
+        # derive the list of dimensions to split by
+        split_names = [f.name for f in splitby]        
+        # derive the list of aggregations and dimensions to include in result table        
+        aggrs, aggr_names, dim_names, predict_names = [], [], [], []
+        for f in predict:
+            if isinstance(f, str):
+                # f is just a string, i.e name of a field            
+                dim_names.append(f)
+                predict_names.append(f)
+            else:
+                name = f.name
+                predict_names.append(name)
+                aggr_names.append(name)
+                aggrs.append(f)
+            
+        # from that derive the set of (names of) random variables that are to be kept for the base model
+        basenames = list(set(split_names) | set(aggr_names) | set(dim_names))
+        # now get the base model    
+        basemodel = self.copy().model(basenames, where, '__' + self.name + '_base')
+        
+        # (2) derive a sub-model for each requested aggregation
+        # i.e. remove all random variables of other measures which are not also a used for splitting
+        # or equivalently: keep all random variables of dimensions, plus the once for the current aggregation
+        splitnames_unique = set(split_names) # WHICH ARE NOT ALSO USED AS A DIMENSION
+        i = 0
+        def _derive_aggregation_model (aggr_name):
+            nonlocal i
+            model = self.copy().model(
+                model = list(splitnames_unique | set([aggr_name])),
+                as_ = basemodel.name + "_" + aggr_name + str(i))
+            i+=1
+            return model
+        # TODO: use a different naming scheme later, e.g.: name = _id_generator(),                
+        aggr_models = [_derive_aggregation_model(name) for name in aggr_names]
+        
+        # TODO: derive model for density
+        # TODO: is density really just another aggregation?        
+        
+        # (3) generate input for model aggregations,
+        # i.e. a cross join of splits of all dimensions
+        # note: filters on dimensions should already have been applied
+        def _get_group_frame (split):
+            MYMAGICNUMBER = 3
+            name = split.name
+            domain = basemodel._byName(name)["domain"]
+            domain = sp.NumericDomain(domain[0], domain[1])
+            splitFct = sp.splitter[split.method]
+            frame = pd.DataFrame( splitFct(domain, MYMAGICNUMBER), columns = [name])
+            frame['__crossIdx__'] = 0 # need that index to crossjoin later
+            return frame
+        def _crossjoin (df1, df2):
+            return pd.merge(df1, df2, on='__crossIdx__', copy=False)
+        group_frames = map(_get_group_frame, splitby)
+        input_frame = reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
+                            
+        # (4) query models and fill result data frme
+        """ question is: how to efficiently query the model? how can I vectorize it?
+            I believe that depends on the query. A typical query is consists of
+            dimensions for splits and then aggregations and densities. 
+            For the case of aggregations a new conditioned model has to be 
+            calculated for every split. I don't see how to vectorize / speed
+            this up easily.
+            For densities it might be very well possible, as the split are
+            now simply input to some density function.
+        """
+                            
+        # just start simple: don't do it vectorized! 
+        # TODO: it might actually be faster to first condition the model on the
+        # dimensions (values) and then derive the measure models... 
+        result_list = [input_frame]
+        for idx, aggr in enumerate(aggrs):
+            aggr_results = []
+            aggr_model = aggr_models[idx]
+            for row in input_frame.iterrows():
+                # derive model for these specific conditions...
+                pairs = zip(split_names, row[1])
+                mymodel = aggr_model.copy().condition(pairs).marginalize(keep = [aggr.name])
+                # now do the aggregation
+                # TODO: in the future, there may be multidimensional aggregations
+                # for now, it's just 1d --> [0]
+                res = mymodel.aggregate(aggr.method)[0]                
+                aggr_results.append(res)
+            series = pd.Series(aggr_results, name=aggr.name)
+            result_list.append(series)
+               
+        # (5) filter on aggregations?
+        # TODO?
+        
+        # (6) collect all into one data frame
+        return_frame = pd.concat(result_list, axis=1)
+                
+        # (7) return correctly ordered frame that only contain requested variables
+        # TOOD: this is buggy for the case of a field being returned multiple times...
+        return return_frame[predict_names].to_json()
 
 ### ACTUAL MODEL IMPLEMENTATIONS ###
 
 class MultiVariateGaussianModel (Model):
-    """a multivariate gaussian model and methods to derive submodels from it
+    """A multivariate gaussian model and methods to derive submodels from it
     or query density and other aggregations of it
     """
     def __init__ (self, name = "iris", data = sns.load_dataset('iris').iloc[:, 0:4]):
@@ -287,7 +447,7 @@ class MultiVariateGaussianModel (Model):
             self._byName(pair[0])["domain"] = pair[1]
                 
     def _conditionAndMarginalize (self, names):
-        """conditions the random variables with name in names on their 
+        """Conditions the random variables with name in names on their 
         available domain and marginalizes them out
         """
         if len(names) == 0:
@@ -335,9 +495,10 @@ class MultiVariateGaussianModel (Model):
         return self._mu.tolist()[0] 
     
     def _sample  (self):
+        # TODO: let it return a dataframe
         return self._S * np.matrix(np.random.randn(self._n)).T + self._mu
         
-    def copy (self, name = None):        
+    def copy (self, name = None):
         mycopy = MultiVariateGaussianModel(
             name = (self.name if name is None else name),
             data = self.data)
@@ -346,3 +507,4 @@ class MultiVariateGaussianModel (Model):
         mycopy._S = self._S
         mycopy.update()
         return mycopy
+        
