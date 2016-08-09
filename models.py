@@ -230,8 +230,10 @@ class Model:
         
     def _update(self):
         """updates the name2idx dictionary based on the fields in .fields"""    
-# TODO": call it from aggregate, ... make it transparent to subclasses!        
+# TODO": call it from aggregate, ... make it transparent to subclasses!? is that possible?    
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(len(self.fields))))
+        
+        
         
 # TODO: implement the following two high-level functions. They should better 
 #   part of the model, and not the model base. Move functionality to the core.
