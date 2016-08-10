@@ -55,7 +55,8 @@ def service():
           query = request.get_json() 
           logger.info('received query:' + str(query))
           # process           
-          result = mb.execute(query)
+          #result = mb.execute(query)
+          result = mb.execute(request.data)
           logger.info('result of query:' + str(result))
           # return answer as serialized json
           #return json.dumps( {"status":"success", "result": result} )

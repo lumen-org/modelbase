@@ -19,16 +19,16 @@
 		"marginalize": 
 		{	"FROM": "car_crashes_cp",
 			"MODEL": [
-				{"name": "speeding"},
-				{"name": "alcohol"},
-				{"name": "total"}
+				"speeding",
+				"alcohol",
+				"total"
 			],
 			"AS": "car_crashes_cp_marg"
 		},
 		"model": 
 		{  "MODEL": [ 
-				{"name" : "speeding"}, 
-				{"name": "alcohol"}
+				"speeding",
+				"alcohol"
 			],
 			"AS:":"car_crashes_speedAlc",
 			"FROM": "car_crashes",
@@ -38,7 +38,7 @@
 		},
 		"predict":  
 		{	"PREDICT": [
-				{"name": "speeding"},
+				"speeding",
 				{"name": "alcohol", "aggregation": "average"}
 			],
 			"FROM": "car_crashes",
@@ -46,7 +46,7 @@
 				{"name": "alcohol", "operator": "EQUALS", "value": 2.3}
 				
 			],
-			"GROUP BY": [
+			"SPLIT BY": [
 				{"name": "speeding", "split": "equiDist"},
 				{"name": "total", "split": "equiDist"}
 			]
@@ -66,6 +66,9 @@
      d3.json(modelbaseUrl)
             .header("Content-Type", "application/json")
             .post(JSON.stringify(json), onQueryExecuted)
+     /*d3.json(modelbaseUrl)
+            .header("Content-Type", "application/json")
+            .post(JSON.stringify(json), onQueryExecuted)*/
     }
 
     function onQueryFetched (error, json) {

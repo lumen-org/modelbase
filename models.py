@@ -73,11 +73,19 @@ def UpperSchurCompl (M, idx):
     return M[ix_(i,i)] - M[ix_(i,j)] * M[ix_(j,j)].I * M[ix_(j,i)]        
 
 ### GENERIC / ABSTRACT MODELS and other base classes ###
-
-AggregationTuple = namedtuple('AggregationTuple', ['name', 'method'])
-SplitTuple = namedtuple('SplitTuple', ['name', 'method'])
+AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'args'])
+SplitTuple = namedtuple('SplitTuple', ['name', 'method', 'args'])
 ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
-      
+Field = namedtuple('Field', ['name', 'domain', 'dtype'])
+"""a random variable of a probability model.
+
+   name ... name of the field, i.e a string descriptor
+   domain ... range of possible values, either a list (dtype == 'string') 
+       or a numerical range as a tuple (min, max) (dtype == 'numerical')
+   dtype ... data type: either 'numerical' or 'string'
+"""
+
+'''      
 class Field(dict):    
     """a random variable of a probability model.
     
@@ -94,13 +102,13 @@ class Field(dict):
             raise ValueError("invalid argument values")
     
     def __str__ (self):
-        return self['name'] + "(" + self['dtype'] + ")" 
+        return self['name'] + "(" + self['dtype'] + ")" '''
        
 class Model:
     """An abstract base model that provides an interface to derive submodels
     from it or query density and other aggregations of it.
     """
-    
+    @staticmethod
     def _getHeader (df):
         """Returns suitable fields for a model from a given pandas dataframe. 
             
@@ -115,9 +123,8 @@ class Model:
     def _asIndex (self, names):
         """Given a single name or a list of names of random variables, returns
         the indexes of these in the .field attribute of the model.
-        """                
-# TODO: fix list check. remember the principle of duck typing        
-        if type(names) is not list:
+        """
+        if isinstance(names, str):
             return self._name2idx[names]
         else:
             return [self._name2idx[name] for name in names]
@@ -126,34 +133,34 @@ class Model:
         """Given a list of names of random variables, returns the corresponding
         fields of this model.
         """        
-        if type(names) is not list:
+        if isinstance(names, str):
             return self.fields[self._name2idx[names]]
         else:
             return [self.fields[self._name2idx[name]] for name in names]
                     
-    def _isRandomVariableName (self, names):
+    def isFieldName (self, names):
         """Returns true iff the name or names of variables given are names of 
         random variables of this model.
         """
-        if type(names) is not list:
+        if isinstance(names, str):
             names = [names]
         return all([name in self._name2idx for name in names])
 #        return all(map(lambda name: name in self._name2idx, names))       
-#        return all(map(lambda name: any(map(lambda field: field["name"] == name, self.fields)), names))
+#        return all(map(lambda name: any(map(lambda field: field.name == name, self.fields)), names))
        
-    def __init__ (self, name, dataframe):
-        self.name = name
-        self.data = dataframe                
+    def __init__ (self, name):
+        self.name = name          
         self._aggrMethods = None
-        self.field = []        
+        self.fields = []        
             
-    def fit (self):
+    def fit (self, data):
         """Fits the model to the dataframe assigned to this model in at 
         construction time.
         
         Returns:
             The modified model.
         """
+        self.data = data
         self.fields = Model._getHeader(self.data)        
         self._fit()        
         return self
@@ -174,17 +181,16 @@ class Model:
         Returns:
             The modified model.
         """        
-        # this is confusing a it logs the parameters, but not what is actually done...
         logger.debug('marginalizing: '
             + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
         
         if keep is not None:
-            if not self._isRandomVariableName(keep):
+            if not self.isFieldName(keep):
                 raise ValueError("invalid random variable names: " + str(keep))
         elif remove is not None:
-            if not self._isRandomVariableName(remove):
+            if not self.isFieldName(remove):
                 raise ValueError("invalid random variable names")
-            keep = set( map(lambda f: f["name"], self.fields)) - set(remove)
+            keep = set([f.name for f in self.fields]) - set(remove)
         
         self._marginalize(keep)        
         return self
@@ -204,11 +210,11 @@ class Model:
             The modified model.
         """
         for (name, value) in pairs:            
-            if not self._isRandomVariableName(name):
+            if not self.isFieldName(name):
                 raise ValueError(name + " is not a name of a field in the model")
             randVar = self._byName(name)
-            if ((randVar["dtype"] == "string" and value not in randVar["domain"]) or 
-                (randVar["dtype"] == "numerical" and (value + eps < randVar["domain"][0] or value - eps > randVar["domain"][1]))):
+            if ((randVar.dtype == "string" and value not in randVar.domain) or 
+                (randVar.dtype == "numerical" and (value + eps < randVar.domain[0] or value - eps > randVar.domain[1]))):
                 raise ValueError("the value to condition on is not in the domain of random variable " + name)
         self._condition(pairs)
         return self
@@ -231,11 +237,11 @@ class Model:
        
     def density(self, names, values=None):
         """Returns the density at given point. You may either pass both, names
-        and values or only one list with values. In the latter case values is
+        and values, or only one list with values. In the latter case values is
         assumed to be in the same order as the fields of the model.
         """
         if values is None:
-            # in that case the only argument must hold the (correctly sorted) values
+            # in that case the only argument holds the (correctly sorted) values
             values = names 
         else:
             sorted_ = sorted(zip(self._asIndex(names), values), lambda pair: pair[0])
@@ -244,8 +250,8 @@ class Model:
             
     def sample (self, n=1):
         """Returns n samples drawn from the model."""
-# TODO: let it return a dataframe
-        return [self._sample() for i in range(n)]
+        samples = (self._sample() for i in range(n))
+        return  pd.DataFrame.from_records(samples, self.names)        
 
     def _sample(self):
         raise NotImplementedError()
@@ -256,11 +262,14 @@ class Model:
     def _update(self):
         """Updates the name2idx dictionary based on the fields in .fields"""    
 # TODO": call it from aggregate, ... make it transparent to subclasses!? is that possible?    
-        self._name2idx = dict(zip([f['name'] for f in self.fields], range(len(self.fields))))
+        self._name2idx = dict(zip([f.name for f in self.fields], range(len(self.fields))))
+        self.names = [f.name for f in self.fields]
 
     def model (self, model, where, as_ = None):
         """Returns a model with name 'as_' that models the fields in 'model'
-        respecting conditions in 'where'
+        respecting conditions in 'where'. 
+        
+        Note that it does NOT create a copy, but modifies this model.
         
         Args:
             model:  A list of strings, representing the names of fields to model. 
@@ -270,11 +279,11 @@ class Model:
                 name of the base model is used.
         
         Returns:
-            The derived model.
+            The modified model.
         """
-        as_ = self._name if as_ is None else as_        
+        self.name = self._name if as_ is None else as_        
         # 1. copy model 
-        derivedModel = self.copy(name = as_)
+        #derivedModel = self.copy(name = as_)
         # 2. apply filter, i.e. condition
         equalpairs = [(cond.name, cond.value) for cond in where if cond.operator == 'EQUALS']        
         # 3. + 4. + 5: condition, marginalize and return
@@ -349,7 +358,7 @@ class Model:
         def _get_group_frame (split):
             MYMAGICNUMBER = 3
             name = split.name
-            domain = basemodel._byName(name)["domain"]
+            domain = basemodel._byName(name).domain
             domain = sp.NumericDomain(domain[0], domain[1])
             splitFct = sp.splitter[split.method]
             frame = pd.DataFrame( splitFct(domain, MYMAGICNUMBER), columns = [name])
@@ -398,7 +407,7 @@ class Model:
                 
         # (7) return correctly ordered frame that only contain requested variables
         # TOOD: this is buggy for the case of a field being returned multiple times...
-        return return_frame[predict_names].to_json()
+        return return_frame[predict_names]
 
 ### ACTUAL MODEL IMPLEMENTATIONS ###
 
@@ -406,9 +415,9 @@ class MultiVariateGaussianModel (Model):
     """A multivariate gaussian model and methods to derive submodels from it
     or query density and other aggregations of it
     """
-    def __init__ (self, name = "iris", data = sns.load_dataset('iris').iloc[:, 0:4]):
+    def __init__ (self, name):
         # make sure these are matrix types (numpy.matrix)
-        super().__init__(name, data)              
+        super().__init__(name)
         self._mu = nan
         self._S = nan
         self._aggrMethods = {
@@ -444,7 +453,7 @@ class MultiVariateGaussianModel (Model):
        
     def _condition (self, pairs):
         for pair in pairs:
-            self._byName(pair[0])["domain"] = pair[1]
+            self._byName(pair[0]).domain = pair[1]
                 
     def _conditionAndMarginalize (self, names):
         """Conditions the random variables with name in names on their 
@@ -454,7 +463,7 @@ class MultiVariateGaussianModel (Model):
             return
         j = self._asIndex(names)
         i = invertedIdxList(j, self._n)
-        condValues = [self.fields[idx]["domain"] for idx in j]
+        condValues = [self.fields[idx].domain for idx in j]
         # store old sigma and mu
         S = self._S
         mu = self._mu
@@ -473,8 +482,8 @@ class MultiVariateGaussianModel (Model):
         # "is not tuple" means it must be a scalar value, hence a random variable 
         # to condition on for marginalizing it out # TODO: this is ugly, hard to 
         # read and maybe even slow
-        condNames = [randVar["name"] for idx, randVar in enumerate(self.fields)
-            if (randVar["name"] not in keep) and (type(randVar["domain"]) is not tuple)]
+        condNames = [randVar.name for idx, randVar in enumerate(self.fields)
+            if (randVar.name not in keep) and (type(randVar.domain) is not tuple)]
         self._conditionAndMarginalize(condNames)
         
         # marginalize all other not wanted random variables
@@ -499,9 +508,9 @@ class MultiVariateGaussianModel (Model):
         return self._S * np.matrix(np.random.randn(self._n)).T + self._mu
         
     def copy (self, name = None):
-        mycopy = MultiVariateGaussianModel(
-            name = (self.name if name is None else name),
-            data = self.data)
+        name = self.name if name is None else name
+        mycopy = MultiVariateGaussianModel(name)
+        mycopy.data = self.data
         mycopy.fields = cp.deepcopy(self.fields)
         mycopy._mu = self._mu
         mycopy._S = self._S
