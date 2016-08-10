@@ -265,7 +265,7 @@ class Model:
         self._name2idx = dict(zip([f.name for f in self.fields], range(len(self.fields))))
         self.names = [f.name for f in self.fields]
 
-    def model (self, model, where, as_ = None):
+    def model (self, model, where=[], as_ = None):
         """Returns a model with name 'as_' that models the fields in 'model'
         respecting conditions in 'where'. 
         
@@ -281,13 +281,13 @@ class Model:
         Returns:
             The modified model.
         """
-        self.name = self._name if as_ is None else as_        
+        self.name = self.name if as_ is None else as_        
         # 1. copy model 
         #derivedModel = self.copy(name = as_)
         # 2. apply filter, i.e. condition
         equalpairs = [(cond.name, cond.value) for cond in where if cond.operator == 'EQUALS']        
         # 3. + 4. + 5: condition, marginalize and return
-        return derivedModel.condition(equalpairs).marginalize(keep = model)
+        return self.condition(equalpairs).marginalize(keep = model)
     
     def predict (self, predict, where=[], splitby=[], returnbasemodel = False):
         """ Calculates the prediction against the model and returns its result
@@ -480,8 +480,8 @@ class MultiVariateGaussianModel (Model):
         #   (discrete random variable), i.e. they are 'normally' marginalized out
         
         # "is not tuple" means it must be a scalar value, hence a random variable 
-        # to condition on for marginalizing it out # TODO: this is ugly, hard to 
-        # read and maybe even slow
+        # to condition on for marginalizing it out 
+        # TODO: this is ugly, hard to read and maybe even slow
         condNames = [randVar.name for idx, randVar in enumerate(self.fields)
             if (randVar.name not in keep) and (type(randVar.domain) is not tuple)]
         self._conditionAndMarginalize(condNames)

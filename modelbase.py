@@ -80,16 +80,16 @@ def PQL_parse_json (query):
                 return e
             else:
                 args = e["args"] if "args" in e else None
-                return AggregationTuple(e["name"], e["aggregation"], args)
+                return gm.AggregationTuple(e["name"], e["aggregation"], args)
         return list(map(_aggrSplit, clause))
     
     def _where (clause):
-        return [ConditionTuple(e["name"], e["operator"], e["value"]) for e in clause]
+        return [gm.ConditionTuple(e["name"], e["operator"], e["value"]) for e in clause]
     
     def _splitby (clause):
         def _mapSplit (e):
             args = e["args"] if "args" in e else None
-            return SplitTuple(e["name"], e["split"], args)
+            return gm.SplitTuple(e["name"], e["split"], args)
         return list(map(_mapSplit, clause))
     
     if "PREDICT" in query:
@@ -151,7 +151,7 @@ class ModelBase:
         return self.models[name]  
 
     def list_models(self):
-        return [model.name for model in self.models]
+        return list(self.models.keys())
 
 ### _extract* functions are helpers to extract a certain part of a PQL query
 #   and do some basic syntax and semantic checks
@@ -206,7 +206,7 @@ class ModelBase:
         if 'MODEL' not in query:
             raise QuerySyntaxError("'MODEL'-statement missing")            
         if query['MODEL'] == '*':
-            return self.models[query['FROM']]
+            return self.models[query['FROM']].names
         else:            
             return query['MODEL']
         
@@ -303,8 +303,13 @@ class ModelBase:
                 return self._extractFrom(query).fields
             elif show == "MODELS":
                 return self.list_models()
-        
+    
+
 if __name__ == '__main__':
-    import numpy as np    
+    import numpy as npmb    
     mb = ModelBase("mymodelbase")
     cc = mb.models['car_crashes']
+    foo = cc.copy().model(["total","alcohol"], [gm.ConditionTuple("alcohol", "EQUALS", 10)] )
+    bar = cc.copy().predict(["total","alcohol"], [gm.ConditionTuple("alcohol", "EQUALS", 10)], )
+    
+    

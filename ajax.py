@@ -56,12 +56,14 @@ def service():
           logger.info('received query:' + str(query))
           # process           
           #result = mb.execute(query)
-          result = mb.execute(request.data)
+          result = mb.execute(query)
           logger.info('result of query:' + str(result))
           # return answer as serialized json
           #return json.dumps( {"status":"success", "result": result} )
 #          return '{"status":"success", "result": ' + result + '}'
-          return "{}" if result is None else str(result)
+          if result == None:
+              result = {}
+          return json.dumps(result)          
       except Exception as inst:
           msg = "failed to execute query: " + str(inst)
           logger.error(msg)
