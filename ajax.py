@@ -1,18 +1,18 @@
 """
 @author: Philipp Lucas
 
-This module provides a webinterface to a modelbase, i.e. the equivalent of a 
-data base, but for graphical models. That interface provides various routes, 
-as follows. 
+This module provides a webinterface to a modelbase, i.e. the equivalent of a
+data base, but for graphical models. That interface provides various routes,
+as follows.
 
   * '/': the index page
   * '/webservice': a user can send PQL queries in a POST-request to this route
-  * '/webqueryclient': provides a simple website to sent PQL queries to this 
+  * '/webqueryclient': provides a simple website to sent PQL queries to this
       model base
 
-There is other routes available: 
+There is other routes available:
   * '/playground': just for debugging / testing / playground purposes
-  
+
 Usage:
     Run this script to start the server locally!
 """
@@ -39,7 +39,7 @@ logger.setLevel(logging.DEBUG)
 def index():
    return app.send_static_file('index.html')
 
-      
+
 # webservice interface to the model base
 @app.route('/webservice', methods=['GET', 'POST'])
 @cross_origin() # allows cross origin requests
@@ -52,18 +52,13 @@ def service():
    else:
       try:
           # extract json formatted query
-          query = request.get_json() 
+          query = request.get_json()
           logger.info('received query:' + str(query))
-          # process           
-          #result = mb.execute(query)
+          # process query
           result = mb.execute(query)
           logger.info('result of query:' + str(result))
-          # return answer as serialized json
-          #return json.dumps( {"status":"success", "result": result} )
-#          return '{"status":"success", "result": ' + result + '}'
-          if result == None:
-              result = {}
-          return json.dumps(result)          
+          # return answer 
+          return result
       except Exception as inst:
           msg = "failed to execute query: " + str(inst)
           logger.error(msg)
@@ -76,7 +71,7 @@ def service():
 def webquery():
     return app.send_static_file('webqueryclient.html')
 
-# webservice interface that returns a valid sample query 
+# webservice interface that returns a valid sample query
 @app.route('/sample_query', methods=['GET', 'POST'])
 @cross_origin() # allows cross origin requests
 def sample_query():
@@ -85,7 +80,7 @@ def sample_query():
         "can use at the '/webservice' interface"
     else:
         #filePath = 'test-model-query_02.json'
-        filePath = 'test-model-query_03.json'        
+        filePath = 'test-model-query_03.json'
         #filePath = 'test-show-query.json'
         #filePath = 'test-predict-query_02.json'
         #filePath = 'test-predict-query_03.json'
@@ -93,7 +88,7 @@ def sample_query():
         query = json.load( open(filePath) )
         # serialize to string and return
         return json.dumps(query)
-    
+
 # a "playground" webservice interface
 @app.route('/playground', methods=['GET', 'POST'])
 def playground():
@@ -101,12 +96,12 @@ def playground():
    if request.method == 'GET':
       return "this is just for playing around and testing how HTTP POST is working..."
    # handle model request
-   else:      
+   else:
       result = '{"age":[0,5,2,3,2,561,0], "income":[1,2,3,4,5,6,7]}'
       return result
 
-# trigger to start the web server if this script is run 
+# trigger to start the web server if this script is run
 if __name__ == "__main__":
-    import pdb    
+    import pdb
     pdb.run('app.run()')
-    #app.run()    
+    #app.run()
