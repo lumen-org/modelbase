@@ -1,12 +1,12 @@
 {  "PREDICT": [
-      {"name": "sex"}, 
+      "sex", 
       {"aggregation": "average", "name": "income"}
    ],
    "FROM": "census",
    "WHERE": [
-      {"name": "age", "operator": ">", "args": [35] }
+      {"name": "age", "operator": ">", "value": 35 }
    ],
-   "GROUP BY": [
-      {"name": "sex", "splitFct": "elements"}
+   "SPLIT BY": [
+      {"name": "sex", "split": "elements"}
    ]
 }

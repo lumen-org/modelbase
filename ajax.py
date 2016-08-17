@@ -39,7 +39,6 @@ logger.setLevel(logging.DEBUG)
 def index():
    return app.send_static_file('index.html')
 
-
 # webservice interface to the model base
 @app.route('/webservice', methods=['GET', 'POST'])
 @cross_origin() # allows cross origin requests
@@ -60,10 +59,10 @@ def service():
           # return answer 
           return result
       except Exception as inst:
-          msg = "failed to execute query: " + str(inst)
-          logger.error(msg)
+          msg = "failed to execute query: " + str(inst)        
           logger.error(traceback.format_exc())
-          return json.dumps( {"status":"error", "result": msg} ), 400
+          logger.error(msg)
+          return msg, 400
 
 # the webclient
 @app.route('/webquery', methods=['GET'])

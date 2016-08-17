@@ -11,8 +11,6 @@ Idiomatically the model base does the following:
 
 import json
 import logging
-import string
-import random
 from functools import reduce
 import seaborn.apionly as sns
 import models as gm
@@ -43,11 +41,6 @@ class QueryValueError(Exception):
     def __repr__(self):
         return repr(self.value)
 
-ReturnCode = {
-    "SUCCESS" : "success",
-    "FAIL": "fail"
-}
-
 def _loadIrisModel ():
     """ Loads the iris data set and returns a MultiVariateGaussianModel of it."""
     # load data set as pandas DataFrame
@@ -64,19 +57,18 @@ def _loadCarCrashModel ():
     model.fit(data.iloc[:, 0:-1])
     return model
 
-def _id_generator(size=15, chars=string.ascii_letters + string.digits, prefix='__'):
-    """ Returns a prefixed, random string of letters and digits """
-    return prefix + ''.join(random.choice(chars) for _ in range(size))
-
 def PQL_parse_json (query):
-
+    """ Parses a given PQL query and transforms it into a more readable and handy 
+    format.
+    """
     def _predict (clause):
         def _aggrSplit (e):
             if isinstance(e, str):
                 return e
             else:
-                args = e["args"] if "args" in e else None
-                return gm.AggregationTuple(e["name"], e["aggregation"], args)
+                names = [e["name"]] if isinstance(e["name"], str) else e["name"]
+                args = e["args"] if "args" in e else None                
+                return gm.AggregationTuple(names, e["aggregation"], args)
         return list(map(_aggrSplit, clause))
 
     def _where (clause):
@@ -94,7 +86,7 @@ def PQL_parse_json (query):
         query["WHERE"] = _where(query["WHERE"])
     if "SPLIT BY" in query:
         query["SPLIT BY"] = _splitby(query["SPLIT BY"])
-    # "SHOW", "AS", "FROM", MODEL" can stay as they are
+    # "SHOW", "AS", "FROM" and "MODEL" can stay as they are.
     return query
 
 

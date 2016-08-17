@@ -1,7 +1,7 @@
 """
-This is the splitter module, which provides splitters: functions that receive
-a domain (see module domain) and a number of parameters and return a split of
-the domain into values or subdomains.
+This is the splitter module, which provides splitters and domains:
+Splitters are functions that receive a domain and a number of parameters and 
+return a split of the domain into values or subdomains.
 
 Note that not all splitters work with all domains. See the documentation of
 each for more.
@@ -9,8 +9,6 @@ each for more.
 @author: Philipp Lucas
 """
 import numpy as np
-
-# def equiSplit (domain, n)
 
 class NumericDomain:
     def __init__ (self, low, high):
@@ -24,10 +22,11 @@ def equiSample (domain, n):
     the entire domain.
 
     Note that if the domain only consists of a single value, equiSample will
-    also returns a single element list, regardless of n."""
+    also returns a single element list, regardless of n.
+    """
     return domain.l if domain.l == domain.h else np.linspace(domain.l, domain.h, n)
 
-""" A map from 'method id' to the actual splitter function """
+""" A map from 'method id' to the actual splitter function. """
 splitter = {
     "equiDist" : equiSample
 }

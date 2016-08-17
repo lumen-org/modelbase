@@ -1,10 +1,10 @@
 {  "MODEL": [
-    {"randVar": "sex"}, 
-    {"randVar": "income"}
+    "sex", 
+    "income"
   ],
   "AS": "my-sub-model",
   "FROM": "census",
   "WHERE": [
-    {"randVar": "age", "operator": "=", "args": [20] }
+    {"name": "age", "operator": "EQUALS", "value": 20 }
   ]
 }

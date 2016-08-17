@@ -66,9 +66,6 @@
      d3.json(modelbaseUrl)
             .header("Content-Type", "application/json")
             .post(JSON.stringify(json), onQueryExecuted)
-     /*d3.json(modelbaseUrl)
-            .header("Content-Type", "application/json")
-            .post(JSON.stringify(json), onQueryExecuted)*/
     }
 
     function onQueryFetched (error, json) {
@@ -80,6 +77,7 @@
     function onQueryExecuted (error, json) {
         if (error) {
         	onError(error, "onQueryExecuted")
+        	queryOutputField[0][0].value = error.response
         	return
         }
         var resultStr = JSON.stringify(json, null, 2)
