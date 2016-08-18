@@ -30,4 +30,4 @@ def linear_id_generator(prefix='_id', postfix=''):
     num = 0
     while True:
         yield prefix + str(num) + postfix
-        num =+ 1
+        num += 1
