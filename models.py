@@ -289,16 +289,12 @@ class Model:
         #            return index
         
         # (1) derive base model, i.e. a model on all requested dimensions and measures, respecting filters
-        # TODO: is there any filter that cannot be applied yet?
-
         predict_ids = [] # unique ids of columns in data frame. In correct order. For reordering of columns.
         predict_names = [] # names of columns as to be returned. In correct order. For renaming of columns.
 
         split_names = [f.name for f in splitby]
         split_ids = [f.name + next(idgen) for f in splitby] # (pregeneratored) ids for columns for fields to split by. Same order as in splitby-clause. Access by index.
         split_name2id = dict(zip(split_names, split_ids)) 
-        #split_name2id = {name : id_ for (id_, name) in zip(split_ids, split_names)}
-        #split_ids = {} # ids for columns for fields to split by. Same order as in splitby-clause. Access by index.
         
         aggrs = [] # list of aggregation tuples, in same order as in the predict-clause
         aggr_ids = [] # ids for columns fo fields to aggregate. Same order as in predict-clause
@@ -308,9 +304,6 @@ class Model:
             if isinstance(f, str):
                 # f is a string, i.e. name of a field that is split by
                 name = f
-                #id_ = split_name2id[name]
-                #idx = _indexbyname(name, splitby)
-                #id_ = split_ids[idx]
                 
                 predict_names.append(name)                
                 predict_ids.append(split_name2id[name])
@@ -329,8 +322,6 @@ class Model:
                 basenames.update(f.name)           
 
         # from that derive the set of (names of) random variables that are to be kept for the base model
-#        basenames = list(set(split_names) | set(aggr_names) | set(dim_names))
-        # now get the base model
         basemodel = self.copy().model(basenames, where, '__' + self.name + '_base')
 
         # (2) derive a sub-model for each requested aggregation
@@ -388,8 +379,8 @@ class Model:
                 # select relevant columns and iterate over it
                 ids = [split_name2id[name] for name in aggr.name]
                 sub_frame = input_frame[ids]
-                for row in sub_frame.iterrows():
-                    res = aggr_model.density(aggr.name, row[1])
+                for _, row in sub_frame.iterrows():
+                    res = aggr_model.density(aggr.name, row)
                     aggr_results.append(res)
             else:
                 for _, row in input_frame.iterrows():
