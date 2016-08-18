@@ -115,8 +115,8 @@ class Model:
 
     def __init__ (self, name):
         self.name = name
-        self.fields = []        
-        self.names = []        
+        self.fields = []
+        self.names = []
         self._aggrMethods = None
         self._n = 0
         self._name2idx = {}
@@ -210,7 +210,7 @@ class Model:
         """
         if len(names) != self._n:
             raise ValueError('Not enough names/values provided. Require ' + str(self._n) + ' got ' + str(len(names)) + '.')
-        
+
         if values is None:
             # in that case the only argument holds the (correctly sorted) values
             values = names
@@ -249,7 +249,7 @@ class Model:
                 model.
             as_: An optional string. The name for the model to derive. If set
                 to None the name of the base model is used.
-                
+
         Returns:
             The modified model.
         """
@@ -273,7 +273,7 @@ class Model:
             where: A list of filters to use. The list consists of 'ConditionTuple's.
             splitby: A list of 'SplitTuple's, i.e. a list of fields on which to
                 split the model and the method how to do the split.
-            returnbasemodel: A boolean flag. If set this method will return the 
+            returnbasemodel: A boolean flag. If set this method will return the
                 pair (result-dataframe, basemodel-for-the-prediction).
                 Defaults to False.
         Returns:
@@ -281,21 +281,21 @@ class Model:
             returnbasemodel).
         """
         idgen = utils.linear_id_generator()
-        
-        # find index 
+
+        # find index
         #def _indexbyname (name, seq):
         #    for index, item in enumerate(seq):
         #        if item.name == name:
         #            return index
-        
+
         # (1) derive base model, i.e. a model on all requested dimensions and measures, respecting filters
         predict_ids = [] # unique ids of columns in data frame. In correct order. For reordering of columns.
         predict_names = [] # names of columns as to be returned. In correct order. For renaming of columns.
 
         split_names = [f.name for f in splitby]
         split_ids = [f.name + next(idgen) for f in splitby] # (pregeneratored) ids for columns for fields to split by. Same order as in splitby-clause. Access by index.
-        split_name2id = dict(zip(split_names, split_ids)) 
-        
+        split_name2id = dict(zip(split_names, split_ids))
+
         aggrs = [] # list of aggregation tuples, in same order as in the predict-clause
         aggr_ids = [] # ids for columns fo fields to aggregate. Same order as in predict-clause
 
@@ -304,22 +304,22 @@ class Model:
             if isinstance(f, str):
                 # f is a string, i.e. name of a field that is split by
                 name = f
-                
-                predict_names.append(name)                
+
+                predict_names.append(name)
                 predict_ids.append(split_name2id[name])
 
-                basenames.add(name)                
+                basenames.add(name)
             else:
                 # f is a prediction tuple
                 ids = [name + next(idgen) for name in f.name]
 
                 aggrs.append(f)
                 aggr_ids.append(ids)
-            
+
                 predict_names.extend(f.name)
-                predict_ids.extend(ids)        
-                
-                basenames.update(f.name)           
+                predict_ids.extend(ids)
+
+                basenames.update(f.name)
 
         # from that derive the set of (names of) random variables that are to be kept for the base model
         basemodel = self.copy().model(basenames, where, '__' + self.name + '_base')
@@ -327,11 +327,11 @@ class Model:
         # (2) derive a sub-model for each requested aggregation
         # for density: keep only those fields as requested in the tuple
         # for 'normal' aggregations: remove all random variables of other measures which are not also
-        # a used for splitting, or equivalently: keep all random variables of 
+        # a used for splitting, or equivalently: keep all random variables of
         # dimensions, plus the once for the current aggregation
         splitnames_unique = set(split_names)
         def _derive_aggregation_model (aggr):
-            aggr_model = basemodel.copy()  
+            aggr_model = basemodel.copy()
             if aggr.method == 'density':
                 return aggr_model.model(model = aggr.name)
             else:
@@ -363,7 +363,7 @@ class Model:
             this up easily.
             For densities it might be very well possible, as the splits are
             now simply input to some density function.
-            
+
             it might actually be faster to first condition the model on the
             dimensions (values) and then derive the measure models...
             note: for density however, no conditioning on the input is required
@@ -373,8 +373,8 @@ class Model:
             aggr_results = []
             aggr_model = aggr_models[idx]
             if aggr.method == 'density':
-                # TODO: this is inefficient because it recalculates the same 
-                # value many times, when we split on more than the density 
+                # TODO: this is inefficient because it recalculates the same
+                # value many times, when we split on more than the density
                 # is calculated on
                 # select relevant columns and iterate over it
                 ids = [split_name2id[name] for name in aggr.name]
@@ -390,7 +390,7 @@ class Model:
                     # now do the aggregation
                     res = mymodel.aggregate(aggr.method)
                     aggr_results.append(res)
-            
+
             #df = pd.DataFrame(aggr_results, columns=aggr.name)
             df = pd.DataFrame(aggr_results, columns=aggr_ids[idx])
             result_list.append(df)
@@ -404,7 +404,7 @@ class Model:
         # (7) get correctly ordered frame that only contain requested fields
         #return_frame = return_frame[chain.from_iterable(predict_ids)] #flattens
         return_frame = return_frame[predict_ids] #flattens
-        
+
         # (8) rename columns to be readable (but not unique anymore)
         return_frame.columns = predict_names
 
@@ -444,13 +444,13 @@ class MultiVariateGaussianModel (Model):
 
     def update (self):
         """updates dependent parameters / precalculated values of the model"""
-        self._update()  
+        self._update()
         if self._n == 0:
             self._detS = None
             self._SInv = None
         else:
             self._detS = np.abs(np.linalg.det(self._S))
-            self._SInv = self._S.I        
+            self._SInv = self._S.I
 
     def _condition (self, pairs):
         for pair in pairs:
@@ -518,8 +518,8 @@ class MultiVariateGaussianModel (Model):
         mycopy._S = self._S
         mycopy.update()
         return mycopy
-    
-    @staticmethod        
+
+    @staticmethod
     def _upperSchurCompl (M, idx):
         """Returns the upper Schur complement of matrix M with the 'upper block'
         indexed by idx.
