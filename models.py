@@ -282,31 +282,54 @@ class Model:
         """
         idgen = utils.linear_id_generator()
         
+        # find index 
+        #def _indexbyname (name, seq):
+        #    for index, item in enumerate(seq):
+        #        if item.name == name:
+        #            return index
+        
         # (1) derive base model, i.e. a model on all requested dimensions and measures, respecting filters
         # TODO: is there any filter that cannot be applied yet?
 
-        # TODO: come up with some unique identifier for the columns in the return table
+        predict_ids = [] # unique ids of columns in data frame. In correct order. For reordering of columns.
+        predict_names = [] # names of columns as to be returned. In correct order. For renaming of columns.
 
-        # derive the list of dimensions to split by
         split_names = [f.name for f in splitby]
-        # derive the list of aggregations and dimensions to include in result table
-        aggrs, aggr_names, dim_names, predict_names, predict_ids = [], [], [], [], []
+        split_ids = [f.name + next(idgen) for f in splitby] # (pregeneratored) ids for columns for fields to split by. Same order as in splitby-clause. Access by index.
+        split_name2id = dict(zip(split_names, split_ids)) 
+        #split_name2id = {name : id_ for (id_, name) in zip(split_ids, split_names)}
+        #split_ids = {} # ids for columns for fields to split by. Same order as in splitby-clause. Access by index.
+        
+        aggrs = [] # list of aggregation tuples, in same order as in the predict-clause
+        aggr_ids = [] # ids for columns fo fields to aggregate. Same order as in predict-clause
+
+        basenames = set(split_names) # set of names of fields needed for basemodel of this query
         for f in predict:
             if isinstance(f, str):
-                # f is just a string, i.e name of a field that is split by
-                dim_names.append(f)
-                predict_names.append(f)
-                predict_ids.append([next(idgen)])
+                # f is a string, i.e. name of a field that is split by
+                name = f
+                #id_ = split_name2id[name]
+                #idx = _indexbyname(name, splitby)
+                #id_ = split_ids[idx]
+                
+                predict_names.append(name)                
+                predict_ids.append(split_name2id[name])
+
+                basenames.add(name)                
             else:
                 # f is a prediction tuple
-                names = f.name
-                predict_names.append(names)
-                predict_ids.append([next(idgen) for name in names])
-                aggr_names.extend(names)
+                ids = [name + next(idgen) for name in f.name]
+
                 aggrs.append(f)
+                aggr_ids.append(ids)
+            
+                predict_names.extend(f.name)
+                predict_ids.extend(ids)        
+                
+                basenames.update(f.name)           
 
         # from that derive the set of (names of) random variables that are to be kept for the base model
-        basenames = list(set(split_names) | set(aggr_names) | set(dim_names))
+#        basenames = list(set(split_names) | set(aggr_names) | set(dim_names))
         # now get the base model
         basemodel = self.copy().model(basenames, where, '__' + self.name + '_base')
 
@@ -325,23 +348,19 @@ class Model:
                     model = list(splitnames_unique | set(aggr.name)))
         aggr_models = [_derive_aggregation_model(aggr) for aggr in aggrs]
 
-        # TODO: derive model for densities
-        # TODO: is density really just another aggregation?
-
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
-        def _get_group_frame (split):
+        def _get_group_frame (split, column_id):
             MYMAGICNUMBER = 3
-            name = split.name
-            domain = basemodel._byName(name)['domain']
+            domain = basemodel._byName(split.name)['domain']
             domain = sp.NumericDomain(domain[0], domain[1])
             splitFct = sp.splitter[split.method]
-            frame = pd.DataFrame( splitFct(domain, MYMAGICNUMBER), columns = [name])
+            frame = pd.DataFrame( splitFct(domain, MYMAGICNUMBER), columns = [column_id])
             frame['__crossIdx__'] = 0 # need that index to cross join later
             return frame
         def _crossjoin (df1, df2):
             return pd.merge(df1, df2, on='__crossIdx__', copy=False)
-        group_frames = map(_get_group_frame, splitby)
+        group_frames = map(_get_group_frame, splitby, split_ids)
         input_frame = reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
 
         # (4) query models and fill result data frame
@@ -367,7 +386,8 @@ class Model:
                 # value many times, when we split on more than the density 
                 # is calculated on
                 # select relevant columns and iterate over it
-                sub_frame = input_frame[aggr.name]
+                ids = [split_name2id[name] for name in aggr.name]
+                sub_frame = input_frame[ids]
                 for row in sub_frame.iterrows():
                     res = aggr_model.density(aggr.name, row[1])
                     aggr_results.append(res)
@@ -381,22 +401,23 @@ class Model:
                     aggr_results.append(res)
             
             #df = pd.DataFrame(aggr_results, columns=aggr.name)
-            df = pd.DataFrame(aggr_results, columns=predict_ids[idx])
+            df = pd.DataFrame(aggr_results, columns=aggr_ids[idx])
             result_list.append(df)
 
         # (5) filter on aggregations?
         # TODO?
 
-        # (6) collect all into one data frame
+        # (6) collect all results into one data frame
         return_frame = pd.concat(result_list, axis=1)
 
         # (7) get correctly ordered frame that only contain requested fields
-        return_frame = return_frame[chain.from_iterable(predict_ids)] #flattens
+        #return_frame = return_frame[chain.from_iterable(predict_ids)] #flattens
+        return_frame = return_frame[predict_ids] #flattens
         
         # (8) rename columns to be readable (but not unique anymore)
         return_frame.columns = predict_names
 
-        # (9) return data frame
+        # (9) return data frame or tuple including the basemodel
         return (return_frame, basemodel) if returnbasemodel else return_frame
 
 ### ACTUAL MODEL IMPLEMENTATIONS ###
