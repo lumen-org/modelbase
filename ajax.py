@@ -78,11 +78,7 @@ def sample_query():
         return "send a POST request to this url to get a valid query that you"
         "can use at the '/webservice' interface"
     else:
-        #filePath = 'test-model-query_02.json'
         filePath = 'test-model-query_03.json'
-        #filePath = 'test-show-query.json'
-        #filePath = 'test-predict-query_02.json'
-        #filePath = 'test-predict-query_03.json'
         # open file, read as json
         query = json.load( open(filePath) )
         # serialize to string and return

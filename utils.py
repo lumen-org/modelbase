@@ -17,8 +17,7 @@ def unique_list(iter_):
         if i not in ex:
             ex.add(i)
             list_.append(i)
-    return list_
-    
+    return list_    
     
 def random_id_generator(length=15, chars=string.ascii_letters + string.digits, prefix='__'):
     """ Generator for prefixed, random ids of given characters and given length."""

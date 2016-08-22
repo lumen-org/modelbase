@@ -39,16 +39,34 @@
 		"predict":  
 		{	"PREDICT": [
 				"speeding",
-				{"name": "alcohol", "aggregation": "average"}
-			],
-			"FROM": "car_crashes",
-			"WHERE": [
-				{"name": "alcohol", "operator": "EQUALS", "value": 2.3}
-				
+				{
+				  "name": "alcohol",
+				  "aggregation": "average"
+				},
+				"total",
+				{
+				  "name": "total",
+				  "aggregation": "density"
+				}
+
+				],
+				"FROM": "car_crashes",
+				"WHERE": [
+				{
+				  "name": "alcohol",
+				  "operator": "EQUALS",
+				  "value": 2.3
+				}
 			],
 			"SPLIT BY": [
-				{"name": "speeding", "split": "equiDist"},
-				{"name": "total", "split": "equiDist"}
+				{
+				  "name": "speeding",
+				  "split": "equiDist"
+				},
+				{
+				  "name": "total",
+				  "split": "equiDist"
+				}
 			]
 		},
 		"showModels": {	"SHOW": "MODELS" }

@@ -13,7 +13,6 @@ It also defines models that implement that base model:
 import pandas as pd
 import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
-from itertools import chain
 import copy as cp
 from collections import namedtuple
 from functools import reduce
@@ -68,8 +67,6 @@ def invertedIdxList (idx, len) :
 AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'args'])
 SplitTuple = namedtuple('SplitTuple', ['name', 'method', 'args'])
 ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
-#using a dict instead, since tuples are immutable
-#Field = namedtuple('Field', ['name', 'domain', 'dtype'])
 
 class Model:
     """An abstract base model that provides an interface to derive submodels
@@ -254,9 +251,7 @@ class Model:
             The modified model.
         """
         self.name = self.name if as_ is None else as_
-        # 1. apply filter, i.e. condition
         equalpairs = [(cond.name, cond.value) for cond in where if cond.operator == 'EQUALS']
-        # 2. + 3. + 4: condition, marginalize and return
         return self.condition(equalpairs).marginalize(keep = model)
 
     def predict (self, predict, where=[], splitby=[], returnbasemodel = False):
@@ -282,19 +277,13 @@ class Model:
         """
         idgen = utils.linear_id_generator()
 
-        # find index
-        #def _indexbyname (name, seq):
-        #    for index, item in enumerate(seq):
-        #        if item.name == name:
-        #            return index
-
         # (1) derive base model, i.e. a model on all requested dimensions and measures, respecting filters
         predict_ids = [] # unique ids of columns in data frame. In correct order. For reordering of columns.
         predict_names = [] # names of columns as to be returned. In correct order. For renaming of columns.
 
-        split_names = [f.name for f in splitby]
-        split_ids = [f.name + next(idgen) for f in splitby] # (pregeneratored) ids for columns for fields to split by. Same order as in splitby-clause. Access by index.
-        split_name2id = dict(zip(split_names, split_ids))
+        split_names = [f.name for f in splitby] # name of fields to split by. Same order as in split-by clause.
+        split_ids = [f.name + next(idgen) for f in splitby] # (pregeneratored) ids for columns for fields to split by. Same order as in splitby-clause.
+        split_name2id = dict(zip(split_names, split_ids)) # maps split names to ids used for columns in data frames
 
         aggrs = [] # list of aggregation tuples, in same order as in the predict-clause
         aggr_ids = [] # ids for columns fo fields to aggregate. Same order as in predict-clause
@@ -304,21 +293,16 @@ class Model:
             if isinstance(f, str):
                 # f is a string, i.e. name of a field that is split by
                 name = f
-
                 predict_names.append(name)
                 predict_ids.append(split_name2id[name])
-
                 basenames.add(name)
             else:
                 # f is a prediction tuple
                 ids = [name + next(idgen) for name in f.name]
-
                 aggrs.append(f)
                 aggr_ids.append(ids)
-
                 predict_names.extend(f.name)
                 predict_ids.extend(ids)
-
                 basenames.update(f.name)
 
         # from that derive the set of (names of) random variables that are to be kept for the base model
@@ -391,18 +375,16 @@ class Model:
                     res = mymodel.aggregate(aggr.method)
                     aggr_results.append(res)
 
-            #df = pd.DataFrame(aggr_results, columns=aggr.name)
             df = pd.DataFrame(aggr_results, columns=aggr_ids[idx])
             result_list.append(df)
 
-        # (5) filter on aggregations?
-        # TODO?
+        # (5) filter on aggregations? 
+        # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
 
         # (6) collect all results into one data frame
         return_frame = pd.concat(result_list, axis=1)
 
         # (7) get correctly ordered frame that only contain requested fields
-        #return_frame = return_frame[chain.from_iterable(predict_ids)] #flattens
         return_frame = return_frame[predict_ids] #flattens
 
         # (8) rename columns to be readable (but not unique anymore)
@@ -506,7 +488,7 @@ class MultiVariateGaussianModel (Model):
         return self._mu.tolist()[0]
 
     def _sample  (self):
-        # TODO: let it return a dataframe
+        # TODO: let it return a dataframe?
         return self._S * np.matrix(np.random.randn(self._n)).T + self._mu
 
     def copy (self, name = None):

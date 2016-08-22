@@ -2,11 +2,6 @@
 @author: Philipp Lucas
 
 The modelbase module primarly provides the ModelBase class.
-
-Idiomatically the model base does the following:
-  * recieve a query
-  * parse the query
-  * execute the query
 """
 
 import json
