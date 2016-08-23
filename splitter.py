@@ -17,16 +17,21 @@ class NumericDomain:
         self.l = low
         self.h = high
 
-def equiSample (domain, n):
+def equidist (domain, args):
     """ Given a continuous numeric domain returns a list of n evenly spaced samples over
     the entire domain.
 
     Note that if the domain only consists of a single value, equiSample will
     also returns a single element list, regardless of n.
-    """
-    return domain.l if domain.l == domain.h else np.linspace(domain.l, domain.h, n)
+    """   
+    if len(args) == 0:
+        raise ValueError("parameter missing in equidist split")
+    try:        
+        return [domain[0]] if domain[0] == domain[1] else np.linspace(domain[0], domain[1], args[0])
+    except IndexError:
+        return [domain]
 
 """ A map from 'method id' to the actual splitter function. """
 splitter = {
-    "equiDist" : equiSample
+    "equidist" : equidist
 }

@@ -30,3 +30,21 @@ def linear_id_generator(prefix='_id', postfix=''):
     while True:
         yield prefix + str(num) + postfix
         num += 1
+
+def issorted(seq):
+    """ Returns True iff seq is a strictly monotone increasing sequence."""
+    return all( seq[i] < seq[i+1] for i in range(len(seq)-1))
+    
+def invert_indexes (idx, len_) :
+    """utility function that returns an inverted index list given a sorted 
+    sequence of indexes, e.g. given [0,1,4] and len=6 it returns [2,3,5].
+    """
+    it = iter(idx)
+    cur = next(it)
+    inv = []
+    for i in range(len_):        
+        if i == cur:
+            cur = next(it,None)
+        else:
+            inv.append(i)                
+    return inv

@@ -61,11 +61,11 @@
 			"SPLIT BY": [
 				{
 				  "name": "speeding",
-				  "split": "equiDist"
+				  "split": "equidist"
 				},
 				{
 				  "name": "total",
-				  "split": "equiDist"
+				  "split": "equidist"
 				}
 			]
 		},

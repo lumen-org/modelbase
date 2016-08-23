@@ -54,7 +54,7 @@ def _loadCarCrashModel ():
 
 def PQL_parse_json (query):
     """ Parses a given PQL query and transforms it into a more readable and handy 
-    format.
+    format that nicely matches the interface of models.py.
     """
     def _predict (clause):
         def _aggrSplit (e):
@@ -116,10 +116,12 @@ class ModelBase:
             "contains " + str(len(self.models)) + " models, as follows:\n\n" + \
             reduce(lambda p, m: p + str(m) + "\n\n", self.models.values(), "")
 
-    def add  (self, model, name):
-        """ Adds a model to the model base using the given name. """
+    def add  (self, model, name=None):
+        """ Adds a model to the model base using the given name or the models name. """
         if name in self.models:
             logger.warn('Overwriting existing model in model base: ' + name)
+        if name is None:
+            name = model.name
         self.models[name] = model
         return None
 
@@ -156,7 +158,6 @@ class ModelBase:
         # turn to JSON if not already JSON
         if isinstance(query, str):
             query = json.loads(query)
-        # make query nicer
         query = PQL_parse_json(query)
 
         # basic syntax and semantics checking of the given query is done in the _extract* methods
@@ -293,6 +294,4 @@ class ModelBase:
 if __name__ == '__main__':
     mb = ModelBase("mymodelbase")
     cc = mb.models['car_crashes']
-    foo = cc.copy().model(["total","alcohol"], [gm.ConditionTuple("alcohol", "EQUALS", 10)] )
-    bar = cc.copy().predict(["total","alcohol"], [gm.ConditionTuple("alcohol", "EQUALS", 10)], )
-
+    foo = cc.copy().model(["total","alcohol"], [gm.ConditionTuple("alcohol", "equals", 10)] )    
