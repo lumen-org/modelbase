@@ -54,7 +54,6 @@ Somehow, I get the feeling I'm using numpy not correctly. it's too complicated
 to always have to write matrix() explicitely
 """
 
-
 ### GENERIC / ABSTRACT MODELS and other base classes
 AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'args'])
 SplitTuple = namedtuple('SplitTuple', ['name', 'method', 'args'])
@@ -75,8 +74,11 @@ ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
                 lower bound of the domain.
 """
 
+
 def Field(name, domain, dtype='numerical'):
-    return {'name':name, 'domain':domain, 'dtype':dtype}
+    return {'name': name, 'domain': domain, 'dtype': dtype}
+
+
 """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
     as passed in:
 
@@ -90,26 +92,29 @@ def Field(name, domain, dtype='numerical'):
         'numerical' and 'string'
 """
 
+
 def _tuple2str(tuple_):
     """Returns a string that summarizes the given splittuple or aggregation tuple"""
     return str(tuple_[1]) + '(' + str(tuple_[0]) + ')'
+
 
 class Model:
     """An abstract base model that provides an interface to derive submodels
     from it or query density and other aggregations of it.
     """
+
     @staticmethod
-    def _get_header (df):
+    def _get_header(df):
         """ Returns suitable fields for a model from a given pandas dataframe.
             TODO: at the moment this only works for continuous data.
         """
         fields = []
         for column in df:
-            field = {'name':column, 'domain':(df[column].min(), df[column].max()), 'dtype':'numerical'}
+            field = {'name': column, 'domain': (df[column].min(), df[column].max()), 'dtype': 'numerical'}
             fields.append(field)
         return fields
 
-    def asindex (self, names):
+    def asindex(self, names):
         """Given a single name or a list of names of random variables, returns
         the indexes of these in the .field attribute of the model.
         """
@@ -118,7 +123,7 @@ class Model:
         else:
             return [self._name2idx[name] for name in names]
 
-    def byname (self, names):
+    def byname(self, names):
         """Given a list of names of random variables, returns the corresponding
         fields of this model.
         """
@@ -127,7 +132,7 @@ class Model:
         else:
             return [self.fields[self._name2idx[name]] for name in names]
 
-    def isfieldname (self, names):
+    def isfieldname(self, names):
         """Returns true iff the name or names of variables given are names of
         random variables of this model.
         """
@@ -135,7 +140,7 @@ class Model:
             names = [names]
         return all([name in self._name2idx for name in names])
 
-    def __init__ (self, name):
+    def __init__(self, name):
         self.name = name
         self.fields = []
         self.names = []
@@ -144,7 +149,7 @@ class Model:
         self._n = 0
         self._name2idx = {}
 
-    def fit (self, data):
+    def fit(self, data):
         """Fits the model to the dataframe assigned to this model in at
         construction time.
 
@@ -156,10 +161,10 @@ class Model:
         self._fit()
         return self
 
-    def _fit (self):
+    def _fit(self):
         raise NotImplementedError()
 
-    def marginalize (self, keep = None, remove = None):
+    def marginalize(self, keep=None, remove=None):
         """Marginalizes random variables out of the model. Either specify which
         random variables to keep or specify which to remove.
 
@@ -173,7 +178,7 @@ class Model:
             The modified model.
         """
         logger.debug('marginalizing: '
-            + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
+                     + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
 
         if keep is not None:
             if not self.isfieldname(keep):
@@ -187,10 +192,10 @@ class Model:
 
         return self._marginalize(keep)
 
-    def _marginalize (self, keep):
+    def _marginalize(self, keep):
         raise NotImplementedError()
 
-    def condition (self, conditions):
+    def condition(self, conditions):
         """Conditions this model according to the list of three tuples
         (<name-of-random-variable>, <operator>, <value(s)>). In particular
         ConditionTuples are accepted and see there for allows values.
@@ -224,21 +229,21 @@ class Model:
         self._condition(simplified_conditions)
         return self
 
-    def _condition (self, pairs):
+    def _condition(self, pairs):
         """ Conditions a model according to the passed list of pairs of
         (<field-name>, <new-domain>).
         For valid domains see the docstring of Field above.
         """
         raise NotImplementedError()
 
-    def aggregate (self, method):
+    def aggregate(self, method):
         """Aggregates this model using the given method and returns the
         aggregation as a list. The order of elements in the list, matches the
         order of random variables in the models field.
 
         Returns:
             The aggregation of the model.
-        """        
+        """
         if (method in self._aggrMethods):
             return self._aggrMethods[method]()
         else:
@@ -250,20 +255,21 @@ class Model:
         assumed to be in the same order as the fields of the model.
         """
         if len(names) != self._n:
-            raise ValueError('Not enough names/values provided. Require ' + str(self._n) + ' got ' + str(len(names)) + '.')
+            raise ValueError(
+                'Not enough names/values provided. Require ' + str(self._n) + ' got ' + str(len(names)) + '.')
 
         if values is None:
             # in that case the only argument holds the (correctly sorted) values
             values = names
         else:
-            sorted_ = sorted(zip(self.asindex(names), values), key = lambda pair: pair[0])
+            sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
             values = [pair[1] for pair in sorted_]
         return self._density(values)
 
-    def sample (self, n=1):
+    def sample(self, n=1):
         """Returns n samples drawn from the model."""
         samples = (self._sample() for i in range(n))
-        return  pd.DataFrame.from_records(samples, self.names)
+        return pd.DataFrame.from_records(samples, self.names)
 
     def _sample(self):
         raise NotImplementedError()
@@ -273,15 +279,12 @@ class Model:
 
     def _update(self):
         """Updates the name2idx dictionary based on the fields in .fields"""
-# TODO": call it from aggregate, ... make it transparent to subclasses!? is that possible?
+        # TODO": call it from aggregate, ... make it transparent to subclasses!? is that possible?
         self._n = len(self.fields)
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(self._n)))
         self.names = [f['name'] for f in self.fields]
 
-        assert(self._mu.shape == (self._n, 1) and
-            self._S.shape == (self._n, self._n))
-
-    def model (self, model, where=[], as_ = None):
+    def model(self, model, where=[], as_=None):
         """Returns a model with name 'as_' that models the fields in 'model'
         respecting conditions in 'where'.
 
@@ -298,10 +301,10 @@ class Model:
             The modified model.
         """
         self.name = self.name if as_ is None else as_
-        return self.condition(where).marginalize(keep = model)
-        #equalpairs = [(cond.name, (cond.value, cond.value)) for cond in where if cond.operator == 'EQUALS']
+        return self.condition(where).marginalize(keep=model)
+        # equalpairs = [(cond.name, (cond.value, cond.value)) for cond in where if cond.operator == 'EQUALS']
 
-    def predict (self, predict, where=[], splitby=[], returnbasemodel = False):
+    def predict(self, predict, where=[], splitby=[], returnbasemodel=False):
         """ Calculates the prediction against the model and returns its result
         by means of a data frame.
 
@@ -328,17 +331,18 @@ class Model:
         idgen = utils.linear_id_generator()
 
         # (1) derive base model, i.e. a model on all requested dimensions and measures, respecting filters
-        predict_ids = [] # unique ids of columns in data frame. In correct order. For reordering of columns.
-        predict_names = [] # names of columns as to be returned. In correct order. For renaming of columns.
+        predict_ids = []  # unique ids of columns in data frame. In correct order. For reordering of columns.
+        predict_names = []  # names of columns as to be returned. In correct order. For renaming of columns.
 
-        split_names = [f.name for f in splitby] # name of fields to split by. Same order as in split-by clause.
-        split_ids = [f.name + next(idgen) for f in splitby] # (pregeneratored) ids for columns for fields to split by. Same order as in splitby-clause.
-        split_name2id = dict(zip(split_names, split_ids)) # maps split names to ids used for columns in data frames
+        split_names = [f.name for f in splitby]  # name of fields to split by. Same order as in split-by clause.
+        split_ids = [f.name + next(idgen) for f in
+                     splitby]  # (pregeneratored) ids for columns for fields to split by. Same order as in splitby-clause.
+        split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids used for columns in data frames
 
-        aggrs = [] # list of aggregation tuples, in same order as in the predict-clause
-        aggr_ids = [] # ids for columns fo fields to aggregate. Same order as in predict-clause
+        aggrs = []  # list of aggregation tuples, in same order as in the predict-clause
+        aggr_ids = []  # ids for columns fo fields to aggregate. Same order as in predict-clause
 
-        basenames = set(split_names) # set of names of fields needed for basemodel of this query
+        basenames = set(split_names)  # set of names of fields needed for basemodel of this query
         for t in predict:
             if isinstance(t, str):
                 # t is a string, i.e. name of a field that is split by
@@ -354,7 +358,7 @@ class Model:
                 ids = [name + next(idgen) for name in t.name]
                 aggrs.append(t)
                 aggr_ids.append(ids)
-                predict_names.append(_tuple2str(t)) # generate column name to return
+                predict_names.append(_tuple2str(t))  # generate column name to return
                 predict_ids.extend(ids)
                 basenames.update(t.name)
 
@@ -367,28 +371,32 @@ class Model:
         # a used for splitting, or equivalently: keep all random variables of
         # dimensions, plus the once for the current aggregation
         splitnames_unique = set(split_names)
-        def _derive_aggregation_model (aggr):
+
+        def _derive_aggregation_model(aggr):
             aggr_model = basemodel.copy()
             if aggr.method == 'density':
-                return aggr_model.model(model = aggr.name)
+                return aggr_model.model(model=aggr.name)
             else:
                 return aggr_model.model(
-                    model = list(splitnames_unique | set(aggr.name)))
+                    model=list(splitnames_unique | set(aggr.name)))
+
         aggr_models = [_derive_aggregation_model(aggr) for aggr in aggrs]
 
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
-        def _get_group_frame (split, column_id):
+        def _get_group_frame(split, column_id):
             try:
                 domain = basemodel.byname(split.name)['domain']
-                splitFct = sp.splitter[split.method.lower()]
+                splitfct = sp.splitter[split.method.lower()]
             except KeyError:
                 raise ValueError("split method '" + split.method + "' is not supported")
-            frame = pd.DataFrame( splitFct(domain, split.args), columns = [column_id])
-            frame['__crossIdx__'] = 0 # need that index to cross join later
+            frame = pd.DataFrame(splitfct(domain, split.args), columns=[column_id])
+            frame['__crossIdx__'] = 0  # need that index to cross join later
             return frame
-        def _crossjoin (df1, df2):
+
+        def _crossjoin(df1, df2):
             return pd.merge(df1, df2, on='__crossIdx__', copy=False)
+
         group_frames = map(_get_group_frame, splitby, split_ids)
         input_frame = reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
 
@@ -424,9 +432,9 @@ class Model:
                 for _, row in input_frame.iterrows():
                     # derive model for these specific conditions
                     pairs = zip(split_names, [row, row])
-                    mymodel = aggr_model.copy()._condition(pairs).marginalize(keep = aggr.name)
+                    mymodel = aggr_model.copy()._condition(pairs).marginalize(keep=aggr.name)
                     # now do the aggregation
-                    res = mymodel.aggregate(aggr.method)                    
+                    res = mymodel.aggregate(aggr.method)
                     aggr_results.append(res)
 
             df = pd.DataFrame(aggr_results, columns=aggr_ids[idx])
@@ -439,7 +447,7 @@ class Model:
         return_frame = pd.concat(result_list, axis=1)
 
         # (7) get correctly ordered frame that only contain requested fields
-        return_frame = return_frame[predict_ids] #flattens
+        return_frame = return_frame[predict_ids]  # flattens
 
         # (8) rename columns to be readable (but not unique anymore)
         return_frame.columns = predict_names
@@ -447,13 +455,15 @@ class Model:
         # (9) return data frame or tuple including the basemodel
         return (return_frame, basemodel) if returnbasemodel else return_frame
 
+
 ### ACTUAL MODEL IMPLEMENTATIONS
 
-class MultiVariateGaussianModel (Model):
+class MultiVariateGaussianModel(Model):
     """A multivariate gaussian model and methods to derive submodels from it
     or query density and other aggregations of it
     """
-    def __init__ (self, name):
+
+    def __init__(self, name):
         # make sure these are matrix types (numpy.matrix)
         super().__init__(name)
         self._mu = nan
@@ -463,7 +473,7 @@ class MultiVariateGaussianModel (Model):
             'average': self._maximum
         }
 
-    def _fit (self):
+    def _fit(self):
         model = mixture.GMM(n_components=1, covariance_type='full')
         model.fit(self.data)
         self._model = model
@@ -471,15 +481,16 @@ class MultiVariateGaussianModel (Model):
         self._S = matrix(model.covars_)
         self.update()
 
-    def __str__ (self):
-        return( "Multivariate Gaussian Model '" + self.name + "':\n" + \
-                "dimension: " + str(self._n) + "\n" + \
-                "names: " + str([self.names]) + "\n" + \
+    def __str__(self):
+        return ("Multivariate Gaussian Model '" + self.name + "':\n" +
+                "dimension: " + str(self._n) + "\n" +
+                "names: " + str([self.names]) + "\n" +
                 "fields: " + str([str(field) for field in self.fields]))
-#                "mu:\n" + str(self._mu) + "\n" + \
-#               "sigma:\n" + str(self._S) + "\n")
 
-    def update (self):
+    #                "mu:\n" + str(self._mu) + "\n" + \
+    #               "sigma:\n" + str(self._S) + "\n")
+
+    def update(self):
         """updates dependent parameters / precalculated values of the model"""
         self._update()
         if self._n == 0:
@@ -488,14 +499,18 @@ class MultiVariateGaussianModel (Model):
         else:
             self._detS = np.abs(np.linalg.det(self._S))
             self._SInv = self._S.I
+
+        assert (self._mu.shape == (self._n, 1) and
+                self._S.shape == (self._n, self._n))
+
         return self
 
-    def _condition (self, pairs):
+    def _condition(self, pairs):
         for pair in pairs:
             self.byname(pair[0])['domain'] = pair[1]
         return self
 
-    def _conditionout (self, names):
+    def _conditionout(self, names):
         """Conditions the random variables with name in names on their
         available domain and marginalizes them out
         """
@@ -503,48 +518,48 @@ class MultiVariateGaussianModel (Model):
             return
         j = sorted(self.asindex(names))
         i = utils.invert_indexes(j, self._n)
-        assert(utils.issorted(j))
-        condValues = [self.fields[idx]['domain'] for idx in j]
+        assert (utils.issorted(j))
+        condvalues = [self.fields[idx]['domain'] for idx in j]
         # store old sigma and mu
         S = self._S
         mu = self._mu
         # update sigma and mu according to GM script
-        self._S = MultiVariateGaussianModel._upperSchurCompl(S, i)
-        self._mu = mu[i] + S[ix_(i,j)] * S[ix_(j,j)].I * (condValues - mu[j])
+        self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
+        self._mu = mu[i] + S[ix_(i, j)] * S[ix_(j, j)].I * (condvalues - mu[j])
         self.fields = [self.fields[idx] for idx in i]
         return self.update()
 
-    def _marginalize (self, keep):
+    def _marginalize(self, keep):
         # there is two types of a random variable v that is removed:
         # (i) v's domain is a single value, i.e. it is 'conditioned out'
         # (ii) v's domain is a range (continuous random variable) or a set
         #   (discrete random variable), i.e. it is 'normally' marginalized out
-        condNames = [randVar['name'] for idx, randVar in enumerate(self.fields)
-            if (randVar['name'] not in keep) and (len(randVar['domain']) == 1)]
-        self._conditionout(condNames)
+        condnames = [randVar['name'] for idx, randVar in enumerate(self.fields)
+                     if (randVar['name'] not in keep) and (len(randVar['domain']) == 1)]
+        self._conditionout(condnames)
 
         # marginalize all other not wanted random variables
         # i.e.: just select the part of mu and sigma that remains
-        keepIdx = sorted(self.asindex(keep))
-        self._mu = self._mu[keepIdx]
-        self._S = self._S[np.ix_(keepIdx, keepIdx)]
-        self.fields = [self.fields[idx] for idx in keepIdx]
+        keepidx = sorted(self.asindex(keep))
+        self._mu = self._mu[keepidx]
+        self._S = self._S[np.ix_(keepidx, keepidx)]
+        self.fields = [self.fields[idx] for idx in keepidx]
         return self.update()
 
-    def _density (self, x):
+    def _density(self, x):
         """Returns the density of the model at point x."""
         xmu = x - self._mu
-        return ( (2*pi)**(-self._n/2) * (self._detS**-.5) * exp( -.5 * xmu.T * self._SInv * xmu ) ).item()
+        return ((2 * pi) ** (-self._n / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item()
 
-    def _maximum (self):
+    def _maximum(self):
         # _mu is a np matrix, but I want to return a list
         return self._mu.tolist()[0]
 
-    def _sample  (self):
+    def _sample(self):
         # TODO: let it return a dataframe?
         return self._S * np.matrix(np.random.randn(self._n)).T + self._mu
 
-    def copy (self, name = None):
+    def copy(self, name=None):
         name = self.name if name is None else name
         mycopy = MultiVariateGaussianModel(name)
         mycopy.data = self.data
@@ -555,34 +570,33 @@ class MultiVariateGaussianModel (Model):
         return mycopy
 
     @staticmethod
-    def customMVG (sigma, mu, name):
+    def custom_mvg(sigma, mu, name):
         """Returns a MultiVariateGaussian model that uses the provided sigma, mu and name.
 
         Note: The domain of each field is set to (-10,10).
 
         Args:
-            simga: a suitable numpy matrix
+            sigma: a suitable numpy matrix
             mu: a suitable numpy row vector
         """
 
-        if not isinstance(mu, matrix) or not isinstance(sigma, matrix) or \
-            mu.shape[1] != 1:
+        if not isinstance(mu, matrix) or not isinstance(sigma, matrix) or mu.shape[1] != 1:
             raise ValueError("invalid arguments")
         model = MultiVariateGaussianModel(name)
-        model.fields = [Field(name="dim"+str(idx), domain=(-10,10)) for idx in range(sigma.shape[0])]
+        model.fields = [Field(name="dim" + str(idx), domain=(-10, 10)) for idx in range(sigma.shape[0])]
         model._S = sigma
         model._mu = mu
         model.update()
         return model
 
     @staticmethod
-    def normalMVG (dim, name):
+    def normal_mvg(dim, name):
         sigma = matrix(np.eye(dim))
         mu = matrix(np.zeros(dim)).T
-        return MultiVariateGaussianModel.customMVG(sigma, mu, name)
+        return MultiVariateGaussianModel.custom_mvg(sigma, mu, name)
 
     @staticmethod
-    def _upperSchurCompl (M, idx):
+    def _schurcompl_upper(M, idx):
         """Returns the upper Schur complement of matrix M with the 'upper block'
         indexed by idx.
         """
@@ -590,49 +604,54 @@ class MultiVariateGaussianModel (Model):
         i = idx
         j = utils.invert_indexes(i, M.shape[0])
         # that's the definition of the upper Schur complement
-        return M[ix_(i,i)] - M[ix_(i,j)] * M[ix_(j,j)].I * M[ix_(j,i)]
+        return M[ix_(i, i)] - M[ix_(i, j)] * M[ix_(j, j)].I * M[ix_(j, i)]
+
 
 if __name__ == '__main__':
     import pdb
-    #foo = MultiVariateGaussianModel.normalMVG(5,"foo")
+
+    # foo = MultiVariateGaussianModel.normalMVG(5,"foo")
     sigma = matrix(np.array([
         [1.0, 0.6, 0.0, 2.0],
         [0.6, 1.0, 0.4, 0.0],
         [0.0, 0.4, 1.0, 0.0],
         [2.0, 0.0, 0.0, 1.]]))
     mu = matrix(np.array([1.0, 2.0, 0.0, 0.5])).T
-    foo = MultiVariateGaussianModel.customMVG(sigma, mu, "foo")
-    #foo.marginalize(remove=['dim3'])
-    #print("\n\nmarginalized\n" + str(foo.names))
-    #foo.condition([('dim1', 'equals', 3)])
-    #print("\n\nconditioned\n" + str(foo))
-    res = foo.predict(predict=['dim0'],splitby=[SplitTuple('dim0','equiDist',[5])])
+    foo = MultiVariateGaussianModel.custom_mvg(sigma, mu, "foo")
+    # foo.marginalize(remove=['dim3'])
+    # print("\n\nmarginalized\n" + str(foo.names))
+    # foo.condition([('dim1', 'equals', 3)])
+    # print("\n\nconditioned\n" + str(foo))
+    res = foo.predict(predict=['dim0'], splitby=[SplitTuple('dim0', 'equiDist', [5])])
     print("\n\npredict 1\n" + str(res))
-    res = foo.predict(predict=[AggregationTuple(['dim1'],'maximum',[]),'dim0'], splitby=[SplitTuple('dim0','equiDist',[10])])
+    res = foo.predict(predict=[AggregationTuple(['dim1'], 'maximum', []), 'dim0'],
+                      splitby=[SplitTuple('dim0', 'equiDist', [10])])
     print("\n\npredict 2\n" + str(res))
-    res = foo.predict(predict=[AggregationTuple(['dim0'],'maximum',[]),'dim0'], where=[ConditionTuple('dim0','equals',1)], splitby=[SplitTuple('dim0','equiDist',[10])])
+    res = foo.predict(predict=[AggregationTuple(['dim0'], 'maximum', []), 'dim0'],
+                      where=[ConditionTuple('dim0', 'equals', 1)], splitby=[SplitTuple('dim0', 'equiDist', [10])])
     print("\n\npredict 3\n" + str(res))
-    res = foo.predict(predict=[AggregationTuple(['dim0'],'density',[]),'dim0'], splitby=[SplitTuple('dim0','equiDist',[10])])
+    res = foo.predict(predict=[AggregationTuple(['dim0'], 'density', []), 'dim0'],
+                      splitby=[SplitTuple('dim0', 'equiDist', [10])])
     print("\n\npredict 4\n" + str(res))
     res = foo.predict(
-        predict = [AggregationTuple(['dim0'],'density',[]),'dim0'],
-        splitby = [SplitTuple('dim0','equiDist',[10])],
-        where = [ConditionTuple('dim0', 'greater', -1)])
+        predict=[AggregationTuple(['dim0'], 'density', []), 'dim0'],
+        splitby=[SplitTuple('dim0', 'equiDist', [10])],
+        where=[ConditionTuple('dim0', 'greater', -1)])
     print("\n\npredict 5\n" + str(res))
     res = foo.predict(
-        predict = [AggregationTuple(['dim0'],'density',[]),'dim0'],
-        splitby = [SplitTuple('dim0','equiDist',[10])],
-        where = [ConditionTuple('dim0', 'less', -1)])
+        predict=[AggregationTuple(['dim0'], 'density', []), 'dim0'],
+        splitby=[SplitTuple('dim0', 'equiDist', [10])],
+        where=[ConditionTuple('dim0', 'less', -1)])
     print("\n\npredict 6\n" + str(res))
     res = foo.predict(
-        predict = [AggregationTuple(['dim0'],'density',[]),'dim0'],
-        splitby = [SplitTuple('dim0','equiDist',[10])],
-        where = [ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)])
+        predict=[AggregationTuple(['dim0'], 'density', []), 'dim0'],
+        splitby=[SplitTuple('dim0', 'equiDist', [10])],
+        where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)])
     print("\n\npredict 7\n" + str(res))
     res, base = foo.predict(
-        predict = [AggregationTuple(['dim0'],'density',[]),'dim0'],
-        splitby = [SplitTuple('dim0','equiDist',[10]), SplitTuple('dim1','equiDist',[7])],
-        where = [ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)],
-        returnbasemodel = True)
+        predict=[AggregationTuple(['dim0'], 'density', []), 'dim0'],
+        splitby=[SplitTuple('dim0', 'equiDist', [10]), SplitTuple('dim1', 'equiDist', [7])],
+        where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)],
+        returnbasemodel=True)
     print("\n\npredict 8\n" + str(res))
     print("\n\n" + str(base) + "\n")

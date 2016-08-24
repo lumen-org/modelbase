@@ -10,28 +10,29 @@ each for more.
 """
 import numpy as np
 
+
 class NumericDomain:
-    def __init__ (self, low, high):
+    def __init__(self, low, high):
         if low > high:
             raise ValueError()
         self.l = low
         self.h = high
 
-def equidist (domain, args):
+
+def equidist(domain, args):
     """ Given a continuous numeric domain returns a list of n evenly spaced samples over
     the entire domain.
 
     Note that if the domain only consists of a single value, equiSample will
     also returns a single element list, regardless of n.
-    """   
-    if len(args) == 0:
-        raise ValueError("parameter missing in equidist split")
-    try:        
+    """
+    try:
         return [domain[0]] if domain[0] == domain[1] else np.linspace(domain[0], domain[1], args[0])
     except IndexError:
-        return [domain]
+        return [domain[0]]
+
 
 """ A map from 'method id' to the actual splitter function. """
 splitter = {
-    "equidist" : equidist
+    "equidist": equidist
 }

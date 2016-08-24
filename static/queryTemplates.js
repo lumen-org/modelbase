@@ -61,11 +61,13 @@
 			"SPLIT BY": [
 				{
 				  "name": "speeding",
-				  "split": "equidist"
+				  "split": "equidist",
+				  "args":[4]
 				},
 				{
 				  "name": "total",
-				  "split": "equidist"
+				  "split": "equidist",
+				  "args":[4]
 				}
 			]
 		},

@@ -13,6 +13,7 @@ import models as gm
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+
 class QuerySyntaxError(Exception):
     meaning = """This error indicates that a PQL query was incomplete and\
  hence could not be executed"""
@@ -36,7 +37,8 @@ class QueryValueError(Exception):
     def __repr__(self):
         return repr(self.value)
 
-def _loadIrisModel ():
+
+def _loadIrisModel():
     """ Loads the iris data set and returns a MultiVariateGaussianModel of it."""
     # load data set as pandas DataFrame
     data = sns.load_dataset('iris')
@@ -45,34 +47,39 @@ def _loadIrisModel ():
     model.fit(data.iloc[:, 0:-1])
     return model
 
-def _loadCarCrashModel ():
+
+def _loadCarCrashModel():
     """ Loads the car crash data set and returns a MultiVariateGaussianModel of it."""
     data = sns.load_dataset('car_crashes')
     model = gm.MultiVariateGaussianModel('car_crashes')
     model.fit(data.iloc[:, 0:-1])
     return model
 
-def PQL_parse_json (query):
+
+def PQL_parse_json(query):
     """ Parses a given PQL query and transforms it into a more readable and handy 
     format that nicely matches the interface of models.py.
     """
-    def _predict (clause):
-        def _aggrSplit (e):
+
+    def _predict(clause):
+        def _aggrSplit(e):
             if isinstance(e, str):
                 return e
             else:
                 names = [e["name"]] if isinstance(e["name"], str) else e["name"]
-                args = e["args"] if "args" in e else None                
+                args = e["args"] if "args" in e else None
                 return gm.AggregationTuple(names, e["aggregation"], args)
+
         return list(map(_aggrSplit, clause))
 
-    def _where (clause):
+    def _where(clause):
         return [gm.ConditionTuple(e["name"], e["operator"], e["value"]) for e in clause]
 
-    def _splitby (clause):
-        def _mapSplit (e):
+    def _splitby(clause):
+        def _mapSplit(e):
             args = e["args"] if "args" in e else None
             return gm.SplitTuple(e["name"], e["split"], args)
+
         return list(map(_mapSplit, clause))
 
     if "PREDICT" in query:
@@ -103,20 +110,21 @@ class ModelBase:
             model must have a unique string as its name, and this name is used
             as a key in the dictionary.
     """
-    def __init__ (self, name):
+
+    def __init__(self, name):
         """ Creates a new instance and loads some default models. """
         # more data sets here: https://github.com/mwaskom/seaborn-data
         self.name = name
-        self.models = {} # models is a dictionary, using the name of a model as its key
-        self.models['iris'] =  _loadIrisModel()
+        self.models = {}  # models is a dictionary, using the name of a model as its key
+        self.models['iris'] = _loadIrisModel()
         self.models['car_crashes'] = _loadCarCrashModel()
 
-    def __str__ (self):
-        return " -- Model Base > " + self.name+ " < -- \n" + \
-            "contains " + str(len(self.models)) + " models, as follows:\n\n" + \
-            reduce(lambda p, m: p + str(m) + "\n\n", self.models.values(), "")
+    def __str__(self):
+        return " -- Model Base > " + self.name + " < -- \n" + \
+               "contains " + str(len(self.models)) + " models, as follows:\n\n" + \
+               reduce(lambda p, m: p + str(m) + "\n\n", self.models.values(), "")
 
-    def add  (self, model, name=None):
+    def add(self, model, name=None):
         """ Adds a model to the model base using the given name or the models name. """
         if name in self.models:
             logger.warn('Overwriting existing model in model base: ' + name)
@@ -125,21 +133,20 @@ class ModelBase:
         self.models[name] = model
         return None
 
-    def drop (self, name):
+    def drop(self, name):
         """ Drops a model from the model base and returns the dropped model."""
         model = self.models[name]
         del self.models[name]
         return model
 
-    def get (self, name):
+    def get(self, name):
         """Gets a model from the modelbase by name and returns it."""
         return self.models[name]
 
     def list_models(self):
         return list(self.models.keys())
-        
 
-    def execute (self, query):
+    def execute(self, query):
         """ Executes the given PQL query and returns the result as JSON (or None).
 
         Args:
@@ -167,8 +174,8 @@ class ModelBase:
             derived_model = base if base.name == query["AS"] else base.copy(query["AS"])
             # derive submodel
             derived_model.model(
-                model = self._extractModel(query),
-                where = self._extractWhere(query))
+                model=self._extractModel(query),
+                where=self._extractWhere(query))
             # add to modelbase
             self.add(derived_model, query["AS"])
             # return header
@@ -177,17 +184,17 @@ class ModelBase:
         elif 'PREDICT' in query:
             base = self._extractFrom(query)
             resultframe = base.predict(
-                predict = self._extractPredict(query),
-                where = self._extractWhere(query),
-                splitby = self._extractSplitBy(query))
-            
-            #print(str(resultframe.to_json(orient="split"))) 
-            #print(str(resultframe.to_json(orient="columns")))
-            #print(str(resultframe.to_json(orient="values")))           
+                predict=self._extractPredict(query),
+                where=self._extractWhere(query),
+                splitby=self._extractSplitBy(query))
+
+            # print(str(resultframe.to_json(orient="split")))
+            # print(str(resultframe.to_json(orient="columns")))
+            # print(str(resultframe.to_json(orient="values")))
             return resultframe.to_json(orient="split")
 
         elif 'DROP' in query:
-            self.drop(name = query['DROP'])
+            self.drop(name=query['DROP'])
             return json.dumps({})
 
         elif 'SHOW' in query:
@@ -196,11 +203,14 @@ class ModelBase:
                 result = self._extractFrom(query).fields
             elif show == "MODELS":
                 result = self.list_models()
-            return json.dumps(result)        
+            else:
+                raise ValueError("invalid value given in SHOW-clause: " + str(show))
+            return json.dumps(result)
 
-### _extract* functions are helpers to extract a certain part of a PQL query
-#   and do some basic syntax and semantic checks
-    def _extractFrom (self, query):
+        ### _extract* functions are helpers to extract a certain part of a PQL query
+        #   and do some basic syntax and semantic checks
+
+    def _extractFrom(self, query):
         """ Returns the model that the value of the "FROM"-statement of query
         refers to. """
         if 'FROM' not in query:
@@ -210,7 +220,7 @@ class ModelBase:
             raise QueryValueError("The specified model does not exist: " + modelName)
         return self.models[modelName]
 
-    def _extractShow (self, query):
+    def _extractShow(self, query):
         """ Extracts the value of the "SHOW"-statement from query."""
         if 'SHOW' not in query:
             raise QuerySyntaxError("'SHOW'-statement missing")
@@ -219,7 +229,7 @@ class ModelBase:
             raise QueryValueError("Invalid value of SHOW-statement: " + what)
         return what
 
-    def _extractSplitBy (self, query, required=False):
+    def _extractSplitBy(self, query, required=False):
         """ Extracts from query the list of groupings. The order is preserved.
 
         Args:
@@ -239,7 +249,7 @@ class ModelBase:
             return []
         return query['SPLIT BY']
 
-    def _extractModel (self, query):
+    def _extractModel(self, query):
         """ Extracts the names of the random variables to model and returns it
         as a list of strings. The order is preserved.
 
@@ -255,7 +265,7 @@ class ModelBase:
         else:
             return query['MODEL']
 
-    def _extractPredict (self, query):
+    def _extractPredict(self, query):
         """ Extracts from query the fields to predict and returns them in a
         list. The order is preserved.
 
@@ -265,7 +275,7 @@ class ModelBase:
             raise QuerySyntaxError("'PREDICT'-statement missing")
         return query['PREDICT']
 
-    def _extractAs (self, query):
+    def _extractAs(self, query):
         """ Extracts from query the name under which the derived model is to be
         stored and returns it.
         """
@@ -273,7 +283,7 @@ class ModelBase:
             raise QuerySyntaxError("'AS'-statement missing")
         return query['AS']
 
-    def _extractWhere (self, query, required=False):
+    def _extractWhere(self, query, required=False):
         """ Extracts from query the list of conditions in the statement. The
         order is preserved.
 
@@ -291,7 +301,8 @@ class ModelBase:
         else:
             return query['WHERE']
 
+
 if __name__ == '__main__':
     mb = ModelBase("mymodelbase")
     cc = mb.models['car_crashes']
-    foo = cc.copy().model(["total","alcohol"], [gm.ConditionTuple("alcohol", "equals", 10)] )    
+    foo = cc.copy().model(["total", "alcohol"], [gm.ConditionTuple("alcohol", "equals", 10)])
