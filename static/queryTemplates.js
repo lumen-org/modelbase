@@ -100,9 +100,15 @@
         	queryOutputField[0][0].value = error.response
         	return
         }
+        
         var resultStr = JSON.stringify(json, null, 2)
-        onSuccess(resultStr, "onQueryExecuted")
-        queryOutputField[0][0].value = resultStr
+		onSuccess(resultStr, "onQueryExecuted")
+		
+		if( json.hasOwnProperty('data') ) {
+			queryOutputField[0][0].value = json.data
+		} else {
+			queryOutputField[0][0].value = resultStr
+		}
     }
 
     // load a json query. When loaded send the query

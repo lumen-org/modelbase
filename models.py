@@ -180,7 +180,9 @@ class Model:
         logger.debug('marginalizing: '
                      + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
 
-        if keep is not None:
+        if keep is not None:            
+            if keep == '*':
+                keep = self.names
             if not self.isfieldname(keep):
                 raise ValueError("invalid random variable names: " + str(keep))
         elif remove is not None:
@@ -196,11 +198,11 @@ class Model:
         raise NotImplementedError()
 
     def condition(self, conditions):
-        """Conditions this model according to the list of three tuples
+        """Conditions this model according to the list of three-tuples
         (<name-of-random-variable>, <operator>, <value(s)>). In particular
-        ConditionTuples are accepted and see there for allows values.
+        ConditionTuples are accepted and see there for allowed values.
 
-        Note: This simply restricts the domains of the random variables. To
+        Note: This only restricts the domains of the random variables. To
         remove the conditioned random variable you need to call marginalize
         with the appropriate paramters.
 
@@ -291,7 +293,9 @@ class Model:
         Note that it does NOT create a copy, but modifies this model.
 
         Args:
-            model:  A list of strings, representing the names of fields to model.
+            model:  A list of strings, representing the names of fields to 
+                model. Its value may also be "*" or ["*"], meaning all fields
+                of this model.
             where: A list of 'conditiontuple's, representing the conditions to
                 model.
             as_: An optional string. The name for the model to derive. If set
@@ -486,7 +490,6 @@ class MultiVariateGaussianModel(Model):
                 "dimension: " + str(self._n) + "\n" +
                 "names: " + str([self.names]) + "\n" +
                 "fields: " + str([str(field) for field in self.fields]))
-
     #                "mu:\n" + str(self._mu) + "\n" + \
     #               "sigma:\n" + str(self._S) + "\n")
 

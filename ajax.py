@@ -101,5 +101,5 @@ def playground():
 # trigger to start the web server if this script is run
 if __name__ == "__main__":
     import pdb
-    app.run()
-#    pdb.run('app.run()')
+    #app.run()
+    pdb.run('app.run()')

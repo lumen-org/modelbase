@@ -63,12 +63,16 @@ def PQL_parse_json(query):
 
     def _predict(clause):
         def _aggrSplit(e):
+            
             if isinstance(e, str):
                 return e
             else:
                 names = [e["name"]] if isinstance(e["name"], str) else e["name"]
                 args = e["args"] if "args" in e else None
-                return gm.AggregationTuple(names, e["aggregation"], args)
+                try:
+                    return gm.AggregationTuple(names, e["aggregation"], args)   
+                except KeyError:
+                    raise ValueError("unsopported aggregation method: " + str(e))
 
         return list(map(_aggrSplit, clause))
 
@@ -188,10 +192,11 @@ class ModelBase:
                 where=self._extractWhere(query),
                 splitby=self._extractSplitBy(query))
 
-            # print(str(resultframe.to_json(orient="split")))
-            # print(str(resultframe.to_json(orient="columns")))
-            # print(str(resultframe.to_json(orient="values")))
-            return resultframe.to_json(orient="split")
+            #print("split\n\n" + str(resultframe.to_json(orient="split")))
+            #print("columns\n\n" + str(resultframe.to_json(orient="columns")))
+            #print("values\n\n" + str(resultframe.to_json(orient="values")))
+            return json.dumps({"header": resultframe.columns.tolist(),
+                               "data": resultframe.to_csv(index=False, header=False)})
 
         elif 'DROP' in query:
             self.drop(name=query['DROP'])
