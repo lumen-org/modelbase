@@ -21,6 +21,9 @@ import logging
 import splitter as sp
 import utils as utils
 
+# TODO: I don't know how to calculate aggregations beyond maximum, average and density of unrestricted multivariate gaussians
+# e.g. what if we restrict the domain to >1? what is the average of such a distribution? how do we marginalize out such restricted fields?
+
 # for fuzzy comparision.
 # TODO: make it nicer?
 eps = 0.000001
@@ -370,11 +373,11 @@ class Model:
         basemodel = self.copy().model(basenames, where, '__' + self.name + '_base')
 
         # (2) derive a sub-model for each requested aggregation
+        splitnames_unique = set(split_names)        
         # for density: keep only those fields as requested in the tuple
         # for 'normal' aggregations: remove all random variables of other measures which are not also
-        # a used for splitting, or equivalently: keep all random variables of
-        # dimensions, plus the once for the current aggregation
-        splitnames_unique = set(split_names)
+        # a used for splitting, or equivalently: keep all random variables of dimensions, plus the once 
+        # for the current aggregation        
 
         def _derive_aggregation_model(aggr):
             aggr_model = basemodel.copy()
@@ -388,21 +391,24 @@ class Model:
 
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
-        def _get_group_frame(split, column_id):
-            try:
-                domain = basemodel.byname(split.name)['domain']
-                splitfct = sp.splitter[split.method.lower()]
-            except KeyError:
-                raise ValueError("split method '" + split.method + "' is not supported")
-            frame = pd.DataFrame(splitfct(domain, split.args), columns=[column_id])
-            frame['__crossIdx__'] = 0  # need that index to cross join later
-            return frame
+        if len(splitby) == 0:
+            input_frame = pd.DataFrame()
+        else:
+            def _get_group_frame(split, column_id):
+                try:
+                    domain = basemodel.byname(split.name)['domain']
+                    splitfct = sp.splitter[split.method.lower()]
+                except KeyError:
+                    raise ValueError("split method '" + split.method + "' is not supported")
+                frame = pd.DataFrame(splitfct(domain, split.args), columns=[column_id])
+                frame['__crossIdx__'] = 0  # need that index to cross join later
+                return frame
+    
+            def _crossjoin(df1, df2):
+                return pd.merge(df1, df2, on='__crossIdx__', copy=False)
 
-        def _crossjoin(df1, df2):
-            return pd.merge(df1, df2, on='__crossIdx__', copy=False)
-
-        group_frames = map(_get_group_frame, splitby, split_ids)
-        input_frame = reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
+            group_frames = map(_get_group_frame, splitby, split_ids)        
+            input_frame = reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
 
         # (4) query models and fill result data frame
         """ question is: how to efficiently query the model? how can I vectorize it?
@@ -426,6 +432,7 @@ class Model:
                 # TODO: this is inefficient because it recalculates the same
                 # value many times, when we split on more than the density
                 # is calculated on
+            
                 # select relevant columns and iterate over it
                 ids = [split_name2id[name] for name in aggr.name]
                 sub_frame = input_frame[ids]
@@ -433,13 +440,19 @@ class Model:
                     res = aggr_model.density(aggr.name, row)
                     aggr_results.append(res)
             else:
-                for _, row in input_frame.iterrows():
-                    # derive model for these specific conditions
-                    pairs = zip(split_names, [row, row])
-                    mymodel = aggr_model.copy()._condition(pairs).marginalize(keep=aggr.name)
-                    # now do the aggregation
-                    res = mymodel.aggregate(aggr.method)
+                if len(splitby) == 0:
+                    # there is no fields to split by, hence only a single value will be aggregated
+                    # i.e. marginalize all other fields out
+                    res = aggr_model.copy().marginalize(keep=aggr.name).aggregate(aggr.method)
                     aggr_results.append(res)
+                else:
+                    for _, row in input_frame.iterrows():
+                        # derive model for these specific conditions
+                        pairs = zip(split_names, [row, row])
+                        mymodel = aggr_model.copy()._condition(pairs).marginalize(keep=aggr.name)
+                        # now do the aggregation
+                        res = mymodel.aggregate(aggr.method)
+                        aggr_results.append(res)
 
             df = pd.DataFrame(aggr_results, columns=aggr_ids[idx])
             result_list.append(df)
@@ -619,12 +632,17 @@ if __name__ == '__main__':
         [0.6, 1.0, 0.4, 0.0],
         [0.0, 0.4, 1.0, 0.0],
         [2.0, 0.0, 0.0, 1.]]))
-    mu = matrix(np.array([1.0, 2.0, 0.0, 0.5])).T
+    mu = np.matrix(np.array([1.0, 2.0, 0.0, 0.5])).T
     foo = MultiVariateGaussianModel.custom_mvg(sigma, mu, "foo")
     # foo.marginalize(remove=['dim3'])
     # print("\n\nmarginalized\n" + str(foo.names))
     # foo.condition([('dim1', 'equals', 3)])
     # print("\n\nconditioned\n" + str(foo))
+    foocp = foo.copy("foocp")
+    print("\n\nmodel 1\n" + str(foocp))
+    foocp2 = foocp.model(['dim1', 'dim0'], as_="foocp2")
+    print("\n\nmodel 2\n" + str(foocp2))
+
     res = foo.predict(predict=['dim0'], splitby=[SplitTuple('dim0', 'equiDist', [5])])
     print("\n\npredict 1\n" + str(res))
     res = foo.predict(predict=[AggregationTuple(['dim1'], 'maximum', []), 'dim0'],
@@ -657,4 +675,10 @@ if __name__ == '__main__':
         where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)],
         returnbasemodel=True)
     print("\n\npredict 8\n" + str(res))
-    print("\n\n" + str(base) + "\n")
+    res, base = foo.predict(
+        predict=[AggregationTuple(['dim0'], 'average', []), AggregationTuple(['dim0'], 'density', []), 'dim0'],
+        splitby=[SplitTuple('dim0', 'equiDist', [10])],
+        # where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)],
+        returnbasemodel=True)
+    print("\n\npredict 9\n" + str(res))
+    #print("\n\n" + str(base) + "\n")

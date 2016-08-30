@@ -9,6 +9,7 @@ import logging
 from functools import reduce
 import seaborn.apionly as sns
 import models as gm
+import numpy as np
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -120,8 +121,16 @@ class ModelBase:
         # more data sets here: https://github.com/mwaskom/seaborn-data
         self.name = name
         self.models = {}  # models is a dictionary, using the name of a model as its key
-        self.models['iris'] = _loadIrisModel()
-        self.models['car_crashes'] = _loadCarCrashModel()
+        self.add(_loadIrisModel())
+        self.add(_loadCarCrashModel())
+        sigma = np.matrix(np.array([
+            [1.0, 0.6, 0.0, 2.0],
+            [0.6, 1.0, 0.4, 0.0],
+            [0.0, 0.4, 1.0, 0.0],
+            [2.0, 0.0, 0.0, 1.]]))
+        mu = np.matrix(np.array([1.0, 2.0, 0.0, 0.5])).T
+        self.add(gm.MultiVariateGaussianModel.custom_mvg(sigma, mu, "mvg4"))
+
 
     def __str__(self):
         return " -- Model Base > " + self.name + " < -- \n" + \
@@ -183,7 +192,7 @@ class ModelBase:
             # add to modelbase
             self.add(derived_model, query["AS"])
             # return header
-            return json.dumps(derived_model.fields)
+            return json.dumps({"name": derived_model.name, "fields": derived_model.fields})
 
         elif 'PREDICT' in query:
             base = self._extractFrom(query)
@@ -205,7 +214,8 @@ class ModelBase:
         elif 'SHOW' in query:
             show = self._extractShow(query)
             if show == "HEADER":
-                result = self._extractFrom(query).fields
+                model = self._extractFrom(query)
+                result = {"name": model.name, "fields": model.fields}
             elif show == "MODELS":
                 result = self.list_models()
             else:
@@ -311,3 +321,4 @@ if __name__ == '__main__':
     mb = ModelBase("mymodelbase")
     cc = mb.models['car_crashes']
     foo = cc.copy().model(["total", "alcohol"], [gm.ConditionTuple("alcohol", "equals", 10)])
+    print(str(foo))
