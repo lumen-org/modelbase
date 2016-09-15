@@ -51,10 +51,6 @@ https://github.com/rasbt/pattern_classification/blob/master/resources/python_dat
     model['A'] : to select a submodel only on random variable with name 'A' // marginalize
     model['B'] = ...some domain...   // condition
     model.
-
-### other
-Somehow, I get the feeling I'm using numpy not correctly. it's too complicated
-to always have to write matrix() explicitely
 """
 
 ### GENERIC / ABSTRACT MODELS and other base classes
@@ -71,26 +67,24 @@ ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
             operator == 'in': A sequence of elements if the field is discrete.
                 A two-element list [min, max] if the field is continuous.
             operator == 'equals': a single element of the domain of the field
+TODO: fix/confirm this notion
             operator == 'greater': a single element that is set to be the new
                 upper bound of the domain.
             operator == 'less': a single element that is set to be the new
                 lower bound of the domain.
 """
 
-
 def Field(name, domain, dtype='numerical'):
     return {'name': name, 'domain': domain, 'dtype': dtype}
-
-
 """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
     as passed in:
 
     'name': the name of the field
+TODO: fix/confirm notation
     'domain': the domain of the field, represented as a list as follows:
         if dtype == 'numerical': A 2 element tuple of (min, max), or a
             singular tuple if the domain is restricted to a single value (val,)
         if dtype == 'string': A list of the possible values.
-
     'dtype': the data type that the field represents. Possible values are:
         'numerical' and 'string'
 """
@@ -109,8 +103,8 @@ class Model:
     @staticmethod
     def _get_header(df):
         """ Returns suitable fields for a model from a given pandas dataframe.
-            TODO: at the moment this only works for continuous data.
         """
+        #TODO: at the moment this only works for continuous data.
         fields = []
         for column in df:
             field = {'name': column, 'domain': (df[column].min(), df[column].max()), 'dtype': 'numerical'}
@@ -217,7 +211,9 @@ class Model:
         for (name, operator, values) in conditions:
             operator = operator.lower()
             if operator == 'equals' or operator == '==':
-                newdomain = (values,) if (self.byname(name)['dtype'] == 'numerical') else [values]
+                #newdomain = (values,) if (self.byname(name)['dtype'] == 'numerical') else [values]
+                #TODO: fix/confirm notation
+                newdomain = [values]
             elif operator == 'in':
                 # this is either the range [min, max] or the sequence of distinct values [val1, val2, ...]
                 newdomain = values
@@ -249,7 +245,7 @@ class Model:
         Returns:
             The aggregation of the model.
         """
-        if (method in self._aggrMethods):
+        if method in self._aggrMethods:
             return self._aggrMethods[method]()
         else:
             raise ValueError("Your Model does not provide the requested aggregation: '" + method + "'")
@@ -258,6 +254,9 @@ class Model:
         """Returns the density at given point. You may either pass both, names
         and values, or only one list with values. In the latter case values is
         assumed to be in the same order as the fields of the model.
+
+        Args:
+            values may be anything that numpy.matrix accepts to construct a vector from.
         """
         if len(names) != self._n:
             raise ValueError(
@@ -269,7 +268,7 @@ class Model:
         else:
             sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
             values = [pair[1] for pair in sorted_]
-        return self._density(values)
+        return self._density(matrix(values).T)
 
     def sample(self, n=1):
         """Returns n samples drawn from the model."""
@@ -284,7 +283,7 @@ class Model:
 
     def _update(self):
         """Updates the name2idx dictionary based on the fields in .fields"""
-        # TODO": call it from aggregate, ... make it transparent to subclasses!? is that possible?
+        # TODO: call it from aggregate, ... make it transparent to subclasses!? is that possible?
         self._n = len(self.fields)
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(self._n)))
         self.names = [f['name'] for f in self.fields]
@@ -309,7 +308,6 @@ class Model:
         """
         self.name = self.name if as_ is None else as_
         return self.condition(where).marginalize(keep=model)
-        # equalpairs = [(cond.name, (cond.value, cond.value)) for cond in where if cond.operator == 'EQUALS']
 
     def predict(self, predict, where=[], splitby=[], returnbasemodel=False):
         """ Calculates the prediction against the model and returns its result
@@ -342,8 +340,7 @@ class Model:
         predict_names = []  # names of columns as to be returned. In correct order. For renaming of columns.
 
         split_names = [f.name for f in splitby]  # name of fields to split by. Same order as in split-by clause.
-        split_ids = [f.name + next(idgen) for f in
-                     splitby]  # (pregeneratored) ids for columns for fields to split by. Same order as in splitby-clause.
+        split_ids = [f.name + next(idgen) for f in splitby]  # ids for columns for fields to split by. Same order as in splitby-clause.
         split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids used for columns in data frames
 
         aggrs = []  # list of aggregation tuples, in same order as in the predict-clause
@@ -361,23 +358,22 @@ class Model:
                     raise ValueError("Missing split-tuple for a split-field in predict:" + name)
                 basenames.add(name)
             else:
-                # t is a prediction tuple
-                ids = [name + next(idgen) for name in t.name]
+                # t is an aggregation tuple
+                ids = [_tuple2str(t) + next(idgen)] if t.method == 'density' else [name + next(idgen) for name in t.name]
                 aggrs.append(t)
                 aggr_ids.append(ids)
                 predict_names.append(_tuple2str(t))  # generate column name to return
                 predict_ids.extend(ids)
                 basenames.update(t.name)
 
-        # from that derive the set of (names of) random variables that are to be kept for the base model
         basemodel = self.copy().model(basenames, where, '__' + self.name + '_base')
 
         # (2) derive a sub-model for each requested aggregation
         splitnames_unique = set(split_names)        
         # for density: keep only those fields as requested in the tuple
         # for 'normal' aggregations: remove all random variables of other measures which are not also
-        # a used for splitting, or equivalently: keep all random variables of dimensions, plus the once 
-        # for the current aggregation        
+        # a used for splitting, or equivalently: keep all random variables of dimensions, plus the one
+        # for the current aggregation
 
         def _derive_aggregation_model(aggr):
             aggr_model = basemodel.copy()
@@ -434,7 +430,10 @@ class Model:
                 # is calculated on
             
                 # select relevant columns and iterate over it
-                ids = [split_name2id[name] for name in aggr.name]
+                try:
+                    ids = [split_name2id[name] for name in aggr.name]
+                except KeyError:
+                    raise ValueError("missing split-clause for field '" + str(name) + "'.")
                 sub_frame = input_frame[ids]
                 for _, row in sub_frame.iterrows():
                     res = aggr_model.density(aggr.name, row)
@@ -448,7 +447,7 @@ class Model:
                 else:
                     for _, row in input_frame.iterrows():
                         # derive model for these specific conditions
-                        pairs = zip(split_names, [row, row])
+                        pairs = zip(split_names, row)
                         mymodel = aggr_model.copy()._condition(pairs).marginalize(keep=aggr.name)
                         # now do the aggregation
                         res = mymodel.aggregate(aggr.method)
@@ -481,10 +480,11 @@ class MultiVariateGaussianModel(Model):
     """
 
     def __init__(self, name):
-        # make sure these are matrix types (numpy.matrix)
         super().__init__(name)
         self._mu = nan
         self._S = nan
+        self._detS = nan
+        self._SInv = nan
         self._aggrMethods = {
             'maximum': self._maximum,
             'average': self._maximum
@@ -503,8 +503,6 @@ class MultiVariateGaussianModel(Model):
                 "dimension: " + str(self._n) + "\n" +
                 "names: " + str([self.names]) + "\n" +
                 "fields: " + str([str(field) for field in self.fields]))
-    #                "mu:\n" + str(self._mu) + "\n" + \
-    #               "sigma:\n" + str(self._S) + "\n")
 
     def update(self):
         """updates dependent parameters / precalculated values of the model"""
@@ -536,7 +534,10 @@ class MultiVariateGaussianModel(Model):
         i = utils.invert_indexes(j, self._n)
         assert (utils.issorted(j))
         condvalues = [self.fields[idx]['domain'] for idx in j]
+        #TODO: I think condvalues should be made a numpy column vector
+        #condvalues = matrix([self.fields[idx]['domain'] for idx in j]).T
         # store old sigma and mu
+        #TODO: does this copy or reference!???
         S = self._S
         mu = self._mu
         # update sigma and mu according to GM script
@@ -550,9 +551,10 @@ class MultiVariateGaussianModel(Model):
         # (i) v's domain is a single value, i.e. it is 'conditioned out'
         # (ii) v's domain is a range (continuous random variable) or a set
         #   (discrete random variable), i.e. it is 'normally' marginalized out
-        condnames = [randVar['name'] for idx, randVar in enumerate(self.fields)
+        condoutnames = [randVar['name'] for idx, randVar in enumerate(self.fields)
                      if (randVar['name'] not in keep) and (len(randVar['domain']) == 1)]
-        self._conditionout(condnames)
+        # TODO: len(..) == 1 is a really crappy test/ I need to clean my notion of domain
+        self._conditionout(condoutnames)
 
         # marginalize all other not wanted random variables
         # i.e.: just select the part of mu and sigma that remains
@@ -563,12 +565,16 @@ class MultiVariateGaussianModel(Model):
         return self.update()
 
     def _density(self, x):
-        """Returns the density of the model at point x."""
+        """Returns the density of the model at point x.
+
+        Args:
+            x: a Scalar or a _column_ vector as a numpy matrix.
+        """
         xmu = x - self._mu
         return ((2 * pi) ** (-self._n / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item()
 
     def _maximum(self):
-        # _mu is a np matrix, but I want to return a list
+        # _mu is a np matrix, but we want to return a list
         return self._mu.tolist()[0]
 
     def _sample(self):
@@ -599,9 +605,9 @@ class MultiVariateGaussianModel(Model):
         if not isinstance(mu, matrix) or not isinstance(sigma, matrix) or mu.shape[1] != 1:
             raise ValueError("invalid arguments")
         model = MultiVariateGaussianModel(name)
-        model.fields = [Field(name="dim" + str(idx), domain=(-10, 10)) for idx in range(sigma.shape[0])]
         model._S = sigma
         model._mu = mu
+        model.fields = [Field(name="dim" + str(idx), domain=(mu[idx].item()-2, mu[idx].item()+2)) for idx in range(sigma.shape[0])]
         model.update()
         return model
 
