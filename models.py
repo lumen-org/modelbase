@@ -62,16 +62,13 @@ ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
 
     Attributes:
         name: the name of field to condition
-        operator: may take be one of ['in', 'equals', 'greater', 'less']
+        operator: may take be one of ['in', 'equals', '==', 'greater', 'less']
         value: its allowed values depend on the value of operator
-            operator == 'in': A sequence of elements if the field is discrete.
-                A two-element list [min, max] if the field is continuous.
-            operator == 'equals': a single element of the domain of the field
-TODO: fix/confirm this notion
-            operator == 'greater': a single element that is set to be the new
-                upper bound of the domain.
-            operator == 'less': a single element that is set to be the new
-                lower bound of the domain.
+            operator == 'in': A sequence of elements if the field is discrete. A two-element list [min, max] if the
+                field is continuous.
+            operator == 'equals' or operator == 'is': a single element of the domain of the field
+            operator == 'greater': a single element that is set to be the new upper bound of the domain.
+            operator == 'less': a single element that is set to be the new lower bound of the domain.
 """
 
 def Field(name, domain, dtype='numerical'):
@@ -82,11 +79,9 @@ def Field(name, domain, dtype='numerical'):
     'name': the name of the field
 TODO: fix/confirm notation
     'domain': the domain of the field, represented as a list as follows:
-        if dtype == 'numerical': A 2 element tuple of (min, max), or a
-            singular tuple if the domain is restricted to a single value (val,)
+        if dtype == 'numerical': A 2 element list of [min, max], or a singular value (i.e. not a list but a scalar)
         if dtype == 'string': A list of the possible values.
-    'dtype': the data type that the field represents. Possible values are:
-        'numerical' and 'string'
+    'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
 """
 
 
@@ -94,6 +89,10 @@ def _tuple2str(tuple_):
     """Returns a string that summarizes the given splittuple or aggregation tuple"""
     return str(tuple_[1]) + '(' + str(tuple_[0]) + ')'
 
+def _isSingularDomain(domain):
+    return isinstance(domain, str) or not isinstance(domain, (list, tuple))#\
+           #or len(domain) == 1\
+           #or domain[0] == domain[1]
 
 class Model:
     """An abstract base model that provides an interface to derive submodels
@@ -107,7 +106,7 @@ class Model:
         #TODO: at the moment this only works for continuous data.
         fields = []
         for column in df:
-            field = {'name': column, 'domain': (df[column].min(), df[column].max()), 'dtype': 'numerical'}
+            field = {'name': column, 'domain': [df[column].min(), df[column].max()], 'dtype': 'numerical'}
             fields.append(field)
         return fields
 
@@ -210,10 +209,10 @@ class Model:
 
         for (name, operator, values) in conditions:
             operator = operator.lower()
+            # TODO: check validity of conditions
             if operator == 'equals' or operator == '==':
-                #newdomain = (values,) if (self.byname(name)['dtype'] == 'numerical') else [values]
-                #TODO: fix/confirm notation
-                newdomain = [values]
+                #newdomain = [values]
+                newdomain = values
             elif operator == 'in':
                 # this is either the range [min, max] or the sequence of distinct values [val1, val2, ...]
                 newdomain = values
@@ -355,7 +354,7 @@ class Model:
                 try:
                     predict_ids.append(split_name2id[name])
                 except KeyError:
-                    raise ValueError("Missing split-tuple for a split-field in predict:" + name)
+                    raise ValueError("Missing split-tuple for a split-field in predict: " + name)
                 basenames.add(name)
             else:
                 # t is an aggregation tuple
@@ -380,8 +379,7 @@ class Model:
             if aggr.method == 'density':
                 return aggr_model.model(model=aggr.name)
             else:
-                return aggr_model.model(
-                    model=list(splitnames_unique | set(aggr.name)))
+                return aggr_model.model(model=list(splitnames_unique | set(aggr.name)))
 
         aggr_models = [_derive_aggregation_model(aggr) for aggr in aggrs]
 
@@ -425,17 +423,16 @@ class Model:
             aggr_results = []
             aggr_model = aggr_models[idx]
             if aggr.method == 'density':
-                # TODO: this is inefficient because it recalculates the same
-                # value many times, when we split on more than the density
-                # is calculated on
+                # TODO: this is inefficient because it recalculates the same value many times, when we split on more
+                # than the density is calculated on
             
                 # select relevant columns and iterate over it
                 try:
                     ids = [split_name2id[name] for name in aggr.name]
                 except KeyError:
                     raise ValueError("missing split-clause for field '" + str(name) + "'.")
-                sub_frame = input_frame[ids]
-                for _, row in sub_frame.iterrows():
+                subframe = input_frame[ids]
+                for _, row in subframe.iterrows():
                     res = aggr_model.density(aggr.name, row)
                     aggr_results.append(res)
             else:
@@ -448,9 +445,10 @@ class Model:
                     for _, row in input_frame.iterrows():
                         # derive model for these specific conditions
                         pairs = zip(split_names, row)
-                        mymodel = aggr_model.copy()._condition(pairs).marginalize(keep=aggr.name)
+                        # '_condition()' is used intentionally instead of condition(), as it expects different input
+                        rowmodel = aggr_model.copy()._condition(pairs).marginalize(keep=aggr.name)
                         # now do the aggregation
-                        res = mymodel.aggregate(aggr.method)
+                        res = rowmodel.aggregate(aggr.method)
                         aggr_results.append(res)
 
             df = pd.DataFrame(aggr_results, columns=aggr_ids[idx])
@@ -521,6 +519,7 @@ class MultiVariateGaussianModel(Model):
 
     def _condition(self, pairs):
         for pair in pairs:
+            # reminder: pair[1] must hold the new domain!
             self.byname(pair[0])['domain'] = pair[1]
         return self
 
@@ -533,9 +532,7 @@ class MultiVariateGaussianModel(Model):
         j = sorted(self.asindex(names))
         i = utils.invert_indexes(j, self._n)
         assert (utils.issorted(j))
-        condvalues = [self.fields[idx]['domain'] for idx in j]
-        #TODO: I think condvalues should be made a numpy column vector
-        #condvalues = matrix([self.fields[idx]['domain'] for idx in j]).T
+        condvalues = matrix([self.fields[idx]['domain'] for idx in j]).T
         # store old sigma and mu
         #TODO: does this copy or reference!???
         S = self._S
@@ -552,8 +549,7 @@ class MultiVariateGaussianModel(Model):
         # (ii) v's domain is a range (continuous random variable) or a set
         #   (discrete random variable), i.e. it is 'normally' marginalized out
         condoutnames = [randVar['name'] for idx, randVar in enumerate(self.fields)
-                     if (randVar['name'] not in keep) and (len(randVar['domain']) == 1)]
-        # TODO: len(..) == 1 is a really crappy test/ I need to clean my notion of domain
+                     if (randVar['name'] not in keep) and _isSingularDomain(randVar['domain'])]
         self._conditionout(condoutnames)
 
         # marginalize all other not wanted random variables
