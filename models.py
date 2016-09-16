@@ -244,11 +244,10 @@ class Model:
         order of random variables in the models field.
 
         Returns:
-            The aggregation of the model. Note this returns a scalar if the aggregation is 1, but a list otherwise.
+            The aggregation of the model. Note this always retrusn a list, even if aggregation is 1 dimensional.
         """
         if method in self._aggrMethods:
-            val = self._aggrMethods[method]()
-            return val[0] if len(val) == 1 else val
+            return self._aggrMethods[method]()
         else:
             raise ValueError("Your Model does not provide the requested aggregation: '" + method + "'")
 

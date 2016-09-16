@@ -63,17 +63,19 @@ def PQL_parse_json(query):
     """
 
     def _predict(clause):
+        #TODO refactor: this should be a method of AaggregationTuple: e.g. AggregationTuple.fromJSON
+        #TODO refactor: density really is something else than an aggregation...
         def _aggrSplit(e):
             if isinstance(e, str):
                 return e
             else:
                 names = [e["name"]] if isinstance(e["name"], str) else e["name"]
                 args = e["args"] if "args" in e else None
-                yields = e["yields"]
+                yields = e["yields"] if "yields" in e else None
                 try:
                     return gm.AggregationTuple(names, e["aggregation"], yields, args)
                 except KeyError:
-                    raise ValueError("unsopported aggregation method: " + str(e))
+                    raise ValueError("unsupported aggregation method: " + str(e))
 
         return list(map(_aggrSplit, clause))
 
