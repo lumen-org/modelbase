@@ -54,7 +54,7 @@ https://github.com/rasbt/pattern_classification/blob/master/resources/python_dat
 """
 
 ### GENERIC / ABSTRACT MODELS and other base classes
-AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'args'])
+AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'yields', 'args'])
 SplitTuple = namedtuple('SplitTuple', ['name', 'method', 'args'])
 ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
 """ A condition tuple describes the details of how a field of model is
@@ -87,9 +87,11 @@ TODO: fix/confirm notation
 
 def _tuple2str(tuple_):
     """Returns a string that summarizes the given splittuple or aggregation tuple"""
-    return str(tuple_[1]) + '(' + str(tuple_[0]) + ')'
+    prefix = (str(tuple_.yields) + '@') if hasattr(tuple_, 'yields') else ""
+    return  prefix + str(tuple_[1]) + '(' + str(tuple_[0]) + ')'
 
 def _isSingularDomain(domain):
+    """Returns True iff the given domain is singular, i.e. if it _is_ a single value."""
     return isinstance(domain, str) or not isinstance(domain, (list, tuple))#\
            #or len(domain) == 1\
            #or domain[0] == domain[1]
@@ -242,10 +244,11 @@ class Model:
         order of random variables in the models field.
 
         Returns:
-            The aggregation of the model.
+            The aggregation of the model. Note this returns a scalar if the aggregation is 1, but a list otherwise.
         """
         if method in self._aggrMethods:
-            return self._aggrMethods[method]()
+            val = self._aggrMethods[method]()
+            return val[0] if len(val) == 1 else val
         else:
             raise ValueError("Your Model does not provide the requested aggregation: '" + method + "'")
 
@@ -340,7 +343,7 @@ class Model:
 
         split_names = [f.name for f in splitby]  # name of fields to split by. Same order as in split-by clause.
         split_ids = [f.name + next(idgen) for f in splitby]  # ids for columns for fields to split by. Same order as in splitby-clause.
-        split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids used for columns in data frames
+        split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids (for columns in data frames)
 
         aggrs = []  # list of aggregation tuples, in same order as in the predict-clause
         aggr_ids = []  # ids for columns fo fields to aggregate. Same order as in predict-clause
@@ -358,11 +361,11 @@ class Model:
                 basenames.add(name)
             else:
                 # t is an aggregation tuple
-                ids = [_tuple2str(t) + next(idgen)] if t.method == 'density' else [name + next(idgen) for name in t.name]
+                id_ = _tuple2str(t) + next(idgen)
                 aggrs.append(t)
-                aggr_ids.append(ids)
+                aggr_ids.append(id_)
                 predict_names.append(_tuple2str(t))  # generate column name to return
-                predict_ids.extend(ids)
+                predict_ids.append(id_)
                 basenames.update(t.name)
 
         basemodel = self.copy().model(basenames, where, '__' + self.name + '_base')
@@ -425,9 +428,8 @@ class Model:
             if aggr.method == 'density':
                 # TODO: this is inefficient because it recalculates the same value many times, when we split on more
                 # than the density is calculated on
-            
-                # select relevant columns and iterate over it
                 try:
+                    # select relevant columns and iterate over it
                     ids = [split_name2id[name] for name in aggr.name]
                 except KeyError:
                     raise ValueError("missing split-clause for field '" + str(name) + "'.")
@@ -439,19 +441,22 @@ class Model:
                 if len(splitby) == 0:
                     # there is no fields to split by, hence only a single value will be aggregated
                     # i.e. marginalize all other fields out
-                    res = aggr_model.copy().marginalize(keep=aggr.name).aggregate(aggr.method)
+                    singlemodel = aggr_model.copy().marginalize(keep=aggr.name)
+                    res = singlemodel.aggregate(aggr.method)
+                    # reduce to requested dimension
+                    res = res[singlemodel.asindex(aggr.yields)]
                     aggr_results.append(res)
                 else:
                     for _, row in input_frame.iterrows():
-                        # derive model for these specific conditions
                         pairs = zip(split_names, row)
-                        # '_condition()' is used intentionally instead of condition(), as it expects different input
+                        # derive model for these specific conditions
                         rowmodel = aggr_model.copy()._condition(pairs).marginalize(keep=aggr.name)
-                        # now do the aggregation
                         res = rowmodel.aggregate(aggr.method)
+                        # reduce to requested dimension
+                        res = res[rowmodel.asindex(aggr.yields)]
                         aggr_results.append(res)
 
-            df = pd.DataFrame(aggr_results, columns=aggr_ids[idx])
+            df = pd.DataFrame(aggr_results, columns=[aggr_ids[idx]])
             result_list.append(df)
 
         # (5) filter on aggregations?
@@ -544,6 +549,9 @@ class MultiVariateGaussianModel(Model):
         return self.update()
 
     def _marginalize(self, keep):
+        if len(keep) == self._n:
+            return self
+
         # there is two types of a random variable v that is removed:
         # (i) v's domain is a single value, i.e. it is 'conditioned out'
         # (ii) v's domain is a range (continuous random variable) or a set
@@ -570,8 +578,9 @@ class MultiVariateGaussianModel(Model):
         return ((2 * pi) ** (-self._n / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item()
 
     def _maximum(self):
+        """Returns the point of the maximum density in this model"""
         # _mu is a np matrix, but we want to return a list
-        return self._mu.tolist()[0]
+        return self._mu.T.tolist()[0]
 
     def _sample(self):
         # TODO: let it return a dataframe?

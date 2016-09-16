@@ -64,14 +64,14 @@ def PQL_parse_json(query):
 
     def _predict(clause):
         def _aggrSplit(e):
-            
             if isinstance(e, str):
                 return e
             else:
                 names = [e["name"]] if isinstance(e["name"], str) else e["name"]
                 args = e["args"] if "args" in e else None
+                yields = e["yields"]
                 try:
-                    return gm.AggregationTuple(names, e["aggregation"], args)   
+                    return gm.AggregationTuple(names, e["aggregation"], yields, args)
                 except KeyError:
                     raise ValueError("unsopported aggregation method: " + str(e))
 
@@ -200,10 +200,6 @@ class ModelBase:
                 predict=self._extractPredict(query),
                 where=self._extractWhere(query),
                 splitby=self._extractSplitBy(query))
-
-            #print("split\n\n" + str(resultframe.to_json(orient="split")))
-            #print("columns\n\n" + str(resultframe.to_json(orient="columns")))
-            #print("values\n\n" + str(resultframe.to_json(orient="values")))
             return json.dumps({"header": resultframe.columns.tolist(),
                                "data": resultframe.to_csv(index=False, header=False)})
 
