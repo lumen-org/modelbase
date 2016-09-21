@@ -72,6 +72,21 @@ ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
             operator == 'less': a single element that is set to be the new lower bound of the domain.
 """
 
+"""class Domain:
+
+    def issingular(self):
+        raise "not implemented"
+
+    def bounded(self, extent):
+        raise "not implemented"
+
+    def isbounded(self):
+        raise "not implemented"
+
+    def
+
+class"""
+
 def Field(name, domain, extent, dtype='numerical'):
     return {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
 """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
@@ -209,8 +224,7 @@ class Model:
         Returns:
             The modified model.
         """
-        logger.debug('marginalizing: '
-                     + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
+        logger.debug('marginalizing: ' + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
 
         if keep is not None:            
             if keep == '*':
@@ -219,10 +233,10 @@ class Model:
                 raise ValueError("invalid random variable names: " + str(keep))
         elif remove is not None:
             if not self.isfieldname(remove):
-                raise ValueError("invalid random variable names")
+                raise ValueError("invalid random variable names: " + str(remove))
             keep = set(self.names) - set(remove)
         else:
-            raise ValueError("not both arguments keep and remove can be None")
+            raise ValueError("cannot marginalize to zero-dimensional model")
 
         return self._marginalize(keep)
 
@@ -241,37 +255,25 @@ class Model:
         Returns:
             The modified model.
         """
-        simplified_conditions = []
-
         for (name, operator, values) in conditions:
             operator = operator.lower()
             field = self.byname(name)
-            # TODO: check validity of conditions
+            # TODO: check validity of conditions.
+            # TODO: rule of thumb: never increase the domain
             if operator == 'equals' or operator == '==':
-                #newdomain = [values]
-                newdomain = values
+                field['domain'] = values
             elif operator == 'in':
                 # this is either the range [min, max] or the sequence of distinct values [val1, val2, ...]
-                newdomain = values
+                field['domain'] = values
             elif operator == 'greater' or operator == '>':
                 lower, upper = field['domain']
-                newdomain = [lower if lower > values else values, upper]
+                field['domain'] = [lower if lower > values else values, upper]
             elif operator == 'less' or operator == '<':
                 lower, upper = field['domain']
-                newdomain = [lower, upper if upper < values else values]
+                field['domain'] = [lower, upper if upper < values else values]
             else:
                 raise ValueError('invalid operator for condition: ' + str(operator))
-            simplified_conditions.append((name, newdomain))
-
-        self._condition(simplified_conditions)
         return self
-
-    def _condition(self, pairs):
-        """ Conditions a model according to the passed list of pairs of
-        (<field-name>, <new-domain>).
-        For valid domains see the docstring of Field above.
-        """
-        raise NotImplementedError()
 
     def aggregate(self, method):
         """Aggregates this model using the given method and returns the
@@ -279,12 +281,21 @@ class Model:
         order of random variables in the models field.
 
         Returns:
-            The aggregation of the model. Note this always retrusn a list, even if aggregation is 1 dimensional.
+            The aggregation of the model. It  always returns a list, even if the aggregation is one dimensional.
         """
-        if method in self._aggrMethods:
+        try:
+            # 1. find singular fields (fields with singular domain). any aggregation on such fields will give that value
+
+            # 2. marginalize singular fields out
+
+            # 3. calculate 'unrestricted' aggregation on the remaining model
+
+            # 4. clamp to values within domain
+
             return self._aggrMethods[method]()
-        else:
+        except KeyError:
             raise ValueError("Your Model does not provide the requested aggregation: '" + method + "'")
+
 
     def density(self, names, values=None):
         """Returns the density at given point. You may either pass both, names
@@ -483,6 +494,7 @@ class Model:
                     aggr_results.append(res)
                 else:
                     for _, row in input_frame.iterrows():
+                        # TODO fix this tomorrow
                         pairs = zip(split_names, row)
                         # derive model for these specific conditions
                         rowmodel = aggr_model.copy()._condition(pairs).marginalize(keep=aggr.name)
@@ -557,22 +569,36 @@ class MultiVariateGaussianModel(Model):
 
         return self
 
-    def _condition(self, pairs):
-        for pair in pairs:
-            # reminder: pair[1] must hold the new domain!
-            self.byname(pair[0])['domain'] = pair[1]
-        return self
+    def _conditionout(self, remove):
+        """Conditions the random variables with name in remove on their available, //not unbounded// domain and marginalizes
+        them out.
 
-    def _conditionout(self, names):
-        """Conditions the random variables with name in names on their
-        available domain and marginalizes them out
+        Note that we don't know yet how to condition on a non-singular domain (i.e. condition on interval or sets).
+        As a work around we therefore:
+          * for continuous domains: condition on (high-low)/2
+          * for discrete domains: condition on the first element in the domain
         """
-        if len(names) == 0:
-            return
-        j = sorted(self.asindex(names))
+        if len(remove) == 0:
+            return self
+        j = sorted(self.asindex(remove))
         i = utils.invert_indexes(j, self._n)
-        assert (utils.issorted(j))
-        condvalues = matrix([self.fields[idx]['domain'] for idx in j]).T
+
+        # collect singular values to condition out on
+        condvalues = []
+        for idx in j:
+            field = self.fields[idx]
+            domain = field['domain']
+            singular = _issingulardomain(domain)
+            if field['dtype'] == 'numerical':
+                condvalues.append( domain if singular else (domain[1] - domain[0])/ 2)
+            elif field['dtype'] == 'string':
+                condvalues.append(domain[0])
+                # actually it is: append(domain[0] if singular else domain[0])
+            else:
+                raise ValueError('invalid dtype of field: ' + str(field['dtype']))
+
+        #condvalues = matrix([self.fields[idx]['domain'] for idx in j]).T
+
         # store old sigma and mu
         #TODO: does this copy or reference!???
         S = self._S
@@ -583,25 +609,23 @@ class MultiVariateGaussianModel(Model):
         self.fields = [self.fields[idx] for idx in i]
         return self.update()
 
-    def _marginalize(self, keep):
-        if len(keep) == self._n:
-            return self
-
-        # there is two types of a random variable v that is removed:
-        # (i) v's domain is a single value, i.e. it is 'conditioned out'
-        # (ii) v's domain is a range (continuous random variable) or a set
-        #   (discrete random variable), i.e. it is 'normally' marginalized out
-        condoutnames = [randVar['name'] for idx, randVar in enumerate(self.fields)
-                     if (randVar['name'] not in keep) and _issingulardomain(randVar['domain'])]
-        self._conditionout(condoutnames)
-
-        # marginalize all other not wanted random variables
+    def _marginalizeout(self, keep):
         # i.e.: just select the part of mu and sigma that remains
         keepidx = sorted(self.asindex(keep))
         self._mu = self._mu[keepidx]
         self._S = self._S[np.ix_(keepidx, keepidx)]
         self.fields = [self.fields[idx] for idx in keepidx]
         return self.update()
+
+    def _marginalize(self, keep):
+        if len(keep) == self._n:
+            return self
+        # there are three cases of marginalization:
+        # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
+        # we handle case (2) and (3) first, then case (1)
+        condout = [field['name'] for idx, field in enumerate(self.fields)
+                   if (field['name'] not in keep) and _isboundeddomain(field['domain'])]
+        return self._conditionout(condout)._marginalizeout(keep)
 
     def _density(self, x):
         """Returns the density of the model at point x.
@@ -735,4 +759,13 @@ if __name__ == '__main__':
         # where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)],
         returnbasemodel=True)
     print("\n\npredict 9\n" + str(res))
+
+    res, base = foo.predict(
+        predict=['dim0', AggregationTuple(['dim0'], 'average', 'dim0', [])],
+        # predict=['dim1'],
+        splitby=[SplitTuple('dim0', 'equiDist', [3])],
+        where=[ConditionTuple('dim0', '<', 2), ConditionTuple('dim0', '>', 1)],
+        returnbasemodel=True)
+    print("\n\npredict 10\n" + str(res))
+
     #print("\n\n" + str(base) + "\n")
