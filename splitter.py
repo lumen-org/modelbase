@@ -20,6 +20,8 @@ def equidist(domain, args):
     """
     try:
         return [domain[0]] if domain[0] == domain[1] else np.linspace(domain[0], domain[1], args[0])
+    except TypeError:
+        return [domain]
     except IndexError:
         return [domain[0]]
 

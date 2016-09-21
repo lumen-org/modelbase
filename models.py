@@ -11,6 +11,7 @@ It also defines models that implement that base model:
    * MultiVariateGaussianModel
 """
 import pandas as pd
+import math as math
 import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
 import copy as cp
@@ -71,16 +72,23 @@ ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
             operator == 'less': a single element that is set to be the new lower bound of the domain.
 """
 
-def Field(name, domain, dtype='numerical'):
-    return {'name': name, 'domain': domain, 'dtype': dtype}
+def Field(name, domain, extent, dtype='numerical'):
+    return {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
 """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
     as passed in:
 
     'name': the name of the field
 TODO: fix/confirm notation
     'domain': the domain of the field, represented as a list as follows:
-        if dtype == 'numerical': A 2 element list of [min, max], or a singular value (i.e. not a list but a scalar)
-        if dtype == 'string': A list of the possible values.
+        if dtype == 'numerical':
+            if domain is (partially) unbound: [-math.inf, math.inf], [val, math.inf] or [-math.inf, val], resp
+            if domain in bound: A 2 element list of [min, max]
+            if domain in singular: val (i.e. _not_ a list but a scalar)
+        if dtype == 'string':
+            if domain is unrestricted: math.inf (i.e. not a list, but the scalar value math.inf)
+            if domain in restricted: [val2, val2, ...] i.e. a list of the possible values
+            if domain in singular: [val]
+            if domain is A list of the possible values.
     'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
 """
 
@@ -88,13 +96,39 @@ TODO: fix/confirm notation
 def _tuple2str(tuple_):
     """Returns a string that summarizes the given splittuple or aggregation tuple"""
     prefix = (str(tuple_.yields) + '@') if hasattr(tuple_, 'yields') else ""
-    return  prefix + str(tuple_[1]) + '(' + str(tuple_[0]) + ')'
+    return prefix + str(tuple_[1]) + '(' + str(tuple_[0]) + ')'
 
-def _isSingularDomain(domain):
+
+def _issingulardomain(domain):
     """Returns True iff the given domain is singular, i.e. if it _is_ a single value."""
-    return isinstance(domain, str) or not isinstance(domain, (list, tuple))#\
+    return domain != math.inf and (isinstance(domain, str) or not isinstance(domain, (list, tuple)))#\
            #or len(domain) == 1\
            #or domain[0] == domain[1]
+
+
+def _isboundeddomain(domain):
+    # its unbound if domain == math.inf or if domain[0] or domain[1] == math.inf
+    if domain == math.inf:
+        return False    
+    if _issingulardomain(domain):
+        return True
+    l = len(domain)    
+    if l > 1 and (domain[0] == math.inf or domain[1] == math.inf):
+        return False
+    return True
+
+
+def _boundeddomain(domain, extent):
+    if domain == math.inf:
+        return extent  # this is the only case a ordinal domain is unbound     
+    if _issingulardomain(domain):
+        return domain
+    if len(domain) == 2 and (domain[0] == -math.inf or domain[1] == math.inf):  # hence this fulfills only for cont domains
+        low = extent[0] if domain[0] == -math.inf else domain[0]
+        high = extent[1] if domain[1] == math.inf else domain[1]
+        return [low, high]
+    return domain
+
 
 class Model:
     """An abstract base model that provides an interface to derive submodels
@@ -108,7 +142,7 @@ class Model:
         #TODO: at the moment this only works for continuous data.
         fields = []
         for column in df:
-            field = {'name': column, 'domain': [df[column].min(), df[column].max()], 'dtype': 'numerical'}
+            field = Field(column, [-math.inf, math.inf], [df[column].min(), df[column].max()], 'numerical')
             fields.append(field)
         return fields
 
@@ -211,6 +245,7 @@ class Model:
 
         for (name, operator, values) in conditions:
             operator = operator.lower()
+            field = self.byname(name)
             # TODO: check validity of conditions
             if operator == 'equals' or operator == '==':
                 #newdomain = [values]
@@ -219,10 +254,10 @@ class Model:
                 # this is either the range [min, max] or the sequence of distinct values [val1, val2, ...]
                 newdomain = values
             elif operator == 'greater' or operator == '>':
-                lower, upper = self.byname(name)['domain']
+                lower, upper = field['domain']
                 newdomain = [lower if lower > values else values, upper]
             elif operator == 'less' or operator == '<':
-                lower, upper = self.byname(name)['domain']
+                lower, upper = field['domain']
                 newdomain = [lower, upper if upper < values else values]
             else:
                 raise ValueError('invalid operator for condition: ' + str(operator))
@@ -392,7 +427,8 @@ class Model:
         else:
             def _get_group_frame(split, column_id):
                 try:
-                    domain = basemodel.byname(split.name)['domain']
+                    field = basemodel.byname(split.name)
+                    domain = _boundeddomain(field['domain'], field['extent'])
                     splitfct = sp.splitter[split.method.lower()]
                 except KeyError:
                     raise ValueError("split method '" + split.method + "' is not supported")
@@ -556,7 +592,7 @@ class MultiVariateGaussianModel(Model):
         # (ii) v's domain is a range (continuous random variable) or a set
         #   (discrete random variable), i.e. it is 'normally' marginalized out
         condoutnames = [randVar['name'] for idx, randVar in enumerate(self.fields)
-                     if (randVar['name'] not in keep) and _isSingularDomain(randVar['domain'])]
+                     if (randVar['name'] not in keep) and _issingulardomain(randVar['domain'])]
         self._conditionout(condoutnames)
 
         # marginalize all other not wanted random variables
@@ -611,7 +647,7 @@ class MultiVariateGaussianModel(Model):
         model = MultiVariateGaussianModel(name)
         model._S = sigma
         model._mu = mu
-        model.fields = [Field(name="dim" + str(idx), domain=(mu[idx].item()-2, mu[idx].item()+2)) for idx in range(sigma.shape[0])]
+        model.fields = [Field(name="dim" + str(idx), domain=[-math.inf, math.inf], extent=[mu[idx].item()-2, mu[idx].item()+2]) for idx in range(sigma.shape[0])]
         model.update()
         return model
 
@@ -655,38 +691,46 @@ if __name__ == '__main__':
 
     res = foo.predict(predict=['dim0'], splitby=[SplitTuple('dim0', 'equiDist', [5])])
     print("\n\npredict 1\n" + str(res))
-    res = foo.predict(predict=[AggregationTuple(['dim1'], 'maximum', []), 'dim0'],
+
+    res = foo.predict(predict=[AggregationTuple(['dim1'], 'maximum', 'dim1', []), 'dim0'],
                       splitby=[SplitTuple('dim0', 'equiDist', [10])])
     print("\n\npredict 2\n" + str(res))
-    res = foo.predict(predict=[AggregationTuple(['dim0'], 'maximum', []), 'dim0'],
+
+    res = foo.predict(predict=[AggregationTuple(['dim0'], 'maximum', 'dim0', []), 'dim0'],
                       where=[ConditionTuple('dim0', 'equals', 1)], splitby=[SplitTuple('dim0', 'equiDist', [10])])
     print("\n\npredict 3\n" + str(res))
-    res = foo.predict(predict=[AggregationTuple(['dim0'], 'density', []), 'dim0'],
+
+    res = foo.predict(predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
                       splitby=[SplitTuple('dim0', 'equiDist', [10])])
     print("\n\npredict 4\n" + str(res))
+
     res = foo.predict(
-        predict=[AggregationTuple(['dim0'], 'density', []), 'dim0'],
+        predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
         splitby=[SplitTuple('dim0', 'equiDist', [10])],
         where=[ConditionTuple('dim0', 'greater', -1)])
     print("\n\npredict 5\n" + str(res))
+
     res = foo.predict(
-        predict=[AggregationTuple(['dim0'], 'density', []), 'dim0'],
+        predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
         splitby=[SplitTuple('dim0', 'equiDist', [10])],
         where=[ConditionTuple('dim0', 'less', -1)])
     print("\n\npredict 6\n" + str(res))
+
     res = foo.predict(
-        predict=[AggregationTuple(['dim0'], 'density', []), 'dim0'],
+        predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
         splitby=[SplitTuple('dim0', 'equiDist', [10])],
-        where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)])
+        where=[ConditionTuple('dim0', 'less', 0), ConditionTuple('dim2', 'equals', -5.0)])
     print("\n\npredict 7\n" + str(res))
+
     res, base = foo.predict(
-        predict=[AggregationTuple(['dim0'], 'density', []), 'dim0'],
+        predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
         splitby=[SplitTuple('dim0', 'equiDist', [10]), SplitTuple('dim1', 'equiDist', [7])],
         where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)],
         returnbasemodel=True)
     print("\n\npredict 8\n" + str(res))
+
     res, base = foo.predict(
-        predict=[AggregationTuple(['dim0'], 'average', []), AggregationTuple(['dim0'], 'density', []), 'dim0'],
+        predict=[AggregationTuple(['dim0'], 'average', 'dim0', []), AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
         splitby=[SplitTuple('dim0', 'equiDist', [10])],
         # where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)],
         returnbasemodel=True)
