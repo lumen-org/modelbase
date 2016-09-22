@@ -107,6 +107,29 @@ TODO: fix/confirm notation
     'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
 """
 
+def mergebyidx(list1, list2, idx1, idx2):
+    """Merges list l1 and list l2 into one list in increasing index order, where the indices are given by idx1
+    and idx2, respectively. idx1 and idx2 are expected to be sorted. No index may be occur twice. Indexing starts at 0.
+
+    For example mergebyidx( [a,b], [c,d], [1,3], [0,2] ) gives [c,a,d,b] )
+    """
+    assert (len(list1) == len(idx1) and len(list2) == len(idx2))
+    result = []
+    idx1 = enumerate(idx1)
+    idx2 = enumerate(idx2)
+    cur1 = next(idx1, (None, None))
+    cur2 = next(idx2, (None, None))
+    for idxres in range(len(list1) + len(list2)):
+        if cur1[0] == idxres:
+            result.append(cur1[1])
+            cur1 = next(idx1, (None, None))
+        elif cur2[0] == idxres:
+            result.append(cur2[1])
+            cur2 = next(idx2, (None, None))
+        else:
+            raise ValueError("missing index " + idxres + " in given index ranges")
+    return result
+
 
 def _tuple2str(tuple_):
     """Returns a string that summarizes the given splittuple or aggregation tuple"""
@@ -143,6 +166,17 @@ def _boundeddomain(domain, extent):
         high = extent[1] if domain[1] == math.inf else domain[1]
         return [low, high]
     return domain
+
+
+def _clamp(domain, val, dtype):
+    if dtype == 'string' and val not in domain:
+        return domain[0]
+    elif dtype == 'numerical':
+        if val < domain[0]:
+            return domain[0]
+        elif val > domain[1]:
+            return domain[1]
+    return val
 
 
 class Model:
@@ -196,6 +230,14 @@ class Model:
         self._n = 0
         self._name2idx = {}
 
+    def _setempty(self):
+        self.fields = []
+        self._update()
+        return self
+
+    def _isempty(self):
+        return self._n == 0
+
     def fit(self, data):
         """Fits the model to the dataframe assigned to this model in at
         construction time.
@@ -224,6 +266,8 @@ class Model:
         Returns:
             The modified model.
         """
+        if self._isempty():
+            return self
         logger.debug('marginalizing: ' + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
 
         if keep is not None:            
@@ -255,6 +299,8 @@ class Model:
         Returns:
             The modified model.
         """
+        if self._isempty():
+            return self
         for (name, operator, values) in conditions:
             operator = operator.lower()
             field = self.byname(name)
@@ -283,19 +329,49 @@ class Model:
         Returns:
             The aggregation of the model. It  always returns a list, even if the aggregation is one dimensional.
         """
+        if self._isempty():
+            return None
+
+        # need index to merge results later
+        other_idx = []
+        singular_idx = []
+        singular_names = []
+        singular_res = []
+
+        # 1. find singular fields (fields with singular domain)
+        # any aggregation on such fields will yield the singular value of the domain
+        for (field, idx) in zip(self.fields, range(self._n)):
+            domain = field['domain']
+            if _issingulardomain(domain):
+                singular_idx.append(idx)
+                singular_names.append(field['name'])
+                singular_res.append(domain if field['dtype'] == 'numerical' else domain[0])
+            else:
+                other_idx.append(idx)
+        # old: singulars = [field['name'] for field in self.fields if _issingulardomain(field['domain'])]
+
+        # quit early if possible
+        if len(other_idx) == 0:
+            return singular_res
+
+        # 2. marginalize singular fields out
+        submodel = self.copy().marginalize(remove=singular_names)
+
+        # 3. calculate 'unrestricted' aggregation on the remaining model
         try:
-            # 1. find singular fields (fields with singular domain). any aggregation on such fields will give that value
-
-            # 2. marginalize singular fields out
-
-            # 3. calculate 'unrestricted' aggregation on the remaining model
-
-            # 4. clamp to values within domain
-
-            return self._aggrMethods[method]()
+            other_res = submodel._aggrMethods[method]()
         except KeyError:
             raise ValueError("Your Model does not provide the requested aggregation: '" + method + "'")
 
+        # 4. clamp to values within domain
+        for idx in range(submodel._n):
+            field = submodel.fields[idx]
+            domain = field['domain']
+            if _isboundeddomain(domain):
+                other_res[idx] =_clamp(domain, other_res[idx], field['dtype'])
+
+        # 5. merge with singular results
+        return mergebyidx(singular_res, other_res, singular_idx, other_idx)
 
     def density(self, names, values=None):
         """Returns the density at given point. You may either pass both, names
@@ -305,6 +381,9 @@ class Model:
         Args:
             values may be anything that numpy.matrix accepts to construct a vector from.
         """
+        if self._isempty():
+            return None
+
         if len(names) != self._n:
             raise ValueError(
                 'Not enough names/values provided. Require ' + str(self._n) + ' got ' + str(len(names)) + '.')
@@ -319,6 +398,9 @@ class Model:
 
     def sample(self, n=1):
         """Returns n samples drawn from the model."""
+        if self._isempty():
+            return None
+
         samples = (self._sample() for i in range(n))
         return pd.DataFrame.from_records(samples, self.names)
 
@@ -329,7 +411,7 @@ class Model:
         raise NotImplementedError()
 
     def _update(self):
-        """Updates the name2idx dictionary based on the fields in .fields"""
+        """Updates the _n, name2idx and names based on the fields in .fields"""
         # TODO: call it from aggregate, ... make it transparent to subclasses!? is that possible?
         self._n = len(self.fields)
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(self._n)))
@@ -380,6 +462,9 @@ class Model:
             A dataframe with the fields as given in 'predict', or a tuple (see
             returnbasemodel).
         """
+        if self._isempty():
+            return pd.DataFrame()
+
         idgen = utils.linear_id_generator()
 
         # (1) derive base model, i.e. a model on all requested dimensions and measures, respecting filters
@@ -494,10 +579,9 @@ class Model:
                     aggr_results.append(res)
                 else:
                     for _, row in input_frame.iterrows():
-                        # TODO fix this tomorrow
-                        pairs = zip(split_names, row)
+                        pairs = zip(split_names, ['==']*len(row), row)
                         # derive model for these specific conditions
-                        rowmodel = aggr_model.copy()._condition(pairs).marginalize(keep=aggr.name)
+                        rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr.name)
                         res = rowmodel.aggregate(aggr.method)
                         # reduce to requested dimension
                         res = res[rowmodel.asindex(aggr.yields)]
@@ -558,8 +642,8 @@ class MultiVariateGaussianModel(Model):
         """updates dependent parameters / precalculated values of the model"""
         self._update()
         if self._n == 0:
-            self._detS = None
-            self._SInv = None
+            self._detS = nan
+            self._SInv = nan
         else:
             self._detS = np.abs(np.linalg.det(self._S))
             self._SInv = self._S.I
@@ -578,8 +662,11 @@ class MultiVariateGaussianModel(Model):
           * for continuous domains: condition on (high-low)/2
           * for discrete domains: condition on the first element in the domain
         """
-        if len(remove) == 0:
+        if len(remove) == 0 or self._isempty():
             return self
+        if len(remove) == self._n:
+            return self._setempty()
+
         j = sorted(self.asindex(remove))
         i = utils.invert_indexes(j, self._n)
 
@@ -590,17 +677,15 @@ class MultiVariateGaussianModel(Model):
             domain = field['domain']
             singular = _issingulardomain(domain)
             if field['dtype'] == 'numerical':
-                condvalues.append( domain if singular else (domain[1] - domain[0])/ 2)
+                condvalues.append(domain if singular else (domain[1]-domain[0])/2)
             elif field['dtype'] == 'string':
                 condvalues.append(domain[0])
                 # actually it is: append(domain[0] if singular else domain[0])
+                # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
             else:
                 raise ValueError('invalid dtype of field: ' + str(field['dtype']))
 
-        #condvalues = matrix([self.fields[idx]['domain'] for idx in j]).T
-
         # store old sigma and mu
-        #TODO: does this copy or reference!???
         S = self._S
         mu = self._mu
         # update sigma and mu according to GM script
@@ -610,6 +695,11 @@ class MultiVariateGaussianModel(Model):
         return self.update()
 
     def _marginalizeout(self, keep):
+        if len(keep) == self._n or self._isempty():
+            return self
+        if len(keep) == 0:
+            return self._setempty()
+
         # i.e.: just select the part of mu and sigma that remains
         keepidx = sorted(self.asindex(keep))
         self._mu = self._mu[keepidx]
@@ -646,6 +736,7 @@ class MultiVariateGaussianModel(Model):
         return self._S * np.matrix(np.random.randn(self._n)).T + self._mu
 
     def copy(self, name=None):
+        # TODO: this should be as lightweight as possible!
         name = self.name if name is None else name
         mycopy = MultiVariateGaussianModel(name)
         mycopy.data = self.data
@@ -697,12 +788,12 @@ if __name__ == '__main__':
     import pdb
 
     # foo = MultiVariateGaussianModel.normalMVG(5,"foo")
-    sigma = matrix(np.array([
+    sigma = matrix([
         [1.0, 0.6, 0.0, 2.0],
         [0.6, 1.0, 0.4, 0.0],
         [0.0, 0.4, 1.0, 0.0],
-        [2.0, 0.0, 0.0, 1.]]))
-    mu = np.matrix(np.array([1.0, 2.0, 0.0, 0.5])).T
+        [2.0, 0.0, 0.0, 1.]])
+    mu = np.matrix([1.0, 2.0, 0.0, 0.5]).T
     foo = MultiVariateGaussianModel.custom_mvg(sigma, mu, "foo")
     # foo.marginalize(remove=['dim3'])
     # print("\n\nmarginalized\n" + str(foo.names))
@@ -764,7 +855,7 @@ if __name__ == '__main__':
         predict=['dim0', AggregationTuple(['dim0'], 'average', 'dim0', [])],
         # predict=['dim1'],
         splitby=[SplitTuple('dim0', 'equiDist', [3])],
-        where=[ConditionTuple('dim0', '<', 2), ConditionTuple('dim0', '>', 1)],
+        #where=[ConditionTuple('dim0', '<', 2), ConditionTuple('dim0', '>', 1)],
         returnbasemodel=True)
     print("\n\npredict 10\n" + str(res))
 
