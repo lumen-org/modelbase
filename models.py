@@ -87,8 +87,11 @@ ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
 
 class"""
 
+
 def Field(name, domain, extent, dtype='numerical'):
     return {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
+
+
 """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
     as passed in:
 
@@ -107,6 +110,36 @@ TODO: fix/confirm notation
     'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
 """
 
+def mergebyidx2(zips):
+    """Merges list l1 and list l2 into one list in increasing index order, where the indices are given by idx1
+    and idx2, respectively. idx1 and idx2 are expected to be sorted. No index may be occur twice. Indexing starts at 0.
+
+    For example mergebyidx2( [zip(["a","b"], [1,3]), zip(["c","d"] , [0,2])] )
+
+    TODO: it doesn't work yet, but I'd like to fix it, just because I think its cool
+    TODO: change it to be a generator! should be super simple! just put yield instead of append!
+    """
+    def next_(iter_):
+        return next(iter_, (None, None))  # helper function
+
+    zips = list(zips)  # necessary since we iterate over zips several times
+    for (idx, lst) in zips:
+        assert len(idx) == len(lst)
+    merged = []  # we collect the merged list in here
+    currents = list(map(next_, zips))  # a list of the heads of each of the input sequences
+    result_len = reduce(lambda sum_, zip_: sum_ + len(zip_[0]), zips, 0)
+    for idxres in range(result_len):
+        # for each index we find the currently matching 'head'
+        for zipidx, (idx, val) in enumerate(currents):
+            if idx == idxres:
+                # if found, the corresponding value is appended to the merged list
+                merged.append(val)
+                # and the head is advanced
+                currents[zipidx] = next_(zips[idx])
+                break
+    return merged
+
+
 def mergebyidx(list1, list2, idx1, idx2):
     """Merges list l1 and list l2 into one list in increasing index order, where the indices are given by idx1
     and idx2, respectively. idx1 and idx2 are expected to be sorted. No index may be occur twice. Indexing starts at 0.
@@ -115,19 +148,19 @@ def mergebyidx(list1, list2, idx1, idx2):
     """
     assert (len(list1) == len(idx1) and len(list2) == len(idx2))
     result = []
-    idx1 = enumerate(idx1)
-    idx2 = enumerate(idx2)
-    cur1 = next(idx1, (None, None))
-    cur2 = next(idx2, (None, None))
+    zip1 = zip(idx1, list1)
+    zip2 = zip(idx2, list2)
+    cur1 = next(zip1, (None, None))
+    cur2 = next(zip2, (None, None))
     for idxres in range(len(list1) + len(list2)):
         if cur1[0] == idxres:
             result.append(cur1[1])
-            cur1 = next(idx1, (None, None))
+            cur1 = next(zip1, (None, None))
         elif cur2[0] == idxres:
             result.append(cur2[1])
-            cur2 = next(idx2, (None, None))
+            cur2 = next(zip2, (None, None))
         else:
-            raise ValueError("missing index " + idxres + " in given index ranges")
+            raise ValueError("missing index " + str(idxres) + " in given index ranges")
     return result
 
 
@@ -139,18 +172,18 @@ def _tuple2str(tuple_):
 
 def _issingulardomain(domain):
     """Returns True iff the given domain is singular, i.e. if it _is_ a single value."""
-    return domain != math.inf and (isinstance(domain, str) or not isinstance(domain, (list, tuple)))#\
-           #or len(domain) == 1\
-           #or domain[0] == domain[1]
+    return domain != math.inf and (isinstance(domain, str) or not isinstance(domain, (list, tuple)))  # \
+    # or len(domain) == 1\
+    # or domain[0] == domain[1]
 
 
 def _isboundeddomain(domain):
     # its unbound if domain == math.inf or if domain[0] or domain[1] == math.inf
     if domain == math.inf:
-        return False    
+        return False
     if _issingulardomain(domain):
         return True
-    l = len(domain)    
+    l = len(domain)
     if l > 1 and (domain[0] == math.inf or domain[1] == math.inf):
         return False
     return True
@@ -161,7 +194,8 @@ def _boundeddomain(domain, extent):
         return extent  # this is the only case a ordinal domain is unbound     
     if _issingulardomain(domain):
         return domain
-    if len(domain) == 2 and (domain[0] == -math.inf or domain[1] == math.inf):  # hence this fulfills only for cont domains
+    if len(domain) == 2 and (
+            domain[0] == -math.inf or domain[1] == math.inf):  # hence this fulfills only for cont domains
         low = extent[0] if domain[0] == -math.inf else domain[0]
         high = extent[1] if domain[1] == math.inf else domain[1]
         return [low, high]
@@ -188,7 +222,7 @@ class Model:
     def _get_header(df):
         """ Returns suitable fields for a model from a given pandas dataframe.
         """
-        #TODO: at the moment this only works for continuous data.
+        # TODO: at the moment this only works for continuous data.
         fields = []
         for column in df:
             field = Field(column, [-math.inf, math.inf], [df[column].min(), df[column].max()], 'numerical')
@@ -270,7 +304,7 @@ class Model:
             return self
         logger.debug('marginalizing: ' + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
 
-        if keep is not None:            
+        if keep is not None:
             if keep == '*':
                 keep = self.names
             if not self.isfieldname(keep):
@@ -340,7 +374,7 @@ class Model:
 
         # 1. find singular fields (fields with singular domain)
         # any aggregation on such fields will yield the singular value of the domain
-        for (field, idx) in zip(self.fields, range(self._n)):
+        for (idx, field) in enumerate(self.fields):
             domain = field['domain']
             if _issingulardomain(domain):
                 singular_idx.append(idx)
@@ -364,11 +398,10 @@ class Model:
             raise ValueError("Your Model does not provide the requested aggregation: '" + method + "'")
 
         # 4. clamp to values within domain
-        for idx in range(submodel._n):
-            field = submodel.fields[idx]
+        for (idx, field) in enumerate(submodel.fields):
             domain = field['domain']
             if _isboundeddomain(domain):
-                other_res[idx] =_clamp(domain, other_res[idx], field['dtype'])
+                other_res[idx] = _clamp(domain, other_res[idx], field['dtype'])
 
         # 5. merge with singular results
         return mergebyidx(singular_res, other_res, singular_idx, other_idx)
@@ -472,7 +505,8 @@ class Model:
         predict_names = []  # names of columns as to be returned. In correct order. For renaming of columns.
 
         split_names = [f.name for f in splitby]  # name of fields to split by. Same order as in split-by clause.
-        split_ids = [f.name + next(idgen) for f in splitby]  # ids for columns for fields to split by. Same order as in splitby-clause.
+        split_ids = [f.name + next(idgen) for f in
+                     splitby]  # ids for columns for fields to split by. Same order as in splitby-clause.
         split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids (for columns in data frames)
 
         aggrs = []  # list of aggregation tuples, in same order as in the predict-clause
@@ -501,7 +535,8 @@ class Model:
         basemodel = self.copy().model(basenames, where, '__' + self.name + '_base')
 
         # (2) derive a sub-model for each requested aggregation
-        splitnames_unique = set(split_names)        
+        splitnames_unique = set(split_names)
+
         # for density: keep only those fields as requested in the tuple
         # for 'normal' aggregations: remove all random variables of other measures which are not also
         # a used for splitting, or equivalently: keep all random variables of dimensions, plus the one
@@ -528,14 +563,17 @@ class Model:
                     splitfct = sp.splitter[split.method.lower()]
                 except KeyError:
                     raise ValueError("split method '" + split.method + "' is not supported")
-                frame = pd.DataFrame(splitfct(domain, split.args), columns=[column_id])
+                # print("data for dataframe: " + str(splitfct(domain, split.args)))
+                frame = pd.DataFrame({column_id: splitfct(domain, split.args)})
+                # print(frame)
+                # frame = pd.DataFrame(splitfct(domain, split.args), columns=[column_id])
                 frame['__crossIdx__'] = 0  # need that index to cross join later
                 return frame
-    
+
             def _crossjoin(df1, df2):
                 return pd.merge(df1, df2, on='__crossIdx__', copy=False)
 
-            group_frames = map(_get_group_frame, splitby, split_ids)        
+            group_frames = map(_get_group_frame, splitby, split_ids)
             input_frame = reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
 
         # (4) query models and fill result data frame
@@ -579,7 +617,7 @@ class Model:
                     aggr_results.append(res)
                 else:
                     for _, row in input_frame.iterrows():
-                        pairs = zip(split_names, ['==']*len(row), row)
+                        pairs = zip(split_names, ['=='] * len(row), row)
                         # derive model for these specific conditions
                         rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr.name)
                         res = rowmodel.aggregate(aggr.method)
@@ -677,7 +715,7 @@ class MultiVariateGaussianModel(Model):
             domain = field['domain']
             singular = _issingulardomain(domain)
             if field['dtype'] == 'numerical':
-                condvalues.append(domain if singular else (domain[1]-domain[0])/2)
+                condvalues.append(domain if singular else (domain[1] - domain[0]) / 2)
             elif field['dtype'] == 'string':
                 condvalues.append(domain[0])
                 # actually it is: append(domain[0] if singular else domain[0])
@@ -762,7 +800,9 @@ class MultiVariateGaussianModel(Model):
         model = MultiVariateGaussianModel(name)
         model._S = sigma
         model._mu = mu
-        model.fields = [Field(name="dim" + str(idx), domain=[-math.inf, math.inf], extent=[mu[idx].item()-2, mu[idx].item()+2]) for idx in range(sigma.shape[0])]
+        model.fields = [
+            Field(name="dim" + str(idx), domain=[-math.inf, math.inf], extent=[mu[idx].item() - 2, mu[idx].item() + 2])
+            for idx in range(sigma.shape[0])]
         model.update()
         return model
 
@@ -795,10 +835,6 @@ if __name__ == '__main__':
         [2.0, 0.0, 0.0, 1.]])
     mu = np.matrix([1.0, 2.0, 0.0, 0.5]).T
     foo = MultiVariateGaussianModel.custom_mvg(sigma, mu, "foo")
-    # foo.marginalize(remove=['dim3'])
-    # print("\n\nmarginalized\n" + str(foo.names))
-    # foo.condition([('dim1', 'equals', 3)])
-    # print("\n\nconditioned\n" + str(foo))
     foocp = foo.copy("foocp")
     print("\n\nmodel 1\n" + str(foocp))
     foocp2 = foocp.model(['dim1', 'dim0'], as_="foocp2")
@@ -845,18 +881,19 @@ if __name__ == '__main__':
     print("\n\npredict 8\n" + str(res))
 
     res, base = foo.predict(
-        predict=[AggregationTuple(['dim0'], 'average', 'dim0', []), AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
+        predict=[AggregationTuple(['dim0'], 'average', 'dim0', []), AggregationTuple(['dim0'], 'density', 'dim0', []),
+                 'dim0'],
         splitby=[SplitTuple('dim0', 'equiDist', [10])],
         # where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)],
         returnbasemodel=True)
     print("\n\npredict 9\n" + str(res))
 
     res, base = foo.predict(
-        predict=['dim0', AggregationTuple(['dim0'], 'average', 'dim0', [])],
-        # predict=['dim1'],
-        splitby=[SplitTuple('dim0', 'equiDist', [3])],
-        #where=[ConditionTuple('dim0', '<', 2), ConditionTuple('dim0', '>', 1)],
+        predict=['dim0', 'dim1', AggregationTuple(['dim0', 'dim1'], 'average', 'dim0', []),
+                 AggregationTuple(['dim0', 'dim1'], 'average', 'dim1', [])],
+        splitby=[SplitTuple('dim0', 'identity', []), SplitTuple('dim1', 'equiDist', [4])],
+        where=[ConditionTuple('dim0', '<', 2), ConditionTuple('dim0', '>', 1)],
         returnbasemodel=True)
     print("\n\npredict 10\n" + str(res))
 
-    #print("\n\n" + str(base) + "\n")
+    # print("\n\n" + str(base) + "\n")
