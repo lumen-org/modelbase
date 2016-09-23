@@ -194,7 +194,7 @@ class ModelBase:
             # add to modelbase
             self.add(derived_model, query["AS"])
             # return header
-            return json.dumps({"name": derived_model.name, "fields": derived_model.fields})
+            return json.dumps({"name": derived_model.name, "fields": derived_model.json_fields()})
 
         elif 'PREDICT' in query:
             base = self._extractFrom(query)
@@ -213,15 +213,15 @@ class ModelBase:
             show = self._extractShow(query)
             if show == "HEADER":
                 model = self._extractFrom(query)
-                result = {"name": model.name, "fields": model.fields}
+                result = {"name": model.name, "fields": model.json_fields()}
             elif show == "MODELS":
                 result = self.list_models()
             else:
                 raise ValueError("invalid value given in SHOW-clause: " + str(show))
             return json.dumps(result)
 
-        ### _extract* functions are helpers to extract a certain part of a PQL query
-        #   and do some basic syntax and semantic checks
+    ### _extract* functions are helpers to extract a certain part of a PQL query
+    #   and do some basic syntax and semantic checks
 
     def _extractFrom(self, query):
         """ Returns the model that the value of the "FROM"-statement of query

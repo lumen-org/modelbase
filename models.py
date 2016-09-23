@@ -129,13 +129,10 @@ def mergebyidx2(zips):
     currents = list(map(next_, zips))  # a list of the heads of each of the input sequences
     result_len = reduce(lambda sum_, zip_: sum_ + len(zip_[0]), zips, 0)
     for idxres in range(result_len):
-        # for each index we find the currently matching 'head'
         for zipidx, (idx, val) in enumerate(currents):
-            if idx == idxres:
-                # if found, the corresponding value is appended to the merged list
-                merged.append(val)
-                # and the head is advanced
-                currents[zipidx] = next_(zips[idx])
+            if idx == idxres:  # for each index we find the currently matching 'head'
+                merged.append(val)  # if found, the corresponding value is appended to the merged list
+                currents[zipidx] = next_(zips[idx])  # and the head is advanced
                 break
     return merged
 
@@ -188,6 +185,8 @@ def _isboundeddomain(domain):
         return False
     return True
 
+def _isunbounddomain(domain):
+    return not _issingulardomain(domain) and not _isboundeddomain(domain)
 
 def _boundeddomain(domain, extent):
     if domain == math.inf:
@@ -211,6 +210,20 @@ def _clamp(domain, val, dtype):
         elif val > domain[1]:
             return domain[1]
     return val
+
+
+def _jsondomain(domain, dtype):
+    """"Returns a domain that can safely be serialized to json, i.e. any infinity value is replaces by null."""
+    if not _isunbounddomain(domain):
+        return domain
+    if dtype == 'numerical':
+        l = domain[0]
+        h = domain[1]
+        return [None if l == -math.inf else l, None if h == math.inf else h]
+    elif dtype == 'string':
+        return None
+    else:
+        raise ValueError('invalid dtype of domain: ' + str(dtype))
 
 
 class Model:
@@ -271,6 +284,20 @@ class Model:
 
     def _isempty(self):
         return self._n == 0
+
+    def json_fields(self):
+        """Returns an adapted version of fields that in any case is JSON serializable. You cannot just use Model.fields
+        because a fields domain may contain the value Infinity, which for our purpose cannot be correctly handled
+        by json.dumps.
+        """
+        # copy everything but domain
+        # special treat domain and return
+        safe4json = []
+        for field in self.fields:
+            copy = cp.copy(field)
+            copy['domain'] = _jsondomain(field['domain'], field['dtype'])
+            safe4json.append(copy)
+        return safe4json
 
     def fit(self, data):
         """Fits the model to the dataframe assigned to this model in at
@@ -382,7 +409,6 @@ class Model:
                 singular_res.append(domain if field['dtype'] == 'numerical' else domain[0])
             else:
                 other_idx.append(idx)
-        # old: singulars = [field['name'] for field in self.fields if _issingulardomain(field['domain'])]
 
         # quit early if possible
         if len(other_idx) == 0:
@@ -563,10 +589,7 @@ class Model:
                     splitfct = sp.splitter[split.method.lower()]
                 except KeyError:
                     raise ValueError("split method '" + split.method + "' is not supported")
-                # print("data for dataframe: " + str(splitfct(domain, split.args)))
                 frame = pd.DataFrame({column_id: splitfct(domain, split.args)})
-                # print(frame)
-                # frame = pd.DataFrame(splitfct(domain, split.args), columns=[column_id])
                 frame['__crossIdx__'] = 0  # need that index to cross join later
                 return frame
 
@@ -750,7 +773,7 @@ class MultiVariateGaussianModel(Model):
             return self
         # there are three cases of marginalization:
         # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
-        # we handle case (2) and (3) first, then case (1)
+        # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
         condout = [field['name'] for idx, field in enumerate(self.fields)
                    if (field['name'] not in keep) and _isboundeddomain(field['domain'])]
         return self._conditionout(condout)._marginalizeout(keep)

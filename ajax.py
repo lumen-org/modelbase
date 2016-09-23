@@ -72,7 +72,7 @@ def webquery():
     return app.send_static_file('webqueryclient.html')
 
 
-# webservice interface that returns a valid sample query
+# route that returns a valid sample query
 @app.route('/sample_query', methods=['GET', 'POST'])
 @cross_origin()  # allows cross origin requests
 def sample_query():
