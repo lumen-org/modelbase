@@ -11,7 +11,6 @@ It also defines models that implement that base model:
    * MultiVariateGaussianModel
 """
 import pandas as pd
-import math as math
 import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
 import copy as cp
@@ -22,9 +21,6 @@ import logging
 import splitter as sp
 import utils as utils
 import domains as dm
-
-# TODO: I don't know how to calculate aggregations beyond maximum, average and density of unrestricted multivariate gaussians
-# e.g. what if we restrict the domain to >1? what is the average of such a distribution? how do we marginalize out such restricted fields?
 
 # for fuzzy comparision.
 # TODO: make it nicer?
@@ -73,42 +69,16 @@ ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
             operator == 'less': a single element that is set to be the new lower bound of the domain.
 """
 
-"""class Domain:
-
-    def issingular(self):
-        raise "not implemented"
-
-    def bounded(self, extent):
-        raise "not implemented"
-
-    def isbounded(self):
-        raise "not implemented"
-
-    def
-
-class"""
-
-
 def Field(name, domain, extent, dtype='numerical'):
+    if (extent.isunbounded()):
+        raise ValueError("extents must not be unbounded")
     return {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
-
-
 """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
     as passed in:
-
-    'name': the name of the field
-TODO: fix/confirm notation
-    'domain': the domain of the field, represented as a list as follows:
-        if dtype == 'numerical':
-            if domain is (partially) unbound: [-math.inf, math.inf], [val, math.inf] or [-math.inf, val], resp
-            if domain in bound: A 2 element list of [min, max]
-            if domain in singular: val (i.e. _not_ a list but a scalar)
-        if dtype == 'string':
-            if domain is unrestricted: math.inf (i.e. not a list, but the scalar value math.inf)
-            if domain in restricted: [val2, val2, ...] i.e. a list of the possible values
-            if domain in singular: [val]
-            if domain is A list of the possible values.
-    'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
+        'name': the name of the field
+        'domain': the domain of the field,
+        'extent': the extent of the field that will be uses as a fallback for domain,
+        'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
 """
 
 def mergebyidx2(zips):
@@ -166,66 +136,6 @@ def _tuple2str(tuple_):
     """Returns a string that summarizes the given splittuple or aggregation tuple"""
     prefix = (str(tuple_.yields) + '@') if hasattr(tuple_, 'yields') else ""
     return prefix + str(tuple_[1]) + '(' + str(tuple_[0]) + ')'
-
-
-def _issingulardomain(domain):
-    """Returns True iff the given domain is singular, i.e. if it _is_ a single value."""
-    return domain != math.inf and (isinstance(domain, str) or not isinstance(domain, (list, tuple)))  # \
-    # or len(domain) == 1\
-    # or domain[0] == domain[1]
-
-
-def _isboundeddomain(domain):
-    # its unbound if domain == math.inf or if domain[0] or domain[1] == math.inf
-    if domain == math.inf:
-        return False
-    if _issingulardomain(domain):
-        return True
-    l = len(domain)
-    if l > 1 and (domain[0] == math.inf or domain[1] == math.inf):
-        return False
-    return True
-
-def _isunbounddomain(domain):
-    return not _issingulardomain(domain) and not _isboundeddomain(domain)
-
-def _boundeddomain(domain, extent):
-    if domain == math.inf:
-        return extent  # this is the only case a ordinal domain is unbound     
-    if _issingulardomain(domain):
-        return domain
-    if len(domain) == 2 and (
-            domain[0] == -math.inf or domain[1] == math.inf):  # hence this fulfills only for cont domains
-        low = extent[0] if domain[0] == -math.inf else domain[0]
-        high = extent[1] if domain[1] == math.inf else domain[1]
-        return [low, high]
-    return domain
-
-
-def _clamp(domain, val, dtype):
-    if dtype == 'string' and val not in domain:
-        return domain[0]
-    elif dtype == 'numerical':
-        if val < domain[0]:
-            return domain[0]
-        elif val > domain[1]:
-            return domain[1]
-    return val
-
-
-def _jsondomain(domain, dtype):
-    """"Returns a domain that can safely be serialized to json, i.e. any infinity value is replaces by null."""
-    if not _isunbounddomain(domain):
-        return domain
-    if dtype == 'numerical':
-        l = domain[0]
-        h = domain[1]
-        return [None if l == -math.inf else l, None if h == math.inf else h]
-    elif dtype == 'string':
-        return None
-    else:
-        raise ValueError('invalid dtype of domain: ' + str(dtype))
-
 
 class Model:
     """An abstract base model that provides an interface to derive submodels
@@ -291,8 +201,7 @@ class Model:
         because a fields domain may contain the value Infinity, which for our purpose cannot be correctly handled
         by json.dumps.
         """
-        # copy everything but domain
-        # special treat domain and return
+        # copy everything, but special treat domain and extent
         safe4json = []
         for field in self.fields:
             copy = cp.copy(field)
@@ -399,11 +308,9 @@ class Model:
         for (idx, field) in enumerate(self.fields):
             domain = field['domain']
             if domain.issingular():
-                #_issingulardomain(domain):
                 singular_idx.append(idx)
                 singular_names.append(field['name'])
                 singular_res.append(domain.value())
-                #singular_res.append(domain if field['dtype'] == 'numerical' else domain[0])
             else:
                 other_idx.append(idx)
 
@@ -423,9 +330,6 @@ class Model:
         # 4. clamp to values within domain
         for (idx, field) in enumerate(submodel.fields):
             other_res[idx] = field['domain'].clamp(other_res[idx])
-            #domain =
-            #if _isboundeddomain(domain):
-            #    other_res[idx] = _clamp(domain, other_res[idx], field['dtype'])
 
         # 5. merge with singular results
         return mergebyidx(singular_res, other_res, singular_idx, other_idx)
@@ -583,7 +487,6 @@ class Model:
             def _get_group_frame(split, column_id):
                 field = basemodel.byname(split.name)
                 domain = field['domain'].bounded(field['extent'])
-                # _boundeddomain(field['domain'], field['extent'])
                 try:
                     splitfct = sp.splitter[split.method.lower()]
                 except KeyError:

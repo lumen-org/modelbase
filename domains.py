@@ -1,8 +1,18 @@
 import math
 
-#class Domain:
-#    pass
-
+"""
+TODO: confirm/check this
+Domains are represented as follows:
+if dtype == 'numerical':
+    if domain is (partially) unbound: [-math.inf, math.inf], [val, math.inf] or [-math.inf, val], resp
+    if domain in bound: A 2 element list of [min, max]
+    if domain in singular: val (i.e. _not_ a list but a scalar)
+if dtype == 'string':
+    if domain is unrestricted: math.inf (i.e. not a list, but the scalar value math.inf)
+    if domain in restricted: [val2, val2, ...] i.e. a list of the possible values
+    if domain in singular: [val]
+    if domain is A list of the possible values.
+"""
 
 class NumericDomain:
     def __init__(self, *args):
@@ -99,8 +109,7 @@ class NumericDomain:
 #class DiscreteDomain (Domain):
 
 
-
-
+#
 # def _issingulardomain(domain):
 #     """Returns True iff the given domain is singular, i.e. if it _is_ a single value."""
 #     return domain != math.inf and (isinstance(domain, str) or not isinstance(domain, (list, tuple)))  # \
@@ -158,4 +167,3 @@ class NumericDomain:
 #         return None
 #     else:
 #         raise ValueError('invalid dtype of domain: ' + str(dtype))
-#
