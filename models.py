@@ -62,24 +62,37 @@ ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
         name: the name of field to condition
         operator: may take be one of ['in', 'equals', '==', 'greater', 'less']
         value: its allowed values depend on the value of operator
-            operator == 'in': A sequence of elements if the field is discrete. A two-element list [min, max] if the
+            operator is one of: 'in', 'equals', '==': A single elemente (to set the domain singular) or a sequence of elements (if the field is discrete), or a two-element list [min, max] if the
                 field is continuous.
-            operator == 'equals' or operator == 'is': a single element of the domain of the field
             operator == 'greater': a single element that is set to be the new upper bound of the domain.
             operator == 'less': a single element that is set to be the new lower bound of the domain.
 """
 
+
 def Field(name, domain, extent, dtype='numerical'):
-    if (extent.isunbounded()):
+    if extent.isunbounded():
         raise ValueError("extents must not be unbounded")
     return {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
 """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
     as passed in:
         'name': the name of the field
         'domain': the domain of the field,
-        'extent': the extent of the field that will be uses as a fallback for domain,
+        'extent': the extent of the field that will be used as a fallback for domain if domain is unbounded but a
+            value for domain is required
         'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
 """
+
+
+def field_tojson(field):
+    """Returns an adapted version of a field that in any case is JSON serializable. A fields domain may contain the
+    value Infinity, which JSON serialized don't handle correctly.
+    """
+    # copy everything, but special treat domain and extent
+    copy = cp.copy(field)
+    copy['domain'] = field['domain'].tojson()
+    copy['extent'] = field['extent'].tojson()
+    return copy
+
 
 def mergebyidx2(zips):
     """Merges list l1 and list l2 into one list in increasing index order, where the indices are given by idx1
@@ -136,6 +149,7 @@ def _tuple2str(tuple_):
     """Returns a string that summarizes the given splittuple or aggregation tuple"""
     prefix = (str(tuple_.yields) + '@') if hasattr(tuple_, 'yields') else ""
     return prefix + str(tuple_[1]) + '(' + str(tuple_[0]) + ')'
+
 
 class Model:
     """An abstract base model that provides an interface to derive submodels
@@ -197,18 +211,7 @@ class Model:
         return self._n == 0
 
     def json_fields(self):
-        """Returns an adapted version of fields that in any case is JSON serializable. You cannot just use Model.fields
-        because a fields domain may contain the value Infinity, which for our purpose cannot be correctly handled
-        by json.dumps.
-        """
-        # copy everything, but special treat domain and extent
-        safe4json = []
-        for field in self.fields:
-            copy = cp.copy(field)
-            copy['domain'] = field['domain'].tojson()
-            copy['extent'] = field['extent'].tojson()
-            safe4json.append(copy)
-        return safe4json
+        return map(field_tojson, self.fields)
 
     def fit(self, data):
         """Fits the model to the dataframe assigned to this model in at

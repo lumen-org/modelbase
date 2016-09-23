@@ -1,20 +1,12 @@
 import math
 
-"""
-TODO: confirm/check this
-Domains are represented as follows:
-if dtype == 'numerical':
-    if domain is (partially) unbound: [-math.inf, math.inf], [val, math.inf] or [-math.inf, val], resp
-    if domain in bound: A 2 element list of [min, max]
-    if domain in singular: val (i.e. _not_ a list but a scalar)
-if dtype == 'string':
-    if domain is unrestricted: math.inf (i.e. not a list, but the scalar value math.inf)
-    if domain in restricted: [val2, val2, ...] i.e. a list of the possible values
-    if domain in singular: [val]
-    if domain is A list of the possible values.
-"""
+
+# TODO: is it better to use immutable tuples instead of mutable lists for the internal representation of domains?
+
 
 class NumericDomain:
+    """A continuous domain that can be represented by an interval [min, max]."""
+
     def __init__(self, *args):
         """Constructs a numercial domain.
              * pass no arguments for an unbounded domain
@@ -106,64 +98,68 @@ class NumericDomain:
         self._validate()
         return self
 
-#class DiscreteDomain (Domain):
 
+class DiscreteDomain:
+    """An (ordered) discrete domain that can be represented by a list of values [val1, val2, ... ]."""
 
-#
-# def _issingulardomain(domain):
-#     """Returns True iff the given domain is singular, i.e. if it _is_ a single value."""
-#     return domain != math.inf and (isinstance(domain, str) or not isinstance(domain, (list, tuple)))  # \
-#     # or len(domain) == 1\
-#     # or domain[0] == domain[1]
-#
-#
-# def _isboundeddomain(domain):
-#     # its unbound if domain == math.inf or if domain[0] or domain[1] == math.inf
-#     if domain == math.inf:
-#         return False
-#     if _issingulardomain(domain):
-#         return True
-#     l = len(domain)
-#     if l > 1 and (domain[0] == math.inf or domain[1] == math.inf):
-#         return False
-#     return True
-#
-# def _isunbounddomain(domain):
-#     return not _issingulardomain(domain) and not _isboundeddomain(domain)
-#
-# def _boundeddomain(domain, extent):
-#     if domain == math.inf:
-#         return extent  # this is the only case a ordinal domain is unbound
-#     if _issingulardomain(domain):
-#         return domain
-#     if len(domain) == 2 and (
-#             domain[0] == -math.inf or domain[1] == math.inf):  # hence this fulfills only for cont domains
-#         low = extent[0] if domain[0] == -math.inf else domain[0]
-#         high = extent[1] if domain[1] == math.inf else domain[1]
-#         return [low, high]
-#     return domain
-#
-#
-# def _clamp(domain, val, dtype):
-#     if dtype == 'string' and val not in domain:
-#         return domain[0]
-#     elif dtype == 'numerical':
-#         if val < domain[0]:
-#             return domain[0]
-#         elif val > domain[1]:
-#             return domain[1]
-#     return val
-#
-#
-# def _jsondomain(domain, dtype):
-#     """"Returns a domain that can safely be serialized to json, i.e. any infinity value is replaces by null."""
-#     if not _isunbounddomain(domain):
-#         return domain
-#     if dtype == 'numerical':
-#         l = domain[0]
-#         h = domain[1]
-#         return [None if l == -math.inf else l, None if h == math.inf else h]
-#     elif dtype == 'string':
-#         return None
-#     else:
-#         raise ValueError('invalid dtype of domain: ' + str(dtype))
+    def __init__(self, *args):
+        """Constructs a discrete domain.
+             * pass no arguments for an unbounded domain
+             * pass one scalar argument for a singular domain
+             * pass a list/tuple of values for a bounded domain. its order is preserved.
+        """
+        l = len(args)
+        if l == 0:
+            self._value = [math.inf]
+        elif l == 1:
+            self._value = args[0]
+        else:
+            raise ValueError("Too many arguments given: " + str(args))
+        self._validate()
+
+    def _validate(self):
+        if len(self._value) == 0:
+            raise ValueError("domain must not be empty")
+
+    def issingular(self):
+        return len(self._value) == 1 and not self.isunbounded()
+
+    def isunbounded(self):
+        return self._value[0] == math.inf
+
+    def isbounded(self):
+        return not self.issingular() and not self.isunbounded()
+
+    def bounded(self, extent):
+        if self.isunbounded():
+            return extent if isinstance(extent, DiscreteDomain) else DiscreteDomain(extent)
+        else:
+            return self
+
+    def value(self):
+        return self._value[0] if self.issingular() else self._value
+
+    def tojson(self):
+        if not self.isunbounded():
+            return self.value()
+        else:
+            return None
+
+    def clamp(self, val):
+        raise NotImplementedError
+
+    def intersect(self, domain):
+        try:
+            dvalue = domain._value
+        except AttributeError:
+            dvalue = DiscreteDomain(domain)._value
+        self._value = [e for e in self._value if e in dvalue]
+        self._validate()
+        return self
+
+    def setlowerbound(self, value):
+        raise NotImplementedError
+        # use slice with find to find index to slice from
+
+    def setupperbound(self, value):
+        raise NotImplementedError
