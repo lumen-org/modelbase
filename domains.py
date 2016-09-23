@@ -19,13 +19,18 @@ class NumericDomain:
         elif l == 1:
             arg = args[0]
             try:
-                self.value = [arg[0], arg[1]]
-            except TypeError:  # 'number' is not subscriptable
-                self.value = [arg, arg]
+                self._value = [arg[0], arg[1]]
+            except (TypeError, KeyError, IndexError):  # 'number' is not subscriptable
+                self._value = [arg, arg]
         elif l == 2:
             self._value = [args[0], args[1]]
         else:
             raise ValueError("Too many arguments given: " + str(args))
+        self._validate()
+
+    def _validate(self):
+        if self._value[0] > self._value[1]:
+            raise ValueError("resulting domain is empty: " + str(self._value))
 
     def issingular(self):
         return self._value[0] == self._value[1]
@@ -39,12 +44,57 @@ class NumericDomain:
     def bounded(self, extent):
         if self.isunbounded():
             [l, h] = self._value
-            return NumericDomain([extent[0] if l == -math.inf else l, extent[1] if h == math.inf else h])
+            try:
+                [el, eh] = extent._value
+            except AttributeError:
+                [el, eh] = extent
+            return NumericDomain(el if l == -math.inf else l, eh if h == math.inf else h)
         else:
             return self
 
     def value(self):
         return self._value[0] if self.issingular() else self._value
+
+    def tojson(self):
+        if not self.isunbounded():
+            return self.value()
+        else:
+            [l, h] = self._value
+            return [None if l == -math.inf else l, None if h == math.inf else h]
+
+    def clamp(self, val):
+        [l, h] = self._value
+        if val < l:
+            return l
+        elif val > h:
+            return h
+        return val
+
+    def intersect(self, domain):
+        try:
+            [l2, h2] = domain._value
+        except AttributeError:
+            [l2, h2] = NumericDomain(domain)._value
+        [l1, h1] = self._value
+
+        self._value = [
+            l1 if l1 > l2 else l2,
+            h1 if h1 < h2 else h2
+        ]
+        self._validate()
+        return self
+
+    def setlowerbound(self, value):
+        if value > self._value[0]:
+            self._value[0] = value
+        self._validate()
+        return self
+
+    def setupperbound(self, value):
+        if value < self._value[1]:
+            self._value[1] = value
+        self._validate()
+        return self
 
 #class DiscreteDomain (Domain):
 

@@ -21,6 +21,7 @@ from sklearn import mixture
 import logging
 import splitter as sp
 import utils as utils
+import domains as dm
 
 # TODO: I don't know how to calculate aggregations beyond maximum, average and density of unrestricted multivariate gaussians
 # e.g. what if we restrict the domain to >1? what is the average of such a distribution? how do we marginalize out such restricted fields?
@@ -238,7 +239,7 @@ class Model:
         # TODO: at the moment this only works for continuous data.
         fields = []
         for column in df:
-            field = Field(column, [-math.inf, math.inf], [df[column].min(), df[column].max()], 'numerical')
+            field = Field(column, dm.NumericDomain(), dm.NumericDomain(df[column].min(), df[column].max()), 'numerical')
             fields.append(field)
         return fields
 
@@ -295,7 +296,8 @@ class Model:
         safe4json = []
         for field in self.fields:
             copy = cp.copy(field)
-            copy['domain'] = _jsondomain(field['domain'], field['dtype'])
+            copy['domain'] = field['domain'].tojson()
+            copy['extent'] = field['extent'].tojson()
             safe4json.append(copy)
         return safe4json
 
@@ -364,20 +366,13 @@ class Model:
             return self
         for (name, operator, values) in conditions:
             operator = operator.lower()
-            field = self.byname(name)
-            # TODO: check validity of conditions.
-            # TODO: rule of thumb: never increase the domain
-            if operator == 'equals' or operator == '==':
-                field['domain'] = values
-            elif operator == 'in':
-                # this is either the range [min, max] or the sequence of distinct values [val1, val2, ...]
-                field['domain'] = values
+            domain = self.byname(name)['domain']
+            if operator == 'equals' or operator == '==' or operator == 'in':
+                domain.intersect(values)
             elif operator == 'greater' or operator == '>':
-                lower, upper = field['domain']
-                field['domain'] = [lower if lower > values else values, upper]
+                domain.setlowerbound(values)
             elif operator == 'less' or operator == '<':
-                lower, upper = field['domain']
-                field['domain'] = [lower, upper if upper < values else values]
+                domain.setupperbound(values)
             else:
                 raise ValueError('invalid operator for condition: ' + str(operator))
         return self
@@ -403,10 +398,12 @@ class Model:
         # any aggregation on such fields will yield the singular value of the domain
         for (idx, field) in enumerate(self.fields):
             domain = field['domain']
-            if _issingulardomain(domain):
+            if domain.issingular():
+                #_issingulardomain(domain):
                 singular_idx.append(idx)
                 singular_names.append(field['name'])
-                singular_res.append(domain if field['dtype'] == 'numerical' else domain[0])
+                singular_res.append(domain.value())
+                #singular_res.append(domain if field['dtype'] == 'numerical' else domain[0])
             else:
                 other_idx.append(idx)
 
@@ -425,9 +422,10 @@ class Model:
 
         # 4. clamp to values within domain
         for (idx, field) in enumerate(submodel.fields):
-            domain = field['domain']
-            if _isboundeddomain(domain):
-                other_res[idx] = _clamp(domain, other_res[idx], field['dtype'])
+            other_res[idx] = field['domain'].clamp(other_res[idx])
+            #domain =
+            #if _isboundeddomain(domain):
+            #    other_res[idx] = _clamp(domain, other_res[idx], field['dtype'])
 
         # 5. merge with singular results
         return mergebyidx(singular_res, other_res, singular_idx, other_idx)
@@ -583,13 +581,14 @@ class Model:
             input_frame = pd.DataFrame()
         else:
             def _get_group_frame(split, column_id):
+                field = basemodel.byname(split.name)
+                domain = field['domain'].bounded(field['extent'])
+                # _boundeddomain(field['domain'], field['extent'])
                 try:
-                    field = basemodel.byname(split.name)
-                    domain = _boundeddomain(field['domain'], field['extent'])
                     splitfct = sp.splitter[split.method.lower()]
                 except KeyError:
                     raise ValueError("split method '" + split.method + "' is not supported")
-                frame = pd.DataFrame({column_id: splitfct(domain, split.args)})
+                frame = pd.DataFrame({column_id: splitfct(domain.value(), split.args)})
                 frame['__crossIdx__'] = 0  # need that index to cross join later
                 return frame
 
@@ -736,9 +735,10 @@ class MultiVariateGaussianModel(Model):
         for idx in j:
             field = self.fields[idx]
             domain = field['domain']
-            singular = _issingulardomain(domain)
+            dvalue = domain.value()
+            assert (not domain.isunbounded())
             if field['dtype'] == 'numerical':
-                condvalues.append(domain if singular else (domain[1] - domain[0]) / 2)
+                condvalues.append(dvalue if domain.issingular() else (dvalue[1] - dvalue[0]) / 2)
             elif field['dtype'] == 'string':
                 condvalues.append(domain[0])
                 # actually it is: append(domain[0] if singular else domain[0])
@@ -775,7 +775,7 @@ class MultiVariateGaussianModel(Model):
         # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
         # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
         condout = [field['name'] for idx, field in enumerate(self.fields)
-                   if (field['name'] not in keep) and _isboundeddomain(field['domain'])]
+                   if (field['name'] not in keep) and field['domain'].isbounded()]
         return self._conditionout(condout)._marginalizeout(keep)
 
     def _density(self, x):
@@ -823,9 +823,10 @@ class MultiVariateGaussianModel(Model):
         model = MultiVariateGaussianModel(name)
         model._S = sigma
         model._mu = mu
-        model.fields = [
-            Field(name="dim" + str(idx), domain=[-math.inf, math.inf], extent=[mu[idx].item() - 2, mu[idx].item() + 2])
-            for idx in range(sigma.shape[0])]
+        model.fields = [Field(name="dim" + str(idx),
+                              domain=dm.NumericDomain(),
+                              extent=dm.NumericDomain(mu[idx].item() - 2, mu[idx].item() + 2))
+                        for idx in range(sigma.shape[0])]
         model.update()
         return model
 
