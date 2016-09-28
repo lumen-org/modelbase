@@ -211,7 +211,7 @@ class Model:
         return self._n == 0
 
     def json_fields(self):
-        return map(field_tojson, self.fields)
+        return list(map(field_tojson, self.fields))
 
     def fit(self, data):
         """Fits the model to the dataframe assigned to this model in at
