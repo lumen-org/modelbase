@@ -214,8 +214,7 @@ class Model:
         return list(map(field_tojson, self.fields))
 
     def fit(self, data):
-        """Fits the model to the dataframe assigned to this model in at
-        construction time.
+        """Fits the model to passed DataFrame
 
         Returns:
             The modified model.
@@ -257,10 +256,14 @@ class Model:
         else:
             raise ValueError("cannot marginalize to zero-dimensional model")
 
-        return self._marginalize(keep)
-
-    def _marginalize(self, keep):
-        raise NotImplementedError()
+        if len(keep) == self._n:
+            return self
+        # there are three cases of marginalization:
+        # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
+        # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
+        condout = [field['name'] for idx, field in enumerate(self.fields)
+                   if (field['name'] not in keep) and field['domain'].isbounded()]
+        return self._conditionout(condout)._marginalizeout(keep)
 
     def condition(self, conditions):
         """Conditions this model according to the list of three-tuples
@@ -269,7 +272,7 @@ class Model:
 
         Note: This only restricts the domains of the random variables. To
         remove the conditioned random variable you need to call marginalize
-        with the appropriate paramters.
+        with the appropriate parameters.
 
         Returns:
             The modified model.
@@ -621,22 +624,21 @@ class MultiVariateGaussianModel(Model):
 
     def _conditionout(self, remove):
         """Conditions the random variables with name in remove on their available, //not unbounded// domain and marginalizes
-        them out.
+                them out.
 
-        Note that we don't know yet how to condition on a non-singular domain (i.e. condition on interval or sets).
-        As a work around we therefore:
-          * for continuous domains: condition on (high-low)/2
-          * for discrete domains: condition on the first element in the domain
-        """
+                Note that we don't know yet how to condition on a non-singular domain (i.e. condition on interval or sets).
+                As a work around we therefore:
+                  * for continuous domains: condition on (high-low)/2
+                  * for discrete domains: condition on the first element in the domain
+         """
+
         if len(remove) == 0 or self._isempty():
             return self
         if len(remove) == self._n:
             return self._setempty()
 
-        j = sorted(self.asindex(remove))
-        i = utils.invert_indexes(j, self._n)
-
         # collect singular values to condition out on
+        j = sorted(self.asindex(remove))
         condvalues = []
         for idx in j:
             field = self.fields[idx]
@@ -645,13 +647,14 @@ class MultiVariateGaussianModel(Model):
             assert (not domain.isunbounded())
             if field['dtype'] == 'numerical':
                 condvalues.append(dvalue if domain.issingular() else (dvalue[1] - dvalue[0]) / 2)
-            elif field['dtype'] == 'string':
-                condvalues.append(domain[0])
-                # actually it is: append(domain[0] if singular else domain[0])
-                # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
+            # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
+            # elif field['dtype'] == 'string':
+            #    condvalues.append(dvalue[0])
+            #    # actually it is: append(dvalue[0] if singular else dvalue[0])
             else:
                 raise ValueError('invalid dtype of field: ' + str(field['dtype']))
 
+        i = utils.invert_indexes(j, self._n)
         # store old sigma and mu
         S = self._S
         mu = self._mu
@@ -673,16 +676,6 @@ class MultiVariateGaussianModel(Model):
         self._S = self._S[np.ix_(keepidx, keepidx)]
         self.fields = [self.fields[idx] for idx in keepidx]
         return self.update()
-
-    def _marginalize(self, keep):
-        if len(keep) == self._n:
-            return self
-        # there are three cases of marginalization:
-        # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
-        # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
-        condout = [field['name'] for idx, field in enumerate(self.fields)
-                   if (field['name'] not in keep) and field['domain'].isbounded()]
-        return self._conditionout(condout)._marginalizeout(keep)
 
     def _density(self, x):
         """Returns the density of the model at point x.
