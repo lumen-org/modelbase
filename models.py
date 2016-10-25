@@ -156,17 +156,6 @@ class Model:
     from it or query density and other aggregations of it.
     """
 
-    @staticmethod
-    def _get_header(df):
-        """ Returns suitable fields for a model from a given pandas dataframe.
-        """
-        # TODO: at the moment this only works for continuous data.
-        fields = []
-        for column in df:
-            field = Field(column, dm.NumericDomain(), dm.NumericDomain(df[column].min(), df[column].max()), 'numerical')
-            fields.append(field)
-        return fields
-
     def asindex(self, names):
         """Given a single name or a list of names of random variables, returns
         the indexes of these in the .field attribute of the model.
@@ -213,18 +202,7 @@ class Model:
     def json_fields(self):
         return list(map(field_tojson, self.fields))
 
-    def fit(self, data):
-        """Fits the model to passed DataFrame
-
-        Returns:
-            The modified model.
-        """
-        self.data = data
-        self.fields = Model._get_header(self.data)
-        self._fit()
-        return self
-
-    def _fit(self):
+    def fit(self):
         raise NotImplementedError()
 
     def marginalize(self, keep=None, remove=None):
@@ -593,13 +571,31 @@ class MultiVariateGaussianModel(Model):
             'average': self._maximum
         }
 
-    def _fit(self):
+    @staticmethod
+    def _get_header(df):
+        """ Returns suitable fields for a model from a given pandas dataframe.
+        """
+        fields = []
+        for column in df:
+            field = Field(column, dm.NumericDomain(), dm.NumericDomain(df[column].min(), df[column].max()), 'numerical')
+            fields.append(field)
+        return fields
+
+    def fit(self, df):
+        """Fits the model to passed DataFrame
+
+        Returns:
+            The modified model.
+        """
+        self.data = df
+        self.fields = MultiVariateGaussianModel._get_header(self.data)
+
+        # fit using scikit learn mixtures
         model = mixture.GMM(n_components=1, covariance_type='full')
         model.fit(self.data)
-        self._model = model
         self._mu = matrix(model.means_).T
         self._S = matrix(model.covars_)
-        self.update()
+        return self.update()
 
     def __str__(self):
         return ("Multivariate Gaussian Model '" + self.name + "':\n" +

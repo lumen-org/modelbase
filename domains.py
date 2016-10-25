@@ -117,6 +117,9 @@ class DiscreteDomain:
             raise ValueError("Too many arguments given: " + str(args))
         self._validate()
 
+    def __len__(self):
+        return math.inf if self.issingular() else len(self._value)
+
     def _validate(self):
         if len(self._value) == 0:
             raise ValueError("domain must not be empty")

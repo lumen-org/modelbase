@@ -1,10 +1,12 @@
-#import numpy as np
 import copy as cp
+import numpy as np
 from numpy import nan
 import xarray as xr
-import models as md
 import logging
+
 import utils
+import models as md
+import domains as dm
 
 # setup logger
 logger = logging.getLogger(__name__)
@@ -19,21 +21,45 @@ class CategoricalModel(md.Model):
             'maximum': self._maximum
         }
 
-    def _fit(self):
-        """ The passed in data frame is expected to have properly index columns"""
+    @staticmethod
+    def _get_header(df):
+        fields = []
+        for column_name in df:
+            column = df[column_name]
+            domain = dm.DiscreteDomain()
+            extent = dm.DiscreteDomain(sorted(column.unique()))
+            fields.append(md.Field(column_name, domain, extent, 'string'))
+        return fields
 
+    @staticmethod
+    def _maximum_aposteriori(df, fields, k=1):
+        extents = [f['extent'].value() for f in fields]
+        sizes = tuple(len(e) for e in extents)
+        z = np.zeros(shape=sizes)
 
-        # do a MAP (maximum a posteriori) estimate
-        # TODO
-        k = 1  # laplacian smoothing
+        # initialize count array
+        counts = xr.DataArray(data=z, coords=extents, dims=df.columns)
 
-        # get counts of each occurrence
+        # iterate over table and sum up occurrences
+        for row in df.itertuples():
+            values = row[1:]  # 1st element is index, which we don't need
+            counts.loc[values] += 1
 
+            # smooth and normalize
+            p = (counts + k) / (counts.sum() + k * counts.size)
 
-        # smooth and normalize
-        self._p = (p + k)/(p.sum + k*p.size)
+        return p
 
-        self.update()
+    def fit(self, df):
+        """Fits the model to passed DataFrame
+
+        Returns:
+            The modified model.
+        """
+        self.data = df
+        self.fields = CategoricalModel._get_header(self.data)
+        self._p = CategoricalModel._maximum_aposteriori(df, self.fields)
+        return self.update()
 
     def __str__(self):
         return ("Multivariate Categorical Model '" + self.name + "':\n" +
@@ -107,8 +133,8 @@ class CategoricalModel(md.Model):
             x: a scalar or a list of scalars.
         """
         if len(x) != self._n:
-            raise "length of argument does not match the model's dimension"
-        return self._p[tuple(x)]  # need to convert to tuple for indexing!
+            raise ValueError("length of argument does not match the model's dimension")
+        return self._p.loc[tuple(x)]  # need to convert to tuple for indexing!
 
     def _maximum(self):
         """Returns the point of the maximum density in this model"""
@@ -130,3 +156,19 @@ class CategoricalModel(md.Model):
         mycopy._p = self._p
         mycopy.update()
         return mycopy
+
+if __name__ == '__main__':
+    import pdb
+    import pandas as pd
+    df = pd.read_csv('data/categorical_dummy.csv')
+    model = CategoricalModel('model1')
+    model.fit(df)
+
+    print('model:', model)
+    print('model._p:', model._p)
+
+    print('model density 1:', model._density(['a', 'z']))
+    print('model density 1:', model._density(['a', 'zz']))
+
+    print('model maximum:', model._maximum())
+
