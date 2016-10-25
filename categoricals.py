@@ -45,10 +45,8 @@ class CategoricalModel(md.Model):
             values = row[1:]  # 1st element is index, which we don't need
             counts.loc[values] += 1
 
-            # smooth and normalize
-            p = (counts + k) / (counts.sum() + k * counts.size)
-
-        return p
+        # smooth, normalize and return
+        return (counts + k) / (counts.sum() + k * counts.size)
 
     def fit(self, df):
         """Fits the model to passed DataFrame
