@@ -9,6 +9,7 @@ import logging
 from functools import reduce
 import seaborn.apionly as sns
 import models as gm
+from gaussians import MultiVariateGaussianModel
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ def _loadIrisModel():
     # load data set as pandas DataFrame
     data = sns.load_dataset('iris')
     # train model on continuous part of the data
-    model = gm.MultiVariateGaussianModel('iris')
+    model = MultiVariateGaussianModel('iris')
     model.fit(data.iloc[:, 0:-1])
     return model
 
@@ -52,7 +53,7 @@ def _loadIrisModel():
 def _loadCarCrashModel():
     """ Loads the car crash data set and returns a MultiVariateGaussianModel of it."""
     data = sns.load_dataset('car_crashes')
-    model = gm.MultiVariateGaussianModel('car_crashes')
+    model = MultiVariateGaussianModel('car_crashes')
     model.fit(data.iloc[:, 0:-1])
     return model
 
@@ -131,7 +132,7 @@ class ModelBase:
             [0.0, 0.4, 1.0, 0.0],
             [2.0, 0.0, 0.0, 1.]]))
         mu = np.matrix(np.array([1.0, 2.0, 0.0, 0.5])).T
-        self.add(gm.MultiVariateGaussianModel.custom_mvg(sigma, mu, "mvg4"))
+        self.add(MultiVariateGaussianModel.custom_mvg(sigma, mu, "mvg4"))
 
 
     def __str__(self):

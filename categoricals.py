@@ -32,7 +32,7 @@ class CategoricalModel(md.Model):
         return fields
 
     @staticmethod
-    def _maximum_aposteriori(df, fields, k=1):
+    def _maximum_aposteriori(df, fields, k=0):
         extents = [f['extent'].value() for f in fields]
         sizes = tuple(len(e) for e in extents)
         z = np.zeros(shape=sizes)
@@ -120,7 +120,8 @@ class CategoricalModel(md.Model):
         keepidx = sorted(self.asindex(keep))
         removeidx = utils.invert_indexes(keepidx, self._n)
         # the marginal probability is the sum along the variable(s) to marginalize out
-        self._p = self._p.sum(axis=removeidx)
+        print('removeidx',[self.names[idx] for idx in removeidx])
+        self._p = self._p.sum(dim=[self.names[idx] for idx in removeidx])
         self.fields = [self.fields[idx] for idx in keepidx]
         return self.update()
 
@@ -132,13 +133,15 @@ class CategoricalModel(md.Model):
         """
         if len(x) != self._n:
             raise ValueError("length of argument does not match the model's dimension")
-        return self._p.loc[tuple(x)]  # need to convert to tuple for indexing!
+        # note1: need to convert x to tuple for indexing
+        # note2: .values.item() is to extract the scalar as a float
+        return self._p.loc[tuple(x)].values.item()
 
     def _maximum(self):
         """Returns the point of the maximum density in this model"""
         # todo: how to get the coordinates of the maximum?
         p = self._p
-        pmax = p.where(p == p.max(), drop=True) # get view on maximum (coordinates remain)
+        pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
         return [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
 
     def _sample(self):
@@ -165,8 +168,34 @@ if __name__ == '__main__':
     print('model:', model)
     print('model._p:', model._p)
 
-    print('model density 1:', model._density(['a', 'z']))
-    print('model density 1:', model._density(['a', 'zz']))
+    print('model density 1:', model._density(['Jena', 'M', 'no']))
+    print('model density 1:', model._density(['Erfurt', 'F', 'yes']))
 
     print('model maximum:', model._maximum())
 
+    marginalAB = model.copy().marginalize(keep=['City', 'Sex'])
+    print('marginal on City, Sex:', marginalAB)
+    print('marginal p: ', marginalAB._p)
+
+    conditionalB = marginalAB.condition([('City', '==', 'Jena')]).marginalize(keep=['Sex'])
+    print('conditional Sex|City = Jena: ', conditionalB)
+    print('conditional Sex|City = Jena: ', conditionalB._p)
+
+    print('most probable city: ', model.copy().marginalize(keep=['City']).aggregate('maximum'))
+    print('most probably gender in Jena: ',
+          model.copy().condition([('City', '==', 'Jena')]).marginalize(keep=['Sex']).aggregate('maximum'))
+    print('most probably Sex for Students in Erfurt: ',
+          model.copy().condition([('City', '==', 'Erfurt'), ('Student', '==', 'yes')]).marginalize(keep=['Sex']).aggregate('maximum'))
+
+    print('most probably Sex for Students by City: \n',
+          model.predict(
+              predict=['City', md.AggregationTuple(['Sex'], 'maximum', 'Sex', [])],
+              splitby=[md.SplitTuple('City', 'elements', [])],
+              where=[md.ConditionTuple('Student', '==', 'yes')]
+          ))
+
+    print('probabilty by city: \n',
+          model.predict(
+              predict=['City', md.AggregationTuple(['City'], 'density', 'City', [])],
+              splitby=[md.SplitTuple('City', 'elements', [])]
+          ))
