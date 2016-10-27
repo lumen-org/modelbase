@@ -11,7 +11,7 @@ It also defines models that implement that base model:
    * MultiVariateGaussianModel
 """
 import pandas as pd
-from numpy import matrix
+#from numpy import matrix
 import copy as cp
 from collections import namedtuple
 from functools import reduce
@@ -69,7 +69,7 @@ ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
 
 
 def Field(name, domain, extent, dtype='numerical'):
-    if extent.isunbounded():
+    if not extent.isbounded():
         raise ValueError("extents must not be unbounded")
     return {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
 """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
@@ -146,7 +146,7 @@ def mergebyidx(list1, list2, idx1, idx2):
 
 def _tuple2str(tuple_):
     """Returns a string that summarizes the given splittuple or aggregation tuple"""
-    prefix = (str(tuple_.yields) + '@') if hasattr(tuple_, 'yields') else ""
+    prefix = (str(tuple_.yields) + '@') if hasattr(tuple_, 'yields') and not tuple_.yields == 'density' else ""
     return prefix + str(tuple_[1]) + '(' + str(tuple_[0]) + ')'
 
 
@@ -338,7 +338,7 @@ class Model:
         else:
             sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
             values = [pair[1] for pair in sorted_]
-        return self._density(matrix(values).T)
+        return self._density(values)
 
     def sample(self, n=1):
         """Returns n samples drawn from the model."""
@@ -393,8 +393,7 @@ class Model:
 
         Args:
             predict: A list of names of fields (strings) and 'AggregationTuple's.
-                This is hence the list of fields to be included in the returned
-                dataframe.
+                This is the list of fields to be included in the returned dataframe.
             where: A list of 'conditiontuple's, representing the conditions to
                 adhere.
             splitby: A list of 'SplitTuple's, i.e. a list of fields on which to

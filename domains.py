@@ -29,6 +29,9 @@ class NumericDomain:
             raise ValueError("Too many arguments given: " + str(args))
         self._validate()
 
+    def __str__(self):
+        return str(self._value)
+
     def _validate(self):
         if self._value[0] > self._value[1]:
             raise ValueError("resulting domain is empty: " + str(self._value))
@@ -36,14 +39,15 @@ class NumericDomain:
     def issingular(self):
         return self._value[0] == self._value[1]
 
-    def isunbounded(self):
-        return self._value[0] == -math.inf or self._value[1] == math.inf
-
     def isbounded(self):
-        return not self.issingular() and not self.isunbounded()
+        return self._value[0] != -math.inf and self._value[1] != math.inf
+
+#    this actually is: is neither unbounded nor singular
+#    def isbounded(self):
+#        return not self.issingular() and not self.isunbounded()
 
     def bounded(self, extent):
-        if self.isunbounded():
+        if not self.isbounded():
             [l, h] = self._value
             try:
                 [el, eh] = extent._value
@@ -57,7 +61,7 @@ class NumericDomain:
         return self._value[0] if self.issingular() else self._value
 
     def tojson(self):
-        if not self.isunbounded():
+        if self.isbounded():
             return self.value()
         else:
             [l, h] = self._value
@@ -125,23 +129,23 @@ class DiscreteDomain:
         self._validate()
 
     def __len__(self):
-        return math.inf if self.isunbounded() else len(self._value)
+        return math.inf if not self.isbounded() else len(self._value)
+
+    def __str__(self):
+        return str(self._value)
 
     def _validate(self):
         if len(self._value) == 0:
             raise ValueError("domain must not be empty")
 
     def issingular(self):
-        return len(self._value) == 1 and not self.isunbounded()
-
-    def isunbounded(self):
-        return self._value[0] == math.inf
+        return len(self._value) == 1 and self.isbounded()
 
     def isbounded(self):
-        return not self.issingular() and not self.isunbounded()
+        return self._value[0] != math.inf
 
     def bounded(self, extent):
-        if self.isunbounded():
+        if not self.isbounded():
             return extent if isinstance(extent, DiscreteDomain) else DiscreteDomain(extent)
         else:
             return self
@@ -150,13 +154,14 @@ class DiscreteDomain:
         return self._value[0] if self.issingular() else self._value
 
     def tojson(self):
-        if not self.isunbounded():
+        # requires special treatment, because math.inf would often not be handled correctly in JSON
+        if self.isbounded():
             return self.value()
         else:
             return None
 
     def clamp(self, val):
-        if self.isunbounded() or val in self._value:
+        if not self.isbounded() or val in self._value:
             return val
         else:
             raise NotImplementedError("Don't know what to do.")
@@ -167,7 +172,7 @@ class DiscreteDomain:
         except AttributeError:
             dvalue = DiscreteDomain(domain)._value
 
-        if self.isunbounded():
+        if not self.isbounded():
             self._value = dvalue
         else:
             self._value = [e for e in self._value if e in dvalue]

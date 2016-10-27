@@ -98,7 +98,7 @@ class MultiVariateGaussianModel(md.Model):
             field = self.fields[idx]
             domain = field['domain']
             dvalue = domain.value()
-            assert (not domain.isunbounded())
+            assert (domain.isbounded())
             if field['dtype'] == 'numerical':
                 condvalues.append(dvalue if domain.issingular() else (dvalue[1] - dvalue[0]) / 2)
             # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
@@ -135,8 +135,10 @@ class MultiVariateGaussianModel(md.Model):
         """Returns the density of the model at point x.
 
         Args:
-            x: a Scalar or a _column_ vector as a numpy matrix.
+            OLD: x: a Scalar or a _column_ vector as a numpy matrix.
+            x: a list of values as input for the density.
         """
+        x = matrix(x).T  # turn into column vector of type numpy matrix
         xmu = x - self._mu
         return ((2 * pi) ** (-self._n / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item()
 

@@ -32,7 +32,7 @@ class CategoricalModel(md.Model):
         return fields
 
     @staticmethod
-    def _maximum_aposteriori(df, fields, k=0):
+    def _maximum_aposteriori(df, fields, k=1):
         extents = [f['extent'].value() for f in fields]
         sizes = tuple(len(e) for e in extents)
         z = np.zeros(shape=sizes)
@@ -63,7 +63,8 @@ class CategoricalModel(md.Model):
         return ("Multivariate Categorical Model '" + self.name + "':\n" +
                 "dimension: " + str(self._n) + "\n" +
                 "names: " + str([self.names]) + "\n" +
-                "fields: " + str([str(field) for field in self.fields]))
+                "fields: " + str([str(field['name']) + ':' + str(field['domain']) + ':' + str(field['extent'])
+                                  for field in self.fields]))
 
     def update(self):
         """updates dependent parameters / precalculated values of the model"""
@@ -90,11 +91,10 @@ class CategoricalModel(md.Model):
             field = self.fields[idx]
             domain = field['domain']
             dvalue = domain.value()
-            assert (not domain.isunbounded())
-            # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
+            assert (domain.isbounded())
             if field['dtype'] == 'string':
-                pairs.append((field['name'], dvalue[0]))
-                # actually it is: domain[0] if singular else domain[0]
+                # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
+                pairs.append((field['name'], dvalue if domain.issingular() else dvalue[0]))
             else:
                 raise ValueError('invalid dtype of field: ' + str(field['dtype']))
 
@@ -120,7 +120,6 @@ class CategoricalModel(md.Model):
         keepidx = sorted(self.asindex(keep))
         removeidx = utils.invert_indexes(keepidx, self._n)
         # the marginal probability is the sum along the variable(s) to marginalize out
-        print('removeidx',[self.names[idx] for idx in removeidx])
         self._p = self._p.sum(dim=[self.names[idx] for idx in removeidx])
         self.fields = [self.fields[idx] for idx in keepidx]
         return self.update()
@@ -168,6 +167,39 @@ if __name__ == '__main__':
     print('model:', model)
     print('model._p:', model._p)
 
+    res = model.predict(
+        predict=['Student', 'City', 'Sex',
+               md.AggregationTuple(['City', 'Sex', 'Student'], 'density', 'density', [])],
+        splitby=[md.SplitTuple('City', 'elements', []), md.SplitTuple('Sex', 'elements', []),
+               md.SplitTuple('Student', 'elements', [])])
+    print('probability table: \n', str(res))
+
+    res = model.predict(
+        predict=['City', 'Sex',
+                 md.AggregationTuple(['City', 'Sex'], 'density', 'density', [])],
+        splitby=[md.SplitTuple('City', 'elements', []), md.SplitTuple('Sex', 'elements', [])])
+    print("\n\npredict marginal table: city, sex\n" + str(res))
+
+    res = model.predict(
+        predict=['City',
+                 md.AggregationTuple(['Sex'], 'maximum', 'Sex', [])],
+        splitby=[md.SplitTuple('City', 'elements', [])])
+    print("\n\npredict most likely sex by city: \n" + str(res))
+
+    res = model.predict(
+        predict=['Sex',
+                 md.AggregationTuple(['Sex'], 'density', 'density', [])],
+        splitby=[md.SplitTuple('Sex', 'elements', [])])
+    print("\n\npredict marginal table: sex\n" + str(res))
+
+    res = model.predict(
+        predict=['City', 'Sex',
+                 md.AggregationTuple(['City', 'Sex'], 'density', 'density', [])],
+        splitby=[md.SplitTuple('City', 'elements', []), md.SplitTuple('Sex', 'elements', [])],
+        where=[md.ConditionTuple('Student', '==', 'yes')])
+    print("\n\nconditional prop table: p(city, sex| student=T):\n" + str(res))
+
+    print('\n\nafter this comes less organized output:')
     print('model density 1:', model._density(['Jena', 'M', 'no']))
     print('model density 1:', model._density(['Erfurt', 'F', 'yes']))
 
@@ -186,16 +218,3 @@ if __name__ == '__main__':
           model.copy().condition([('City', '==', 'Jena')]).marginalize(keep=['Sex']).aggregate('maximum'))
     print('most probably Sex for Students in Erfurt: ',
           model.copy().condition([('City', '==', 'Erfurt'), ('Student', '==', 'yes')]).marginalize(keep=['Sex']).aggregate('maximum'))
-
-    print('most probably Sex for Students by City: \n',
-          model.predict(
-              predict=['City', md.AggregationTuple(['Sex'], 'maximum', 'Sex', [])],
-              splitby=[md.SplitTuple('City', 'elements', [])],
-              where=[md.ConditionTuple('Student', '==', 'yes')]
-          ))
-
-    print('probabilty by city: \n',
-          model.predict(
-              predict=['City', md.AggregationTuple(['City'], 'density', 'City', [])],
-              splitby=[md.SplitTuple('City', 'elements', [])]
-          ))
