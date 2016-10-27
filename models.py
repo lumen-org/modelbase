@@ -202,7 +202,7 @@ class Model:
     def json_fields(self):
         return list(map(field_tojson, self.fields))
 
-    def fit(self):
+    def fit(self, df):
         raise NotImplementedError()
 
     def marginalize(self, keep=None, remove=None):
