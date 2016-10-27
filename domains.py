@@ -1,6 +1,5 @@
 import math
 
-
 # TODO: is it better to use immutable tuples instead of mutable lists for the internal representation of domains?
 
 
@@ -105,20 +104,28 @@ class DiscreteDomain:
     def __init__(self, *args):
         """Constructs a discrete domain.
              * pass no arguments for an unbounded domain
-             * pass one scalar argument for a singular domain
-             * pass a list/tuple of values for a bounded domain. its order is preserved.
+             * not anymore: pass one scalar argument for a singular domain
+             * pass a list of values for a bounded domain. its order is preserved.
+        """
+
+        """Internal representation is as follows:
+            * self._value == [math.inf] for an unbound domain
+            * self._value == [single_value] for a singular domain that only contains single_value
+            * self._value == [val1, ... , valn] for a bounded domain of val1, ..., valn
         """
         l = len(args)
         if l == 0:
             self._value = [math.inf]
         elif l == 1:
-            self._value = args[0]
+            # convert to array if its a single value
+            val = args[0]
+            self._value = [val] if isinstance(val, str) else val
         else:
             raise ValueError("Too many arguments given: " + str(args))
         self._validate()
 
     def __len__(self):
-        return math.inf if self.issingular() else len(self._value)
+        return math.inf if self.isunbounded() else len(self._value)
 
     def _validate(self):
         if len(self._value) == 0:
@@ -149,14 +156,21 @@ class DiscreteDomain:
             return None
 
     def clamp(self, val):
-        raise NotImplementedError
+        if self.isunbounded() or val in self._value:
+            return val
+        else:
+            raise NotImplementedError("Don't know what to do.")
 
     def intersect(self, domain):
         try:
             dvalue = domain._value
         except AttributeError:
             dvalue = DiscreteDomain(domain)._value
-        self._value = [e for e in self._value if e in dvalue]
+
+        if self.isunbounded():
+            self._value = dvalue
+        else:
+            self._value = [e for e in self._value if e in dvalue]
         self._validate()
         return self
 

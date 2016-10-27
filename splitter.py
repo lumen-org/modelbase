@@ -25,6 +25,7 @@ def equidist(domain, args):
     except IndexError:
         return [domain[0]]
 
+
 def equiinterval (domain, args):
     """ Splits the given continuous numeric into a list of n evently sized subdomains. The union of these subdomains
     is the original domain. """
@@ -37,8 +38,19 @@ def identity(domain, args):
     return [domain]
 
 
+def elements(domain, args):
+    """ Splits the given discrete domain into it's single elements and returns these. Thus, it returns a list of lists,
+    where each sublist contains a single element.
+    was passed in."""
+    if isinstance(domain, str):
+        return [domain]
+        # raise TypeError('domain must be a list of values, not a single value')
+    else:
+        return [[e] for e in domain]
+
 """ A map from 'method id' to the actual splitter function. """
 splitter = {
     "equidist": equidist,
-    "identity": identity
+    "identity": identity,
+    "elements": elements
 }
