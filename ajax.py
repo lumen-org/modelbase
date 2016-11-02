@@ -60,8 +60,8 @@ def service():
             # return answer
             return result
         except Exception as inst:
-            msg = "failed to execute query: " + str(inst) + "\n traceback:\n" + traceback.format_exc()
-            logger.error(msg)
+            msg = "failed to execute query: " + str(inst)
+            logger.error(msg + "\n traceback:\n" + traceback.format_exc())
             return msg, 400
 
 

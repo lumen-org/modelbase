@@ -507,8 +507,8 @@ class Model:
                 try:
                     # select relevant columns and iterate over it
                     ids = [split_name2id[name] for name in aggr.name]
-                except KeyError:
-                    raise ValueError("missing split-clause for field '" + str(name) + "'.")
+                except KeyError as err:
+                    raise ValueError("missing split-clause for field '" + str(err) + "'.")
                 subframe = input_frame[ids]
                 for _, row in subframe.iterrows():
                     res = aggr_model.density(aggr.name, row)

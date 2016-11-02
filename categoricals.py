@@ -145,7 +145,7 @@ class CategoricalModel(md.Model):
 
     def _sample(self):
         # TODO: let it return a dataframe?
-        raise "not implemented"
+        raise NotImplementedError()
 
     def copy(self, name=None):
         # TODO: this should be as lightweight as possible!
