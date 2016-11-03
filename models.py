@@ -146,7 +146,7 @@ def mergebyidx(list1, list2, idx1, idx2):
 
 def _tuple2str(tuple_):
     """Returns a string that summarizes the given splittuple or aggregation tuple"""
-    prefix = (str(tuple_.yields) + '@') if hasattr(tuple_, 'yields') and not tuple_.yields == 'density' else ""
+    prefix = (str(tuple_.yields) + '@') if hasattr(tuple_, 'yields') and not tuple_.method == 'density' else ""
     return prefix + str(tuple_[1]) + '(' + str(tuple_[0]) + ')'
 
 
@@ -527,7 +527,7 @@ class Model:
                         pairs = zip(split_names, ['=='] * len(row), row)
                         # derive model for these specific conditions
                         rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr.name)
-                        res = rowmodel.aggregate(aggr.method)
+                        res = rowmodel.aggregate(aggr.method)  # TODO: why not use model.predict?
                         # reduce to requested dimension
                         res = res[rowmodel.asindex(aggr.yields)]
                         aggr_results.append(res)

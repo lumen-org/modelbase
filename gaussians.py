@@ -101,18 +101,15 @@ class MultiVariateGaussianModel(md.Model):
             assert (domain.isbounded())
             if field['dtype'] == 'numerical':
                 condvalues.append(dvalue if domain.issingular() else (dvalue[1] - dvalue[0]) / 2)
-            # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
-            # elif field['dtype'] == 'string':
-            #    condvalues.append(dvalue[0])
-            #    # actually it is: append(dvalue[0] if singular else dvalue[0])
+                # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
             else:
                 raise ValueError('invalid dtype of field: ' + str(field['dtype']))
+        condvalues = matrix(condvalues).T
 
+        # calculate updated mu and sigma for conditional distribution, according to GM script
         i = utils.invert_indexes(j, self._n)
-        # store old sigma and mu
         S = self._S
         mu = self._mu
-        # update sigma and mu according to GM script
         self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
         self._mu = mu[i] + S[ix_(i, j)] * S[ix_(j, j)].I * (condvalues - mu[j])
         self.fields = [self.fields[idx] for idx in i]
