@@ -8,9 +8,12 @@ import json
 import logging
 from functools import reduce
 import seaborn.apionly as sns
+import numpy as np
+import pandas as pd
 import models as gm
 from gaussians import MultiVariateGaussianModel
-import numpy as np
+from categoricals import CategoricalModel
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -57,6 +60,20 @@ def _loadCarCrashModel():
     model.fit(data.iloc[:, 0:-1])
     return model
 
+def _loadMVG4Model():
+    sigma = np.matrix(np.array([
+        [1.0, 0.6, 0.0, 2.0],
+        [0.6, 1.0, 0.4, 0.0],
+        [0.0, 0.4, 1.0, 0.0],
+        [2.0, 0.0, 0.0, 1.]]))
+    mu = np.matrix(np.array([1.0, 2.0, 0.0, 0.5])).T
+    return MultiVariateGaussianModel.custom_mvg(sigma, mu, "mvg4")
+
+def _loadCategoricalDummyModel():
+    df = pd.read_csv('data/categorical_dummy.csv')
+    model = CategoricalModel('categorical_dummy')
+    model.fit(df)
+    return model
 
 def PQL_parse_json(query):
     """ Parses a given PQL query and transforms it into a more readable and handy 
@@ -124,16 +141,12 @@ class ModelBase:
         # more data sets here: https://github.com/mwaskom/seaborn-data
         self.name = name
         self.models = {}  # models is a dictionary, using the name of a model as its key
+
+        # load some initial models to play with
         self.add(_loadIrisModel())
         self.add(_loadCarCrashModel())
-        sigma = np.matrix(np.array([
-            [1.0, 0.6, 0.0, 2.0],
-            [0.6, 1.0, 0.4, 0.0],
-            [0.0, 0.4, 1.0, 0.0],
-            [2.0, 0.0, 0.0, 1.]]))
-        mu = np.matrix(np.array([1.0, 2.0, 0.0, 0.5])).T
-        self.add(MultiVariateGaussianModel.custom_mvg(sigma, mu, "mvg4"))
-
+        self.add(_loadMVG4Model())
+        self.add(_loadCategoricalDummyModel())
 
     def __str__(self):
         return " -- Model Base > " + self.name + " < -- \n" + \
