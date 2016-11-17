@@ -25,7 +25,7 @@ import modelbase as mbase
 import traceback
 
 app = Flask(__name__, static_url_path='/static/')
-mb = mbase.ModelBase("Philipps ModelBase")
+mb = mbase.ModelBase("mymb")
 
 # setup root logger and local logger
 logging.basicConfig(

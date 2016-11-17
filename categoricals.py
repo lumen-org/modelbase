@@ -12,6 +12,7 @@ import domains as dm
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
+
 class CategoricalModel(md.Model):
     """A multivariate categorical model"""
     def __init__(self, name):

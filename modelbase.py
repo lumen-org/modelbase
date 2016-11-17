@@ -7,6 +7,7 @@ The modelbase module primarly provides the ModelBase class.
 import json
 import logging
 from functools import reduce
+from pathlib import Path
 import seaborn.apionly as sns
 import numpy as np
 import pandas as pd
@@ -14,6 +15,8 @@ import models as gm
 from gaussians import MultiVariateGaussianModel
 from categoricals import CategoricalModel
 
+import data.adult.adult as adult
+import data.heart_disease.heart as heart
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -72,6 +75,18 @@ def _loadMVG4Model():
 def _loadCategoricalDummyModel():
     df = pd.read_csv('data/categorical_dummy.csv')
     model = CategoricalModel('categorical_dummy')
+    model.fit(df)
+    return model
+
+def _loadAdultModel():
+    df = adult.categorical('data/adult/adult.full.cleansed')
+    model = CategoricalModel('adult')
+    model.fit(df)
+    return model
+
+def _loadHeartDiseaseModel():
+    df = heart.categorical('data/heart_disease/cleaned.cleveland.data')
+    model = CategoricalModel('heart')
     model.fit(df)
     return model
 
@@ -136,22 +151,52 @@ class ModelBase:
             as a key in the dictionary.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, load_all=True):
         """ Creates a new instance and loads some default models. """
         # more data sets here: https://github.com/mwaskom/seaborn-data
         self.name = name
         self.models = {}  # models is a dictionary, using the name of a model as its key
 
         # load some initial models to play with
-        self.add(_loadIrisModel())
-        self.add(_loadCarCrashModel())
-        self.add(_loadMVG4Model())
-        self.add(_loadCategoricalDummyModel())
+        if load_all:
+            self.load_all_models()
+        #self.add(_loadIrisModel())
+        #self.add(_loadCarCrashModel())
+        #self.add(_loadMVG4Model())
+        #self.add(_loadCategoricalDummyModel())
+        #self.add(_loadHeartDiseaseModel())
 
     def __str__(self):
         return " -- Model Base > " + self.name + " < -- \n" + \
                "contains " + str(len(self.models)) + " models, as follows:\n\n" + \
                reduce(lambda p, m: p + str(m) + "\n\n", self.models.values(), "")
+
+    def load_all_models(self, directory='models', ext='.mdl'):
+        """Loads all models from the given directory. Each model is expected to be saved in its own file. Only files
+         that match the following naming are considered:
+         <modelbase-name>.<model-name>.<ext>
+         If there is any file that matches the naming convention but doesn't contain a model it is
+         silently not loaded."""
+
+        # iterate over matching files in directory (including any subdirectories)
+        filenames = Path(directory).glob('**/' + self.name + '*' + ext)
+        for file in filenames:
+            # try loading the model
+            try:
+                model = gm.Model.load(str(file))
+                self.add(model)
+            except TypeError as err:
+                print(str(err))
+                logger.warn('file "' + str(file) + '" matches the naming pattern but does not contain a model instance')
+
+    def save_all_models(self, directory='models', ext='.mdl'):
+        """Saves all models currently in the model base in the given directory using the naming convention:
+         <modelbase-name>.<model-name>.<ext>"""
+
+        dir_ = Path(directory)
+        for key, model in self.models.items():
+            filepath = dir_.joinpath(self.name + '.' + model.name + ext)
+            gm.Model.save(model, str(filepath))
 
     def add(self, model, name=None):
         """ Adds a model to the model base using the given name or the models name. """
@@ -167,6 +212,12 @@ class ModelBase:
         model = self.models[name]
         del self.models[name]
         return model
+
+    def drop_all(self):
+        """ Drops all models of this modelbase."""
+        names = [name for name in self.models]  # create copy of keys in model
+        for name in names:
+            self.drop(name)
 
     def get(self, name):
         """Gets a model from the modelbase by name and returns it."""
@@ -330,7 +381,7 @@ class ModelBase:
 
 
 if __name__ == '__main__':
-    mb = ModelBase("mymodelbase")
+    mb = ModelBase("mymb")
     cc = mb.models['car_crashes']
     foo = cc.copy().model(["total", "alcohol"], [gm.ConditionTuple("alcohol", "equals", 10)])
     print(str(foo))

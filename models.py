@@ -15,6 +15,7 @@ import pandas as pd
 import copy as cp
 from collections import namedtuple
 from functools import reduce
+import pickle as pickle
 import logging
 import splitter as sp
 import utils as utils
@@ -353,6 +354,19 @@ class Model:
 
     def copy(self):
         raise NotImplementedError()
+
+    @staticmethod
+    def save(model, filename):
+        with open(filename, 'wb') as output:
+            pickle.dump(model, output, pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def load(filename):
+        with open(filename, 'rb') as input:
+            model = pickle.load(input)
+            if not isinstance(model, Model):
+                raise TypeError('pickled input is not an instance of Model.')
+            return model
 
     def _update(self):
         """Updates the _n, name2idx and names based on the fields in .fields"""
