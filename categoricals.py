@@ -42,6 +42,7 @@ class CategoricalModel(md.Model):
         counts = xr.DataArray(data=z, coords=extents, dims=df.columns)
 
         # iterate over table and sum up occurrences
+        # TODO: this is super slow...
         for row in df.itertuples():
             values = row[1:]  # 1st element is index, which we don't need
             counts.loc[values] += 1
@@ -86,7 +87,7 @@ class CategoricalModel(md.Model):
 
         # collect singular values to condition out on
         removeidx = sorted(self.asindex(remove))
-        # todo: not  needed anymore: remove = [self.names[idx] for idx in j]  # reorder to match index order
+        # todo: not needed anymore: remove = [self.names[idx] for idx in j]  # reorder to match index order
         pairs = []
         for idx in removeidx:
             field = self.fields[idx]

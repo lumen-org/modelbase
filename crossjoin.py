@@ -18,8 +18,6 @@ April 2016
 
 import pandas as pd
 
-#%% define some functions that we'll need
-
 def crossjoin(df1, df2, **kwargs):
     """
     Make a cross join (cartesian product) between two dataframes by using a constant temporary key.
