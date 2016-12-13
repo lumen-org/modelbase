@@ -43,6 +43,9 @@ def categorical(datafilepath, verbose=False):
     # column 'workclass' seems useful
     # column 'education' seems useful, but has many possible values
     # -> summarize into 'low', 'middle' and 'high'
+
+    # todo: easier & cleaner: adaption of the following
+    # adult_set.workclass.replace(['Without-pay','Never-worked'], ['unemp']*2, inplace = True)
     edu = dfcat.education
     low = ('Preschool', '1st-4th', '5th-6th', '7th-8th', '9th', '10th')
     middle = ('11th', '12th', 'HS-grad', 'Some-college', 'Prof-school', 'Assoc-voc')

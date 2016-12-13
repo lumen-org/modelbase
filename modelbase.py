@@ -171,7 +171,7 @@ class ModelBase:
                "contains " + str(len(self.models)) + " models, as follows:\n\n" + \
                reduce(lambda p, m: p + str(m) + "\n\n", self.models.values(), "")
 
-    def load_all_models(self, directory='models', ext='.mdl'):
+    def load_all_models(self, directory='data_models', ext='.mdl'):
         """Loads all models from the given directory. Each model is expected to be saved in its own file. Only files
          that match the following naming are considered:
          <modelbase-name>.<model-name>.<ext>

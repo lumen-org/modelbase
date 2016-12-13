@@ -61,12 +61,12 @@ class CategoricalModel(md.Model):
         self._p = CategoricalModel._maximum_aposteriori(df, self.fields)
         return self.update()
 
-    def __str__(self):
-        return ("Multivariate Categorical Model '" + self.name + "':\n" +
-                "dimension: " + str(self._n) + "\n" +
-                "names: " + str([self.names]) + "\n" +
-                "fields: " + str([str(field['name']) + ':' + str(field['domain']) + ':' + str(field['extent'])
-                                  for field in self.fields]))
+    # def __str__(self):
+    #     return ("Multivariate Categorical Model '" + self.name + "':\n" +
+    #             "dimension: " + str(self._n) + "\n" +
+    #             "names: " + str([self.names]) + "\n" +
+    #             "fields: " + str([str(field['name']) + ':' + str(field['domain']) + ':' + str(field['extent'])
+    #                               for field in self.fields]))
 
     def update(self):
         """updates dependent parameters / precalculated values of the model"""

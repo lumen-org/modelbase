@@ -156,6 +156,12 @@ class Model:
     from it or query density and other aggregations of it.
     """
 
+    def __str__(self):
+        return (self.__name__ + " " + self.name + "':\n" +
+                "dimension: " + str(self._n) + "\n" +
+                "names: " + str([self.names]) + "\n" +
+                "fields: " + str([str(field) for field in self.fields]))
+
     def asindex(self, names):
         """Given a single name or a list of names of random variables, returns
         the indexes of these in the .field attribute of the model.
