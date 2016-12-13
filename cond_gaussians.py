@@ -19,6 +19,23 @@ class ConditionallyGaussianModel(md.Model):
     or query density and other aggregations of it.
 
     Note that all conditional Gaussians use the same covariance matrix. Their mean, however, is not identical.
+
+    Internal:
+        Assume a CG-model on m categorical random variables and n continuous random variables.
+        The model is parametrized using the mean parameters as follows:
+            _p:
+                meaning: probability look-up table for the categorical part of the model.
+                data structure used: xarray DataArray. The labels of the dimensions and the coordinates of each
+                    dimension are the same as the name of the categorical fields and their domain, respectively.
+                    Each entry of the DataArray is a scalar, i.e. the probability of that event.
+            _S:
+                meaning: covariance matrix of the conditionals. All conditionals share the same covariance!
+                data structure used: numpy array
+            _mu:
+                meaning: the mean of each conditional gaussian.
+                data structure used: xarray DataArray with m+1 dimensions. The first m dimensions represent the
+                categorical random variables of the model and are labeled accordingly. The last dimension represents
+                the mean vector of the continuous part of the model and is therefore of length n.
     """
 
     def __init__(self, name):
@@ -33,12 +50,18 @@ class ConditionallyGaussianModel(md.Model):
     def _get_header(df):
         """ Returns suitable fields for this model from a given pandas dataframe.
         """
-        raise NotImplementedError()
-        #fields = []
-        #for column in df:
-        #    field = md.Field(column, dm.NumericDomain(), dm.NumericDomain(df[column].min(), df[column].max()), 'numerical')
-        #    fields.append(field)
-        # return fields
+        raise NotImplementedError("most likely not working yet.")
+        fields = []
+        for colname in df:
+            column = df[colname]
+            if column.dtype == "category" or column.dtype == "object":
+                domain = dm.DiscreteDomain()
+                extent = dm.DiscreteDomain(sorted(column.unique()))
+                field = md.Field(column_name, domain, extent, 'string')
+            else:
+                field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+            fields.append(field)
+         return fields
 
     def fit(self, df):
         """Fits the model to passed DataFrame
@@ -56,6 +79,13 @@ class ConditionallyGaussianModel(md.Model):
         """
         self.data = df
         self.fields = ConditionallyGaussianModel._get_header(self.data)
+        self._update()
+
+        # @Frank: um herauszufinden welche variables kategorisch sind:
+        #   - self.byname(name) liefert dir das 'Field' zu einer Zufallsvariable. Zu Field schau mal Zeile 72ff in models.py
+        #   - df.dtypes gibt dir eine List mit dem Datentyp der Roh-Daten
+        #   - df[colname].dtype gibt dir den Datentyp einer spez. column
+
         # TODO
         raise NotImplementedError()
         return self.update()
