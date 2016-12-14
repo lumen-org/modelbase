@@ -120,7 +120,6 @@ def mergebyidx2(zips):
                 break
     return merged
 
-
 def mergebyidx(list1, list2, idx1, idx2):
     """Merges list l1 and list l2 into one list in increasing index order, where the indices are given by idx1
     and idx2, respectively. idx1 and idx2 are expected to be sorted. No index may be occur twice. Indexing starts at 0.

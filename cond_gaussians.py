@@ -1,8 +1,8 @@
-import copy as cp
+
 import logging
+import pandas as pd
 import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
-from sklearn import mixture
 
 import utils
 import models as md
@@ -46,22 +46,23 @@ class ConditionallyGaussianModel(md.Model):
             'average': self._maximum
         }
 
-    @staticmethod
-    def _get_header(df):
-        """ Returns suitable fields for this model from a given pandas dataframe.
-        """
-        raise NotImplementedError("most likely not working yet.")
-        fields = []
-        for colname in df:
-            column = df[colname]
-            if column.dtype == "category" or column.dtype == "object":
-                domain = dm.DiscreteDomain()
-                extent = dm.DiscreteDomain(sorted(column.unique()))
-                field = md.Field(column_name, domain, extent, 'string')
-            else:
-                field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
-            fields.append(field)
-         return fields
+    # @staticmethod
+    # def _get_header(df):
+    #     """ Returns suitable fields for this model from a given pandas dataframe.
+    #     """
+    #     fields = []
+    #     for colname in df:
+    #         column = df[colname]
+    #         # if categorical of some sort, create discrete field from it
+    #         if column.dtype == "category" or column.dtype == "object":
+    #             domain = dm.DiscreteDomain()
+    #             extent = dm.DiscreteDomain(sorted(column.unique()))
+    #             field = md.Field(colname, domain, extent, 'string')
+    #         # else it's numeric
+    #         else:
+    #             field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+    #         fields.append(field)
+    #     return fields
 
     def fit(self, df):
         """Fits the model to passed DataFrame
@@ -77,18 +78,79 @@ class ConditionallyGaussianModel(md.Model):
         Returns:
             The modified model with selected parameters set.
         """
-        self.data = df
-        self.fields = ConditionallyGaussianModel._get_header(self.data)
+        # split in categorical and numeric columns
+        categoricals = []
+        numericals = []
+        for colname in df:
+            column = df[colname]
+            #if column.dtype == "category" or column.dtype == "object":
+            if column.dtype == "object":
+                categoricals.append(colname)
+            else:
+                numericals.append(colname)
+
+        # reorder data frame such that categorical columns are first
+        df = pd.DataFrame(df, columns=categoricals+numericals)
+
+        #  derive fields
+        fields = []
+        for colname in categoricals:
+            column = df[colname]
+            field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+            fields.append(field)
+        for colname in numericals:
+            column = df[colname]
+            domain = dm.DiscreteDomain()
+            extent = dm.DiscreteDomain(sorted(column.unique()))
+            field = md.Field(colname, domain, extent, 'string')
+            fields.append(field)
+        # update field access by name
         self._update()
 
-        # @Frank: um herauszufinden welche variables kategorisch sind:
+        # @Frank:
+        # - der data frame hat die kategorischen variables vorn, danach die kontinuierlichen
+        # - categoricals und numericals enthält die namen der kategorischen/kontinuierlichen ZV
+
+        # @Frank: generell um herauszufinden welche columns/fields kategorisch sind:
         #   - self.byname(name) liefert dir das 'Field' zu einer Zufallsvariable. Zu Field schau mal Zeile 72ff in models.py
-        #   - df.dtypes gibt dir eine List mit dem Datentyp der Roh-Daten
+        #   - df.dtypes gibt dir eine Liste mit dem Datentyp der Roh-Daten
         #   - df[colname].dtype gibt dir den Datentyp einer spez. column
 
         # TODO
         raise NotImplementedError()
         return self.update()
+
+    @staticmethod
+    def cg_dummy():
+        """Returns a dataframe that contains sample of a 4d cg distribution. See the code for the used parameters."""
+        # chose fixed parameters
+        mu_M_Jena = [0, 0]
+        mu_F_Jena = [1, 3]
+        mu_M_Erfurt = [-10, 1]
+        mu_F_Erfurt = [-5, -6]
+        S = [[3, 0.5], [0.5, 1]]
+        dims = ['sex', 'city', 'age', 'income']
+        # and a sample size
+        samplecnt = 200
+
+        # generate samples for each and arrange in dataframe
+        df_cat = pd.concat([
+            pd.DataFrame([["M", "Jena"]] * samplecnt, columns=['sex', 'city']),
+            pd.DataFrame([["F", "Jena"]] * samplecnt, columns=['sex', 'city']),
+            pd.DataFrame([["M", "Erfurt"]] * samplecnt, columns=['sex', 'city']),
+            pd.DataFrame([["F", "Erfurt"]] * samplecnt, columns=['sex', 'city'])
+        ])
+
+        df_num = pd.concat([
+            pd.DataFrame(np.random.multivariate_normal(mu_M_Jena, S, samplecnt), columns=['age', 'income']),
+            pd.DataFrame(np.random.multivariate_normal(mu_F_Jena, S, samplecnt), columns=['age', 'income']),
+            pd.DataFrame(np.random.multivariate_normal(mu_M_Erfurt, S, samplecnt), columns=['age', 'income']),
+            pd.DataFrame(np.random.multivariate_normal(mu_F_Erfurt, S, samplecnt), columns=['age', 'income'])
+        ])
+        df = pd.concat([df_num, df_cat], axis=1)
+#        df.plot.scatter(x="age", y="income")
+        return df
+
 
     def update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
@@ -171,6 +233,9 @@ class ConditionallyGaussianModel(md.Model):
         #return mycopy
 
 
+__philipp__ = False
 if __name__ == '__main__':
     import pdb
+
+    __philipp__ = True
     # todo: some testing
