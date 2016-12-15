@@ -111,7 +111,7 @@ class ConditionallyGaussianModel(md.Model):
         dg = len(numericals); dc = len(categoricals); d = dc + dg
 #        levels = testopts['levels']
 #        L = [len(x) for x in levels.values()]
-
+s
         
         
 
