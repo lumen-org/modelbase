@@ -91,6 +91,7 @@ class ConditionallyGaussianModel(md.Model):
     #     return fields
 
     def _fitFullLikelihood(self, data, fields, dc):
+        """fit full likelihood for CG model"""
         n, d = data.shape
         dg = d - dc
         
@@ -100,45 +101,47 @@ class ConditionallyGaussianModel(md.Model):
         
         extents = [f['extent'].value() for f in fields[:dc]] # levels
         sizes = [len(v) for v in extents]
+#        print('extents:', extents)
     
         z = np.zeros(tuple(sizes))
-        pMLx = xr.DataArray(data=z, coords=extents, dims=catcols)
+        pML = xr.DataArray(data=z, coords=extents, dims=catcols)
 
         #### mus
         mus = np.zeros(tuple(sizes + [dg]))
         coords = extents + [[contname for contname in gausscols]]
         dims = catcols | [['mean']]
-        musMLx = xr.DataArray(data=mus, coords=coords, dims=dims)
+        musML = xr.DataArray(data=mus, coords=coords, dims=dims)
         
+        # calculate p(x)
         for row in data.itertuples():
             cats = row[1:1+dc]
             gauss = row[1+dc:]
 
-            pMLx.loc[cats] += 1
-            musMLx.loc[cats] += gauss
+            pML.loc[cats] += 1
+            musML.loc[cats] += gauss
 
 #        print(pMLx)
 
 #            
-        it = np.nditer(pMLx, flags=['multi_index']) # iterator over complete array
+        it = np.nditer(pML, flags=['multi_index']) # iterator over complete array
         while not it.finished:
             ind = it.multi_index
 #            print "%d <%s>" % (it[0], it.multi_index)
 #            print(ind, pMLx[ind])
-            musMLx[ind] /= pMLx[ind]
+            musML[ind] /= pML[ind]
             it.iternext()
-        pMLx /= 1.0 *n
+        pML /= 1.0 *n
 
         Sigma = np.zeros((dg, dg))
         for row in data.itertuples():
             cats = row[1:1+dc]
             gauss = row[1+dc:]
-            ymu = np.matrix( gauss - musMLx.loc[cats])
+            ymu = np.matrix( gauss - musML.loc[cats])
             Sigma += np.dot(ymu.T, ymu)
 
         Sigma /= n
         
-        return (pMLx, mus, Sigma)
+        return (pML, musML, Sigma)
 
     def fit(self, df):
         """Fits the model to passed DataFrame
@@ -172,14 +175,15 @@ class ConditionallyGaussianModel(md.Model):
         fields = []
         for colname in categoricals:
             column = df[colname]
-            field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
-            fields.append(field)
-        for colname in numericals:
-            column = df[colname]
             domain = dm.DiscreteDomain()
             extent = dm.DiscreteDomain(sorted(column.unique()))
             field = md.Field(colname, domain, extent, 'string')
             fields.append(field)
+        for colname in numericals:
+            column = df[colname]
+            field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+            fields.append(field)
+
         # update field access by name
         self._update()
         
@@ -190,7 +194,7 @@ class ConditionallyGaussianModel(md.Model):
         extents = [f['extent'].value() for f in fields[:dc]]
 
         
-#        print(df)
+#        print(df[0:10])
         
         (p, mus, Sigma) = self._fitFullLikelihood(df, fields,  dc)
 
@@ -338,7 +342,7 @@ if __name__ == '__main__':
     Sigma = np.matrix([[1,0,0.5],[0,1,0],[0.5,0,1]])
 #    Sigma = np.diag([1,1,1,1])
     
-    independent = 0
+    independent = 1
     if independent:
         n = 1000
         testopts={'levels' :  {0: [1,2,3,4], 1: [2, 5, 10], 2: [1,2]}, 

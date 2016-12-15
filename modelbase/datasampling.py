@@ -99,8 +99,9 @@ def genCGSample(n, d):
 #    print(df[df.columns], df.columns)
     df[['c1', 'c2', 'c3']] = df[['c1', 'c2', 'c3']].astype('object') # replace 0 bei 'no', and 1 bei 'yes' ???
     for c in cols[:dc]:
-        df.loc[df[c] ==1, c] = 'yes'
-        df.loc[df[c] ==0, c] = 'no'
+        for j in range(11): # have only values in range 10
+            df.loc[df[c]==j, c] = 'val%d'%(j)
+#        df.loc[df[c] ==0, c] = 'no'
 #    print(df.dtypes)
     return df #data
 
