@@ -9,11 +9,36 @@ import models as md
 from models import AggregationTuple, SplitTuple, ConditionTuple
 import domains as dm
 
+#imports frank
+from CGSNR_NLPs import GMNLP_GAUSS_SNR, GMNLP_CAT_SNR
+from datasampling import genCGSample, genCatData, genCatDataJEx, genMixGSample
+
 # setup logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
+def getCumlevelsAndDict(levels, excludeindex = None):
+    """
+    cumlevels[i] ... total # of levels of categorical variables with index <=i
+    dval2ind[i][v] ... index of value v in the list of levels of variable i
+    """
+    dc = len(levels.keys())    
+    
+    dval2ind={}
+    for i in range(dc):
+        dval2ind[i] = {}
+        for j, v in enumerate(levels[i]):
+            dval2ind[i][v] = j # assign numerical value to each level of variable i
+            
+    cumlevels = [0]
+    for v in levels.keys():
+        cumlevels.append(cumlevels[-1]+len(levels[v]))
+
+    
+    return (cumlevels, dval2ind)
+    
+    
 class ConditionallyGaussianModel(md.Model):
     """A conditional gaussian model and methods to derive submodels from it
     or query density and other aggregations of it.
@@ -64,6 +89,71 @@ class ConditionallyGaussianModel(md.Model):
     #         fields.append(field)
     #     return fields
 
+    def _fitFullLikelihood(self, data, dc):
+        n, d = data.shape
+        dg = d - dc
+        
+        levels = {}
+        cols = data.columns
+        for catname in cols[:dc]:
+            column = data[catname]
+            lvls=sorted(column.unique())
+            levels[catname] = lvls
+        print ('FFlevels', levels)
+#        L = [len(x) for x in levels.values()]
+        
+        dims = [len(v) for v in levels.values()]
+         
+        dval2ind={}
+        for catname in cols[:dc]:
+            dval2ind[catname] = {}
+            for j, v in enumerate(levels[catname]):
+                dval2ind[catname][v] = j # assign numerical value to each level of variable i
+                
+        cumlevels = [0]
+        for v in levels.keys():
+            cumlevels.append(cumlevels[-1]+len(levels[v]))
+            
+        
+#        (cumlevels, dval2ind) = getCumlevelsAndDict(levels) 
+        print(cumlevels)
+        print(dval2ind)
+    
+        pML = np.zeros(tuple(dims))
+        mus = np.zeros(tuple(dims + [dg]))
+        for i in range(n):
+#            print(data.loc[i])
+#            l =[]
+#            for catname in cols[:dc]:
+#                l.append(dval2ind[catname][data.loc[i, catname]])
+#            ind =tuple(l)
+#            print('ind',ind)
+            ind = tuple([dval2ind[catname][data.loc[i, catname]] for catname in cols[:dc]])
+#            print(ind, data[i, :3])
+            pML[ind] += 1
+            a = data.loc[i, cols[dc:]]
+            print(a.as_matrix())
+            mus[ind] += a.as_matrix()
+        # TODO: average mus with rel. frequencies in pML
+        
+        it = np.nditer(pML, flags=['multi_index']) # iterator over complete array
+        while not it.finished:
+            ind = it.multi_index
+    #        print "%d <%s>" % (it[0], it.multi_index)
+            mus[ind] /= pML[ind]
+            it.iternext()  
+    
+        pML /= n
+        
+        Sigma = np.zeros((dg, dg))
+        for i in range(n):
+            ind = tuple([dval2ind[j][data[i, j]] for j in range(dc)])
+            ymu = np.matrix(data[i, dc:] - mus[ind])#/pML[ind]
+            Sigma += np.dot(ymu.T, ymu)
+        Sigma /= n
+        
+        return (pML, mus, Sigma)
+
     def fit(self, df):
         """Fits the model to passed DataFrame
 
@@ -109,11 +199,19 @@ class ConditionallyGaussianModel(md.Model):
         
 #        data = genCGSample(n, testopts) # categoricals first, then gaussians
         dg = len(numericals); dc = len(categoricals); d = dc + dg
-#        levels = testopts['levels']
-#        L = [len(x) for x in levels.values()]
-s
         
+        # get levels
+        levels = {}
+        for i, catname in enumerate(categoricals):
+            column = df[catname]
+            lvls=sorted(column.unique())
+            levels[catname] = lvls
+        print (levels)
+        L = [len(x) for x in levels.values()]
         
+        print(df)
+        
+        (p, mus, Sigma) = self._fitFullLikelihood(df, dc)
 
         # @Frank:
         # - der data frame hat die kategorischen variables vorn, danach die kontinuierlichen
@@ -243,7 +341,32 @@ s
 
 __philipp__ = False
 if __name__ == '__main__':
-    import pdb
+#    import pdb
 
-    __philipp__ = True
-    # todo: some testing
+    Sigma = np.diag([1,1,1])
+#    Sigma = np.matrix([[1,0,0.5],[0,1,0],[0.5,0,1]])
+#    Sigma = np.diag([1,1,1,1])
+    
+    independent = 0
+    if independent:
+        n = 3
+        testopts={'levels' :  {0: [1,2,3,4], 1: [2, 5, 10], 2: [1,2]}, 
+        'Sigma' : Sigma, 
+        'fun' : genCatData, 
+        'catvalasmean' :  1, # works if dc = dg 
+        'seed' : 10}
+    else:
+        n = 3
+        testopts={'levels' :  {0:[0,1], 1:[0,1], 2:[0,1]}, 
+        'Sigma' :Sigma,
+        'fun' : genCatDataJEx, 
+        'catvalasmean' :  1, 
+        'seed': 10}
+
+    data = genCGSample(n, testopts) # categoricals first, then gaussians, np array
+    
+    
+    
+    model = ConditionallyGaussianModel('model1')
+    
+    model.fit(data)

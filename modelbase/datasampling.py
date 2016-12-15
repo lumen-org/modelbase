@@ -5,7 +5,7 @@ Copyright: Frank Nussbaum (frank.nussbaum@uni-jena.de)
 
 
 import numpy as np
-
+import pandas as pd
 
 def genCatData(n, levels, seed = 10):
     """ uniform/ independent draws according to the levels given in <levels>"""
@@ -92,7 +92,17 @@ def genCGSample(n, d):
 
         data[i][0:dc] = x
         data[i][dc:dc +dg] = y
-    return data
+        
+    cols = ['c1','c2','c3','g1','g2','g3']
+    df = pd.DataFrame(data=data, index=None, columns=cols) 
+#    print(df)
+#    print(df[df.columns], df.columns)
+    df[['c1', 'c2', 'c3']] = df[['c1', 'c2', 'c3']].astype('object') # replace 0 bei 'no', and 1 bei 'yes' ???
+    for c in cols[:dc]:
+        df.loc[df[c] ==1, c] = 'yes'
+        df.loc[df[c] ==0, c] = 'no'
+#    print(df.dtypes)
+    return df #data
 
 def genMixGSample(n, dic):
     """ pass a dictionary d with options fun, Sigma, catvalasmean, levels, seed"""
