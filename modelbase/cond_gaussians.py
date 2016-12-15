@@ -12,6 +12,7 @@ import domains as dm
 #imports frank
 #from CGSNR_NLPs import GMNLP_GAUSS_SNR, GMNLP_CAT_SNR
 from datasampling import genCGSample, genCatData, genCatDataJEx, genMixGSample
+from output import plothist
 import xarray as xr
 
 # setup logger
@@ -198,16 +199,12 @@ class ConditionallyGaussianModel(md.Model):
         
         (p, mus, Sigma) = self._fitFullLikelihood(df, fields,  dc)
 
-        print ('pML:', p)
+        self._p = p
+        self._mu = mus
+        self._S = Sigma
         
-        ind = (0,1,1)
-        print('mu(',[extents[i][ind[i]] for i in ind], '):', mus[ind])
-        
-        print('Sigma:', Sigma)
-        
-    #    print(np.histogram(data[:, dc]))
-#        plothist(data.iloc[:, dc+1].ravel())
-        
+        self._extents = extents
+
         # @Frank:
         # - der data frame hat die kategorischen variables vorn, danach die kontinuierlichen
         # - categoricals und numericals enthält die namen der kategorischen/kontinuierlichen ZV
@@ -342,7 +339,7 @@ if __name__ == '__main__':
     Sigma = np.matrix([[1,0,0.5],[0,1,0],[0.5,0,1]])
     Sigma = np.diag([1,1,1,1])
     
-    independent = 1
+    independent = 0
     if independent:
         n = 1000
         testopts={'levels' :  {0: [1,2,3,4], 1: [2, 5, 10], 2: [1,2]}, 
@@ -357,6 +354,7 @@ if __name__ == '__main__':
         'fun' : genCatDataJEx, 
         'catvalasmean' :  1, 
         'seed': 10}
+    dc = len(testopts.keys())
 
     data = genCGSample(n, testopts) # categoricals first, then gaussians, np array
     
@@ -365,3 +363,14 @@ if __name__ == '__main__':
     model = ConditionallyGaussianModel('model1')
     
     model.fit(data)
+    
+    print ('pML:', model._p)
+    
+    ind = (0,1,1)
+    print('mu(',[model._extents[i][ind[i]] for i in ind], '):', model._mu[ind])
+    
+    print('Sigma:', model._S)
+        
+#    print(np.histogram(data[:, dc]))
+    plothist(data.iloc[:, dc+1].ravel())
+        
