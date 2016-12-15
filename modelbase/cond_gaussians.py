@@ -90,66 +90,55 @@ class ConditionallyGaussianModel(md.Model):
     #         fields.append(field)
     #     return fields
 
-    def _fitFullLikelihood(self, data, dc):
+    def _fitFullLikelihood(self, data, fields, dc):
         n, d = data.shape
         dg = d - dc
         
-        levels = {}
         cols = data.columns
         catcols = cols[:dc]
         gausscols = cols[dc:]        
         
-        for catname in cols[:dc]:
-            column = data[catname]
-            lvls=sorted(column.unique())
-            levels[catname] = lvls
-        print ('FFlevels', levels)
-#        L = [len(x) for x in levels.values()]
-        
-        dims = [len(v) for v in levels.values()]
-         
-        dval2ind={}
-        for catname in cols[:dc]:
-            dval2ind[catname] = {}
-            for j, v in enumerate(levels[catname]):
-                dval2ind[catname][v] = j # assign numerical value to each level of variable i
-                
-        cumlevels = [0]
-        for v in levels.keys():
-            cumlevels.append(cumlevels[-1]+len(levels[v]))
-            
-        
-#        (cumlevels, dval2ind) = getCumlevelsAndDict(levels) 
-        print(cumlevels)
-        print(dval2ind)
-        print(df.dtypes)
+        extents = [f['extent'].value() for f in fields[:dc]] # levels
+        sizes = [len(v) for v in extents]
     
-        pML = np.zeros(tuple(dims))
-        mus = np.zeros(tuple(dims + [dg]))
-        for i in range(n):
-            ind = tuple([dval2ind[catname][data.loc[i, catname]] for catname in cols[:dc]])
-            pML[ind] += 1
+        z = np.zeros(tuple(sizes))
+        pMLx = xr.DataArray(data=z, coords=extents, dims=catcols)
 
-            mus[ind] += data.loc[i, gausscols].astype(float)
-        # TODO: average mus with rel. frequencies in pML
+        #### mus
+        mus = np.zeros(tuple(sizes + [dg]))
+        coords = extents + [[contname for contname in gausscols]]
+        dims = catcols | [['mean']]
+        musMLx = xr.DataArray(data=mus, coords=coords, dims=dims)
         
-        it = np.nditer(pML, flags=['multi_index']) # iterator over complete array
+        for row in data.itertuples():
+            cats = row[1:1+dc]
+            gauss = row[1+dc:]
+
+            pMLx.loc[cats] += 1
+            musMLx.loc[cats] += gauss
+
+#        print(pMLx)
+
+#            
+        it = np.nditer(pMLx, flags=['multi_index']) # iterator over complete array
         while not it.finished:
             ind = it.multi_index
-    #        print "%d <%s>" % (it[0], it.multi_index)
-            mus[ind] /= pML[ind]
-            it.iternext()  
-    
-        pML /= n
-        
+#            print "%d <%s>" % (it[0], it.multi_index)
+#            print(ind, pMLx[ind])
+            musMLx[ind] /= pMLx[ind]
+            it.iternext()
+        pMLx /= 1.0 *n
+
         Sigma = np.zeros((dg, dg))
-        for i in range(n):
-            ind = tuple([dval2ind[catname][data.loc[i, catname]] for catname in cols[:dc]])
-            ymu = np.matrix(data.loc[i, gausscols].astype(float) - mus[ind])#/pML[ind]
+        for row in data.itertuples():
+            cats = row[1:1+dc]
+            gauss = row[1+dc:]
+            ymu = np.matrix( gauss - musMLx.loc[cats])
             Sigma += np.dot(ymu.T, ymu)
+
         Sigma /= n
         
-        return (pML, mus, Sigma)
+        return (pMLx, mus, Sigma)
 
     def fit(self, df):
         """Fits the model to passed DataFrame
@@ -198,22 +187,17 @@ class ConditionallyGaussianModel(md.Model):
         dg = len(numericals); dc = len(categoricals); d = dc + dg
         
         # get levels
-        levels = {}
-        for i, catname in enumerate(categoricals):
-            column = df[catname]
-            lvls=sorted(column.unique())
-            levels[catname] = lvls
-        print (levels)
-        L = [len(x) for x in levels.values()]
+        extents = [f['extent'].value() for f in fields[:dc]]
+
         
 #        print(df)
         
-        (p, mus, Sigma) = self._fitFullLikelihood(df, dc)
+        (p, mus, Sigma) = self._fitFullLikelihood(df, fields,  dc)
 
         print ('pML:', p)
         
         ind = (0,1,1)
-        print('mu(',[levels[catname][ind[i]] for catname in categoricals], '):', mus[ind])
+        print('mu(',[extents[i][ind[i]] for i in ind], '):', mus[ind])
         
         print('Sigma:', Sigma)
         
@@ -351,7 +335,7 @@ if __name__ == '__main__':
 #    import pdb
 
     Sigma = np.diag([1,1,1])
-#    Sigma = np.matrix([[1,0,0.5],[0,1,0],[0.5,0,1]])
+    Sigma = np.matrix([[1,0,0.5],[0,1,0],[0.5,0,1]])
 #    Sigma = np.diag([1,1,1,1])
     
     independent = 0
