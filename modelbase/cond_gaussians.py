@@ -10,8 +10,9 @@ from models import AggregationTuple, SplitTuple, ConditionTuple
 import domains as dm
 
 #imports frank
-from CGSNR_NLPs import GMNLP_GAUSS_SNR, GMNLP_CAT_SNR
+#from CGSNR_NLPs import GMNLP_GAUSS_SNR, GMNLP_CAT_SNR
 from datasampling import genCGSample, genCatData, genCatDataJEx, genMixGSample
+import xarray as xr
 
 # setup logger
 logger = logging.getLogger(__name__)
@@ -95,6 +96,9 @@ class ConditionallyGaussianModel(md.Model):
         
         levels = {}
         cols = data.columns
+        catcols = cols[:dc]
+        gausscols = cols[dc:]        
+        
         for catname in cols[:dc]:
             column = data[catname]
             lvls=sorted(column.unique())
@@ -118,22 +122,15 @@ class ConditionallyGaussianModel(md.Model):
 #        (cumlevels, dval2ind) = getCumlevelsAndDict(levels) 
         print(cumlevels)
         print(dval2ind)
+        print(df.dtypes)
     
         pML = np.zeros(tuple(dims))
         mus = np.zeros(tuple(dims + [dg]))
         for i in range(n):
-#            print(data.loc[i])
-#            l =[]
-#            for catname in cols[:dc]:
-#                l.append(dval2ind[catname][data.loc[i, catname]])
-#            ind =tuple(l)
-#            print('ind',ind)
             ind = tuple([dval2ind[catname][data.loc[i, catname]] for catname in cols[:dc]])
-#            print(ind, data[i, :3])
             pML[ind] += 1
-            a = data.loc[i, cols[dc:]]
-            print(a.as_matrix())
-            mus[ind] += a.as_matrix()
+
+            mus[ind] += data.loc[i, gausscols].astype(float)
         # TODO: average mus with rel. frequencies in pML
         
         it = np.nditer(pML, flags=['multi_index']) # iterator over complete array
@@ -147,8 +144,8 @@ class ConditionallyGaussianModel(md.Model):
         
         Sigma = np.zeros((dg, dg))
         for i in range(n):
-            ind = tuple([dval2ind[j][data[i, j]] for j in range(dc)])
-            ymu = np.matrix(data[i, dc:] - mus[ind])#/pML[ind]
+            ind = tuple([dval2ind[catname][data.loc[i, catname]] for catname in cols[:dc]])
+            ymu = np.matrix(data.loc[i, gausscols].astype(float) - mus[ind])#/pML[ind]
             Sigma += np.dot(ymu.T, ymu)
         Sigma /= n
         
@@ -209,10 +206,20 @@ class ConditionallyGaussianModel(md.Model):
         print (levels)
         L = [len(x) for x in levels.values()]
         
-        print(df)
+#        print(df)
         
         (p, mus, Sigma) = self._fitFullLikelihood(df, dc)
 
+        print ('pML:', p)
+        
+        ind = (0,1,1)
+        print('mu(',[levels[catname][ind[i]] for catname in categoricals], '):', mus[ind])
+        
+        print('Sigma:', Sigma)
+        
+    #    print(np.histogram(data[:, dc]))
+#        plothist(data.iloc[:, dc+1].ravel())
+        
         # @Frank:
         # - der data frame hat die kategorischen variables vorn, danach die kontinuierlichen
         # - categoricals und numericals enthält die namen der kategorischen/kontinuierlichen ZV
@@ -223,8 +230,8 @@ class ConditionallyGaussianModel(md.Model):
         #   - df[colname].dtype gibt dir den Datentyp einer spez. column
 
         # TODO
-        raise NotImplementedError()
-        return self.update()
+#        raise NotImplementedError()
+#        return self.update()
 
     @staticmethod
     def cg_dummy():
@@ -349,14 +356,14 @@ if __name__ == '__main__':
     
     independent = 0
     if independent:
-        n = 3
+        n = 1000
         testopts={'levels' :  {0: [1,2,3,4], 1: [2, 5, 10], 2: [1,2]}, 
         'Sigma' : Sigma, 
         'fun' : genCatData, 
         'catvalasmean' :  1, # works if dc = dg 
         'seed' : 10}
     else:
-        n = 3
+        n = 1000
         testopts={'levels' :  {0:[0,1], 1:[0,1], 2:[0,1]}, 
         'Sigma' :Sigma,
         'fun' : genCatDataJEx, 
