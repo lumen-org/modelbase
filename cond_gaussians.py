@@ -6,8 +6,10 @@ from numpy import pi, exp, matrix, ix_, nan
 
 import utils
 import models as md
+from gaussians import MultiVariateGaussianModel
 from models import AggregationTuple, SplitTuple, ConditionTuple
 import domains as dm
+
 
 # setup logger
 logger = logging.getLogger(__name__)
@@ -36,6 +38,15 @@ class ConditionallyGaussianModel(md.Model):
                 data structure used: xarray DataArray with m+1 dimensions. The first m dimensions represent the
                 categorical random variables of the model and are labeled accordingly. The last dimension represents
                 the mean vector of the continuous part of the model and is therefore of length n.
+
+            _categoricals:
+                list of names of all categorical fields (in same order as they appear in fields)
+
+            _numericals:
+                list of names of all continuous fields (in same order as they appear in fields)
+
+            fields:
+                list of fields of this model. continuous fields are stored __before__ categorical ones.
     """
 
     def __init__(self, name):
@@ -46,6 +57,8 @@ class ConditionallyGaussianModel(md.Model):
             'average': self._maximum
         }
 
+    # todo: put it in models.py for reuse in all models?
+    # precondition: it works for all data types...
     # @staticmethod
     # def _get_header(df):
     #     """ Returns suitable fields for this model from a given pandas dataframe.
@@ -159,25 +172,42 @@ class ConditionallyGaussianModel(md.Model):
         return self
 
     def _conditionout(self, remove):
-        """Conditions the random variables with name in remove on their available, //not unbounded// domain and marginalizes
-                them out.
-
-                Note that we don't know yet how to condition on a non-singular domain (i.e. condition on interval or sets).
-                As a work around we therefore:
-                  * for continuous domains: condition on (high-low)/2
-                  * for discrete domains: condition on the first element in the domain
-         """
-
         if len(remove) == 0 or self._isempty():
             return self
         if len(remove) == self._n:
             return self._setempty()
 
-        # collect singular values to condition out on
-        j = sorted(self.asindex(remove))
+        # condition on categorical fields
+        # _S remains unchanged
+        categoricals = [name for name in self._categoricals if name in remove]
+
+        # _p changes like in the categoricals.py case
+        pairs = []
+        for field in categoricals:
+            domain = field['domain']
+            dvalue = domain.value()
+            assert (domain.isbounded())
+            if field['dtype'] == 'string':
+                # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
+                pairs.append((field['name'], dvalue if domain.issingular() else dvalue[0]))
+            else:
+                raise ValueError('invalid dtype of field: ' + str(field['dtype']))
+
+        # trim the probability look-up table to the appropriate subrange and normalize it
+        p = self._p.loc[dict(pairs)]
+        self._p = p / p.sum()
+
+        # _mu is trimmed: keep the slice that we condition on, i.e. reuse the 'pairs' access-structure
+        self._mu = self._mu.loc[dict(pairs)]
+
+        # todo: spezialfall "alle categoricals fallen raus"
+
+        # condition on continuous fields
+        continuous = [name for name in self._continuous if name in remove]  # note: this is guaranteed to be sorted
+
+        # collect singular values to condition out
         condvalues = []
-        for idx in j:
-            field = self.fields[idx]
+        for field in continuous:
             domain = field['domain']
             dvalue = domain.value()
             assert (domain.isbounded())
@@ -189,11 +219,24 @@ class ConditionallyGaussianModel(md.Model):
         condvalues = matrix(condvalues).T
 
         # calculate updated mu and sigma for conditional distribution, according to GM script
-        i = utils.invert_indexes(j, self._n)
+        i = self.asindex(continuous)
+        j = utils.invert_indexes(i, len(self._continuous))
 
-        raise NotImplementedError()
+        S = self._S
+        self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
 
-        self.fields = [self.fields[idx] for idx in i]
+        # iterate over all mu and update them
+        stacked = self._mu.stack(pl_stack=tuple(continuous))  # this is a reference to mu!
+        Sigma_expr = S[ix_(i, j)] * S[ix_(j, j)].I
+        for coord in stacked.pl_stack:
+            indexer = dict(pl_stack=coord)
+            mu = stacked.loc[indexer]
+            stacked.loc[indexer] = mu[i] + Sigma_expr * (condvalues - mu[j])
+
+        # remove fields as needed
+        remove = set(remove)
+        self.fields = list(filter(lambda f: f.name not in remove, self.fields))
+
         return self.update()
 
     def _marginalizeout(self, keep):

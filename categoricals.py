@@ -101,7 +101,6 @@ class CategoricalModel(md.Model):
                 raise ValueError('invalid dtype of field: ' + str(field['dtype']))
 
         # 1. trim the probability look-up table to the appropriate subrange
-        # build look-up array for it
         p = self._p.loc[dict(pairs)]
 
         # 2. normalize

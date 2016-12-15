@@ -155,6 +155,10 @@ class Model:
     from it or query density and other aggregations of it.
     """
 
+    # TODO: useful helper functions for dealing with fields and indexes:
+    #
+
+
     def __str__(self):
         return (self.__name__ + " " + self.name + "':\n" +
                 "dimension: " + str(self._n) + "\n" +
@@ -186,6 +190,14 @@ class Model:
         if isinstance(names, str):
             names = [names]
         return all([name in self._name2idx for name in names])
+
+    def inverse_names(self, names):
+        """Given an iterable of names of fields (or a single name), returns a sorted list of all names of fields
+        in this model which are _not_ in names. The order of names is the same as the order of fields in the model."""
+        if isinstance(names, str):
+            names = [names]
+        names = set(names)
+        return [name for name in self._name2idx if name not in names]
 
     def __init__(self, name):
         self.name = name
@@ -246,6 +258,7 @@ class Model:
         # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
         condout = [field['name'] for idx, field in enumerate(self.fields)
                    if (field['name'] not in keep) and field['domain'].isbounded()]
+
         return self._conditionout(condout)._marginalizeout(keep)
 
     def condition(self, conditions):
@@ -274,6 +287,17 @@ class Model:
             else:
                 raise ValueError('invalid operator for condition: ' + str(operator))
         return self
+
+    def _conditionout(self, remove):
+        """Conditions the random variables with name in remove on their available, //not unbounded// domain and marginalizes
+                them out.
+
+                Note that we don't know yet how to condition on a non-singular domain (i.e. condition on interval or sets).
+                As a work around we therefore:
+                  * for continuous domains: condition on (high-low)/2
+                  * for discrete domains: condition on the first element in the domain
+         """
+        raise NotImplementedError("Implement this method in your model!")
 
     def aggregate(self, method):
         """Aggregates this model using the given method and returns the
