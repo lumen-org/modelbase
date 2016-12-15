@@ -340,7 +340,7 @@ if __name__ == '__main__':
 
     Sigma = np.diag([1,1,1])
     Sigma = np.matrix([[1,0,0.5],[0,1,0],[0.5,0,1]])
-#    Sigma = np.diag([1,1,1,1])
+    Sigma = np.diag([1,1,1,1])
     
     independent = 1
     if independent:

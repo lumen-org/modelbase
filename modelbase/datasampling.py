@@ -79,11 +79,6 @@ def genCGSample(n, d):
             else:
                 mu =[np.sum(x)*k] * dg
             
-
-#            if x[0][0] >0 :
-#                mu = [k] * dg
-#            else:
-#                mu = [-k] * dg
         else:
             mu = [0,-5,10]
             mu = [0,0,0] # mu and Sigma independent of x!
@@ -93,16 +88,17 @@ def genCGSample(n, d):
         data[i][0:dc] = x
         data[i][dc:dc +dg] = y
         
-    cols = ['c1','c2','c3','g1','g2','g3']
+    catcols = ['c%d'%(i) for i in range(dc)]
+    gausscols = ['g%d'%(i) for i in range(dg)]
+    cols = catcols + gausscols
     df = pd.DataFrame(data=data, index=None, columns=cols) 
-#    print(df)
-#    print(df[df.columns], df.columns)
-    df[['c1', 'c2', 'c3']] = df[['c1', 'c2', 'c3']].astype('object') # replace 0 bei 'no', and 1 bei 'yes' ???
+
+    df[catcols] = df[catcols].astype('object') # replace 0 bei 'no', and 1 bei 'yes' ???
     for c in cols[:dc]:
         for j in range(11): # have only values in range 10
             df.loc[df[c]==j, c] = 'val%d'%(j)
 #        df.loc[df[c] ==0, c] = 'no'
-#    print(df.dtypes)
+
     return df #data
 
 def genMixGSample(n, dic):
