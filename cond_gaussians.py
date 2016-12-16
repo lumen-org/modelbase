@@ -3,7 +3,6 @@ import numpy as np
 from numpy import matrix, ix_, nan
 import pandas as pd
 import xarray as xr
-from numpy.distutils.system_info import numerix_info
 
 import utils
 import models as md
@@ -86,8 +85,10 @@ class ConditionallyGaussianModel(md.Model):
         self._mu = nan
         self._S = nan
 
-    def _fitFullLikelihood(self, data, fields, dc):
-        """fit full likelihood for CG model"""
+    @staticmethod
+    def _fitFullLikelihood(data, fields, dc):
+        """fit full likelihood for CG model. the data frame data consists of dc many categorical columns and the rest are
+        numerical columns. all categorical columns occure before the numercial ones."""
         n, d = data.shape
         dg = d - dc
 
@@ -105,7 +106,7 @@ class ConditionallyGaussianModel(md.Model):
         # mus
         mus = np.zeros(tuple(sizes + [dg]))
         coords = extents + [[contname for contname in gausscols]]
-        dims = catcols | [['mean']]
+        dims = list(catcols) + ['mean']
         musML = xr.DataArray(data=mus, coords=coords, dims=dims)
 
         # calculate p(x)
@@ -182,16 +183,16 @@ class ConditionallyGaussianModel(md.Model):
         self._update()
 
 #        data = genCGSample(n, testopts) # categoricals first, then gaussians
-        dg = len(numericals)
+        #dg = len(numericals)
         dc = len(categoricals)
-        d = dc + dg
+        #d = dc + dg
 
         # get levels
-        extents = [f['extent'].value() for f in fields[:dc]]
+        #extents = [f['extent'].value() for f in fields[:dc]]
 
 #        print(df[0:10])
 
-        (p, mus, Sigma) = self._fitFullLikelihood(df, fields, dc)
+        (p, mus, Sigma) = ConditionallyGaussianModel._fitFullLikelihood(df, fields, dc)
         self._p = p
         self._mu = mus
         self._S = Sigma
@@ -245,7 +246,7 @@ class ConditionallyGaussianModel(md.Model):
 
         # condition on categorical fields
         # _S remains unchanged
-        categoricals = [name for name in self._categoricals if name in remove]
+        categoricals = [self.byname(name) for name in self._categoricals if name in remove]
 
         # _p changes like in the categoricals.py case
         pairs = []
@@ -384,3 +385,6 @@ if __name__ == '__main__':
     #print('mu(', [model._extents[i][ind[i]] for i in ind], '):', model._mu[ind])
     #print(np.histogram(data[:, dc]))
     #plothist(data.iloc[:, dc + 1].ravel())
+
+    # PHILIPP
+    model.condition([('city', "==", 'Jena')])
