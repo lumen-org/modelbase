@@ -18,7 +18,7 @@ from cond_gaussians.output import plothist
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
-
+# TODO @Frank: wird diese Funktion noch benötigt? Sie wird nirgendwo benutzt.
 def getCumlevelsAndDict(levels, excludeindex=None):
     """
     cumlevels[i] ... total # of levels of categorical variables with index <=i
@@ -85,7 +85,6 @@ class ConditionallyGaussianModel(md.Model):
         self._p = nan
         self._mu = nan
         self._S = nan
-        self._extents = []
 
     def _fitFullLikelihood(self, data, fields, dc):
         """fit full likelihood for CG model"""
@@ -140,12 +139,10 @@ class ConditionallyGaussianModel(md.Model):
         return pML, musML, Sigma
 
     def fit(self, df):
-        """Fits the model to passed DataFrame
+        """Fits the model to passed DataFrame.
 
         Parameters:
-            df: A pandas data frame that holds the data to fit the model to. All columns in the data frame will be used.
-                The data frame must have its columns ordered such that categorical columns occur before continuous
-                columns.
+            df: A pandas data frame that holds the data to fit the model to. All columns of df are used.
 
         Internal:
             This method estimates the set of mean parameters that fit best to the data given in the dataframe df.
@@ -179,13 +176,14 @@ class ConditionallyGaussianModel(md.Model):
             column = df[colname]
             field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
             fields.append(field)
+        self.fields = fields
 
         # update field access by name
         self._update()
 
 #        data = genCGSample(n, testopts) # categoricals first, then gaussians
-        dg = len(numericals);
-        dc = len(categoricals);
+        dg = len(numericals)
+        dc = len(categoricals)
         d = dc + dg
 
         # get levels
@@ -197,9 +195,10 @@ class ConditionallyGaussianModel(md.Model):
         self._p = p
         self._mu = mus
         self._S = Sigma
-        self._extents = extents
         self._categoricals = categoricals
         self._numericals = numericals
+
+        return self.update()
 
     @staticmethod
     def cg_dummy():
@@ -228,15 +227,14 @@ class ConditionallyGaussianModel(md.Model):
             pd.DataFrame(np.random.multivariate_normal(mu_M_Erfurt, S, samplecnt), columns=['age', 'income']),
             pd.DataFrame(np.random.multivariate_normal(mu_F_Erfurt, S, samplecnt), columns=['age', 'income'])
         ])
-        df = pd.concat([df_num, df_cat], axis=1)
+        df = pd.concat([df_cat, df_num], axis=1)
 #        df.plot.scatter(x="age", y="income")
         return df
-
 
     def update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
         self._update()
-        raise NotImplementedError()
+        #raise NotImplementedError()
         return self
 
     def _conditionout(self, remove):
@@ -343,45 +341,46 @@ class ConditionallyGaussianModel(md.Model):
         #mycopy.update()
         #return mycopy
 
-
 if __name__ == '__main__':
-    #    import pdb
-
+    # generate input data
     Sigma = np.diag([1, 1, 1])
     Sigma = np.matrix([[1, 0, 0.5], [0, 1, 0], [0.5, 0, 1]])
     Sigma = np.diag([1, 1, 1, 1])
 
-    independent = 0
-    if independent:
+    dataset = "dummy_cg"
+    if dataset == "a":
         n = 1000
         testopts = {'levels': {0: [1, 2, 3, 4], 1: [2, 5, 10], 2: [1, 2]},
                     'Sigma': Sigma,
                     'fun': genCatData,
                     'catvalasmean': 1,  # works if dc = dg
                     'seed': 10}
-    else:
+        data = genCGSample(n, testopts)  # categoricals first, then gaussians, np array
+        dc = len(testopts.keys())
+    elif dataset == "b":
         n = 1000
         testopts = {'levels': {0: [0, 1], 1: [0, 1], 2: [0, 1]},
                     'Sigma': Sigma,
                     'fun': genCatDataJEx,
                     'catvalasmean': 1,
                     'seed': 10}
-    dc = len(testopts.keys())
+        data = genCGSample(n, testopts)  # categoricals first, then gaussians, np array
+        dc = len(testopts.keys())
+        print("dc ", dc)
+    elif dataset == "dummy_cg":
+        data = ConditionallyGaussianModel.cg_dummy()
 
-    data = genCGSample(n, testopts)  # categoricals first, then gaussians, np array
-
-
-
-    model = ConditionallyGaussianModel('model1')
-
+    # fit model
+    model = ConditionallyGaussianModel('testmodel')
     model.fit(data)
 
-    print ('pML:', model._p)
+    # print some information about the model
+    print(model)
+    print('p_ML: \n', model._p)
+    print('mu_ML: \n', model._mu)
+    print('Sigma_ML: \n', model._S)
 
-    ind = (0,1,1)
-    print('mu(',[model._extents[i][ind[i]] for i in ind], '):', model._mu[ind])
-
-    print('Sigma:', model._S)
-
-#    print(np.histogram(data[:, dc]))
-    plothist(data.iloc[:, dc+1].ravel())
+    #ind = (0, 1, 1)
+    #print('mu(', [model._extents[i][ind[i]] for i in ind], '):', model._mu[ind])
+    #print(np.histogram(data[:, dc]))
+    #plothist(data.iloc[:, dc + 1].ravel())

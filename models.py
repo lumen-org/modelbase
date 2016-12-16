@@ -177,12 +177,12 @@ class Model:
     #         fields.append(field)
     #     return fields
 
-
     def __str__(self):
-        return (self.__name__ + " " + self.name + "':\n" +
+        return (self.__class__.__name__ + " " + self.name + "':\n" +
                 "dimension: " + str(self._n) + "\n" +
-                "names: " + str([self.names]) + "\n" +
-                "fields: " + str([str(field) for field in self.fields]))
+                "names: " + str([self.names]) + "\n")
+                # "names: " + str([self.names]) + "\n" +
+                # "fields: " + str([str(field) for field in self.fields]))
 
     def asindex(self, names):
         """Given a single name or a list of names of random variables, returns
