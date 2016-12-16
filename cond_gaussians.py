@@ -18,26 +18,6 @@ from cond_gaussians.output import plothist
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
-# TODO @Frank: wird diese Funktion noch benötigt? Sie wird nirgendwo benutzt.
-def getCumlevelsAndDict(levels, excludeindex=None):
-    """
-    cumlevels[i] ... total # of levels of categorical variables with index <=i
-    dval2ind[i][v] ... index of value v in the list of levels of variable i
-    """
-    dc = len(levels.keys())
-
-    dval2ind = {}
-    for i in range(dc):
-        dval2ind[i] = {}
-        for j, v in enumerate(levels[i]):
-            dval2ind[i][v] = j  # assign numerical value to each level of variable i
-
-    cumlevels = [0]
-    for v in levels.keys():
-        cumlevels.append(cumlevels[-1] + len(levels[v]))
-
-    return (cumlevels, dval2ind)
-
 
 class ConditionallyGaussianModel(md.Model):
     """A conditional gaussian model and methods to derive submodels from it
@@ -181,17 +161,9 @@ class ConditionallyGaussianModel(md.Model):
         # update field access by name
         self._update()
 
-#        data = genCGSample(n, testopts) # categoricals first, then gaussians
-        dg = len(numericals)
         dc = len(categoricals)
-        d = dc + dg
-
-        # get levels
-        extents = [f['extent'].value() for f in fields[:dc]]
-
-#        print(df[0:10])
-
         (p, mus, Sigma) = self._fitFullLikelihood(df, fields, dc)
+        
         self._p = p
         self._mu = mus
         self._S = Sigma
@@ -348,7 +320,8 @@ if __name__ == '__main__':
     Sigma = np.diag([1, 1, 1, 1])
 
     dataset = "dummy_cg"
-    if dataset == "a":
+#    dataset = "a"
+    if dataset == "b":
         n = 1000
         testopts = {'levels': {0: [1, 2, 3, 4], 1: [2, 5, 10], 2: [1, 2]},
                     'Sigma': Sigma,
