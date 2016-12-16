@@ -289,7 +289,7 @@ class ConditionallyGaussianModel(md.Model):
         p = self._p.copy()
         mu = self._mu.copy()
 
-        #
+        # todo: fix integer indizes (offset because of ordering of fields)
 
         # marginalized p
         self._p = self._p.sum(categoricals)
@@ -300,7 +300,9 @@ class ConditionallyGaussianModel(md.Model):
 
         # marginalized sigma
         # TODO: this is plain wrong. the best CG-approximation does not have a single S but a different one for each x in omega_X
-        self._S =
+        keepidx = self.asindex(keep)
+        self._S = self._S[np.ix_(keepidx, keepidx)]
+        # like in
 
 
         # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
