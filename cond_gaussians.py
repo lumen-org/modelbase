@@ -1,19 +1,42 @@
-
 import logging
-import pandas as pd
 import numpy as np
-from numpy import pi, exp, matrix, ix_, nan
+from numpy import matrix, ix_, nan
+import pandas as pd
+import xarray as xr
+from numpy.distutils.system_info import numerix_info
 
 import utils
 import models as md
 from gaussians import MultiVariateGaussianModel
-from models import AggregationTuple, SplitTuple, ConditionTuple
 import domains as dm
 
+#imports frank
+from cond_gaussians.datasampling import genCGSample, genCatData, genCatDataJEx
+from cond_gaussians.output import plothist
 
 # setup logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
+
+
+def getCumlevelsAndDict(levels, excludeindex=None):
+    """
+    cumlevels[i] ... total # of levels of categorical variables with index <=i
+    dval2ind[i][v] ... index of value v in the list of levels of variable i
+    """
+    dc = len(levels.keys())
+
+    dval2ind = {}
+    for i in range(dc):
+        dval2ind[i] = {}
+        for j, v in enumerate(levels[i]):
+            dval2ind[i][v] = j  # assign numerical value to each level of variable i
+
+    cumlevels = [0]
+    for v in levels.keys():
+        cumlevels.append(cumlevels[-1] + len(levels[v]))
+
+    return (cumlevels, dval2ind)
 
 
 class ConditionallyGaussianModel(md.Model):
@@ -57,25 +80,64 @@ class ConditionallyGaussianModel(md.Model):
             'average': self._maximum
         }
 
-    # todo: put it in models.py for reuse in all models?
-    # precondition: it works for all data types...
-    # @staticmethod
-    # def _get_header(df):
-    #     """ Returns suitable fields for this model from a given pandas dataframe.
-    #     """
-    #     fields = []
-    #     for colname in df:
-    #         column = df[colname]
-    #         # if categorical of some sort, create discrete field from it
-    #         if column.dtype == "category" or column.dtype == "object":
-    #             domain = dm.DiscreteDomain()
-    #             extent = dm.DiscreteDomain(sorted(column.unique()))
-    #             field = md.Field(colname, domain, extent, 'string')
-    #         # else it's numeric
-    #         else:
-    #             field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
-    #         fields.append(field)
-    #     return fields
+        self._categoricals = []
+        self._numericals = []
+        self._p = nan
+        self._mu = nan
+        self._S = nan
+        self._extents = []
+
+    def _fitFullLikelihood(self, data, fields, dc):
+        """fit full likelihood for CG model"""
+        n, d = data.shape
+        dg = d - dc
+
+        cols = data.columns
+        catcols = cols[:dc]
+        gausscols = cols[dc:]
+
+        extents = [f['extent'].value() for f in fields[:dc]]  # levels
+        sizes = [len(v) for v in extents]
+        #        print('extents:', extents)
+
+        z = np.zeros(tuple(sizes))
+        pML = xr.DataArray(data=z, coords=extents, dims=catcols)
+
+        # mus
+        mus = np.zeros(tuple(sizes + [dg]))
+        coords = extents + [[contname for contname in gausscols]]
+        dims = catcols | [['mean']]
+        musML = xr.DataArray(data=mus, coords=coords, dims=dims)
+
+        # calculate p(x)
+        for row in data.itertuples():
+            cats = row[1:1 + dc]
+            gauss = row[1 + dc:]
+
+            pML.loc[cats] += 1
+            musML.loc[cats] += gauss
+
+            #        print(pMLx)
+
+        it = np.nditer(pML, flags=['multi_index'])  # iterator over complete array
+        while not it.finished:
+            ind = it.multi_index
+            #            print "%d <%s>" % (it[0], it.multi_index)
+            #            print(ind, pMLx[ind])
+            musML[ind] /= pML[ind]
+            it.iternext()
+        pML /= 1.0 * n
+
+        Sigma = np.zeros((dg, dg))
+        for row in data.itertuples():
+            cats = row[1:1 + dc]
+            gauss = row[1 + dc:]
+            ymu = np.matrix(gauss - musML.loc[cats])
+            Sigma += np.dot(ymu.T, ymu)
+
+        Sigma /= n
+
+        return pML, musML, Sigma
 
     def fit(self, df):
         """Fits the model to passed DataFrame
@@ -96,42 +158,48 @@ class ConditionallyGaussianModel(md.Model):
         numericals = []
         for colname in df:
             column = df[colname]
-            #if column.dtype == "category" or column.dtype == "object":
+            # if column.dtype == "category" or column.dtype == "object":
             if column.dtype == "object":
                 categoricals.append(colname)
             else:
                 numericals.append(colname)
 
         # reorder data frame such that categorical columns are first
-        df = pd.DataFrame(df, columns=categoricals+numericals)
+        df = pd.DataFrame(df, columns=categoricals + numericals)
 
         #  derive fields
         fields = []
         for colname in categoricals:
             column = df[colname]
-            field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
-            fields.append(field)
-        for colname in numericals:
-            column = df[colname]
             domain = dm.DiscreteDomain()
             extent = dm.DiscreteDomain(sorted(column.unique()))
             field = md.Field(colname, domain, extent, 'string')
             fields.append(field)
+        for colname in numericals:
+            column = df[colname]
+            field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+            fields.append(field)
+
         # update field access by name
         self._update()
 
-        # @Frank:
-        # - der data frame hat die kategorischen variables vorn, danach die kontinuierlichen
-        # - categoricals und numericals enthält die namen der kategorischen/kontinuierlichen ZV
+#        data = genCGSample(n, testopts) # categoricals first, then gaussians
+        dg = len(numericals);
+        dc = len(categoricals);
+        d = dc + dg
 
-        # @Frank: generell um herauszufinden welche columns/fields kategorisch sind:
-        #   - self.byname(name) liefert dir das 'Field' zu einer Zufallsvariable. Zu Field schau mal Zeile 72ff in models.py
-        #   - df.dtypes gibt dir eine Liste mit dem Datentyp der Roh-Daten
-        #   - df[colname].dtype gibt dir den Datentyp einer spez. column
+        # get levels
+        extents = [f['extent'].value() for f in fields[:dc]]
 
-        # TODO
-        raise NotImplementedError()
-        return self.update()
+#        print(df[0:10])
+
+        (p, mus, Sigma) = self._fitFullLikelihood(df, fields, dc)
+        self._p = p
+        self._mu = mus
+        self._S = Sigma
+        self._extents = extents
+        self._categoricals = categoricals
+        self._numericals = numericals
 
     @staticmethod
     def cg_dummy():
@@ -276,9 +344,44 @@ class ConditionallyGaussianModel(md.Model):
         #return mycopy
 
 
-__philipp__ = False
 if __name__ == '__main__':
-    import pdb
+    #    import pdb
 
-    __philipp__ = True
-    # todo: some testing
+    Sigma = np.diag([1, 1, 1])
+    Sigma = np.matrix([[1, 0, 0.5], [0, 1, 0], [0.5, 0, 1]])
+    Sigma = np.diag([1, 1, 1, 1])
+
+    independent = 0
+    if independent:
+        n = 1000
+        testopts = {'levels': {0: [1, 2, 3, 4], 1: [2, 5, 10], 2: [1, 2]},
+                    'Sigma': Sigma,
+                    'fun': genCatData,
+                    'catvalasmean': 1,  # works if dc = dg
+                    'seed': 10}
+    else:
+        n = 1000
+        testopts = {'levels': {0: [0, 1], 1: [0, 1], 2: [0, 1]},
+                    'Sigma': Sigma,
+                    'fun': genCatDataJEx,
+                    'catvalasmean': 1,
+                    'seed': 10}
+    dc = len(testopts.keys())
+
+    data = genCGSample(n, testopts)  # categoricals first, then gaussians, np array
+
+
+
+    model = ConditionallyGaussianModel('model1')
+
+    model.fit(data)
+
+    print ('pML:', model._p)
+
+    ind = (0,1,1)
+    print('mu(',[model._extents[i][ind[i]] for i in ind], '):', model._mu[ind])
+
+    print('Sigma:', model._S)
+
+#    print(np.histogram(data[:, dc]))
+    plothist(data.iloc[:, dc+1].ravel())

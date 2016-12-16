@@ -156,7 +156,26 @@ class Model:
     """
 
     # TODO: useful helper functions for dealing with fields and indexes:
-    #
+
+    # todo: put it in models.py for reuse in all models?
+    # precondition: it works for all data types...
+    # @staticmethod
+    # def _get_header(df):
+    #     """ Returns suitable fields for this model from a given pandas dataframe.
+    #     """
+    #     fields = []
+    #     for colname in df:
+    #         column = df[colname]
+    #         # if categorical of some sort, create discrete field from it
+    #         if column.dtype == "category" or column.dtype == "object":
+    #             domain = dm.DiscreteDomain()
+    #             extent = dm.DiscreteDomain(sorted(column.unique()))
+    #             field = md.Field(colname, domain, extent, 'string')
+    #         # else it's numeric
+    #         else:
+    #             field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+    #         fields.append(field)
+    #     return fields
 
 
     def __str__(self):
