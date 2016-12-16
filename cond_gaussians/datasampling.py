@@ -101,10 +101,10 @@ def genCGSample(n, d):
 
     return df #data
 
-def genMixGSample(n, dic):
+def genMixGSample(n, dic): # outdated
     """ pass a dictionary d with options fun, Sigma, catvalasmean, levels, seed"""
 #    fun = dic['fun']
-    catvalasmean = dic['catvalasmean']
+#    catvalasmean = dic['catvalasmean']
     levels = dic['levels']
     dc = len(levels.keys())
     latents = dic['latents']

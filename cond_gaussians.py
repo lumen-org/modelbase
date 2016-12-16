@@ -17,26 +17,6 @@ from cond_gaussians.output import plothist
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
-# TODO @Frank: wird diese Funktion noch benötigt? Sie wird nirgendwo benutzt.
-def getCumlevelsAndDict(levels, excludeindex=None):
-    """
-    cumlevels[i] ... total # of levels of categorical variables with index <=i
-    dval2ind[i][v] ... index of value v in the list of levels of variable i
-    """
-    dc = len(levels.keys())
-
-    dval2ind = {}
-    for i in range(dc):
-        dval2ind[i] = {}
-        for j, v in enumerate(levels[i]):
-            dval2ind[i][v] = j  # assign numerical value to each level of variable i
-
-    cumlevels = [0]
-    for v in levels.keys():
-        cumlevels.append(cumlevels[-1] + len(levels[v]))
-
-    return (cumlevels, dval2ind)
-
 
 class ConditionallyGaussianModel(md.Model):
     """A conditional gaussian model and methods to derive submodels from it
