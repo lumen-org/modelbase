@@ -252,12 +252,24 @@ class ConditionallyGaussianModel(md.Model):
         p = self._p.copy()
         mu = self._mu.copy()
 
+        #
+
+        # marginalized p
         self._p = self._p.sum(categoricals)
+
+        # marginalized mu
+        mu = mu.loc[dict('pl_mu')]
+        self._mu = (p * mu).sum(categoricals) / self._p
+
+        # marginalized sigma
+        # TODO: this is plain wrong. the best CG-approximation does not have a single S but a different one for each x in omega_X
+        self._S =
+
 
         # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
 
 
-        pmu = self._p * self._mu
+
 
         # update p just like in the categorical case (categoricals.py), i.e. sum up over removed dimensions
 
