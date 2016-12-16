@@ -158,19 +158,9 @@ class ConditionallyGaussianModel(md.Model):
             field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
             fields.append(field)
         self.fields = fields
-
-        # update field access by name
         self._update()
 
-#        data = genCGSample(n, testopts) # categoricals first, then gaussians
-        #dg = len(numericals)
         dc = len(categoricals)
-        #d = dc + dg
-
-        # get levels
-        #extents = [f['extent'].value() for f in fields[:dc]]
-
-#        print(df[0:10])
 
         (p, mus, Sigma) = ConditionallyGaussianModel._fitFullLikelihood(df, fields, dc)
         self._p = p
@@ -367,4 +357,4 @@ if __name__ == '__main__':
     #plothist(data.iloc[:, dc + 1].ravel())
 
     # PHILIPP
-    model.condition([('city', "==", 'Jena')])
+    #model.condition([('city', "==", 'Jena')])
