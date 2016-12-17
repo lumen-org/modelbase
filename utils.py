@@ -40,11 +40,11 @@ def invert_indexes (idx, len_) :
     sequence of indexes, e.g. given [0,1,4] and len=6 it returns [2,3,5].
     """
     it = iter(idx)
-    cur = next(it)
+    cur = next(it, None)
     inv = []
     for i in range(len_):        
         if i == cur:
-            cur = next(it,None)
+            cur = next(it, None)
         else:
             inv.append(i)                
     return inv

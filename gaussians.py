@@ -112,6 +112,7 @@ class MultiVariateGaussianModel(md.Model):
         mu = self._mu
         self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
         self._mu = mu[i] + S[ix_(i, j)] * S[ix_(j, j)].I * (condvalues - mu[j])
+
         self.fields = [self.fields[idx] for idx in i]
         return self.update()
 

@@ -217,58 +217,64 @@ class ConditionallyGaussianModel(md.Model):
         # condition on categorical fields
         # _S remains unchanged
         categoricals = [self.byname(name) for name in self._categoricals if name in remove]
+        if len(categoricals) != 0:
+            # note: if we condition on all categoricals the following procedure also works. It simply remains the single
+            # 'selected' mu...
+            # _p changes like in the categoricals.py case
+            pairs = []
+            # todo: factor this out. its the same as in categoricals and we can put it as a function there
+            for field in categoricals:
+                domain = field['domain']
+                dvalue = domain.value()
+                assert (domain.isbounded())
+                if field['dtype'] == 'string':
+                    # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
+                    pairs.append((field['name'], dvalue if domain.issingular() else dvalue[0]))
+                else:
+                    raise ValueError('invalid dtype of field: ' + str(field['dtype']))
 
-        # _p changes like in the categoricals.py case
-        pairs = []
-        for field in categoricals:
-            domain = field['domain']
-            dvalue = domain.value()
-            assert (domain.isbounded())
-            if field['dtype'] == 'string':
-                # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
-                pairs.append((field['name'], dvalue if domain.issingular() else dvalue[0]))
-            else:
-                raise ValueError('invalid dtype of field: ' + str(field['dtype']))
+            # trim the probability look-up table to the appropriate subrange and normalize it
+            p = self._p.loc[dict(pairs)]
+            self._p = p / p.sum()
 
-        # trim the probability look-up table to the appropriate subrange and normalize it
-        p = self._p.loc[dict(pairs)]
-        self._p = p / p.sum()
-
-        # _mu is trimmed: keep the slice that we condition on, i.e. reuse the 'pairs' access-structure
-        self._mu = self._mu.loc[dict(pairs)]
-
-        # todo: spezialfall "alle categoricals fallen raus"
+            # _mu is trimmed: keep the slice that we condition on, i.e. reuse the 'pairs' access-structure
+            self._mu = self._mu.loc[dict(pairs)]
 
         # condition on continuous fields
-        continuous = [name for name in self._continuous if name in remove]  # note: this is guaranteed to be sorted
+        numericals = [self.byname(name) for name in self._numericals if name in remove]  # guaranteed to be sorted!
+        if len(numericals) == len(self._numericals):
+            # all gaussians are implicitely removed
+            self._S = nan
+            self._mu = nan
+        elif len(numericals) != 0:
+            # collect singular values to condition out
+            condvalues = []
+            # todo: factor this out. its the same as in gaussians and we can put it as a function there
+            for field in numericals:
+                domain = field['domain']
+                dvalue = domain.value()
+                assert (domain.isbounded())
+                if field['dtype'] == 'numerical':
+                    condvalues.append(dvalue if domain.issingular() else (dvalue[1] - dvalue[0]) / 2)
+                    # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
+                else:
+                    raise ValueError('invalid dtype of field: ' + str(field['dtype']))
+            condvalues = matrix(condvalues).T
 
-        # collect singular values to condition out
-        condvalues = []
-        for field in continuous:
-            domain = field['domain']
-            dvalue = domain.value()
-            assert (domain.isbounded())
-            if field['dtype'] == 'numerical':
-                condvalues.append(dvalue if domain.issingular() else (dvalue[1] - dvalue[0]) / 2)
-                # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
-            else:
-                raise ValueError('invalid dtype of field: ' + str(field['dtype']))
-        condvalues = matrix(condvalues).T
+            # calculate updated mu and sigma for conditional distribution, according to GM script
+            i = self.asindex(numericals)
+            j = utils.invert_indexes(i, len(self._numericals))
 
-        # calculate updated mu and sigma for conditional distribution, according to GM script
-        i = self.asindex(continuous)
-        j = utils.invert_indexes(i, len(self._continuous))
+            S = self._S
+            self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
 
-        S = self._S
-        self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
-
-        # iterate over all mu and update them
-        stacked = self._mu.stack(pl_stack=tuple(continuous))  # this is a reference to mu!
-        Sigma_expr = S[ix_(i, j)] * S[ix_(j, j)].I
-        for coord in stacked.pl_stack:
-            indexer = dict(pl_stack=coord)
-            mu = stacked.loc[indexer]
-            stacked.loc[indexer] = mu[i] + Sigma_expr * (condvalues - mu[j])
+            # iterate over all mu and update them
+            stacked = self._mu.stack(pl_stack=tuple(numericals))  # this is a reference to mu!
+            Sigma_expr = S[ix_(i, j)] * S[ix_(j, j)].I
+            for coord in stacked.pl_stack:
+                indexer = dict(pl_stack=coord)
+                mu = stacked.loc[indexer]
+                stacked.loc[indexer] = mu[i] + Sigma_expr * (condvalues - mu[j])
 
         # remove fields as needed
         remove = set(remove)
@@ -318,7 +324,11 @@ if __name__ == '__main__':
     Sigma = np.matrix([[1, 0, 0.5], [0, 1, 0], [0.5, 0, 1]])
     Sigma = np.diag([1, 1, 1, 1])
 
+    # select data set using this indicator variable
     dataset = "dummy_cg"
+    #dataset = "a"
+    #dataset = "b"
+
     if dataset == "a":
         n = 1000
         testopts = {'levels': {0: [1, 2, 3, 4], 1: [2, 5, 10], 2: [1, 2]},
@@ -357,4 +367,6 @@ if __name__ == '__main__':
     #plothist(data.iloc[:, dc + 1].ravel())
 
     # PHILIPP
-    #model.condition([('city', "==", 'Jena')])
+    model.condition([('city', "==", 'Jena')])
+    model.marginalize(remove=['city'])
+
