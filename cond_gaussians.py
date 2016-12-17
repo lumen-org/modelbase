@@ -288,6 +288,53 @@ class ConditionallyGaussianModel(md.Model):
         if len(keep) == 0:
             return self._setempty()
 
+        continuous = [name for name in self._continuous if name not in keep]  # note: this is guaranteed to be sorted
+        categoricals = [name for name in self._categoricals if name not in keep]
+
+        # clone old values
+        p = self._p.copy()
+        mu = self._mu.copy()
+
+        # todo: fix integer indizes (offset because of ordering of fields)
+
+        # marginalized p
+        self._p = self._p.sum(categoricals)
+
+        # marginalized mu
+        mu = mu.loc[dict('pl_mu')]
+        self._mu = (p * mu).sum(categoricals) / self._p
+
+        # marginalized sigma
+        # TODO: this is plain wrong. the best CG-approximation does not have a single S but a different one for each x in omega_X
+        keepidx = self.asindex(keep)
+        self._S = self._S[np.ix_(keepidx, keepidx)]
+        # like in
+
+
+        # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
+
+
+
+
+        # update p just like in the categorical case (categoricals.py), i.e. sum up over removed dimensions
+
+
+        # updating mu works with the same index structure like in, so do it together
+
+        keepidx = sorted(self.asindex(keep))
+        removeidx = utils.invert_indexes(keepidx, self._n)
+        # the marginal probability is the sum along the variable(s) to marginalize out
+        self._p = self._p.sum(dim=[self.names[idx] for idx in removeidx])
+        self.fields = [self.fields[idx] for idx in keepidx]
+
+
+        # marginalize categorical fields
+
+
+        # marginalize continuous fields
+
+
+
         # i.e.: just select the part of mu and sigma that remains
         #keepidx = sorted(self.asindex(keep))
         # TODO
