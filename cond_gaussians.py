@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from numpy import matrix, ix_, nan
+from numpy import matrix, ix_, nan, pi, exp
 import pandas as pd
 import xarray as xr
 
@@ -64,6 +64,8 @@ class ConditionallyGaussianModel(md.Model):
         self._p = nan
         self._mu = nan
         self._S = nan
+        self._SInv = nan
+        self._detS = nan
 
     @staticmethod
     def _fitFullLikelihood(data, fields, dc):
@@ -205,7 +207,8 @@ class ConditionallyGaussianModel(md.Model):
     def update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
         self._update()
-        #raise NotImplementedError()
+        raise NotImplementedError()
+        # SInv, detS, ....
         return self
 
     def _conditionout(self, remove):
@@ -262,7 +265,7 @@ class ConditionallyGaussianModel(md.Model):
             condvalues = matrix(condvalues).T
 
             # calculate updated mu and sigma for conditional distribution, according to GM script
-            i = self.asindex(numericals)
+            i = [idx - len(self._categoricals) for idx in self.asindex(numericals)]
             j = utils.invert_indexes(i, len(self._numericals))
 
             S = self._S
@@ -288,57 +291,32 @@ class ConditionallyGaussianModel(md.Model):
         if len(keep) == 0:
             return self._setempty()
 
-        continuous = [name for name in self._continuous if name not in keep]  # note: this is guaranteed to be sorted
-        categoricals = [name for name in self._categoricals if name not in keep]
+        num_keep = [name for name in self._numericals if name in keep]  # note: this is guaranteed to be sorted
+        #num_remove = [name for name in self._numericals if name not in keep]
+        #cat_keep = [name for name in self._categoricals if name in keep]
+        cat_remove = [name for name in self._categoricals if name not in keep]
 
+        # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
         # clone old values
         p = self._p.copy()
         mu = self._mu.copy()
 
-        # todo: fix integer indizes (offset because of ordering of fields)
+        # todo: fix integer indices (offset because of ordering of fields)
+        # marginalize p just like in the categorical case (categoricals.py), i.e. sum up over removed dimensions
+        self._p = self._p.sum(cat_remove)
 
-        # marginalized p
-        self._p = self._p.sum(categoricals)
-
-        # marginalized mu
+        # marginalized mu (take from the script)
+        # sum over the categorical part to remove; slice out the gaussian part to keep
         mu = mu.loc[dict('pl_mu')]
-        self._mu = (p * mu).sum(categoricals) / self._p
+        num_keep_idx = [idx - len(self._categoricals) for idx in self.asindex(num_keep)]
+        self._mu = (p * mu[num_keep_idx]).sum(cat_remove) / self._p
 
         # marginalized sigma
-        # TODO: this is plain wrong. the best CG-approximation does not have a single S but a different one for each x in omega_X
-        keepidx = self.asindex(keep)
-        self._S = self._S[np.ix_(keepidx, keepidx)]
-        # like in
+        # TODO: this is plain wrong. the best CG-approximation does not have a single S but a different one for each x in omega_X...
+        self._S = self._S[np.ix_(num_keep_idx, num_keep_idx)]
 
-
-        # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
-
-
-
-
-        # update p just like in the categorical case (categoricals.py), i.e. sum up over removed dimensions
-
-
-        # updating mu works with the same index structure like in, so do it together
-
-        keepidx = sorted(self.asindex(keep))
-        removeidx = utils.invert_indexes(keepidx, self._n)
-        # the marginal probability is the sum along the variable(s) to marginalize out
-        self._p = self._p.sum(dim=[self.names[idx] for idx in removeidx])
-        self.fields = [self.fields[idx] for idx in keepidx]
-
-
-        # marginalize categorical fields
-
-
-        # marginalize continuous fields
-
-
-
-        # i.e.: just select the part of mu and sigma that remains
-        #keepidx = sorted(self.asindex(keep))
-        # TODO
-        raise NotImplementedError()
+        keep = set(keep)
+        self.fields = [field for field in self.fields if field.name in keep]
         #self.fields = [self.fields[idx] for idx in keepidx]
         return self.update()
 
@@ -348,11 +326,27 @@ class ConditionallyGaussianModel(md.Model):
         Args:
             x: a list of values as input for the density.
         """
-        raise NotImplementedError()
+
+        cat_len = len(self._categoricals)
+        num_len = len(self._numericals)
+        cat = x[:cat_len]
+        num = x[cat_len:]
+
+        p = self._p.loc[:, cat]
+        mu = self._mu.loc[:, cat]  # todo: gibt mir das wirklich ein mu?
+
+        num = matrix(num).T  # turn into column vector of type numpy matrix
+        xmu = num - mu
+        return (p * (2 * pi) ** (-num_len / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item()
 
     def _maximum(self):
         """Returns the point of the maximum density in this model"""
-        raise NotImplementedError()
+        # TODO: ask Frank about it
+        # I think its just scanning over all x of omega_x, since there is only one sigma
+        # i.e. this is like in the categorical case
+        p = self._p
+        pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
+        return [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
 
     def _sample(self):
         raise NotImplementedError()
