@@ -67,9 +67,9 @@ class ConditionallyGaussianModel(md.Model):
         }
         self._categoricals = []
         self._numericals = []
-        self._p = nan
-        self._mu = nan
-        self._S = nan
+        self._p = xr.DataArray([])
+        self._mu = xr.DataArray([])
+        self._S = xr.DataArray([])
         self._SInv = nan
         self._detS = nan
 
@@ -215,9 +215,11 @@ class ConditionallyGaussianModel(md.Model):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
         self._update()
 
-        if self._n == 0:
+        if len(self._numericals) == 0:
             self._detS = nan
             self._SInv = nan
+            self._S = xr.DataArray([])
+            self._mu = xr.DataArray([])
         else:
             self._detS = np.abs(np.linalg.det(self._S))
             self._SInv = np.linalg.inv(self._S)
@@ -230,16 +232,18 @@ class ConditionallyGaussianModel(md.Model):
         if len(remove) == self._n:
             return self._setempty()
 
+        remove = set(remove)
+
         # condition on categorical fields
         # _S remains unchanged
-        categoricals = [self.byname(name) for name in self._categoricals if name in remove]
-        if len(categoricals) != 0:
+        cat_remove = [self.byname(name) for name in self._categoricals if name in remove]
+        if len(cat_remove) != 0:
             # note: if we condition on all categoricals the following procedure also works. It simply remains the single
             # 'selected' mu...
             # _p changes like in the categoricals.py case
             pairs = []
             # todo: factor this out. its the same as in categoricals and we can put it as a function there
-            for field in categoricals:
+            for field in cat_remove:
                 domain = field['domain']
                 dvalue = domain.value()
                 assert (domain.isbounded())
@@ -257,16 +261,18 @@ class ConditionallyGaussianModel(md.Model):
             self._mu = self._mu.loc[dict(pairs)]
 
         # condition on continuous fields
-        numericals = [self.byname(name) for name in self._numericals if name in remove]  # guaranteed to be sorted!
-        if len(numericals) == len(self._numericals):
+        num_remove = [name for name in self._numericals if name in remove]  # guaranteed to be sorted!
+        if len(num_remove) == len(self._numericals):
             # all gaussians are implicitely removed
-            self._S = nan
-            self._mu = nan
-        elif len(numericals) != 0:
+            #self._S = nan
+            #self._mu = nan
+            pass
+        elif len(num_remove) != 0:
             # collect singular values to condition out
             condvalues = []
             # todo: factor this out. its the same as in gaussians and we can put it as a function there
-            for field in numericals:
+            for name in num_remove:
+                field = self.byname(name)
                 domain = field['domain']
                 dvalue = domain.value()
                 assert (domain.isbounded())
@@ -278,14 +284,14 @@ class ConditionallyGaussianModel(md.Model):
             condvalues = matrix(condvalues).T
 
             # calculate updated mu and sigma for conditional distribution, according to GM script
-            i = [idx - len(self._categoricals) for idx in self.asindex(numericals)]
+            i = [idx - len(self._categoricals) for idx in self.asindex(num_remove)]
             j = utils.invert_indexes(i, len(self._numericals))
 
             S = self._S
             self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
 
             # iterate over all mu and update them
-            stacked = self._mu.stack(pl_stack=tuple(numericals))  # this is a reference to mu!
+            stacked = self._mu.stack(pl_stack=tuple(num_remove))  # this is a reference to mu!
             Sigma_expr = S[ix_(i, j)] * S[ix_(j, j)].I
             for coord in stacked.pl_stack:
                 indexer = dict(pl_stack=coord)
@@ -293,8 +299,9 @@ class ConditionallyGaussianModel(md.Model):
                 stacked.loc[indexer] = mu[i] + Sigma_expr * (condvalues - mu[j])
 
         # remove fields as needed
-        remove = set(remove)
-        self.fields = list(filter(lambda f: f.name not in remove, self.fields))
+        self.fields = [field for field in self.fields if field['name'] not in remove]
+        self._categoricals = [name for name in self._categoricals if name not in remove]
+        self._numericals = [name for name in self._numericals if name not in remove]
 
         return self.update()
 
@@ -303,10 +310,8 @@ class ConditionallyGaussianModel(md.Model):
             return self
         if len(keep) == 0:
             return self._setempty()
-
+        keep = set(keep)
         num_keep = [name for name in self._numericals if name in keep]  # note: this is guaranteed to be sorted
-        #num_remove = [name for name in self._numericals if name not in keep]
-        #cat_keep = [name for name in self._categoricals if name in keep]
         cat_remove = [name for name in self._categoricals if name not in keep]
 
         # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
@@ -314,23 +319,23 @@ class ConditionallyGaussianModel(md.Model):
         p = self._p.copy()
         mu = self._mu.copy()
 
-        # todo: fix integer indices (offset because of ordering of fields)
-        # marginalize p just like in the categorical case (categoricals.py), i.e. sum up over removed dimensions
+        # marginalized p just like in the categorical case (categoricals.py), i.e. sum up over removed dimensions
         self._p = self._p.sum(cat_remove)
 
-        # marginalized mu (take from the script)
+        # marginalized mu (taken from the script)
         # slice out the gaussian part to keep; sum over the categorical part to remove
-        #num_keep_idx = [idx - len(self._categoricals) for idx in self.asindex(num_keep)]
         mu = mu.loc[dict(mean=num_keep)]
         self._mu = (p * mu).sum(cat_remove) / self._p
 
         # marginalized sigma
         # TODO: this is kind of wrong... the best CG-approximation does not have a single S but a different one for each x in omega_X...
-        #self._S = self._S[np.ix_(num_keep_idx, num_keep_idx)]
         self._S = self._S.loc[num_keep, num_keep]
 
-        keep = set(keep)
+        # update fields and dependent variabless
         self.fields = [field for field in self.fields if field['name'] in keep]
+        self._categoricals = [name for name in self._categoricals if name in keep]
+        self._numericals = num_keep
+
         return self.update()
 
     def _density(self, x):
@@ -340,17 +345,30 @@ class ConditionallyGaussianModel(md.Model):
             x: a list of values as input for the density.
         """
 
+        if self._n == 0:
+            raise ValueError('cannot query density of 0-dimensional model')
+
         cat_len = len(self._categoricals)
         num_len = len(self._numericals)
-        cat = x[:cat_len]
+        cat = tuple(x[:cat_len])  # need it as a tuple for indexing below
         num = x[cat_len:]
 
-        p = self._p.loc[:, cat]
-        mu = self._mu.loc[:, cat]  # todo: gibt mir das wirklich ein mu?
+        p = self._p.loc[cat].data
+        mu = self._mu.loc[cat]  # works because gaussian variables are after categoricals.
+        # Therefore the only not specified dimension is the last one, i.e. the one that holds the mean!
+
+        if num_len == 0:
+            return p
 
         num = matrix(num).T  # turn into column vector of type numpy matrix
+        mu = mu.data  # extract raw numpy array
         xmu = num - mu
-        return (p * (2 * pi) ** (-num_len / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item()
+        gauss = ((2 * pi) ** (-num_len / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item()
+
+        if cat_len == 0:
+            return gauss
+        else:
+            return p * gauss
 
     def _maximum(self):
         """Returns the point of the maximum density in this model"""
@@ -364,10 +382,9 @@ class ConditionallyGaussianModel(md.Model):
 
         # gaussian part
         # the mu is the mean and the maximum of the conditional gaussian
-        # todo: don't think that way of indexing works...
-        num_argmax = self._mu.loc[cat_argmax]
+        num_argmax = self._mu.loc[tuple(cat_argmax)]
 
-        return cat_argmax + num_argmax
+        return cat_argmax + list(num_argmax.data)
 
     def _sample(self):
         raise NotImplementedError()
@@ -433,6 +450,13 @@ if __name__ == '__main__':
     #model.marginalize(remove=['city'])
     model.model(model=['sex', 'city', 'age'])  # marginalize income out
     model.model(model=['sex', 'age'], where=[('city', "==", 'Jena')])  # condition city out
+    print('p(M) = ', model._density(['M',0]))
+    print('argmax of p() = ', model._maximum())
+    model.model(model=['sex'], where=[('age', "==", 0)])  # condition age out
+    print('p(M) = ', model._density(['M']))
+    print('p(F) = ', model._density(['F']))
+    print('argmax of p() = ', model._maximum())
+
 
 
 
