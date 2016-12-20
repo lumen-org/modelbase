@@ -10,8 +10,8 @@ from gaussians import MultiVariateGaussianModel
 import domains as dm
 
 #imports frank
-from cond_gaussians.datasampling import genCGSample, genCatData, genCatDataJEx
-from cond_gaussians.output import plothist
+from cond_gaussian.datasampling import genCGSample, genCatData, genCatDataJEx
+from cond_gaussian.output import plothist
 
 # setup logger
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class ConditionallyGaussianModel(md.Model):
             fields:
                 list of fields of this model. continuous fields are stored __before__ categorical ones.
 
-        Furthermore there are a number of precomputed values:
+        Furthermore there are a number of internally held precomputed values:
             _SInv:
                 meaning: the inverse of _S
             _detS
@@ -183,29 +183,34 @@ class ConditionallyGaussianModel(md.Model):
     @staticmethod
     def cg_dummy():
         """Returns a dataframe that contains sample of a 4d cg distribution. See the code for the used parameters."""
+
         # chose fixed parameters
         mu_M_Jena = [0, 0]
         mu_F_Jena = [1, 3]
         mu_M_Erfurt = [-10, 1]
         mu_F_Erfurt = [-5, -6]
+        p_M_Jena = 0.35
+        p_F_Jena = 0.25
+        p_M_Erfurt = 0.1
+        p_F_Erfurt = 0.3
         S = [[3, 0.5], [0.5, 1]]
         dims = ['sex', 'city', 'age', 'income']
         # and a sample size
-        samplecnt = 200
+        samplecnt = 1000
 
         # generate samples for each and arrange in dataframe
         df_cat = pd.concat([
-            pd.DataFrame([["M", "Jena"]] * samplecnt, columns=['sex', 'city']),
-            pd.DataFrame([["F", "Jena"]] * samplecnt, columns=['sex', 'city']),
-            pd.DataFrame([["M", "Erfurt"]] * samplecnt, columns=['sex', 'city']),
-            pd.DataFrame([["F", "Erfurt"]] * samplecnt, columns=['sex', 'city'])
+            pd.DataFrame([["M", "Jena"]] * round(samplecnt * p_M_Jena), columns=['sex', 'city']),
+            pd.DataFrame([["F", "Jena"]] * round(samplecnt * p_F_Jena), columns=['sex', 'city']),
+            pd.DataFrame([["M", "Erfurt"]] * round(samplecnt * p_M_Erfurt), columns=['sex', 'city']),
+            pd.DataFrame([["F", "Erfurt"]] * round(samplecnt * p_F_Erfurt), columns=['sex', 'city'])
         ])
 
         df_num = pd.concat([
-            pd.DataFrame(np.random.multivariate_normal(mu_M_Jena, S, samplecnt), columns=['age', 'income']),
-            pd.DataFrame(np.random.multivariate_normal(mu_F_Jena, S, samplecnt), columns=['age', 'income']),
-            pd.DataFrame(np.random.multivariate_normal(mu_M_Erfurt, S, samplecnt), columns=['age', 'income']),
-            pd.DataFrame(np.random.multivariate_normal(mu_F_Erfurt, S, samplecnt), columns=['age', 'income'])
+            pd.DataFrame(np.random.multivariate_normal(mu_M_Jena, S, round(samplecnt * p_M_Jena)), columns=['age', 'income']),
+            pd.DataFrame(np.random.multivariate_normal(mu_F_Jena, S, round(samplecnt * p_F_Jena)), columns=['age', 'income']),
+            pd.DataFrame(np.random.multivariate_normal(mu_M_Erfurt, S, round(samplecnt * p_M_Erfurt)), columns=['age', 'income']),
+            pd.DataFrame(np.random.multivariate_normal(mu_F_Erfurt, S, round(samplecnt * p_F_Erfurt)), columns=['age', 'income'])
         ])
         df = pd.concat([df_cat, df_num], axis=1)
 #        df.plot.scatter(x="age", y="income")
@@ -223,6 +228,8 @@ class ConditionallyGaussianModel(md.Model):
         else:
             self._detS = np.abs(np.linalg.det(self._S))
             self._SInv = np.linalg.inv(self._S)
+        if len(self._categoricals) == 0:
+            self._p = xr.DataArray([])
 
         return self
 
@@ -396,12 +403,14 @@ class ConditionallyGaussianModel(md.Model):
         raise NotImplementedError()
 
     def copy(self, name=None):
-        name = self.name if name is None else name
-        mycopy = ConditionallyGaussianModel(name)
-        # todo: implement rest
-        #raise NotImplementedError()
-        #mycopy.update()
-        #return mycopy
+        mycopy = self._defaultcopy(name)
+        mycopy._mu = self._mu.copy()
+        mycopy._S = self._S.copy()
+        mycopy._p = self._p.copy()
+        mycopy._categoricals = self._categoricals.copy()
+        mycopy._numericals = self._numericals.copy()
+        mycopy.update()
+        return mycopy
 
 if __name__ == '__main__':
     # generate input data
@@ -446,30 +455,24 @@ if __name__ == '__main__':
     print('mu_ML: \n', model._mu)
     print('Sigma_ML: \n', model._S)
 
-    #ind = (0, 1, 1)
-    #print('mu(', [model._extents[i][ind[i]] for i in ind], '):', model._mu[ind])
-    #print(np.histogram(data[:, dc]))
-    #plothist(data.iloc[:, dc + 1].ravel())
+    if dataset == "dummy_cg":
+        md.Model.save(model, 'mymb.cg_dummy.mdl')
+        copy = model.copy()
 
-    # PHILIPP
-    #model.condition([('city', "==", 'Jena')])
-    #model.marginalize(remove=['city'])
-    print('p(M) = ', model._density(['M', 'Jena', 0, -6]))
-    print('argmax of p(sex, city, age, income) = ', model._maximum())
-    model.model(model=['sex', 'city', 'age'])  # marginalize income out
-    print('p(M) = ', model._density(['M', 'Jena', 0]))
-    print('argmax of p(sex, city, age) = ', model._maximum())
-    model.model(model=['sex', 'age'], where=[('city', "==", 'Jena')])  # condition city out
-    print('p(M) = ', model._density(['M', 0]))
-    print('argmax of p(sex, agge) = ', model._maximum())
-    model.model(model=['sex'], where=[('age', "==", 0)])  # condition age out
-    print('p(M) = ', model._density(['M']))
-    print('p(F) = ', model._density(['F']))
-    print('argmax of p(sex) = ', model._maximum())
+        print('p(M) = ', model._density(['M', 'Jena', 0, -6]))
+        print('argmax of p(sex, city, age, income) = ', model._maximum())
+        model.model(model=['sex', 'city', 'age'])  # marginalize income out
+        print('p(M) = ', model._density(['M', 'Jena', 0]))
+        print('argmax of p(sex, city, age) = ', model._maximum())
+        model.model(model=['sex', 'age'], where=[('city', "==", 'Jena')])  # condition city out
+        print('p(M) = ', model._density(['M', 0]))
+        print('argmax of p(sex, agge) = ', model._maximum())
+        model.model(model=['sex'], where=[('age', "==", 0)])  # condition age out
+        print('p(M) = ', model._density(['M']))
+        print('p(F) = ', model._density(['F']))
+        print('argmax of p(sex) = ', model._maximum())
 
-
-
-
-
-
-
+    # ind = (0, 1, 1)
+    # print('mu(', [model._extents[i][ind[i]] for i in ind], '):', model._mu[ind])
+    # print(np.histogram(data[:, dc]))
+    # plothist(data.iloc[:, dc + 1].ravel())

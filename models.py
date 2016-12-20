@@ -400,8 +400,21 @@ class Model:
     def _sample(self):
         raise NotImplementedError()
 
-    def copy(self):
+    def copy(self, name=None):
         raise NotImplementedError()
+
+    def _defaultcopy(self, name=None):
+        """implement this in your model
+        Args:
+            mycopy:
+                A 'half-made' copy of self, i.e. a new instance of the same type with same data and
+        """
+        name = self.name if name is None else name
+        mycopy = self.__class__(name)
+        mycopy.data = self.data
+        mycopy.fields = cp.deepcopy(self.fields)
+        mycopy._update()
+        return mycopy
 
     @staticmethod
     def save(model, filename):

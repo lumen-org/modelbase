@@ -14,6 +14,7 @@ import pandas as pd
 import models as gm
 from gaussians import MultiVariateGaussianModel
 from categoricals import CategoricalModel
+from cond_gaussians import ConditionallyGaussianModel
 
 import data.adult.adult as adult
 import data.heart_disease.heart as heart
@@ -90,6 +91,12 @@ def _loadHeartDiseaseModel():
     model.fit(df)
     return model
 
+def _loadDummyCGModel():
+    data = ConditionallyGaussianModel.cg_dummy()
+    model = ConditionallyGaussianModel('cg_dummy')
+    model.fit(data)
+    return model
+
 def PQL_parse_json(query):
     """ Parses a given PQL query and transforms it into a more readable and handy 
     format that nicely matches the interface of models.py.
@@ -158,9 +165,11 @@ class ModelBase:
         self.models = {}  # models is a dictionary, using the name of a model as its key
 
         # load some initial models to play with
-        if load_all:
-            self.load_all_models()
-        #self.add(_loadIrisModel())
+
+        #if load_all:
+        #    self.load_all_models()
+        self.add(_loadDummyCGModel())
+        self.add(_loadIrisModel())
         #self.add(_loadCarCrashModel())
         #self.add(_loadMVG4Model())
         #self.add(_loadCategoricalDummyModel())
