@@ -228,6 +228,7 @@ class ConditionallyGaussianModel(md.Model):
         else:
             self._detS = np.abs(np.linalg.det(self._S))
             self._SInv = np.linalg.inv(self._S)
+
         if len(self._categoricals) == 0:
             self._p = xr.DataArray([])
 
@@ -313,10 +314,10 @@ class ConditionallyGaussianModel(md.Model):
         return self.update()
 
     def _marginalizeout(self, keep):
+        # todo: factor out to models.py
         if len(keep) == self._n or self._isempty():
             return self
-        if len(keep) == 0:
-            return self._setempty()
+
         keep = set(keep)
         num_keep = [name for name in self._numericals if name in keep]  # note: this is guaranteed to be sorted
         cat_remove = [name for name in self._categoricals if name not in keep]
@@ -331,12 +332,14 @@ class ConditionallyGaussianModel(md.Model):
 
         # marginalized mu (taken from the script)
         # slice out the gaussian part to keep; sum over the categorical part to remove
-        mu = mu.loc[dict(mean=num_keep)]
-        self._mu = (p * mu).sum(cat_remove) / self._p
+        if len(num_keep) != 0:
+            #todo: does the above work in all cases? if len(self._numericals) != 0:
+            mu = mu.loc[dict(mean=num_keep)]
+            self._mu = (p * mu).sum(cat_remove) / self._p
 
-        # marginalized sigma
-        # TODO: this is kind of wrong... the best CG-approximation does not have a single S but a different one for each x in omega_X...
-        self._S = self._S.loc[num_keep, num_keep]
+            # marginalized sigma
+            # TODO: this is kind of wrong... the best CG-approximation does not have a single S but a different one for each x in omega_X...
+            self._S = self._S.loc[num_keep, num_keep]
 
         # update fields and dependent variabless
         self.fields = [field for field in self.fields if field['name'] in keep]
