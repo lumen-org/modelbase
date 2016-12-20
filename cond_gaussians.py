@@ -344,26 +344,23 @@ class ConditionallyGaussianModel(md.Model):
         Args:
             x: a list of values as input for the density.
         """
-
-        if self._n == 0:
-            raise ValueError('cannot query density of 0-dimensional model')
-
         cat_len = len(self._categoricals)
         num_len = len(self._numericals)
         cat = tuple(x[:cat_len])  # need it as a tuple for indexing below
-        num = x[cat_len:]
+        num = np.array(x[cat_len:])  # need as np array for dot product
 
         p = self._p.loc[cat].data
-        mu = self._mu.loc[cat]  # works because gaussian variables are after categoricals.
-        # Therefore the only not specified dimension is the last one, i.e. the one that holds the mean!
 
         if num_len == 0:
             return p
 
-        num = matrix(num).T  # turn into column vector of type numpy matrix
-        mu = mu.data  # extract raw numpy array
+        # works because gaussian variables are after categoricals.
+        # Therefore the only not specified dimension is the last one, i.e. the one that holds the mean!
+        mu = self._mu.loc[cat].data
+
+        # TODO: also remove matrix nonsense from everywhere else, including gaussians.py
         xmu = num - mu
-        gauss = ((2 * pi) ** (-num_len / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item()
+        gauss = (2 * pi) ** (-num_len / 2) * (self._detS ** -.5) * exp(-.5 * np.dot(xmu, np.dot(self._SInv, xmu)))
 
         if cat_len == 0:
             return gauss
@@ -372,6 +369,13 @@ class ConditionallyGaussianModel(md.Model):
 
     def _maximum(self):
         """Returns the point of the maximum density in this model"""
+        cat_len = len(self._categoricals)
+        num_len = len(self._numericals)
+
+        if cat_len == 0:
+            # then there is only a single gaussian left and the maximum is its mean value, i.e. the value of _mu
+            return list(self._mu.data)
+
         # categorical part
         # TODO: ask Frank about it
         # I think its just scanning over all x of omega_x, since there is only one sigma
@@ -380,10 +384,12 @@ class ConditionallyGaussianModel(md.Model):
         pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
         cat_argmax = [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
 
+        if num_len == 0:
+            return cat_argmax
+
         # gaussian part
         # the mu is the mean and the maximum of the conditional gaussian
         num_argmax = self._mu.loc[tuple(cat_argmax)]
-
         return cat_argmax + list(num_argmax.data)
 
     def _sample(self):
@@ -448,14 +454,18 @@ if __name__ == '__main__':
     # PHILIPP
     #model.condition([('city', "==", 'Jena')])
     #model.marginalize(remove=['city'])
+    print('p(M) = ', model._density(['M', 'Jena', 0, -6]))
+    print('argmax of p(sex, city, age, income) = ', model._maximum())
     model.model(model=['sex', 'city', 'age'])  # marginalize income out
+    print('p(M) = ', model._density(['M', 'Jena', 0]))
+    print('argmax of p(sex, city, age) = ', model._maximum())
     model.model(model=['sex', 'age'], where=[('city', "==", 'Jena')])  # condition city out
-    print('p(M) = ', model._density(['M',0]))
-    print('argmax of p() = ', model._maximum())
+    print('p(M) = ', model._density(['M', 0]))
+    print('argmax of p(sex, agge) = ', model._maximum())
     model.model(model=['sex'], where=[('age', "==", 0)])  # condition age out
     print('p(M) = ', model._density(['M']))
     print('p(F) = ', model._density(['F']))
-    print('argmax of p() = ', model._maximum())
+    print('argmax of p(sex) = ', model._maximum())
 
 
 

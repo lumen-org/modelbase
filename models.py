@@ -327,7 +327,7 @@ class Model:
             The aggregation of the model. It  always returns a list, even if the aggregation is one dimensional.
         """
         if self._isempty():
-            return None
+            raise ValueError('cannot query aggregation of 0-dimensional model')
 
         # need index to merge results later
         other_idx = []
