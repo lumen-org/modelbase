@@ -275,7 +275,7 @@ class Model:
         # there are three cases of marginalization:
         # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
         # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
-        condout = [field['name'] for idx, field in enumerate(self.fields)
+        condout = [field['name'] for field in self.fields
                    if (field['name'] not in keep) and field['domain'].isbounded()]
 
         return self._conditionout(condout)._marginalizeout(keep)

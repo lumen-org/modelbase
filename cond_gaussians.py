@@ -34,7 +34,8 @@ class ConditionallyGaussianModel(md.Model):
                     Each entry of the DataArray is a scalar, i.e. the probability of that event.
             _S:
                 meaning: covariance matrix of the conditionals. All conditionals share the same covariance!
-                data structure used: numpy array
+                data structure used: xarray DataArray with 2 dimensions dim_0 and dim_1. Both dimensions have
+                    coordinates that match the names of the continuous random variables.
             _mu:
                 meaning: the mean of each conditional gaussian.
                 data structure used: xarray DataArray with m+1 dimensions. The first m dimensions represent the
@@ -123,6 +124,7 @@ class ConditionallyGaussianModel(md.Model):
             Sigma += np.dot(ymu.T, ymu)
 
         Sigma /= n
+        Sigma = xr.DataArray(Sigma, coords=[gausscols]*2)
 
         return pML, musML, Sigma
 
@@ -218,10 +220,7 @@ class ConditionallyGaussianModel(md.Model):
             self._SInv = nan
         else:
             self._detS = np.abs(np.linalg.det(self._S))
-            self._SInv = self._S.I
-
-        assert (self._mu.shape == (self._n, 1) and
-                self._S.shape == (self._n, self._n))
+            self._SInv = np.linalg.inv(self._S)
 
         return self
 
@@ -320,14 +319,15 @@ class ConditionallyGaussianModel(md.Model):
         self._p = self._p.sum(cat_remove)
 
         # marginalized mu (take from the script)
-        # sum over the categorical part to remove; slice out the gaussian part to keep
-        mu = mu.loc[dict('pl_mu')]
-        num_keep_idx = [idx - len(self._categoricals) for idx in self.asindex(num_keep)]
-        self._mu = (p * mu[num_keep_idx]).sum(cat_remove) / self._p
+        # slice out the gaussian part to keep; sum over the categorical part to remove
+        #num_keep_idx = [idx - len(self._categoricals) for idx in self.asindex(num_keep)]
+        mu = mu.loc[dict(mean=num_keep)]
+        self._mu = (p * mu).sum(cat_remove) / self._p
 
         # marginalized sigma
         # TODO: this is kind of wrong... the best CG-approximation does not have a single S but a different one for each x in omega_X...
-        self._S = self._S[np.ix_(num_keep_idx, num_keep_idx)]
+        #self._S = self._S[np.ix_(num_keep_idx, num_keep_idx)]
+        self._S = self._S.loc[num_keep, num_keep]
 
         keep = set(keep)
         self.fields = [field for field in self.fields if field['name'] in keep]
@@ -429,6 +429,13 @@ if __name__ == '__main__':
     #plothist(data.iloc[:, dc + 1].ravel())
 
     # PHILIPP
-    model.condition([('city', "==", 'Jena')])
-    model.marginalize(remove=['city'])
+    #model.condition([('city', "==", 'Jena')])
+    #model.marginalize(remove=['city'])
+    model.model(model=['sex', 'city', 'age'])  # marginalize income out
+    model.model(model=['sex', 'age'], where=[('city', "==", 'Jena')])  # condition city out
+
+
+
+
+
 
