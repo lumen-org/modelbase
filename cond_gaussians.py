@@ -49,6 +49,12 @@ class ConditionallyGaussianModel(md.Model):
 
             fields:
                 list of fields of this model. continuous fields are stored __before__ categorical ones.
+
+        Furthermore there are a number of precomputed values:
+            _SInv:
+                meaning: the inverse of _S
+            _detS
+                meaning: the determinant of _S
     """
 
     def __init__(self, name):
@@ -58,7 +64,6 @@ class ConditionallyGaussianModel(md.Model):
             'maximum': self._maximum,
             'average': self._maximum
         }
-
         self._categoricals = []
         self._numericals = []
         self._p = nan
@@ -207,8 +212,17 @@ class ConditionallyGaussianModel(md.Model):
     def update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
         self._update()
-        raise NotImplementedError()
-        # SInv, detS, ....
+
+        if self._n == 0:
+            self._detS = nan
+            self._SInv = nan
+        else:
+            self._detS = np.abs(np.linalg.det(self._S))
+            self._SInv = self._S.I
+
+        assert (self._mu.shape == (self._n, 1) and
+                self._S.shape == (self._n, self._n))
+
         return self
 
     def _conditionout(self, remove):
@@ -312,12 +326,11 @@ class ConditionallyGaussianModel(md.Model):
         self._mu = (p * mu[num_keep_idx]).sum(cat_remove) / self._p
 
         # marginalized sigma
-        # TODO: this is plain wrong. the best CG-approximation does not have a single S but a different one for each x in omega_X...
+        # TODO: this is kind of wrong... the best CG-approximation does not have a single S but a different one for each x in omega_X...
         self._S = self._S[np.ix_(num_keep_idx, num_keep_idx)]
 
         keep = set(keep)
-        self.fields = [field for field in self.fields if field.name in keep]
-        #self.fields = [self.fields[idx] for idx in keepidx]
+        self.fields = [field for field in self.fields if field['name'] in keep]
         return self.update()
 
     def _density(self, x):
@@ -341,12 +354,20 @@ class ConditionallyGaussianModel(md.Model):
 
     def _maximum(self):
         """Returns the point of the maximum density in this model"""
+        # categorical part
         # TODO: ask Frank about it
         # I think its just scanning over all x of omega_x, since there is only one sigma
         # i.e. this is like in the categorical case
         p = self._p
         pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
-        return [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
+        cat_argmax = [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
+
+        # gaussian part
+        # the mu is the mean and the maximum of the conditional gaussian
+        # todo: don't think that way of indexing works...
+        num_argmax = self._mu.loc[cat_argmax]
+
+        return cat_argmax + num_argmax
 
     def _sample(self):
         raise NotImplementedError()
