@@ -1,3 +1,4 @@
+# Copyright (c) 2016 Philipp Lucas and Frank Nussbaum, FSU Jena
 import logging
 import numpy as np
 from numpy import matrix, ix_, nan, pi, exp
@@ -16,7 +17,6 @@ from cond_gaussian.output import plothist
 # setup logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
-
 
 class ConditionallyGaussianModel(md.Model):
     """A conditional gaussian model and methods to derive submodels from it
@@ -295,11 +295,13 @@ class ConditionallyGaussianModel(md.Model):
             i = [idx - len(self._categoricals) for idx in self.asindex(num_remove)]
             j = utils.invert_indexes(i, len(self._numericals))
 
-            S = self._S
+            S = matrix(self._S)
             self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
 
             # iterate over all mu and update them
+            # todo: I don't see why we use num_remove here!?
             stacked = self._mu.stack(pl_stack=tuple(num_remove))  # this is a reference to mu!
+            #stacked = self._mu.stack(pl_stack=tuple(num_remove))  # this is a reference to mu!
             Sigma_expr = S[ix_(i, j)] * S[ix_(j, j)].I
             for coord in stacked.pl_stack:
                 indexer = dict(pl_stack=coord)

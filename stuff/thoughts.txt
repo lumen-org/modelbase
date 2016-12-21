@@ -1,0 +1,31 @@
+# Thinking about the model base interface
+
+## What exactly should queries return:
+
+### model queries
+
+Option 1: "success" only
+  advantage: few data to transmit
+  disadvantae: usually client will subsequently use the model and hence needs to manually query it anyway
+  
+Option 2: the header of the created model
+  advantage: usability!
+  disadvantage: more data to submit
+
+Option 3: client may choose between option 1 and option2
+  BEST!
+
+### prediction queries
+
+prediction queries should return a data frame, i.e. actually something very similar to a result table.
+
+Question: Which random variables should be included in that data frame / result table? 
+Answer: Easy. Exactly those as specified by the user!
+
+Question: prediction queries are likely to cause new models to be derived. How to name / cache / return them?
+Answer (naming): the name should be given by the user by means of a "AS"-clause
+Answer (cache) : pff...
+Answer (return): Either not at all (I think that makes most sense), or in a separate part of the result
+	
+Question: shouldn't I allow "AS" in prediction queries too? This way the 'base model' of a prediction query could be given a name and stored in the model base
+Answer: yep, I think that makes a lot of sense!

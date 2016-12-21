@@ -1,3 +1,4 @@
+# Copyright (c) 2016 Philipp Lucas (philipp.lucas@uni-jena.de)
 import math
 
 # TODO: is it better to use immutable tuples instead of mutable lists for the internal representation of domains?

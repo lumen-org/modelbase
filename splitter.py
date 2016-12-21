@@ -1,3 +1,4 @@
+# Copyright (c) 2016 Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 This is the splitter module, which provides splitters and domains:
 Splitters are functions that receive a domain and a number of parameters and 

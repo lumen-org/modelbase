@@ -1,3 +1,4 @@
+# Copyright (c) 2016 Philipp Lucas (philipp.lucas@uni-jena.de)
 import copy as cp
 import numpy as np
 from numpy import nan
