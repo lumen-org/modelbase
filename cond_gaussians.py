@@ -1,8 +1,8 @@
 # Copyright (c) 2016 Philipp Lucas and Frank Nussbaum, FSU Jena
 import logging
 import numpy as np
-from numpy import ix_, nan, pi, exp, dot
-from numpy.linalg import inv
+from numpy import ix_, nan, pi, exp, dot, abs
+from numpy.linalg import inv, det
 import pandas as pd
 import xarray as xr
 
@@ -56,6 +56,12 @@ class ConditionallyGaussianModel(md.Model):
                 meaning: the inverse of _S
             _detS
                 meaning: the determinant of _S
+
+    Limitations:
+        inference queries:
+            conditioning out on any gaussian variable leads to an inexact model. Problem is that the best
+            CG-approximation does not have a single S but a different one for each x in omega_X...
+
     """
 
     def __init__(self, name):
@@ -69,7 +75,7 @@ class ConditionallyGaussianModel(md.Model):
         self._numericals = []
         self._p = xr.DataArray([])
         self._mu = xr.DataArray([])
-        self._S = np.array([])
+        self._S = xr.DataArray([])
         self._SInv = nan
         self._detS = nan
 
@@ -124,7 +130,7 @@ class ConditionallyGaussianModel(md.Model):
             Sigma += np.outer(ymu, ymu)
 
         Sigma /= n
-        #Sigma = xr.DataArray(Sigma, coords=[gausscols]*2)
+        Sigma = xr.DataArray(Sigma, coords=[gausscols]*2)
 
         return pML, musML, Sigma
 
@@ -171,10 +177,7 @@ class ConditionallyGaussianModel(md.Model):
 
         dc = len(categoricals)
 
-        (p, mus, Sigma) = ConditionallyGaussianModel._fitFullLikelihood(df, fields, dc)
-        self._p = p
-        self._mu = mus
-        self._S = Sigma
+        self._p, self._mu, self._S = ConditionallyGaussianModel._fitFullLikelihood(df, fields, dc)
         self._categoricals = categoricals
         self._numericals = numericals
 
@@ -223,11 +226,11 @@ class ConditionallyGaussianModel(md.Model):
         if len(self._numericals) == 0:
             self._detS = nan
             self._SInv = nan
-            self._S = np.array([])
+            self._S = xr.DataArray([])
             self._mu = xr.DataArray([])
         else:
-            self._detS = np.abs(np.linalg.det(self._S))
-            self._SInv = np.linalg.inv(self._S)
+            self._detS = abs(det(self._S))
+            self._SInv = inv(self._S)
 
         if len(self._categoricals) == 0:
             self._p = xr.DataArray([])
@@ -270,6 +273,7 @@ class ConditionallyGaussianModel(md.Model):
 
         # condition on continuous fields
         num_remove = [name for name in self._numericals if name in remove]  # guaranteed to be sorted!
+
         #if len(num_remove) == len(self._numericals):
         #    all gaussians are implicitely removed
         if len(num_remove) != 0:
@@ -286,31 +290,29 @@ class ConditionallyGaussianModel(md.Model):
                     # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
                 else:
                     raise ValueError('invalid dtype of field: ' + str(field['dtype']))
-            #condvalues = matrix(condvalues).T
 
             # calculate updated mu and sigma for conditional distribution, according to GM script
-            i = [idx - len(self._categoricals) for idx in self.asindex(num_remove)]
-            j = utils.invert_indexes(i, len(self._numericals))
-
-            #S = matrix(self._S)
-            #Sigma_expr = S[ix_(i, j)] * S[ix_(j, j)].I  # needed for update of mu later
+            i = num_remove
+            j = [name for name in self._numericals if name not in remove]  # guaranteed to be sorted!
             S = self._S
-            Sigma_expr = np.dot(S[ix_(i, j)], inv(S[ix_(j, j)]))
-            self._S = S[ix_(i, i)] - dot(Sigma_expr, S[ix_(j, i)])  # upper Schur complement
+
+            sigma_expr = np.dot(S.loc[i, j], S.loc[j, j])  # reused below multiple times
+            self._S = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
 
             cat_keep = self._mu.dims[1:]
             if len(cat_keep) != 0:
                 # iterate over all mu and update them
-                stacked = self._mu.stack(pl_stack=cat_keep)  # this is a reference to mu!
+                # this is a view on mu! it stacks up all categorical dimensions and thus allows us to iterate on them
+                stacked = self._mu.stack(pl_stack=cat_keep)
                 for coord in stacked.pl_stack:
                     indexer = dict(pl_stack=coord)
                     mu = stacked.loc[indexer]
                     # todo: can't i write: mu = ...  ?
-                    stacked.loc[indexer] = mu[i] + dot(Sigma_expr, condvalues - mu[j])
+                    stacked.loc[indexer] = mu.loc[i] + dot(sigma_expr, condvalues - mu.loc[j])
             else:
                 # special case: no categorical fields left. hence we cannot stack over then, it is only a single mu left
                 # and we only need to update that
-                self._mu = self._mu[i] + dot(Sigma_expr, condvalues - self._mu[j])
+                self._mu = self._mu.loc[i] + dot(sigma_expr, condvalues - self._mu.loc[j])
 
         # remove fields as needed
         self.fields = [field for field in self.fields if field['name'] not in remove]
@@ -329,9 +331,8 @@ class ConditionallyGaussianModel(md.Model):
         cat_remove = [name for name in self._categoricals if name not in keep]
 
         # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
-        # clone old values
+        # clone old p for later reuse
         p = self._p.copy()
-        mu = self._mu.copy()
 
         # marginalized p just like in the categorical case (categoricals.py), i.e. sum up over removed dimensions
         self._p = self._p.sum(cat_remove)
@@ -340,12 +341,10 @@ class ConditionallyGaussianModel(md.Model):
         # slice out the gaussian part to keep; sum over the categorical part to remove
         if len(num_keep) != 0:
             #todo: does the above work in all cases? if len(self._numericals) != 0:
-            mu = mu.loc[dict(mean=num_keep)]
+            mu = self._mu.loc[dict(mean=num_keep)]
             self._mu = (p * mu).sum(cat_remove) / self._p
 
             # marginalized sigma
-            # TODO: this is kind of wrong... the best CG-approximation does not have a single S but a different one for each x in omega_X...
-            # TODO: use numerical indices instead, then we don't need xarray for _S anymore and dealing with math becomes easier everywhere else
             self._S = self._S.loc[num_keep, num_keep]
 
         # update fields and dependent variabless
@@ -375,7 +374,6 @@ class ConditionallyGaussianModel(md.Model):
         # Therefore the only not specified dimension is the last one, i.e. the one that holds the mean!
         mu = self._mu.loc[cat].data
 
-        # TODO: also remove matrix nonsense from everywhere else, including gaussians.py
         xmu = num - mu
         gauss = (2 * pi) ** (-num_len / 2) * (self._detS ** -.5) * exp(-.5 * np.dot(xmu, np.dot(self._SInv, xmu)))
 
