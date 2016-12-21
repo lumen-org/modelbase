@@ -192,9 +192,10 @@ class MultiVariateGaussianModel(md.Model):
 
     @staticmethod
     def _schurcompl_upper(M, idx):
-        """Returns the upper Schur complement of matrix M with the 'upper block'
+        """Returns the upper Schur complement of array_like M with the 'upper block'
         indexed by idx.
         """
+        M = matrix(M, copy=False)  # matrix view on M
         # derive index lists
         i = idx
         j = utils.invert_indexes(i, M.shape[0])

@@ -1,13 +1,13 @@
 # Copyright (c) 2016 Philipp Lucas and Frank Nussbaum, FSU Jena
 import logging
 import numpy as np
-from numpy import matrix, ix_, nan, pi, exp
+from numpy import ix_, nan, pi, exp, dot
+from numpy.linalg import inv
 import pandas as pd
 import xarray as xr
 
 import utils
 import models as md
-from gaussians import MultiVariateGaussianModel
 import domains as dm
 
 #imports frank
@@ -69,7 +69,7 @@ class ConditionallyGaussianModel(md.Model):
         self._numericals = []
         self._p = xr.DataArray([])
         self._mu = xr.DataArray([])
-        self._S = xr.DataArray([])
+        self._S = np.array([])
         self._SInv = nan
         self._detS = nan
 
@@ -120,11 +120,11 @@ class ConditionallyGaussianModel(md.Model):
         for row in data.itertuples():
             cats = row[1:1 + dc]
             gauss = row[1 + dc:]
-            ymu = np.matrix(gauss - musML.loc[cats])
-            Sigma += np.dot(ymu.T, ymu)
+            ymu = gauss - musML.loc[cats]
+            Sigma += np.outer(ymu, ymu)
 
         Sigma /= n
-        Sigma = xr.DataArray(Sigma, coords=[gausscols]*2)
+        #Sigma = xr.DataArray(Sigma, coords=[gausscols]*2)
 
         return pML, musML, Sigma
 
@@ -223,7 +223,7 @@ class ConditionallyGaussianModel(md.Model):
         if len(self._numericals) == 0:
             self._detS = nan
             self._SInv = nan
-            self._S = xr.DataArray([])
+            self._S = np.array([])
             self._mu = xr.DataArray([])
         else:
             self._detS = np.abs(np.linalg.det(self._S))
@@ -270,12 +270,9 @@ class ConditionallyGaussianModel(md.Model):
 
         # condition on continuous fields
         num_remove = [name for name in self._numericals if name in remove]  # guaranteed to be sorted!
-        if len(num_remove) == len(self._numericals):
-            # all gaussians are implicitely removed
-            #self._S = nan
-            #self._mu = nan
-            pass
-        elif len(num_remove) != 0:
+        #if len(num_remove) == len(self._numericals):
+        #    all gaussians are implicitely removed
+        if len(num_remove) != 0:
             # collect singular values to condition out
             condvalues = []
             # todo: factor this out. its the same as in gaussians and we can put it as a function there
@@ -289,24 +286,31 @@ class ConditionallyGaussianModel(md.Model):
                     # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
                 else:
                     raise ValueError('invalid dtype of field: ' + str(field['dtype']))
-            condvalues = matrix(condvalues).T
+            #condvalues = matrix(condvalues).T
 
             # calculate updated mu and sigma for conditional distribution, according to GM script
             i = [idx - len(self._categoricals) for idx in self.asindex(num_remove)]
             j = utils.invert_indexes(i, len(self._numericals))
 
-            S = matrix(self._S)
-            self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
+            #S = matrix(self._S)
+            #Sigma_expr = S[ix_(i, j)] * S[ix_(j, j)].I  # needed for update of mu later
+            S = self._S
+            Sigma_expr = np.dot(S[ix_(i, j)], inv(S[ix_(j, j)]))
+            self._S = S[ix_(i, i)] - dot(Sigma_expr, S[ix_(j, i)])  # upper Schur complement
 
-            # iterate over all mu and update them
-            # todo: I don't see why we use num_remove here!?
-            stacked = self._mu.stack(pl_stack=tuple(num_remove))  # this is a reference to mu!
-            #stacked = self._mu.stack(pl_stack=tuple(num_remove))  # this is a reference to mu!
-            Sigma_expr = S[ix_(i, j)] * S[ix_(j, j)].I
-            for coord in stacked.pl_stack:
-                indexer = dict(pl_stack=coord)
-                mu = stacked.loc[indexer]
-                stacked.loc[indexer] = mu[i] + Sigma_expr * (condvalues - mu[j])
+            cat_keep = self._mu.dims[1:]
+            if len(cat_keep) != 0:
+                # iterate over all mu and update them
+                stacked = self._mu.stack(pl_stack=cat_keep)  # this is a reference to mu!
+                for coord in stacked.pl_stack:
+                    indexer = dict(pl_stack=coord)
+                    mu = stacked.loc[indexer]
+                    # todo: can't i write: mu = ...  ?
+                    stacked.loc[indexer] = mu[i] + dot(Sigma_expr, condvalues - mu[j])
+            else:
+                # special case: no categorical fields left. hence we cannot stack over then, it is only a single mu left
+                # and we only need to update that
+                self._mu = self._mu[i] + dot(Sigma_expr, condvalues - self._mu[j])
 
         # remove fields as needed
         self.fields = [field for field in self.fields if field['name'] not in remove]
@@ -341,6 +345,7 @@ class ConditionallyGaussianModel(md.Model):
 
             # marginalized sigma
             # TODO: this is kind of wrong... the best CG-approximation does not have a single S but a different one for each x in omega_X...
+            # TODO: use numerical indices instead, then we don't need xarray for _S anymore and dealing with math becomes easier everywhere else
             self._S = self._S.loc[num_keep, num_keep]
 
         # update fields and dependent variabless
@@ -424,9 +429,9 @@ if __name__ == '__main__':
     Sigma = np.diag([1, 1, 1, 1])
 
     # select data set using this indicator variable
-    dataset = "dummy_cg"
+    #dataset = "dummy_cg"
     #dataset = "a"
-    #dataset = "b"
+    dataset = "b"
 
     if dataset == "a":
         n = 1000
@@ -479,5 +484,5 @@ if __name__ == '__main__':
 
     # ind = (0, 1, 1)
     # print('mu(', [model._extents[i][ind[i]] for i in ind], '):', model._mu[ind])
-    # print(np.histogram(data[:, dc]))
-    # plothist(data.iloc[:, dc + 1].ravel())
+    #print(np.histogram(data[:, dc]))
+    plothist(data.iloc[:, dc + 1].ravel())
