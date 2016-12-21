@@ -15,7 +15,7 @@ Version: 0.2
         * import the environment using the command: `conda env create -f environment.yml -n NAME-OF-NEW-ENV`
         * Note: in case you don't use Anaconda, you can use the [virtualenv packages](http://docs.python-guide.org/en/latest/dev/virtualenvs/) instead. `environment.yml` contains plain-text information about required packages.
     b) we just manually install the required packages in our environment, the packages are:
-        * flask logging json traceback xarray numpy copy pandas math sklearn seaborn pickle random string
+        * flask xarray numpy pandas sklearn seaborn
         * (probably quite a few of them are distributed with a default python installation anyway... I should clean this up)
 
 If you simply want to run it, you are done. For development, I recommend using PyCharm as an IDE. You can set the environment to use in PyCharm like [this](https://docs.continuum.io/anaconda/ide_integration#pycharm).
