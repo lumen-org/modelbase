@@ -65,6 +65,7 @@ def _loadCarCrashModel():
     model.fit(data.iloc[:, 0:-1])
     return model
 
+
 def _loadMVG4Model():
     sigma = np.matrix(np.array([
         [1.0, 0.6, 0.0, 2.0],
@@ -74,11 +75,13 @@ def _loadMVG4Model():
     mu = np.matrix(np.array([1.0, 2.0, 0.0, 0.5])).T
     return MultiVariateGaussianModel.custom_mvg(sigma, mu, "mvg4")
 
+
 def _loadCategoricalDummyModel():
     df = pd.read_csv('data/categorical_dummy.csv')
     model = CategoricalModel('categorical_dummy')
     model.fit(df)
     return model
+
 
 def _loadAdultModel():
     df = adult.categorical('data/adult/adult.full.cleansed')
@@ -86,17 +89,20 @@ def _loadAdultModel():
     model.fit(df)
     return model
 
+
 def _loadHeartDiseaseModel():
     df = heart.categorical('data/heart_disease/cleaned.cleveland.data')
     model = CategoricalModel('heart')
     model.fit(df)
     return model
 
+
 def _loadDummyCGModel():
     data = ConditionallyGaussianModel.cg_dummy()
     model = ConditionallyGaussianModel('cg_dummy')
     model.fit(data)
     return model
+
 
 def PQL_parse_json(query):
     """ Parses a given PQL query and transforms it into a more readable and handy 
@@ -173,7 +179,7 @@ class ModelBase:
         self.add(_loadIrisModel())
         #self.add(_loadCarCrashModel())
         #self.add(_loadMVG4Model())
-        #self.add(_loadCategoricalDummyModel())
+        self.add(_loadCategoricalDummyModel())
         #self.add(_loadHeartDiseaseModel())
 
     def __str__(self):

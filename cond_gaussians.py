@@ -1,7 +1,7 @@
 # Copyright (c) 2016 Philipp Lucas and Frank Nussbaum, FSU Jena
 import logging
 import numpy as np
-from numpy import ix_, nan, pi, exp, dot, abs
+from numpy import nan, pi, exp, dot, abs
 from numpy.linalg import inv, det
 import pandas as pd
 import xarray as xr
@@ -225,54 +225,31 @@ class ConditionallyGaussianModel(md.Model):
         remove = set(remove)
 
         # condition on categorical fields
-        # _S remains unchanged
-        cat_remove = [self.byname(name) for name in self._categoricals if name in remove]
+        cat_remove = [name for name in self._categoricals if name in remove]
         if len(cat_remove) != 0:
-            # note: if we condition on all categoricals the following procedure also works. It simply remains the single
-            # 'selected' mu...
-            # _p changes like in the categoricals.py case
-            pairs = []
-            # todo: factor this out. its the same as in categoricals and we can put it as a function there
-            for field in cat_remove:
-                domain = field['domain']
-                dvalue = domain.value()
-                assert (domain.isbounded())
-                if field['dtype'] == 'string':
-                    # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
-                    pairs.append((field['name'], dvalue if domain.issingular() else dvalue[0]))
-                else:
-                    raise ValueError('invalid dtype of field: ' + str(field['dtype']))
+            # _S remains unchanged
+            pairs = dict(self._condition_values(cat_remove, True))
 
+            # _p changes like in the categoricals.py case
             # trim the probability look-up table to the appropriate subrange and normalize it
-            p = self._p.loc[dict(pairs)]
+            p = self._p.loc[pairs]
             self._p = p / p.sum()
 
             # _mu is trimmed: keep the slice that we condition on, i.e. reuse the 'pairs' access-structure
-            self._mu = self._mu.loc[dict(pairs)]
+            # note: if we condition on all categoricals this also works: it simply remains the single 'selected' mu...
+            self._mu = self._mu.loc[pairs]
 
         # condition on continuous fields
-        num_remove = [name for name in self._numericals if name in remove]  # guaranteed to be sorted!
-
+        num_remove = [name for name in self._numericals if name in remove]
         #if len(num_remove) == len(self._numericals):
         #    all gaussians are implicitely removed
         if len(num_remove) != 0:
             # collect singular values to condition out
-            condvalues = []
-            # todo: factor this out. its the same as in gaussians and we can put it as a function there
-            for name in num_remove:
-                field = self.byname(name)
-                domain = field['domain']
-                dvalue = domain.value()
-                assert (domain.isbounded())
-                if field['dtype'] == 'numerical':
-                    condvalues.append(dvalue if domain.issingular() else (dvalue[1] - dvalue[0]) / 2)
-                    # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
-                else:
-                    raise ValueError('invalid dtype of field: ' + str(field['dtype']))
+            condvalues = self._condition_values(num_remove)
 
             # calculate updated mu and sigma for conditional distribution, according to GM script
             i = num_remove
-            j = [name for name in self._numericals if name not in remove]  # guaranteed to be sorted!
+            j = [name for name in self._numericals if name not in remove]
             S = self._S
 
             sigma_expr = np.dot(S.loc[i, j], S.loc[j, j])  # reused below multiple times
@@ -449,4 +426,4 @@ if __name__ == '__main__':
     # ind = (0, 1, 1)
     # print('mu(', [model._extents[i][ind[i]] for i in ind], '):', model._mu[ind])
     #print(np.histogram(data[:, dc]))
-    plothist(data.iloc[:, dc + 1].ravel())
+    #plothist(data.iloc[:, dc + 1].ravel())

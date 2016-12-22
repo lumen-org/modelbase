@@ -1,5 +1,4 @@
 # Copyright (c) 2016 Philipp Lucas (philipp.lucas@uni-jena.de)
-import copy as cp
 import numpy as np
 from numpy import nan
 import xarray as xr
@@ -77,30 +76,16 @@ class CategoricalModel(md.Model):
         # look-up
 
         # collect singular values to condition out on
-        removeidx = sorted(self.asindex(remove))
-        # todo: not needed anymore: remove = [self.names[idx] for idx in j]  # reorder to match index order
-        pairs = []
-        for idx in removeidx:
-            field = self.fields[idx]
-            domain = field['domain']
-            dvalue = domain.value()
-            assert (domain.isbounded())
-            if field['dtype'] == 'string':
-                # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
-                pairs.append((field['name'], dvalue if domain.issingular() else dvalue[0]))
-            else:
-                raise ValueError('invalid dtype of field: ' + str(field['dtype']))
+        pairs = dict(self._condition_values(remove, True))
 
         # 1. trim the probability look-up table to the appropriate subrange
-        p = self._p.loc[dict(pairs)]
+        p = self._p.loc[pairs]
 
         # 2. normalize
         self._p = p / p.sum()
 
         # 3. keep all fields not in remove
-        keepidx = utils.invert_indexes(removeidx, self._n)
-        self.fields = [self.fields[idx] for idx in keepidx]
-
+        self.fields = [field for field in self.fields if field['name'] not in remove]
         return self.update()
 
     def _marginalizeout(self, keep):

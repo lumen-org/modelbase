@@ -1,5 +1,4 @@
 # Copyright (c) 2016 Philipp Lucas (philipp.lucas@uni-jena.de)
-import copy as cp
 import logging
 import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
@@ -86,28 +85,12 @@ class MultiVariateGaussianModel(md.Model):
                   * for continuous domains: condition on (high-low)/2
                   * for discrete domains: condition on the first element in the domain
          """
-
-        if len(remove) == 0 or self._isempty():
-            return self
-        if len(remove) == self._n:
-            return self._setempty()
-
         # collect singular values to condition out on
-        j = sorted(self.asindex(remove))
-        condvalues = []
-        for idx in j:
-            field = self.fields[idx]
-            domain = field['domain']
-            dvalue = domain.value()
-            assert (domain.isbounded())
-            if field['dtype'] == 'numerical':
-                condvalues.append(dvalue if domain.issingular() else (dvalue[1] - dvalue[0]) / 2)
-                # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
-            else:
-                raise ValueError('invalid dtype of field: ' + str(field['dtype']))
+        condvalues = self._condition_values(remove)
         condvalues = matrix(condvalues).T
 
         # calculate updated mu and sigma for conditional distribution, according to GM script
+        j = self.asindex(remove)
         i = utils.invert_indexes(j, self._n)
         S = self._S
         mu = self._mu
@@ -118,25 +101,14 @@ class MultiVariateGaussianModel(md.Model):
         return self.update()
 
     def _marginalizeout(self, keep):
-        if len(keep) == self._n or self._isempty():
-            return self
-        if len(keep) == 0:
-            return self._setempty()
-
         # i.e.: just select the part of mu and sigma that remains
-        keepidx = sorted(self.asindex(keep))
+        keepidx = self.asindex(keep)
         self._mu = self._mu[keepidx]
         self._S = self._S[np.ix_(keepidx, keepidx)]
         self.fields = [self.fields[idx] for idx in keepidx]
         return self.update()
 
     def _density(self, x):
-        """Returns the density of the model at point x.
-
-        Args:
-            OLD: x: a Scalar or a _column_ vector as a numpy matrix.
-            x: a list of values as input for the density.
-        """
         x = matrix(x).T  # turn into column vector of type numpy matrix
         xmu = x - self._mu
         return ((2 * pi) ** (-self._n / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item()
@@ -147,7 +119,6 @@ class MultiVariateGaussianModel(md.Model):
         return self._mu.T.tolist()[0]
 
     def _sample(self):
-        # TODO: let it return a dataframe?
         return self._S * np.matrix(np.random.randn(self._n)).T + self._mu
 
     def copy(self, name=None):

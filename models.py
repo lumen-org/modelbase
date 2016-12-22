@@ -63,6 +63,7 @@ def Field(name, domain, extent, dtype='numerical'):
         'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
 """
 
+
 def field_tojson(field):
     """Returns an adapted version of a field that in any case is JSON serializable. A fields domain may contain the
     value Infinity, which JSON serialized don't handle correctly.
@@ -193,7 +194,7 @@ class Model:
         return all([name in self._name2idx for name in names])
 
     def inverse_names(self, names):
-        """Given an iterable of names of random variables (or a single name), returns a sorted list of all names
+        """Given a sequence of names of random variables (or a single name), returns a sorted list of all names
         of random variables in this model which are _not_ in names. The order of names is the same as the order of
         fields in the model."""
         if isinstance(names, str):
@@ -201,10 +202,11 @@ class Model:
         names = set(names)
         return [name for name in self._name2idx if name not in names]
 
-    def sort_names(self, names):
-        """Given a list of of random variables of this model, returns a list of the same names but in the same
-        order as the random variables in the model."""
-        raise NotImplementedError()
+    def sorted_names(self, names):
+        """Given a set, sequence or list of random variables of this model, returns a list of the
+        same names but in the same order as the random variables in the model. If names contains
+        """
+        return utils.sort_filter_list(names, self.names)
 
     def __init__(self, name):
         self.name = name
@@ -279,11 +281,12 @@ class Model:
         # there are three cases of marginalization:
         # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
         # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
-        condout = [field['name'] for field in self.fields
-                   if field['name'] not in keep and field['domain'].isbounded()]
+        keep = self.sorted_names(keep)
+        remove = self.inverse_names(keep)
+        cond_out = [name for name in remove if self.byname(name)['domain'].isbounded()]
 
-        if len(condout) != 0:
-            self._conditionout(condout)
+        if len(cond_out) != 0:
+            self._conditionout(cond_out)
 
         if len(keep) == self._n or self._isempty():
             return self
@@ -300,6 +303,8 @@ class Model:
           * keep is empty
           * the model itself is empty
           * keep contains all names of the model
+
+        Moreover keep is guaranteed to be in the same order than the random variables of the model.
         """
         raise NotImplementedError("Implement this method in your model!")
 
@@ -339,6 +344,8 @@ class Model:
           * remove is empty
           * the model itself is empty
           * remove contains all names of the model
+
+        Moreover remove is guaranteed to be in the same order than the random variables of the model.
 
         Note that we don't know yet how to condition on a non-singular domain (i.e. condition on interval or sets).
         As a work around we therefore:
@@ -471,6 +478,32 @@ class Model:
         mycopy.fields = cp.deepcopy(self.fields)
         mycopy._update()
         return mycopy
+
+    def _condition_values(self, remove, pairflag=False):
+        """Returns the list of values to condition on given a sequence of random variable names to condition on.
+
+        Args:
+            remove: sequence of random variable names
+            pairflag = False: Optional. If set True not a list of values but a list of 2-tuples is returned, where
+                each tuple is (<name-of-random-variable>,<value-to-condition-on>)
+        """
+        # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
+
+        cond_values = []
+        for name in remove:
+            field = self.byname(name)
+            domain = field['domain']
+            dvalue = domain.value()
+            if not domain.isbounded():
+                raise ValueError("cannot condition random variables with not bounded domain!")
+            if field['dtype'] == 'numerical':
+                cond_values.append(dvalue if domain.issingular() else (dvalue[1] - dvalue[0]) / 2)
+            elif field['dtype'] == 'string':
+                cond_values.append(dvalue if domain.issingular() else dvalue[0])
+            else:
+                raise ValueError('invalid dtype of field: ' + str(field['dtype']))
+
+        return zip(remove, cond_values) if pairflag else cond_values
 
     @staticmethod
     def save(model, filename):
