@@ -465,6 +465,13 @@ class Model:
         raise NotImplementedError()
 
     def copy(self, name=None):
+        """Returns a copy of this model, optionally using a new name.
+
+        This method must be implemented by any actual model that derives from the abstract Model class.
+
+        Note: you may use Model._defaultcopy() to get a copy of the 'abstract part' of an model
+        instance and then only add your custom copy code.
+        """
         raise NotImplementedError()
 
     def _defaultcopy(self, name=None):
@@ -484,8 +491,8 @@ class Model:
 
         Args:
             remove: sequence of random variable names
-            pairflag = False: Optional. If set True not a list of values but a list of 2-tuples is returned, where
-                each tuple is (<name-of-random-variable>,<value-to-condition-on>)
+            pairflag = False: Optional. If set True not a list of values but a zip-object of the names and the
+             values to condition on.
         """
         # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
 

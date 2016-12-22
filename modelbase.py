@@ -2,23 +2,15 @@
 """
 @author: Philipp Lucas
 
-The modelbase module primarly provides the ModelBase class.
+The modelbase module primarily provides the ModelBase class.
 """
 
 import json
 import logging
 from functools import reduce
 from pathlib import Path
-import seaborn.apionly as sns
-import numpy as np
-import pandas as pd
-import models as gm
-from gaussians import MultiVariateGaussianModel
-from categoricals import CategoricalModel
-from cond_gaussians import ConditionallyGaussianModel
 
-import data.adult.adult as adult
-import data.heart_disease.heart as heart
+import models as gm
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -46,62 +38,6 @@ class QueryValueError(Exception):
 
     def __repr__(self):
         return repr(self.value)
-
-
-def _loadIrisModel():
-    """ Loads the iris data set and returns a MultiVariateGaussianModel of it."""
-    # load data set as pandas DataFrame
-    data = sns.load_dataset('iris')
-    # train model on continuous part of the data
-    model = MultiVariateGaussianModel('iris')
-    model.fit(data.iloc[:, 0:-1])
-    return model
-
-
-def _loadCarCrashModel():
-    """ Loads the car crash data set and returns a MultiVariateGaussianModel of it."""
-    data = sns.load_dataset('car_crashes')
-    model = MultiVariateGaussianModel('car_crashes')
-    model.fit(data.iloc[:, 0:-1])
-    return model
-
-
-def _loadMVG4Model():
-    sigma = np.matrix(np.array([
-        [1.0, 0.6, 0.0, 2.0],
-        [0.6, 1.0, 0.4, 0.0],
-        [0.0, 0.4, 1.0, 0.0],
-        [2.0, 0.0, 0.0, 1.]]))
-    mu = np.matrix(np.array([1.0, 2.0, 0.0, 0.5])).T
-    return MultiVariateGaussianModel.custom_mvg(sigma, mu, "mvg4")
-
-
-def _loadCategoricalDummyModel():
-    df = pd.read_csv('data/categorical_dummy.csv')
-    model = CategoricalModel('categorical_dummy')
-    model.fit(df)
-    return model
-
-
-def _loadAdultModel():
-    df = adult.categorical('data/adult/adult.full.cleansed')
-    model = CategoricalModel('adult')
-    model.fit(df)
-    return model
-
-
-def _loadHeartDiseaseModel():
-    df = heart.categorical('data/heart_disease/cleaned.cleveland.data')
-    model = CategoricalModel('heart')
-    model.fit(df)
-    return model
-
-
-def _loadDummyCGModel():
-    data = ConditionallyGaussianModel.cg_dummy()
-    model = ConditionallyGaussianModel('cg_dummy')
-    model.fit(data)
-    return model
 
 
 def PQL_parse_json(query):
@@ -165,34 +101,30 @@ class ModelBase:
             as a key in the dictionary.
     """
 
-    def __init__(self, name, load_all=True):
+    def __init__(self, name, model_dir='data_models', load_all=True):
         """ Creates a new instance and loads some default models. """
         # more data sets here: https://github.com/mwaskom/seaborn-data
         self.name = name
         self.models = {}  # models is a dictionary, using the name of a model as its key
+        self.model_dir = model_dir
 
         # load some initial models to play with
-
-        #if load_all:
-        #    self.load_all_models()
-        self.add(_loadDummyCGModel())
-        self.add(_loadIrisModel())
-        #self.add(_loadCarCrashModel())
-        #self.add(_loadMVG4Model())
-        self.add(_loadCategoricalDummyModel())
-        #self.add(_loadHeartDiseaseModel())
+        if load_all:
+            self.load_all_models()
 
     def __str__(self):
         return " -- Model Base > " + self.name + " < -- \n" + \
                "contains " + str(len(self.models)) + " models, as follows:\n\n" + \
                reduce(lambda p, m: p + str(m) + "\n\n", self.models.values(), "")
 
-    def load_all_models(self, directory='data_models', ext='.mdl'):
+    def load_all_models(self, directory=None, ext='.mdl'):
         """Loads all models from the given directory. Each model is expected to be saved in its own file. Only files
          that match the following naming are considered:
          <modelbase-name>.<model-name>.<ext>
          If there is any file that matches the naming convention but doesn't contain a model it is
          silently not loaded."""
+        if directory is None:
+            directory = self.model_dir
 
         # iterate over matching files in directory (including any subdirectories)
         filenames = Path(directory).glob('**/' + self.name + '*' + ext)
@@ -205,13 +137,14 @@ class ModelBase:
                 print(str(err))
                 logger.warn('file "' + str(file) + '" matches the naming pattern but does not contain a model instance')
 
-    def save_all_models(self, directory='models', ext='.mdl'):
+    def save_all_models(self, directory=None, ext='.mdl'):
         """Saves all models currently in the model base in the given directory using the naming convention:
          <modelbase-name>.<model-name>.<ext>"""
-
+        if directory is None:
+            directory = self.model_dir
         dir_ = Path(directory)
         for key, model in self.models.items():
-            filepath = dir_.joinpath(self.name + '.' + model.name + ext)
+            filepath = dir_.joinpath(model.name + ext)
             gm.Model.save(model, str(filepath))
 
     def add(self, model, name=None):
