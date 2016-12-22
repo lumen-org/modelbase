@@ -6,17 +6,14 @@ from numpy.linalg import inv, det
 import pandas as pd
 import xarray as xr
 
-import utils
 import models as md
 import domains as dm
-
-#imports frank
 from cond_gaussian.datasampling import genCGSample, genCatData, genCatDataJEx
 from cond_gaussian.output import plothist
 
-# setup logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
+
 
 class ConditionallyGaussianModel(md.Model):
     """A conditional gaussian model and methods to derive submodels from it
@@ -111,13 +108,9 @@ class ConditionallyGaussianModel(md.Model):
             pML.loc[cats] += 1
             musML.loc[cats] += gauss
 
-            #        print(pMLx)
-
         it = np.nditer(pML, flags=['multi_index'])  # iterator over complete array
         while not it.finished:
             ind = it.multi_index
-            #            print "%d <%s>" % (it[0], it.multi_index)
-            #            print(ind, pMLx[ind])
             musML[ind] /= pML[ind]
             it.iternext()
         pML /= 1.0 * n
@@ -135,17 +128,8 @@ class ConditionallyGaussianModel(md.Model):
         return pML, musML, Sigma
 
     def fit(self, df):
-        """Fits the model to passed DataFrame.
+        # Internal: This method estimates the set of mean parameters that fit best to the data given in the dataframe df.
 
-        Parameters:
-            df: A pandas data frame that holds the data to fit the model to. All columns of df are used.
-
-        Internal:
-            This method estimates the set of mean parameters that fit best to the data given in the dataframe df.
-
-        Returns:
-            The modified model with selected parameters set.
-        """
         # split in categorical and numeric columns
         categoricals = []
         numericals = []
@@ -238,11 +222,6 @@ class ConditionallyGaussianModel(md.Model):
         return self
 
     def _conditionout(self, remove):
-        if len(remove) == 0 or self._isempty():
-            return self
-        if len(remove) == self._n:
-            return self._setempty()
-
         remove = set(remove)
 
         # condition on categorical fields
@@ -322,15 +301,11 @@ class ConditionallyGaussianModel(md.Model):
         return self.update()
 
     def _marginalizeout(self, keep):
-        # todo: factor out to models.py
-        if len(keep) == self._n or self._isempty():
-            return self
-
+        # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
         keep = set(keep)
         num_keep = [name for name in self._numericals if name in keep]  # note: this is guaranteed to be sorted
         cat_remove = [name for name in self._categoricals if name not in keep]
 
-        # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
         # clone old p for later reuse
         p = self._p.copy()
 
@@ -340,7 +315,6 @@ class ConditionallyGaussianModel(md.Model):
         # marginalized mu (taken from the script)
         # slice out the gaussian part to keep; sum over the categorical part to remove
         if len(num_keep) != 0:
-            #todo: does the above work in all cases? if len(self._numericals) != 0:
             mu = self._mu.loc[dict(mean=num_keep)]
             self._mu = (p * mu).sum(cat_remove) / self._p
 
@@ -355,11 +329,6 @@ class ConditionallyGaussianModel(md.Model):
         return self.update()
 
     def _density(self, x):
-        """Returns the density of the model at point x.
-
-        Args:
-            x: a list of values as input for the density.
-        """
         cat_len = len(self._categoricals)
         num_len = len(self._numericals)
         cat = tuple(x[:cat_len])  # need it as a tuple for indexing below
@@ -406,9 +375,6 @@ class ConditionallyGaussianModel(md.Model):
         # the mu is the mean and the maximum of the conditional gaussian
         num_argmax = self._mu.loc[tuple(cat_argmax)]
         return cat_argmax + list(num_argmax.data)
-
-    def _sample(self):
-        raise NotImplementedError()
 
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)

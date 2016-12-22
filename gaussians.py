@@ -151,11 +151,7 @@ class MultiVariateGaussianModel(md.Model):
         return self._S * np.matrix(np.random.randn(self._n)).T + self._mu
 
     def copy(self, name=None):
-        # TODO: this should be as lightweight as possible!
-        name = self.name if name is None else name
-        mycopy = MultiVariateGaussianModel(name)
-        mycopy.data = self.data
-        mycopy.fields = cp.deepcopy(self.fields)
+        mycopy = self._defaultcopy(name)
         mycopy._mu = self._mu.copy()
         mycopy._S = self._S.copy()
         mycopy.update()

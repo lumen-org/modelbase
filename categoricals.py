@@ -9,7 +9,6 @@ import utils
 import models as md
 import domains as dm
 
-# setup logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
@@ -43,7 +42,7 @@ class CategoricalModel(md.Model):
         counts = xr.DataArray(data=z, coords=extents, dims=df.columns)
 
         # iterate over table and sum up occurrences
-        # TODO: this is super slow...
+        # TODO: this is super slow... use group by over the data frame instead
         for row in df.itertuples():
             values = row[1:]  # 1st element is index, which we don't need
             counts.loc[values] += 1
@@ -52,11 +51,6 @@ class CategoricalModel(md.Model):
         return (counts + k) / (counts.sum() + k * counts.size)
 
     def fit(self, df):
-        """Fits the model to passed DataFrame
-
-        Returns:
-            The modified model.
-        """
         self.data = df
         self.fields = CategoricalModel._get_header(self.data)
         self._p = CategoricalModel._maximum_aposteriori(df, self.fields)
@@ -77,14 +71,10 @@ class CategoricalModel(md.Model):
         return self
 
     def _conditionout(self, remove):
-        """ Conditioning out categorical variables works by means of the definition of conditional probability:
-          p(x|c) = p(x,c) / p(c)
-        where p(x,c) is the join probability. Hence it works by normalizing a subrange of the probability look-up
-        table"""
-        if len(remove) == 0 or self._isempty():
-            return self
-        if len(remove) == self._n:
-            return self._setempty()
+        # Conditioning out categorical variables works by means of the definition of conditional probability:
+        #   p(x|c) = p(x,c) / p(c)
+        # where p(x,c) is the join probability. Hence it works by normalizing a subrange of the probability
+        # look-up
 
         # collect singular values to condition out on
         removeidx = sorted(self.asindex(remove))
@@ -114,11 +104,6 @@ class CategoricalModel(md.Model):
         return self.update()
 
     def _marginalizeout(self, keep):
-        if len(keep) == self._n or self._isempty():
-            return self
-        if len(keep) == 0:
-            return self._setempty()
-
         keepidx = sorted(self.asindex(keep))
         removeidx = utils.invert_indexes(keepidx, self._n)
         # the marginal probability is the sum along the variable(s) to marginalize out
@@ -127,34 +112,22 @@ class CategoricalModel(md.Model):
         return self.update()
 
     def _density(self, x):
-        """Returns the density of the model at point x.
-
-        Args:
-            x: a scalar or a list of scalars.
-        """
-        if len(x) != self._n:
-            raise ValueError("length of argument does not match the model's dimension")
         # note1: need to convert x to tuple for indexing
         # note2: .values.item() is to extract the scalar as a float
         return self._p.loc[tuple(x)].values.item()
 
     def _maximum(self):
         """Returns the point of the maximum density in this model"""
-        # todo: how to get the coordinates of the maximum?
+        # todo: how to directly get the coordinates of the maximum?
         p = self._p
         pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
         return [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
 
     def _sample(self):
-        # TODO: let it return a dataframe?
         raise NotImplementedError()
 
     def copy(self, name=None):
-        # TODO: this should be as lightweight as possible!
-        name = self.name if name is None else name
-        mycopy = CategoricalModel(name)
-        mycopy.data = self.data # todo: reference, not copy
-        mycopy.fields = cp.deepcopy(self.fields)
+        mycopy = self._defaultcopy(name)
         mycopy._p = self._p
         mycopy.update()
         return mycopy

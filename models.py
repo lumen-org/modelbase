@@ -7,12 +7,8 @@ This module defines:
    * Model: an abstract base class for models.
    * Field: a class that represent random variables in a model.
 
-It also defines models that implement that base model:
-
-   * MultiVariateGaussianModel
 """
 import pandas as pd
-#from numpy import matrix
 import copy as cp
 from collections import namedtuple
 from functools import reduce
@@ -21,30 +17,14 @@ import logging
 import splitter as sp
 import utils as utils
 
-
-# for fuzzy comparision.
-# TODO: make it nicer?
-eps = 0.000001
-
-# setup logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 """ Development Notes (Philipp)
-
-## how to get from data to model ##
-
-1. provide some data file
-2. open that data file
-3. read that file into a tabular structure and guess its header, i.e. its
-    columns and its data types
-    * pandas dataframes can aparently guess headers/data types
-4. use it to train a model
-5. return the model
-
+# interesting links
 https://github.com/rasbt/pattern_classification/blob/master/resources/python_data_libraries.md !!!
 
-### what about using a different syntax for the model, like the following:
+# what about using a different syntax for the model, like the following:
 
     model['A'] : to select a submodel only on random variable with name 'A' // marginalize
     model['B'] = ...some domain...   // condition
@@ -83,7 +63,6 @@ def Field(name, domain, extent, dtype='numerical'):
         'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
 """
 
-
 def field_tojson(field):
     """Returns an adapted version of a field that in any case is JSON serializable. A fields domain may contain the
     value Infinity, which JSON serialized don't handle correctly.
@@ -121,6 +100,7 @@ def mergebyidx2(zips):
                 break
     return merged
 
+
 def mergebyidx(list1, list2, idx1, idx2):
     """Merges list l1 and list l2 into one list in increasing index order, where the indices are given by idx1
     and idx2, respectively. idx1 and idx2 are expected to be sorted. No index may be occur twice. Indexing starts at 0.
@@ -153,7 +133,8 @@ def _tuple2str(tuple_):
 
 class Model:
     """An abstract base model that provides an interface to derive submodels
-    from it or query density and other aggregations of it.
+    from it or query density and other aggregations of it. It also defines stubs for those methods that actual models
+    are required to implement.
     """
 
     # TODO: useful helper functions for dealing with fields and indexes:
@@ -204,20 +185,26 @@ class Model:
             return [self.fields[self._name2idx[name]] for name in names]
 
     def isfieldname(self, names):
-        """Returns true iff the name or names of variables given are names of
-        random variables of this model.
+        """Returns true iff the single string or list of strings given as variables names are (all) names of random
+        variables of this model.
         """
         if isinstance(names, str):
             names = [names]
         return all([name in self._name2idx for name in names])
 
     def inverse_names(self, names):
-        """Given an iterable of names of fields (or a single name), returns a sorted list of all names of fields
-        in this model which are _not_ in names. The order of names is the same as the order of fields in the model."""
+        """Given an iterable of names of random variables (or a single name), returns a sorted list of all names
+        of random variables in this model which are _not_ in names. The order of names is the same as the order of
+        fields in the model."""
         if isinstance(names, str):
             names = [names]
         names = set(names)
         return [name for name in self._name2idx if name not in names]
+
+    def sort_names(self, names):
+        """Given a list of of random variables of this model, returns a list of the same names but in the same
+        order as the random variables in the model."""
+        raise NotImplementedError()
 
     def __init__(self, name):
         self.name = name
@@ -240,51 +227,86 @@ class Model:
         return list(map(field_tojson, self.fields))
 
     def fit(self, df):
-        raise NotImplementedError()
+        """Fits the model to passed DataFrame
+
+        This method must be implemented by any actual model that derives from the abstract Model class.
+
+        Args:
+            df: A pandas data frame that holds the data to fit the model to.
+
+        Returns:
+            The fitted model.
+        """
+        raise NotImplementedError("Implement this method in your model!")
 
     def marginalize(self, keep=None, remove=None):
         """Marginalizes random variables out of the model. Either specify which
         random variables to keep or specify which to remove.
 
-        Note that marginalization is depending on the domain of a random
-        variable. That is: if nothing but a single value is left in the
-        domain it is conditioned on this value (and marginalized out).
-        Otherwise it is 'normally' marginalized out (assuming that the full
-        domain is available)
+        Note that marginalization depends on the domain of a random variable. That is: if
+        its domain is bounded it is conditioned on this value (and marginalized out).
+        Otherwise it is 'normally' marginalized out (assuming that the full domain is available).
+
+        Arguments:
+            keep: A list of names of random variables of this model to keep. All other random variables
+                are marginalized out.
+            remove: A list of names of random variables  of this model to marginalize out.
 
         Returns:
             The modified model.
         """
-        if self._isempty():
-            return self
         logger.debug('marginalizing: ' + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
 
+        if keep is not None and remove is not None:
+            raise ValueError("You may only specify either 'keep' or 'remove', but non both.")
         if keep is not None:
             if keep == '*':
                 keep = self.names
             if not self.isfieldname(keep):
-                raise ValueError("invalid random variable names: " + str(keep))
+                raise ValueError("invalid random variables names in argument 'keep': " + str(keep))
         elif remove is not None:
             if not self.isfieldname(remove):
-                raise ValueError("invalid random variable names: " + str(remove))
+                raise ValueError("invalid random variable names in argument 'remove': " + str(remove))
             keep = set(self.names) - set(remove)
         else:
-            raise ValueError("cannot marginalize to zero-dimensional model")
+            raise ValueError("Missing required argument: You must specify either 'keep' or 'remove'.")
 
-        if len(keep) == self._n:
+        if len(keep) == self._n or self._isempty():
             return self
+        if len(keep) == 0:
+            return self._setempty()
+
         # there are three cases of marginalization:
         # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
         # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
         condout = [field['name'] for field in self.fields
-                   if (field['name'] not in keep) and field['domain'].isbounded()]
+                   if field['name'] not in keep and field['domain'].isbounded()]
 
-        return self._conditionout(condout)._marginalizeout(keep)
+        if len(condout) != 0:
+            self._conditionout(condout)
+
+        if len(keep) == self._n or self._isempty():
+            return self
+
+        return self._marginalizeout(keep)
+
+    def _marginalizeout(self, keep):
+        """Marginalizes the model such that only random variables with names in keep remain.
+
+        This method must be implemented by any actual model that derived from the abstract Model class.
+
+        This method is guaranteed to be _not_ called if any of the following conditions apply:
+          * keep is anything but a list of names of random variables of this model
+          * keep is empty
+          * the model itself is empty
+          * keep contains all names of the model
+        """
+        raise NotImplementedError("Implement this method in your model!")
 
     def condition(self, conditions):
         """Conditions this model according to the list of three-tuples
         (<name-of-random-variable>, <operator>, <value(s)>). In particular
-        ConditionTuples are accepted and see there for allowed values.
+        objects of type ConditionTuples are accepted and see there for allowed values.
 
         Note: This only restricts the domains of the random variables. To
         remove the conditioned random variable you need to call marginalize
@@ -293,8 +315,6 @@ class Model:
         Returns:
             The modified model.
         """
-        if self._isempty():
-            return self
         for (name, operator, values) in conditions:
             operator = operator.lower()
             domain = self.byname(name)['domain']
@@ -309,26 +329,34 @@ class Model:
         return self
 
     def _conditionout(self, remove):
-        """Conditions the random variables with name in remove on their available, //not unbounded// domain and marginalizes
-                them out.
+        """Conditions the random variables with name in remove on their available, //not unbounded// domain and
+        marginalizes them out.
 
-                Note that we don't know yet how to condition on a non-singular domain (i.e. condition on interval or sets).
-                As a work around we therefore:
-                  * for continuous domains: condition on (high-low)/2
-                  * for discrete domains: condition on the first element in the domain
-         """
+        This method must be implemented by any actual model that derived from the abstract Model class.
+
+        This method is guaranteed to be _not_ called if any of the following conditions apply:
+          * remove is anything but a list of names of random-variables of this model
+          * remove is empty
+          * the model itself is empty
+          * remove contains all names of the model
+
+        Note that we don't know yet how to condition on a non-singular domain (i.e. condition on interval or sets).
+        As a work around we therefore:
+          * for continuous domains: condition on (high-low)/2
+          * for discrete domains: condition on the first element in the domain
+        """
         raise NotImplementedError("Implement this method in your model!")
 
     def aggregate(self, method):
         """Aggregates this model using the given method and returns the
-        aggregation as a list. The order of elements in the list, matches the
+        aggregation as a list. The order of elements in the list matches the
         order of random variables in the models field.
 
         Returns:
-            The aggregation of the model. It  always returns a list, even if the aggregation is one dimensional.
+            The aggregation of the model. It always returns a list, even if it contains only a single value.
         """
         if self._isempty():
-            raise ValueError('cannot query aggregation of 0-dimensional model')
+            raise ValueError('Cannot query aggregation of 0-dimensional model')
 
         # need index to merge results later
         other_idx = []
@@ -358,7 +386,7 @@ class Model:
         try:
             other_res = submodel._aggrMethods[method]()
         except KeyError:
-            raise ValueError("Your Model does not provide the requested aggregation: '" + method + "'")
+            raise ValueError("Your model does not provide the requested aggregation: '" + method + "'")
 
         # 4. clamp to values within domain
         for (idx, field) in enumerate(submodel.fields):
@@ -370,17 +398,20 @@ class Model:
     def density(self, names, values=None):
         """Returns the density at given point. You may either pass both, names
         and values, or only one list with values. In the latter case values is
-        assumed to be in the same order as the fields of the model.
+        assumed to be in the same order as the random variables of the model.
 
         Args:
-            values may be anything that numpy.matrix accepts to construct a vector from.
+            values: may be anything that numpy.array accepts to construct from.
         """
         if self._isempty():
-            return None
+            raise ValueError('Cannot query density of 0-dimensional model')
+
+        if values is not None and len(names) != len(values):
+            raise ValueError('Length of names and values does not match.')
 
         if len(names) != self._n:
-            raise ValueError(
-                'Not enough names/values provided. Require ' + str(self._n) + ' got ' + str(len(names)) + '.')
+            raise ValueError('Not enough names/values provided. Require ' + str(self._n) +
+                             ' but got only ' + str(len(names)) + '.')
 
         if values is None:
             # in that case the only argument holds the (correctly sorted) values
@@ -388,27 +419,51 @@ class Model:
         else:
             sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
             values = [pair[1] for pair in sorted_]
+
         return self._density(values)
+
+    def _density(self, x):
+        """Returns the density of the model at point x.
+
+        This method must be implemented by any actual model that derives from the abstract Model class.
+
+        This method is guaranteed to be _not_ called if any of the following conditions apply:
+          * x is anything but a list of values as input for density
+          * x has a length different than the dimension of the model
+          * the model itself is empty
+
+        It is _not_ guaranteed, however, that the elements of x are of matching type / value for the model
+
+        Args:
+            x: a list of values as input for the density.
+        """
+        raise NotImplementedError("Implement this method in your model!")
 
     def sample(self, n=1):
         """Returns n samples drawn from the model."""
         if self._isempty():
-            return None
+            raise ValueError('Cannot sample from 0-dimensional model')
 
         samples = (self._sample() for i in range(n))
         return pd.DataFrame.from_records(samples, self.names)
 
     def _sample(self):
+        """Returns a single sample drawn from the model.
+
+        This method must be implemented by any actual model that derives from the abstract Model class.
+
+        This method is guaranteed to be _not_ called if any of the following conditions apply:
+            * the model is empty
+        """
         raise NotImplementedError()
 
     def copy(self, name=None):
         raise NotImplementedError()
 
     def _defaultcopy(self, name=None):
-        """implement this in your model
-        Args:
-            mycopy:
-                A 'half-made' copy of self, i.e. a new instance of the same type with same data and
+        """Returns a new model of the same type with all instance variables of the abstract base model copied:
+          * data (a reference to it)
+          * fields (deep copy)
         """
         name = self.name if name is None else name
         mycopy = self.__class__(name)
@@ -438,19 +493,19 @@ class Model:
         self.names = [f['name'] for f in self.fields]
 
     def model(self, model, where=[], as_=None):
-        """Returns a model with name 'as_' that models the fields in 'model'
+        """Returns a model with name 'as_' that models the random variables in 'model'
         respecting conditions in 'where'.
 
         Note that it does NOT create a copy, but modifies this model.
 
         Args:
-            model:  A list of strings, representing the names of fields to 
-                model. Its value may also be "*" or ["*"], meaning all fields
+            model:  A list of strings, representing the names of random variables to
+                model. Its value may also be "*" or ["*"], meaning all random variables
                 of this model.
             where: A list of 'conditiontuple's, representing the conditions to
                 model.
             as_: An optional string. The name for the model to derive. If set
-                to None the name of the base model is used.
+                to None the name of the base model is used. Defaults to None.
 
         Returns:
             The modified model.
@@ -459,7 +514,7 @@ class Model:
         return self.condition(where).marginalize(keep=model)
 
     def predict(self, predict, where=[], splitby=[], returnbasemodel=False):
-        """ Calculates the prediction against the model and returns its result
+        """Calculates the prediction against the model and returns its result
         by means of a data frame.
 
         The data frame contains exactly those columns/random variables which
@@ -625,6 +680,3 @@ class Model:
 
         # (9) return data frame or tuple including the basemodel
         return (return_frame, basemodel) if returnbasemodel else return_frame
-
-
-### ACTUAL MODEL IMPLEMENTATIONS
