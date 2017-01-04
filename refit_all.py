@@ -25,22 +25,31 @@ known_models = {
     'categorical_dummy': (CategoricalModel('categorical_dummy'), pd.read_csv('data/categorical_dummy.csv')),
     'cg_dummy': (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
     'iris': (MultiVariateGaussianModel('iris'), sns.load_dataset('iris').iloc[:, 0:-1]),
-    # 'car_crashes': (MultiVariateGaussianModel('car_crashes'), sns.load_dataset('car_crashes')),
+    'car_crashes': (MultiVariateGaussianModel('car_crashes'), sns.load_dataset('car_crashes')),
     'heart': (CategoricalModel('heart'), heart.categorical('data/heart_disease/cleaned.cleveland.data')),
     # 'adult': (CategoricalModel('adult'), adult.categorical('data/adult/adult.full.cleansed')),
 }
 
 
-def refit_all_models(verbose=False, include=None):
-    """Refits all models as listed below and return a list of these."""
+def refit_all_models(verbose=False, include=None, exclude=None):
+    """Refits all models as listed below and return a list of these. You may adapt the models to refit by the
+    parameters include and exclude:
+
+    Args:
+        include: include none but only the models with id as listed in the sequence include.
+        exclude: exclude any model with id that matches any element of exclude.
+    """
 
     if include is None:
         include = known_models.keys()
 
+    if exclude is None:
+        exclude = set([])
+
     # fit it!
     models = []
     for (id_, (model_, df)) in known_models.items():
-        if id_ in include:
+        if id_ in include and id_ not in exclude:
             print("Fitting model for " + str(id_) + "...")
             models.append(model_.fit(df))
             print("...done.")

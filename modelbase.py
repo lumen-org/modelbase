@@ -127,7 +127,8 @@ class ModelBase:
             directory = self.model_dir
 
         # iterate over matching files in directory (including any subdirectories)
-        filenames = Path(directory).glob('**/' + self.name + '*' + ext)
+        #filenames = Path(directory).glob('**/' + self.name + '*' + ext)
+        filenames = Path(directory).glob('**/*' + ext)
         for file in filenames:
             # try loading the model
             try:
