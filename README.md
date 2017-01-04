@@ -20,6 +20,7 @@ If you simply want to run it, you are done. For development, I recommend using P
 Just run the python script `ajax.py`, i.e. execute `python ajax.py` on a systems shell from the repositories root directory. It will start a local Flask Webserver that accepts and answers PQL-queries. See `ajax.py` for more information.
 
 Note: 
+
  * once run the server doesn't immediatly necessarly produce any output on the command line. *that is normal*
  * don't forget to activate your custom environment, *if you configured one in the process above*.
 

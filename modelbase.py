@@ -102,8 +102,8 @@ class ModelBase:
     """
 
     def __init__(self, name, model_dir='data_models', load_all=True):
-        """ Creates a new instance and loads some default models. """
-        # more data sets here: https://github.com/mwaskom/seaborn-data
+        """ Creates a new instance and loads models from some directory. """
+
         self.name = name
         self.models = {}  # models is a dictionary, using the name of a model as its key
         self.model_dir = model_dir
@@ -119,16 +119,19 @@ class ModelBase:
 
     def load_all_models(self, directory=None, ext='.mdl'):
         """Loads all models from the given directory. Each model is expected to be saved in its own file. Only files
-         that match the following naming are considered:
-         <modelbase-name>.<model-name>.<ext>
-         If there is any file that matches the naming convention but doesn't contain a model it is
-         silently not loaded."""
+         that end on like given by parameter ext are considered.
+         If there is any file that matches the naming convention but doesn't contain a model a warning is issued and
+         it is skipped.
+
+         Args:
+             directory: directory to store the models in. Defaults to the set directory of the model base.
+             ext: file extension to use when loading models.
+         """
         if directory is None:
             directory = self.model_dir
 
         # iterate over matching files in directory (including any subdirectories)
-        #filenames = Path(directory).glob('**/' + self.name + '*' + ext)
-        filenames = Path(directory).glob('**/*' + ext)
+        filenames = Path(directory).glob('**/' + '*' + ext)
         for file in filenames:
             # try loading the model
             try:
@@ -139,8 +142,13 @@ class ModelBase:
                 logger.warn('file "' + str(file) + '" matches the naming pattern but does not contain a model instance')
 
     def save_all_models(self, directory=None, ext='.mdl'):
-        """Saves all models currently in the model base in the given directory using the naming convention:
-         <modelbase-name>.<model-name>.<ext>"""
+        """Saves all models currently in the model base in given directory using the naming convention:
+         <model-name>.<ext>
+
+         Args:
+             directory: directory to store the models in. Defaults to the set directory of the model base.
+             ext: file extension to use when saving models.
+         """
         if directory is None:
             directory = self.model_dir
         dir_ = Path(directory)
