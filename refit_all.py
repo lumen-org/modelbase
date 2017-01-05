@@ -21,19 +21,21 @@ from gaussians import MultiVariateGaussianModel
 from categoricals import CategoricalModel
 
 known_models = {
-    # dict of what to fit how: {'id': (<model-instance>, <data-frame-to-fit-to>)}
+    # dict of what to fit how:
+    # {'id': <function with no arguments that returns the pair: (<model-instance>, <data-frame-to-fit-to>)> }
+    # the encapsulation in a function prevents that on every execution of the script ALL data is loaded
 
     # categorical models
-    'categorical_dummy': (CategoricalModel('categorical_dummy'), pd.read_csv('data/categorical_dummy.csv')),
-    'heart': (CategoricalModel('heart'), heart.categorical('data/heart_disease/cleaned.cleveland.data')),
-    'adult': (CategoricalModel('adult'), adult.categorical('data/adult/adult.full.cleansed')),
+    'categorical_dummy': lambda: (CategoricalModel('categorical_dummy'), pd.read_csv('data/categorical_dummy.csv')),
+    'heart': lambda: (CategoricalModel('heart'), heart.categorical('data/heart_disease/cleaned.cleveland.data')),
+    'adult': lambda: (CategoricalModel('adult'), adult.categorical('data/adult/adult.full.cleansed')),
 
     # multivariate gaussian models
-    'iris': (MultiVariateGaussianModel('iris'), sns.load_dataset('iris').iloc[:, 0:-1]),
-    'car_crashes': (MultiVariateGaussianModel('car_crashes'), sns.load_dataset('car_crashes').iloc[:, 0:-1]),
+    'iris': lambda: (MultiVariateGaussianModel('iris'), sns.load_dataset('iris').iloc[:, 0:-1]),
+    'car_crashes': lambda: (MultiVariateGaussianModel('car_crashes'), sns.load_dataset('car_crashes').iloc[:, 0:-1]),
 
     # conditionally gaussian models
-    'cg_dummy': (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
+    'cg_dummy': lambda: (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
 }
 
 
@@ -47,7 +49,8 @@ def refit_all_models(verbose=False, include=None, exclude=None):
 
     # fit it!
     models = []
-    for (id_, (model_, df)) in known_models.items():
+    for (id_, getter) in known_models.items():
+        (model_, df) = getter()
         if id_ in include and id_ not in exclude:
             if verbose:
                 print("Fitting model for data set '" + str(id_) + "' ...", end='')
