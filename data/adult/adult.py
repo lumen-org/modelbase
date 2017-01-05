@@ -81,8 +81,8 @@ def categorical(datafilepath, verbose=False):
     # actually turn them into categorical columns
     for col in dfcat.columns:
         dfcat[col] = dfcat[col].astype('category')
-    # number of parameters to estimate
 
+    # number of parameters to estimate
     if verbose:
         printDataAndParameterQuantity(dfcat)
 

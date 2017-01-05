@@ -9,6 +9,7 @@ import json
 import logging
 from functools import reduce
 from pathlib import Path
+import numpy
 
 import models as gm
 
@@ -38,6 +39,30 @@ class QueryValueError(Exception):
 
     def __repr__(self):
         return repr(self.value)
+
+
+class NumpyCompliantJSONEncoder(json.JSONEncoder):
+    """A JSON encoder that does *not* fail when serializing numpy.integer, numpy.floating or numpy.ndarray.
+     Other than that it behaves like the default encoder.
+    Credits to: http://stackoverflow.com/questions/27050108/convert-numpy-type-to-python
+    """
+
+    # TODO: Do i really want that? what side effects does it have if I, all of the sudde, have numpy objects instead of normal integer and floats in my model??? it was never intended for it
+
+    def default(self, obj):
+        if isinstance(obj, numpy.integer):
+            return int(obj)
+        elif isinstance(obj, numpy.floating):
+            return float(obj)
+        elif isinstance(obj, numpy.ndarray):
+            return obj.tolist()
+        else:
+            return super(NumpyCompliantJSONEncoder, self).default(obj)
+
+
+def _json_dumps(*args, **kwargs):
+    """Shortcut to serialize objects with my NumpyCompliantJSONEncoder"""
+    return json.dumps(*args, **kwargs, cls=NumpyCompliantJSONEncoder)
 
 
 def PQL_parse_json(query):
@@ -217,7 +242,7 @@ class ModelBase:
             # add to modelbase
             self.add(derived_model, query["AS"])
             # return header
-            return json.dumps({"name": derived_model.name, "fields": derived_model.json_fields()})
+            return _json_dumps({"name": derived_model.name, "fields": derived_model.json_fields()})
 
         elif 'PREDICT' in query:
             base = self._extractFrom(query)
@@ -225,12 +250,12 @@ class ModelBase:
                 predict=self._extractPredict(query),
                 where=self._extractWhere(query),
                 splitby=self._extractSplitBy(query))
-            return json.dumps({"header": resultframe.columns.tolist(),
+            return _json_dumps({"header": resultframe.columns.tolist(),
                                "data": resultframe.to_csv(index=False, header=False)})
 
         elif 'DROP' in query:
             self.drop(name=query['DROP'])
-            return json.dumps({})
+            return _json_dumps({})
 
         elif 'SHOW' in query:
             show = self._extractShow(query)
@@ -241,7 +266,7 @@ class ModelBase:
                 result = self.list_models()
             else:
                 raise ValueError("invalid value given in SHOW-clause: " + str(show))
-            return json.dumps(result)
+            return _json_dumps(result)
 
     ### _extract* functions are helpers to extract a certain part of a PQL query
     #   and do some basic syntax and semantic checks

@@ -2,10 +2,6 @@
 """
 @author: Philipp Lucas
 
-
-
-
-
 More useful data sets possibly here:
  https://github.com/mwaskom/seaborn-data
 """
@@ -15,6 +11,8 @@ import pandas as pd
 import seaborn.apionly as sns
 import data.adult.adult as adult
 import data.heart_disease.heart as heart
+import data.crabs.crabs as crabs
+import data.olive_oils.olive_oils as olive_oils
 
 from cond_gaussians import ConditionallyGaussianModel
 from gaussians import MultiVariateGaussianModel
@@ -36,6 +34,9 @@ known_models = {
 
     # conditionally gaussian models
     'cg_dummy': lambda: (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
+    'cg_crabs': lambda: (ConditionallyGaussianModel('cg_crabs'), crabs.mixed()),
+    'cg_olive_oils': lambda: (ConditionallyGaussianModel('cg_olive_oils'),
+                              olive_oils.mixed('data/olive_oils/olive.csv'))
 }
 
 
@@ -99,8 +100,12 @@ Examples:
         print("using default output directory 'data_models' ... ")
         args.directory = 'data_models'
 
+    # for debugging:
+    args.include = ['cg_olive_oils']
+
     modelbase = mb.ModelBase("refitter", load_all=False, model_dir=args.directory)
-    for model in refit_all_models(verbose=True, include=args.include, exclude=args.exclude):
+    models = refit_all_models(verbose=True, include=args.include, exclude=args.exclude)
+    for model in models:
         modelbase.add(model)
 
     print("saving all models to " + str(args.directory) + "...")

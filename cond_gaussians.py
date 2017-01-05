@@ -135,8 +135,7 @@ class ConditionallyGaussianModel(md.Model):
         numericals = []
         for colname in df:
             column = df[colname]
-            # if column.dtype == "category" or column.dtype == "object":
-            if column.dtype == "object":
+            if column.dtype.name == "category" or column.dtype.name == "object":
                 categoricals.append(colname)
             else:
                 numericals.append(colname)
