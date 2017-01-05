@@ -50,8 +50,8 @@ def refit_all_models(verbose=False, include=None, exclude=None):
     # fit it!
     models = []
     for (id_, getter) in known_models.items():
-        (model_, df) = getter()
         if id_ in include and id_ not in exclude:
+            (model_, df) = getter()
             if verbose:
                 print("Fitting model for data set '" + str(id_) + "' ...", end='')
             models.append(model_.fit(df))
