@@ -7,6 +7,7 @@ Various utility functions
 
 import string
 import random
+from functools import wraps
 
 
 def unique_list(iter_):
@@ -62,3 +63,17 @@ def invert_indexes (idx, len_) :
         else:
             inv.append(i)                
     return inv
+
+
+def log_it(before, after):
+    """decorator for convinient logging of whats happening. Pass a message to be printed
+    before and after the funtions is called."""
+    def real_decorator(fct):
+        @wraps(fct)
+        def wrapper():
+            end = "\n" if after is None else ""
+            print(before, end=end)
+            fct()
+            print(after)
+        return wrapper
+    return real_decorator

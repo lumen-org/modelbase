@@ -1,32 +1,18 @@
 # Copyright (c) 2016 Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 @author: Philipp Lucas
-
-This module provides a webinterface to a modelbase, i.e. the equivalent of a
-data base, but for graphical models. That interface provides various routes,
-as follows.
-
-  * '/': the index page
-  * '/webservice': a user can send PQL queries in a POST-request to this route
-  * '/webqueryclient': provides a simple website to sent PQL queries to this
-      model base
-
-There is other routes available:
-  * '/playground': just for debugging / testing / playground purposes
-
-Usage:
-    Run this script to start the server locally!
 """
 
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
 import logging
 import json
-import modelbase as mbase
 import traceback
 
+import modelbase as mbase
+
+
 app = Flask(__name__, static_url_path='/static/')
-mb = mbase.ModelBase("mymb")
 
 # setup root logger and local logger
 logging.basicConfig(
@@ -101,6 +87,42 @@ def playground():
 
 # trigger to start the web server if this script is run
 if __name__ == "__main__":
-    import pdb
+    import argparse
+    # import pdb
+
+    description = """
+Starts a local web server that acts as an interface to a modelbase, i.e. the equivalent of a
+data base, but for graphical models. This interface provides various routes,
+as follows.
+
+  * '/': the index page
+  * '/webservice': a user can send PQL queries in a POST-request to this route
+  * '/webqueryclient': provides a simple website to sent PQL queries to this
+      model base (probably not functional at the moment)
+  * '/playground': just for debugging / testing / playground purposes
+
+Usage:
+    Run this script to start the server locally!
+"""
+    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("-n", "--name", help="A name for the modelbase to start. Defaults to 'my_mb'", type=str)
+    parser.add_argument("-s", "--storage", help="storage directory of models to be loaded initially. Defaults to "
+                                                "'data_models'", type=str)
+    args = parser.parse_args()
+
+    if args.storage is None:
+        print("using default output directory 'data_models' ... ")
+        args.storage = 'data_models'
+
+    if args.name is None:
+        print("using default name for modelbase 'my_mb' ... ")
+        args.name = 'my_mb'
+
+    print("starting modelbase ... ", end="")
+    mb = mbase.ModelBase(name=args.name, model_dir=args.storage)
+    print("done.")
+
+    print("web server running...")
     app.run()
+
     #pdb.run('app.run()')
