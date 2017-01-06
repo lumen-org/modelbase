@@ -63,6 +63,7 @@ class NumpyCompliantJSONEncoder(json.JSONEncoder):
 def _json_dumps(*args, **kwargs):
     """Shortcut to serialize objects with my NumpyCompliantJSONEncoder"""
     return json.dumps(*args, **kwargs, cls=NumpyCompliantJSONEncoder)
+    #return json.dumps(*args, **kwargs)
 
 
 def PQL_parse_json(query):

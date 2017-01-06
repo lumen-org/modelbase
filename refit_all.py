@@ -13,6 +13,7 @@ import data.adult.adult as adult
 import data.heart_disease.heart as heart
 import data.crabs.crabs as crabs
 import data.olive_oils.olive_oils as olive_oils
+import data.yeast.yeast as yeast
 
 from cond_gaussians import ConditionallyGaussianModel
 from gaussians import MultiVariateGaussianModel
@@ -36,7 +37,8 @@ known_models = {
     'cg_dummy': lambda: (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
     'cg_crabs': lambda: (ConditionallyGaussianModel('cg_crabs'), crabs.mixed()),
     'cg_olive_oils': lambda: (ConditionallyGaussianModel('cg_olive_oils'),
-                              olive_oils.mixed('data/olive_oils/olive.csv'))
+                              olive_oils.mixed('data/olive_oils/olive.csv')),
+    'cg_yeast': lambda: (ConditionallyGaussianModel('cg_yeast'), yeast.mixed('data/yeast/yeast.csv'))
 }
 
 
@@ -54,7 +56,7 @@ def refit_all_models(verbose=False, include=None, exclude=None):
         if id_ in include and id_ not in exclude:
             (model_, df) = getter()
             if verbose:
-                print("Fitting model for data set '" + str(id_) + "' ...", end='')
+                print("Fitting model for data set '" + str(id_) + "' ...")
             models.append(model_.fit(df))
             if verbose:
                 print("...done.")
@@ -101,7 +103,7 @@ Examples:
         args.directory = 'data_models'
 
     # for debugging:
-    args.include = ['cg_olive_oils']
+    #args.include = ['cg_olive_oils']
 
     modelbase = mb.ModelBase("refitter", load_all=False, model_dir=args.directory)
     models = refit_all_models(verbose=True, include=args.include, exclude=args.exclude)

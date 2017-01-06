@@ -240,21 +240,23 @@ class ConditionallyGaussianModel(md.Model):
 
         # condition on continuous fields
         num_remove = [name for name in self._numericals if name in remove]
-        #if len(num_remove) == len(self._numericals):
-        #    all gaussians are implicitely removed
-        if len(num_remove) != 0:
+        if len(num_remove) == len(self._numericals):
+            # all gaussians are removed
+            self._S = xr.DataArray([])
+            self._mu = xr.DataArray([])
+        elif len(num_remove) != 0:
             # collect singular values to condition out
             condvalues = self._condition_values(num_remove)
 
             # calculate updated mu and sigma for conditional distribution, according to GM script
-            i = num_remove
-            j = [name for name in self._numericals if name not in remove]
+            j = num_remove
+            i = [name for name in self._numericals if name not in num_remove]
             S = self._S
 
             sigma_expr = np.dot(S.loc[i, j], S.loc[j, j])  # reused below multiple times
             self._S = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
 
-            cat_keep = self._mu.dims[1:]
+            cat_keep = self._mu.dims[:-1]
             if len(cat_keep) != 0:
                 # iterate over all mu and update them
                 # this is a view on mu! it stacks up all categorical dimensions and thus allows us to iterate on them
@@ -282,18 +284,20 @@ class ConditionallyGaussianModel(md.Model):
         num_keep = [name for name in self._numericals if name in keep]  # note: this is guaranteed to be sorted
         cat_remove = [name for name in self._categoricals if name not in keep]
 
-        # clone old p for later reuse
-        p = self._p.copy()
-
-        # marginalized p just like in the categorical case (categoricals.py), i.e. sum up over removed dimensions
-        self._p = self._p.sum(cat_remove)
+        if len(self._categoricals) != 0:  # only enter if there is work to do
+            # clone old p for later reuse
+            p = self._p.copy()
+            # marginalized p just like in the categorical case (categoricals.py), i.e. sum up over removed dimensions
+            self._p = self._p.sum(cat_remove)
 
         # marginalized mu (taken from the script)
         # slice out the gaussian part to keep; sum over the categorical part to remove
         if len(num_keep) != 0:
             mu = self._mu.loc[dict(mean=num_keep)]
-            self._mu = (p * mu).sum(cat_remove) / self._p
-
+            if len(self._categoricals) == 0:
+                self._mu = mu
+            else:
+                self._mu = (p * mu).sum(cat_remove) / self._p
             # marginalized sigma
             self._S = self._S.loc[num_keep, num_keep]
 
