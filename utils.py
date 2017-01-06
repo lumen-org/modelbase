@@ -47,10 +47,10 @@ def linear_id_generator(prefix='_id', postfix=''):
 
 def issorted(seq):
     """ Returns True iff seq is a strictly monotone increasing sequence."""
-    return all( seq[i] < seq[i+1] for i in range(len(seq)-1))
+    return all(seq[i] < seq[i+1] for i in range(len(seq)-1))
 
 
-def invert_indexes (idx, len_) :
+def invert_indexes(idx, len_):
     """utility function that returns an inverted index list given a sorted 
     sequence of indexes, e.g. given [0,1,4] and len=6 it returns [2,3,5].
     """
@@ -66,8 +66,8 @@ def invert_indexes (idx, len_) :
 
 
 def log_it(before, after):
-    """decorator for convinient logging of whats happening. Pass a message to be printed
-    before and after the funtions is called."""
+    """decorator for convenient logging of whats happening. Pass a message to be printed
+    before and after the functions is called."""
     def real_decorator(fct):
         @wraps(fct)
         def wrapper():
