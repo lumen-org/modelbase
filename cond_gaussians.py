@@ -264,8 +264,12 @@ class ConditionallyGaussianModel(md.Model):
                 for coord in stacked.pl_stack:
                     indexer = dict(pl_stack=coord)
                     mu = stacked.loc[indexer]
-                    # todo: can't i write: mu = ...  ?
+                    # extent indexer to subselect only the part of mu that is updated. the rest is removed later.
+                    # problem is: we cannot assign a shorter vector to stacked.loc[indexer]
+                    indexer['mean'] = i
                     stacked.loc[indexer] = mu.loc[i] + dot(sigma_expr, condvalues - mu.loc[j])
+                # above we partially updated only the relevant part of mu. the remaining part is now removed:
+                self._mu = self._mu.loc[dict(mean=i)]
             else:
                 # special case: no categorical fields left. hence we cannot stack over then, it is only a single mu left
                 # and we only need to update that
