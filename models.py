@@ -278,13 +278,17 @@ class Model:
         if len(keep) == 0:
             return self._setempty()
 
-        # there are three cases of marginalization:
-        # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
-        # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
         keep = self.sorted_names(keep)
         remove = self.inverse_names(keep)
         cond_out = [name for name in remove if self.byname(name)['domain'].isbounded()]
 
+        # Data marginalization
+        self.data = self.data.loc[:, keep]
+
+        # Model marginalization
+        # there are three cases of marginalization:
+        # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
+        # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
         if len(cond_out) != 0:
             self._conditionout(cond_out)
 
@@ -320,6 +324,9 @@ class Model:
         Returns:
             The modified model.
         """
+
+        # TODO: implement the data filters according to my notes
+
         for (name, operator, values) in conditions:
             operator = operator.lower()
             domain = self.byname(name)['domain']
@@ -345,7 +352,7 @@ class Model:
           * the model itself is empty
           * remove contains all names of the model
 
-        Moreover remove is guaranteed to be in the same order than the random variables of the model.
+        Moreover when called remove is guaranteed to be in the same order than the random variables of the model.
 
         Note that we don't know yet how to condition on a non-singular domain (i.e. condition on interval or sets).
         As a work around we therefore:
@@ -357,13 +364,17 @@ class Model:
     def aggregate(self, method):
         """Aggregates this model using the given method and returns the
         aggregation as a list. The order of elements in the list matches the
-        order of random variables in the models field.
+        order of random variables in fields attribute of the model.
 
         Returns:
             The aggregation of the model. It always returns a list, even if it contains only a single value.
         """
         if self._isempty():
             raise ValueError('Cannot query aggregation of 0-dimensional model')
+
+        # TODO: implement this for data as well
+        # the data part can be aggregated without any model specific code and merged into the model results at the end
+        # see my notes for how to calculate a single aggregation
 
         # need index to merge results later
         other_idx = []
@@ -675,6 +686,7 @@ class Model:
             if aggr.method == 'density':
                 # TODO: this is inefficient because it recalculates the same value many times, when we split on more
                 # than what the density is calculated on
+                # TODO: to solve it: calculate density only on the required groups and then join into the result table.
                 try:
                     # select relevant columns and iterate over it
                     ids = [split_name2id[name] for name in aggr.name]
@@ -688,6 +700,9 @@ class Model:
                 if len(splitby) == 0:
                     # there is no fields to split by, hence only a single value will be aggregated
                     # i.e. marginalize all other fields out
+                    # TODO: can there ever be more fields left than the one(s) that is aggregated over?
+                    if len(aggr.name) != aggr_model._n:  # debugging
+                        raise ValueError("uh, interesting - check this out, and read the todo above this code line")
                     singlemodel = aggr_model.copy().marginalize(keep=aggr.name)
                     res = singlemodel.aggregate(aggr.method)
                     # reduce to requested dimension
@@ -695,7 +710,7 @@ class Model:
                     aggr_results.append(res)
                 else:
                     for _, row in input_frame.iterrows():
-                        pairs = zip(split_names, ['=='] * len(row), row)
+                        pairs = zip(split_names, ['=='] * len(row), row)  # TODO: reuse ['=='] * len(row) for speedup
                         # derive model for these specific conditions
                         rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr.name)
                         res = rowmodel.aggregate(aggr.method)
