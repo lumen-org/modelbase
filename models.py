@@ -674,7 +674,7 @@ class Model:
             aggr_model = aggr_models[idx]
             if aggr.method == 'density':
                 # TODO: this is inefficient because it recalculates the same value many times, when we split on more
-                # than the density is calculated on
+                # than what the density is calculated on
                 try:
                     # select relevant columns and iterate over it
                     ids = [split_name2id[name] for name in aggr.name]
@@ -698,7 +698,7 @@ class Model:
                         pairs = zip(split_names, ['=='] * len(row), row)
                         # derive model for these specific conditions
                         rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr.name)
-                        res = rowmodel.aggregate(aggr.method)  # TODO: why not use model.predict?
+                        res = rowmodel.aggregate(aggr.method)
                         # reduce to requested dimension
                         res = res[rowmodel.asindex(aggr.yields)]
                         aggr_results.append(res)
