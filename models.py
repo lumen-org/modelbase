@@ -324,20 +324,26 @@ class Model:
         Returns:
             The modified model.
         """
-
-        # TODO: implement the data filters according to my notes
-
+        df = self.data
         for (name, operator, values) in conditions:
             operator = operator.lower()
             domain = self.byname(name)['domain']
+            column = df[name]
             if operator == 'equals' or operator == '==' or operator == 'in':
                 domain.intersect(values)
+                if operator == 'in':
+                    df = df.loc[column.isin(values)]
+                else:  # operator is '==' or 'equals'
+                    df = df.loc[column == values]
             elif operator == 'greater' or operator == '>':
                 domain.setlowerbound(values)
+                df = df.loc[column > values]
             elif operator == 'less' or operator == '<':
                 domain.setupperbound(values)
+                df = df.loc[column < values]
             else:
                 raise ValueError('invalid operator for condition: ' + str(operator))
+        self.data = df
         return self
 
     def _conditionout(self, remove):
@@ -363,7 +369,7 @@ class Model:
 
     def aggregate(self, method):
         """Aggregates this model using the given method and returns the
-        aggregation as a list. The order of elements in the list matches the
+        aggregation as a list. The order of elements in the list matches the²
         order of random variables in fields attribute of the model.
 
         Returns:
@@ -375,6 +381,13 @@ class Model:
         # TODO: implement this for data as well
         # the data part can be aggregated without any model specific code and merged into the model results at the end
         # see my notes for how to calculate a single aggregation
+
+        if method == 'argmax':
+            # find observation with highest occurrence
+            data_res = self.data
+        elif method == 'argavg':
+            # computer average of observations
+            data_res = self.data.mean()
 
         # need index to merge results later
         other_idx = []
@@ -503,10 +516,9 @@ class Model:
         Args:
             remove: sequence of random variable names
             pairflag = False: Optional. If set True not a list of values but a zip-object of the names and the
-             values to condition on.
+             values to condition on is returned
         """
         # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
-
         cond_values = []
         for name in remove:
             field = self.byname(name)
