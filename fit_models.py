@@ -68,6 +68,9 @@ def refit_all_models(verbose=False, include=None, exclude=None):
 if __name__ == '__main__':
     import argparse
     import modelbase as mb
+    import os
+
+    script_name = os.path.basename(__file__)
 
 # ToDo: replace refit_all.py mt dem Dateinamen als "umgebungsvariable" oder was auch immer es da so gibt.
 # ToDO: füge Shebang oben hinzu um es direkt ausführbar zu machen
@@ -81,10 +84,10 @@ On execution of this script all known models are fitted again from their data an
 stored in the directory that is given as a command line argument.
 
 Examples:
-  * 'python refit_all.py -l' lists all known models
-  * 'python refit_all.py' refits all models and saves them in the subdirectory 'data_models'
-  * 'python refit_all.py --exclude adult' refits all but the adult model
-  * 'python refit_all.py --include adult' refits only the adult model"""
+  * '{script_name} -l' lists all known models
+  * '{script_name}' refits all models and saves them in the subdirectory 'data_models'
+  * '{script_name} --exclude adult' refits all but the adult model
+  * '{script_name} --include adult' refits only the adult model""".format(script_name=script_name)
 
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-l", "--list", help="lists all known models", action="store_true")
