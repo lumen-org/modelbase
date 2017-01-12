@@ -212,7 +212,7 @@ class Model:
         self.name = name
         self.fields = []
         self.names = []
-        self.data = []
+        self.data = pd.DataFrame([])
         self._aggrMethods = None
         self._n = 0
         self._name2idx = {}
@@ -232,6 +232,9 @@ class Model:
         """Fits the model to passed DataFrame
 
         This method must be implemented by any actual model that derives from the abstract Model class.
+
+        Note that on return on this method the attribute .data must be filled with the appropriate data that
+        was used to fit the model.
 
         Args:
             df: A pandas data frame that holds the data to fit the model to.
@@ -329,20 +332,22 @@ class Model:
             operator = operator.lower()
             domain = self.byname(name)['domain']
             column = df[name]
-            if operator == 'equals' or operator == '==' or operator == 'in':
+            if operator == 'in':
                 domain.intersect(values)
-                if operator == 'in':
-                    df = df.loc[column.isin(values)]
-                else:  # operator is '==' or 'equals'
-                    df = df.loc[column == values]
-            elif operator == 'greater' or operator == '>':
-                domain.setlowerbound(values)
-                df = df.loc[column > values]
-            elif operator == 'less' or operator == '<':
-                domain.setupperbound(values)
-                df = df.loc[column < values]
+                df = df.loc[column.isin(values)]
             else:
-                raise ValueError('invalid operator for condition: ' + str(operator))
+                value = values[0]
+                if operator == 'equals' or operator == '==':
+                    domain.intersect(values)
+                    df = df.loc[column == value]
+                elif operator == 'greater' or operator == '>':
+                    domain.setlowerbound(values)
+                    df = df.loc[column > value]
+                elif operator == 'less' or operator == '<':
+                    domain.setupperbound(values)
+                    df = df.loc[column < value]
+                else:
+                    raise ValueError('invalid operator for condition: ' + str(operator))
         self.data = df
         return self
 
@@ -369,7 +374,7 @@ class Model:
 
     def aggregate(self, method):
         """Aggregates this model using the given method and returns the
-        aggregation as a list. The order of elements in the list matches the²
+        aggregation as a list. The order of elements in the list matches the
         order of random variables in fields attribute of the model.
 
         Returns:
@@ -381,13 +386,17 @@ class Model:
         # TODO: implement this for data as well
         # the data part can be aggregated without any model specific code and merged into the model results at the end
         # see my notes for how to calculate a single aggregation
-
         if method == 'argmax':
-            # find observation with highest occurrence
-            data_res = self.data
+            # find observation with highest number of occurrences
+            #raise NotImplementedError('yet to be done.')
+            allcols = list(self.data.columns)
+            grps = self.data.groupby(allcols)
+            data_res = grps.size().argmax()
+
         elif method == 'argavg':
-            # computer average of observations
-            data_res = self.data.mean()
+            # compute average of observations
+            # todo: what if mean cannot be computed, e.g. categorical columns?
+            data_res = self.data.mean(axis=0)
 
         # need index to merge results later
         other_idx = []
@@ -448,9 +457,19 @@ class Model:
             # in that case the only argument holds the (correctly sorted) values
             values = names
         else:
+            # names and values need sorting
             sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
             values = [pair[1] for pair in sorted_]
 
+        # data frequency
+        def filter(df, conditions):
+            # apply all '==' filters in the sequence of conditions
+            for (col_name, value) in conditions:
+                df = df.loc[df[col_name] == value]
+            return df
+        cnt = len(filter(self.data, zip(self.names, values)))
+
+        # model density
         return self._density(values)
 
     def _density(self, x):

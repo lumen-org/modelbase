@@ -163,6 +163,7 @@ class ConditionallyGaussianModel(md.Model):
         self._p, self._mu, self._S = ConditionallyGaussianModel._fitFullLikelihood(df, fields, dc)
         self._categoricals = categoricals
         self._numericals = numericals
+        self.data = df
 
         return self.update()
 

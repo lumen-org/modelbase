@@ -72,8 +72,6 @@ if __name__ == '__main__':
 
     script_name = os.path.basename(__file__)
 
-# ToDo: replace refit_all.py mt dem Dateinamen als "umgebungsvariable" oder was auch immer es da so gibt.
-# ToDO: füge Shebang oben hinzu um es direkt ausführbar zu machen
     description = """
 Allows to refit all 'known' models that are 'registered' in this script.
 
@@ -109,7 +107,7 @@ Examples:
         args.directory = 'data_models'
 
     # for debugging:
-    args.include = ['cg_olive_oils']
+    #args.include = ['cg_olive_oils']
 
     modelbase = mb.ModelBase("refitter", load_all=False, model_dir=args.directory)
     models = refit_all_models(verbose=True, include=args.include, exclude=args.exclude)
