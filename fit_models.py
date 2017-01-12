@@ -68,6 +68,8 @@ if __name__ == '__main__':
     import argparse
     import modelbase as mb
 
+# ToDo: replace refit_all.py mt dem Dateinamen als "umgebungsvariable" oder was auch immer es da so gibt.
+# ToDO: füge Shebang oben hinzu um es direkt ausführbar zu machen
     description = """
 Allows to refit all 'known' models that are 'registered' in this script.
 
