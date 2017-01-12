@@ -715,9 +715,13 @@ class Model:
             aggr_results = []
             aggr_model = aggr_models[idx]
             if aggr.method == 'density':
-                # TODO: this is inefficient because it recalculates the same value many times, when we split on more
-                # than what the density is calculated on
+                # TODO (1): this is inefficient because it recalculates the same value many times, when we split on more
+                #  than what the density is calculated on
                 # TODO: to solve it: calculate density only on the required groups and then join into the result table.
+                # TODO (2): .density also returns the frequency of the specified observation. Calculating it like this
+                #  is also super inefficient, since we really just need to group by all of the split-field and count
+                #  occurrences - instead of iteratively counting occurrences, which involves a linear scan on the data
+                #  frame for each call to density
                 try:
                     # select relevant columns and iterate over it
                     ids = [split_name2id[name] for name in aggr.name]
