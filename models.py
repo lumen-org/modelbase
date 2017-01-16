@@ -372,7 +372,7 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
-    def aggregate(self, method):
+    def aggregate(self, method, mode="model"):
         """Aggregates this model using the given method and returns the
         aggregation as a list. The order of elements in the list matches the
         order of random variables in fields attribute of the model.
@@ -383,20 +383,26 @@ class Model:
         if self._isempty():
             raise ValueError('Cannot query aggregation of 0-dimensional model')
 
-        # TODO: implement this for data as well
         # the data part can be aggregated without any model specific code and merged into the model results at the end
         # see my notes for how to calculate a single aggregation
-        if method == 'argmax':
-            # find observation with highest number of occurrences
-            #raise NotImplementedError('yet to be done.')
-            allcols = list(self.data.columns)
-            grps = self.data.groupby(allcols)
-            data_res = grps.size().argmax()
+        if mode == "data" or mode == "both":
+            if method == 'maximum':
+                # find observation with highest number of occurrences
+                #raise NotImplementedError('yet to be done.')
+                allcols = list(self.data.columns)
+                grps = self.data.groupby(allcols)
+                data_res = grps.size().argmax()
 
-        elif method == 'argavg':
-            # compute average of observations
-            # todo: what if mean cannot be computed, e.g. categorical columns?
-            data_res = self.data.mean(axis=0)
+            elif method == 'average':
+                # compute average of observations
+                # todo: what if mean cannot be computed, e.g. categorical columns?
+                data_res = self.data.mean(axis=0)
+
+            else:
+                raise ValueError("invalid value for method: " + str(method))
+
+            if mode == "data":
+                return data_res
 
         # need index to merge results later
         other_idx = []
@@ -417,25 +423,32 @@ class Model:
 
         # quit early if possible
         if len(other_idx) == 0:
-            return singular_res
+            model_res = singular_res
+        else:
+            # 2. marginalize singular fields out
+            submodel = self.copy().marginalize(remove=singular_names)
 
-        # 2. marginalize singular fields out
-        submodel = self.copy().marginalize(remove=singular_names)
+            # 3. calculate 'unrestricted' aggregation on the remaining model
+            try:
+                other_res = submodel._aggrMethods[method]()
+            except KeyError:
+                raise ValueError("Your model does not provide the requested aggregation: '" + method + "'")
 
-        # 3. calculate 'unrestricted' aggregation on the remaining model
-        try:
-            other_res = submodel._aggrMethods[method]()
-        except KeyError:
-            raise ValueError("Your model does not provide the requested aggregation: '" + method + "'")
+            # 4. clamp to values within domain
+            for (idx, field) in enumerate(submodel.fields):
+                other_res[idx] = field['domain'].clamp(other_res[idx])
 
-        # 4. clamp to values within domain
-        for (idx, field) in enumerate(submodel.fields):
-            other_res[idx] = field['domain'].clamp(other_res[idx])
+            # 5. merge with singular results
+            model_res = mergebyidx(singular_res, other_res, singular_idx, other_idx)
 
-        # 5. merge with singular results
-        return mergebyidx(singular_res, other_res, singular_idx, other_idx)
+        if mode == "model":
+            return model_res
+        elif mode == "both":
+            return (model_res, data_res)
+        else:
+            raise ValueError("invalid value for mode : ", str(mode))
 
-    def density(self, names, values=None):
+    def density(self, names, values=None, mode="model"):
         """Returns the density at given point. You may either pass both, names
         and values, or only one list with values. In the latter case values is
         assumed to be in the same order as the random variables of the model.
@@ -467,10 +480,19 @@ class Model:
             for (col_name, value) in conditions:
                 df = df.loc[df[col_name] == value]
             return df
-        cnt = len(filter(self.data, zip(self.names, values)))
 
-        # model density
-        return self._density(values)
+        if mode == "both" or mode == "data":
+            cnt = len(filter(self.data, zip(self.names, values)))
+            if mode == "data":
+                return cnt
+
+        p = self._density(values)
+        if mode == "model":
+            return p
+        elif mode == "both":
+            return (p, cnt)
+        else:
+            raise ValueError("invalid value for mode : ", str(mode))
 
     def _density(self, x):
         """Returns the density of the model at point x.
@@ -595,7 +617,7 @@ class Model:
         self.name = self.name if as_ is None else as_
         return self.condition(where).marginalize(keep=model)
 
-    def predict(self, predict, where=[], splitby=[], returnbasemodel=False):
+    def predict(self, predict, where=[], splitby=[], returnbasemodel=False, mode="both"):
         """Calculates the prediction against the model and returns its result
         by means of a data frame.
 
@@ -710,7 +732,9 @@ class Model:
             dimensions (values) and then derive the measure models...
             note: for density however, no conditioning on the input is required
         """
-        result_list = [input_frame]
+        #result_list = [input_frame]
+        model_result_list = []
+        data_result_list = []
         for idx, aggr in enumerate(aggrs):
             aggr_results = []
             aggr_model = aggr_models[idx]
@@ -729,7 +753,7 @@ class Model:
                     raise ValueError("missing split-clause for field '" + str(err) + "'.")
                 subframe = input_frame[ids]
                 for _, row in subframe.iterrows():
-                    res = aggr_model.density(aggr.name, row)
+                    res = aggr_model.density(aggr.name, row, mode=mode)
                     aggr_results.append(res)
             else:
                 if len(splitby) == 0:
@@ -739,7 +763,7 @@ class Model:
                     if len(aggr.name) != aggr_model._n:  # debugging
                         raise ValueError("uh, interesting - check this out, and read the todo above this code line")
                     singlemodel = aggr_model.copy().marginalize(keep=aggr.name)
-                    res = singlemodel.aggregate(aggr.method)
+                    res = singlemodel.aggregate(aggr.method, mode=mode)
                     # reduce to requested dimension
                     res = res[singlemodel.asindex(aggr.yields)]
                     aggr_results.append(res)
@@ -748,19 +772,42 @@ class Model:
                         pairs = zip(split_names, ['=='] * len(row), row)  # TODO: reuse ['=='] * len(row) for speedup
                         # derive model for these specific conditions
                         rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr.name)
-                        res = rowmodel.aggregate(aggr.method)
+                        res = rowmodel.aggregate(aggr.method, mode=mode)
+                        idx = rowmodel.asindex(aggr.yields)
+                        if mode == "both":
+                            res = (res[0][idx], res[1])
+                        elif mode == "model":
+                            res = res[idx]
+
                         # reduce to requested dimension
-                        res = res[rowmodel.asindex(aggr.yields)]
+                        #res = res[rowmodel.asindex(aggr.yields)]
                         aggr_results.append(res)
 
-            df = pd.DataFrame(aggr_results, columns=[aggr_ids[idx]])
-            result_list.append(df)
+            # generate DataSeries from it
+            columns = [aggr_ids[idx]]
+            if mode == "both":
+                df = pd.DataFrame.from_records(aggr_results, columns=columns*2)
+                model_result_list.append(df.iloc[:, 0])
+                data_result_list.append(df.iloc[:, 1])
+            else:
+                df = pd.DataFrame(aggr_results, columns=columns)
+                if mode == "data":
+                    data_result_list.append(df)
+                elif mode == "model":
+                    model_result_list.append(df)
+            #result_list.append(df)
 
         # (5) filter on aggregations?
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
 
-        # (6) collect all results into one data frame
-        return_frame = pd.concat(result_list, axis=1)
+        # (6) collect all results into data frames
+        if mode == "model" or mode == "both":
+            model_frame = pd.concat(model_result_list, axis=1)
+        if mode == "data" or mode == "both":
+            data_frame = pd.concat(data_result_list, axis=1)
+
+        # DEBUG / DEVELOP
+        return_frame = pd.concat([input_frame, model_frame], axis=1)
 
         # (7) get correctly ordered frame that only contain requested fields
         return_frame = return_frame[predict_ids]  # flattens
