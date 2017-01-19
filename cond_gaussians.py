@@ -237,7 +237,8 @@ class ConditionallyGaussianModel(md.Model):
 
             # _mu is trimmed: keep the slice that we condition on, i.e. reuse the 'pairs' access-structure
             # note: if we condition on all categoricals this also works: it simply remains the single 'selected' mu...
-            self._mu = self._mu.loc[pairs]
+            if len(self._numericals) != 0:
+                self._mu = self._mu.loc[pairs]
 
         # condition on continuous fields
         num_remove = [name for name in self._numericals if name in remove]
