@@ -42,9 +42,10 @@ ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
         name: the name of field to condition
         operator: may take be one of ['in', 'equals', '==', 'greater', 'less']
         value: its allowed values depend on the value of operator
-            operator is one of: 'in', 'equals', '==': A single element (to set the domain singular) or a sequence
+            operator is one of: 'in': A single element (to set the domain singular) or a sequence
                 of elements (if the field is discrete), or a two-element list [min, max] if the
                 field is continuous.
+            operator is 'equals' or '==': a single element
             operator == 'greater': a single element that is set to be the new upper bound of the domain.
             operator == 'less': a single element that is set to be the new lower bound of the domain.
 """
@@ -332,20 +333,30 @@ class Model:
             operator = operator.lower()
             domain = self.byname(name)['domain']
             column = df[name]
+            field = self.byname(name)
+
+            # DEBUG:
+            print("cond value: " + str(values))
+
             if operator == 'in':
                 domain.intersect(values)
-                df = df.loc[column.isin(values)]
+                if field['dtype'] == 'numerical':
+                     df = df.loc[column.between(*values, inclusive=True)]
+                elif field['dtype'] == 'string':
+                    df = df.loc[column.isin(values)]
+                else:
+                    raise TypeError("unsupported field type: " + str(field.dtype))
             else:
-                value = values[0]
+                # values is necessarily a single scalar value, not a list
                 if operator == 'equals' or operator == '==':
                     domain.intersect(values)
-                    df = df.loc[column == value]
+                    df = df.loc[column == values]
                 elif operator == 'greater' or operator == '>':
                     domain.setlowerbound(values)
-                    df = df.loc[column > value]
+                    df = df.loc[column > values]
                 elif operator == 'less' or operator == '<':
                     domain.setupperbound(values)
-                    df = df.loc[column < value]
+                    df = df.loc[column < values]
                 else:
                     raise ValueError('invalid operator for condition: ' + str(operator))
         self.data = df
