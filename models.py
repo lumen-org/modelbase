@@ -812,9 +812,9 @@ class Model:
 
         # (6) collect all results into data frames
         if mode == "model" or mode == "both":
-            model_frame = pd.concat(model_result_list, axis=1)
+            model_frame = pd.DataFrame() if model_result_list == [] else pd.concat(model_result_list, axis=1)
         if mode == "data" or mode == "both":
-            data_frame = pd.concat(data_result_list, axis=1)
+            data_frame = pd.DataFrame() if data_result_list == [] else pd.concat(data_result_list, axis=1)
 
         # DEBUG / DEVELOP
         return_frame = pd.concat([input_frame, model_frame], axis=1)
