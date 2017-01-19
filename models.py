@@ -396,7 +396,6 @@ class Model:
         if mode == "data" or mode == "both":
             if method == 'maximum':
                 # find observation with highest number of occurrences
-                #raise NotImplementedError('yet to be done.')
                 allcols = list(self.data.columns)
                 grps = self.data.groupby(allcols)
                 data_res = grps.size().argmax()
@@ -408,6 +407,11 @@ class Model:
 
             else:
                 raise ValueError("invalid value for method: " + str(method))
+
+            # in case of 1-dimensional selection pandas returns a scalar, not a single-element list
+            # we want a list in all cases, however
+            if self._n == 1:
+                data_res = [data_res]
 
             if mode == "data":
                 return data_res
@@ -663,7 +667,7 @@ class Model:
         split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids (for columns in data frames)
 
         aggrs = []  # list of aggregation tuples, in same order as in the predict-clause
-        aggr_ids = []  # ids for columns fo fields to aggregate. Same order as in predict-clause
+        aggr_ids = []  # ids for columns of fields to aggregate. Same order as in predict-clause
 
         basenames = set(split_names)  # set of names of fields needed for basemodel of this query
         for t in predict:
@@ -677,7 +681,7 @@ class Model:
                     raise ValueError("Missing split-tuple for a split-field in predict: " + name)
                 basenames.add(name)
             else:
-                # t is an aggregation tuple
+                # t is an aggregation/density tuple
                 id_ = _tuple2str(t) + next(idgen)
                 aggrs.append(t)
                 aggr_ids.append(id_)
@@ -781,14 +785,12 @@ class Model:
                         # derive model for these specific conditions
                         rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr.name)
                         res = rowmodel.aggregate(aggr.method, mode=mode)
-                        idx = rowmodel.asindex(aggr.yields)
-                        if mode == "both":
-                            res = (res[0][idx], res[1])
-                        elif mode == "model":
-                            res = res[idx]
-
                         # reduce to requested dimension
-                        #res = res[rowmodel.asindex(aggr.yields)]
+                        i = rowmodel.asindex(aggr.yields)
+                        if mode == "both":
+                            res = (res[0][i], res[1][i])
+                        else:  # if mode == "model" or mode == "data":
+                            res = res[i]
                         aggr_results.append(res)
 
             # generate DataSeries from it
