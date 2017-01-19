@@ -335,9 +335,6 @@ class Model:
             column = df[name]
             field = self.byname(name)
 
-            # DEBUG:
-            print("cond value: " + str(values))
-
             if operator == 'in':
                 domain.intersect(values)
                 if field['dtype'] == 'numerical':
