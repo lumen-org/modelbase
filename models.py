@@ -398,8 +398,7 @@ class Model:
                 # find observation with highest number of occurrences
                 allcols = list(self.data.columns)
                 grps = self.data.groupby(allcols)
-                data_res = grps.size().argmax()
-
+                data_res = grps.size().argmax() if len(grps) != 0 else None
             elif method == 'average':
                 # compute average of observations
                 # todo: what if mean cannot be computed, e.g. categorical columns?
