@@ -245,23 +245,26 @@ class ModelBase:
             # return header
             return _json_dumps({"name": derived_model.name, "fields": derived_model.json_fields()})
 
-        elif 'SELECT' in query:
-            base = self._extractFrom(query)
-            resultframe = base.select(
-                predict=self._extractPredict(query),
-                where=self._extractWhere(query),
-                splitby=self._extractSplitBy(query))
-            return _json_dumps({"header": resultframe.columns.tolist(),
-                                "data": resultframe.to_csv(index=False, header=False)})
+        # elif 'SELECT' in query:
+        #     base = self._extractFrom(query)
+        #     resultframe = base.select(
+        #         predict=self._extractPredict(query),
+        #         where=self._extractWhere(query),
+        #         splitby=self._extractSplitBy(query))
+        #     return _json_dumps({"header": resultframe.columns.tolist(),
+        #                         "data": resultframe.to_csv(index=False, header=False)})
 
         elif 'PREDICT' in query:
             base = self._extractFrom(query)
-            resultframe = base.predict(
+            (model_frame, data_frame) = base.predict(
                 predict=self._extractPredict(query),
                 where=self._extractWhere(query),
-                splitby=self._extractSplitBy(query))
-            return _json_dumps({"header": resultframe.columns.tolist(),
-                               "data": resultframe.to_csv(index=False, header=False)})
+                splitby=self._extractSplitBy(query),
+                mode='both'   # DEBUG/DEVELOP: hard coded for now
+            )
+            return _json_dumps({"header": model_frame.columns.tolist(),
+                                "model": model_frame.to_csv(index=False, header=False),
+                                "data": data_frame.to_csv(index=False, header=False)})
 
         elif 'DROP' in query:
             self.drop(name=query['DROP'])

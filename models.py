@@ -653,7 +653,7 @@ class Model:
             returnbasemodel).
         """
         if self._isempty():
-            return pd.DataFrame()
+            return (pd.DataFrame(),pd.DataFrame()) if mode == 'both' else pd.DataFrame()
 
         idgen = utils.linear_id_generator()
 
@@ -745,8 +745,8 @@ class Model:
             note: for density however, no conditioning on the input is required
         """
         #result_list = [input_frame]
-        model_result_list = []
-        data_result_list = []
+        model_result_list = [pd.DataFrame()]
+        data_result_list = [pd.DataFrame()]
         for idx, aggr in enumerate(aggrs):
             aggr_results = []
             aggr_model = aggr_models[idx]
@@ -812,18 +812,41 @@ class Model:
 
         # (6) collect all results into data frames
         if mode == "model" or mode == "both":
-            model_frame = pd.DataFrame() if model_result_list == [] else pd.concat(model_result_list, axis=1)
+            model_result_list.append(input_frame)
+            model_frame = pd.concat(model_result_list, axis=1)
+            # (7) get correctly ordered frame that only contain requested fields
+            model_frame = model_frame[predict_ids]  # flattens
+            # (8) rename columns to be readable (but not unique anymore)
+            model_frame.columns = predict_names
+        # same as above
         if mode == "data" or mode == "both":
-            data_frame = pd.DataFrame() if data_result_list == [] else pd.concat(data_result_list, axis=1)
+            data_result_list.append(input_frame)
+            data_frame = pd.concat(data_result_list, axis=1)
+            data_frame = data_frame[predict_ids]
+            data_frame.columns = predict_names
 
         # DEBUG / DEVELOP
-        return_frame = pd.concat([input_frame, model_frame], axis=1)
-
+        #return_frame = pd.concat([input_frame, model_frame], axis=1)
         # (7) get correctly ordered frame that only contain requested fields
-        return_frame = return_frame[predict_ids]  # flattens
-
+        #return_frame = return_frame[predict_ids]  # flattens
         # (8) rename columns to be readable (but not unique anymore)
-        return_frame.columns = predict_names
-
+        #return_frame.columns = predict_names
         # (9) return data frame or tuple including the basemodel
-        return (return_frame, basemodel) if returnbasemodel else return_frame
+        #return (return_frame, basemodel) if returnbasemodel else return_frame
+
+        # this is a little complicate, but I think necessary for a convenient interface
+        if returnbasemodel:
+            if mode == 'both':
+                return (model_frame, data_frame, basemodel)
+            elif mode == 'model':
+                return (model_frame, basemodel)
+            elif mode == 'data':
+                return (data_frame, basemodel)
+        else:
+            if mode == 'both':
+                return (model_frame, data_frame)
+            elif mode == 'model':
+                return model_frame
+            elif mode == 'data':
+                return data_frame
+        raise ValueError("invalid mode: " + str(mode))
