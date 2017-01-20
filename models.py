@@ -777,7 +777,12 @@ class Model:
                     singlemodel = aggr_model.copy().marginalize(keep=aggr.name)
                     res = singlemodel.aggregate(aggr.method, mode=mode)
                     # reduce to requested dimension
-                    res = res[singlemodel.asindex(aggr.yields)]
+                    # TODO: code duplication: we do the same in the case below...
+                    i = singlemodel.asindex(aggr.yields)
+                    if mode == "both":
+                        res = (res[0][i], res[1][i])
+                    else:  # if mode == "model" or mode == "data":
+                        res = res[i]
                     aggr_results.append(res)
                 else:
                     for _, row in input_frame.iterrows():
