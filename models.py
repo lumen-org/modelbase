@@ -744,7 +744,15 @@ class Model:
             dimensions (values) and then derive the measure models...
             note: for density however, no conditioning on the input is required
         """
-        #result_list = [input_frame]
+
+        # define suitable selector function. prevents reevaluation of: mode == "both" in the inner loops
+        if mode == "both":
+            def select_idx(result_, idx_):
+                return result_[0][idx_], result_[1][idx_]
+        else:
+            def select_idx(result_, idx_):
+                return result_[idx_]
+
         model_result_list = [pd.DataFrame()]
         data_result_list = [pd.DataFrame()]
         for idx, aggr in enumerate(aggrs):
@@ -777,13 +785,8 @@ class Model:
                     singlemodel = aggr_model.copy().marginalize(keep=aggr.name)
                     res = singlemodel.aggregate(aggr.method, mode=mode)
                     # reduce to requested dimension
-                    # TODO: code duplication: we do the same in the case below...
                     i = singlemodel.asindex(aggr.yields)
-                    if mode == "both":
-                        res = (res[0][i], res[1][i])
-                    else:  # if mode == "model" or mode == "data":
-                        res = res[i]
-                    aggr_results.append(res)
+                    aggr_results.append(select_idx(res, i))
                 else:
                     for _, row in input_frame.iterrows():
                         pairs = zip(split_names, ['=='] * len(row), row)  # TODO: reuse ['=='] * len(row) for speedup
@@ -792,11 +795,7 @@ class Model:
                         res = rowmodel.aggregate(aggr.method, mode=mode)
                         # reduce to requested dimension
                         i = rowmodel.asindex(aggr.yields)
-                        if mode == "both":
-                            res = (res[0][i], res[1][i])
-                        else:  # if mode == "model" or mode == "data":
-                            res = res[i]
-                        aggr_results.append(res)
+                        aggr_results.append(select_idx(res, i))
 
             # generate DataSeries from it
             columns = [aggr_ids[idx]]
@@ -810,7 +809,6 @@ class Model:
                     data_result_list.append(df)
                 elif mode == "model":
                     model_result_list.append(df)
-            #result_list.append(df)
 
         # (5) filter on aggregations?
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
@@ -830,26 +828,17 @@ class Model:
             data_frame = data_frame[predict_ids]
             data_frame.columns = predict_names
 
-        # DEBUG / DEVELOP
-        #return_frame = pd.concat([input_frame, model_frame], axis=1)
-        # (7) get correctly ordered frame that only contain requested fields
-        #return_frame = return_frame[predict_ids]  # flattens
-        # (8) rename columns to be readable (but not unique anymore)
-        #return_frame.columns = predict_names
-        # (9) return data frame or tuple including the basemodel
-        #return (return_frame, basemodel) if returnbasemodel else return_frame
-
         # this is a little complicate, but I think necessary for a convenient interface
         if returnbasemodel:
             if mode == 'both':
-                return (model_frame, data_frame, basemodel)
+                return model_frame, data_frame, basemodel
             elif mode == 'model':
-                return (model_frame, basemodel)
+                return model_frame, basemodel
             elif mode == 'data':
-                return (data_frame, basemodel)
+                return data_frame, basemodel
         else:
             if mode == 'both':
-                return (model_frame, data_frame)
+                return model_frame, data_frame
             elif mode == 'model':
                 return model_frame
             elif mode == 'data':
