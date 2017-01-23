@@ -434,7 +434,7 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
-    def aggregate(self, method, mode="model"):
+    def aggregate(self, method):
         """Aggregates this model using the given method and returns the
         aggregation as a list. The order of elements in the list matches the
         order of random variables in fields attribute of the model.
@@ -447,6 +447,7 @@ class Model:
 
         # the data part can be aggregated without any model specific code and merged into the model results at the end
         # see my notes for how to calculate a single aggregation
+        mode = self._mode
         if mode == "data" or mode == "both":
             if method == 'maximum':
                 # find observation with highest number of occurrences
@@ -513,7 +514,8 @@ class Model:
         else:
             raise ValueError("invalid value for mode : ", str(mode))
 
-    def density(self, names, values=None, mode="model"):
+    def density(self, names, values=None):
+    # def density(self, names, values=None, mode="model"):
         """Returns the density at given point. You may either pass both, names
         and values, or only one list with values. In the latter case values is
         assumed to be in the same order as the random variables of the model.
@@ -546,6 +548,7 @@ class Model:
                 df = df.loc[df[col_name] == value]
             return df
 
+        mode = self._mode
         if mode == "both" or mode == "data":
             cnt = len(filter(self.data, zip(self.names, values)))
             if mode == "data":
@@ -682,8 +685,8 @@ class Model:
         self.name = self.name if as_ is None else as_
         return self.condition(where).marginalize(keep=model)
 
-    #def predict(self, predict, where=[], splitby=[], returnbasemodel=False):
-    def predict(self, predict, where=[], splitby=[], returnbasemodel=False, mode="both"):
+    def predict(self, predict, where=[], splitby=[], returnbasemodel=False):
+    #def predict(self, predict, where=[], splitby=[], returnbasemodel=False, mode="both"):
         """Calculates the prediction against the model and returns its result
         by means of a data frame.
 
@@ -718,9 +721,8 @@ class Model:
 
         # (0) take care of the 'artificial field': 'model vs data'. After that section
         # possible cases:
-
         #   (b) it occurs as a filter: that sets the internal mode of the model
-        #   (a) it occurs as a split: that doesn't really need anythin atm, does it?
+        #   (a) it occurs as a split: that doesn't really need anything atm, does it?
 
         # after all: need to make sure the result frame is correct...
 
@@ -757,6 +759,9 @@ class Model:
                 basenames.add(name)
             else:
                 # t is an aggregation/density tuple
+                # TODO: test this
+                if t == 'model vs data':  # it may not be 'model vs data'
+                    raise ValueError("Aggregations or Density queries on 'model vs data'-field are not possible")
                 id_ = _tuple2str(t) + next(idgen)
                 aggrs.append(t)
                 aggr_ids.append(id_)
@@ -789,7 +794,10 @@ class Model:
             input_frame = pd.DataFrame()
         else:
             def _get_group_frame(split, column_id):
-                field = basemodel.byname(split.name)
+                # could be 'model vs data'
+                # TODO: does that really work? should I rather 'pimp' the 'byname' function? would that be consistent?
+                field = basemodel._modeldata_field if split.name == 'model vs data' else basemodel.byname(split.name)
+                # field = basemodel.byname(split.name)
                 domain = field['domain'].bounded(field['extent'])
                 try:
                     splitfct = sp.splitter[split.method.lower()]
@@ -802,6 +810,7 @@ class Model:
             def _crossjoin(df1, df2):
                 return pd.merge(df1, df2, on='__crossIdx__', copy=False)
 
+            # TODO: speedup by first grouping by 'model vs data'?
             group_frames = map(_get_group_frame, splitby, split_ids)
             input_frame = reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
 
@@ -819,17 +828,20 @@ class Model:
             dimensions (values) and then derive the measure models...
             note: for density however, no conditioning on the input is required
         """
+        #continue here: need to implement aggregations/density for both modes
+        #maybe it becomes real nice?
 
         # define suitable selector function. prevents reevaluation of: mode == "both" in the inner loops
-        if mode == "both":
-            def select_idx(result_, idx_):
-                return result_[0][idx_], result_[1][idx_]
-        else:
-            def select_idx(result_, idx_):
-                return result_[idx_]
+        #if mode == "both":
+        def select_idx(result_, idx_):
+            return result_[0][idx_], result_[1][idx_]
+        # else:
+        #     def select_idx(result_, idx_):
+        #         return result_[idx_]
 
-        model_result_list = [pd.DataFrame()]
-        data_result_list = [pd.DataFrame()]
+        #model_result_list = [pd.DataFrame()]
+        #data_result_list = [pd.DataFrame()]
+        result_list = [pd.DataFrame()]
         for idx, aggr in enumerate(aggrs):
             aggr_results = []
             aggr_model = aggr_models[idx]
@@ -848,7 +860,8 @@ class Model:
                     raise ValueError("missing split-clause for field '" + str(err) + "'.")
                 subframe = input_frame[ids]
                 for _, row in subframe.iterrows():
-                    res = aggr_model.density(aggr.name, row, mode=mode)
+                    #res = aggr_model.density(aggr.name, row, mode=mode)
+                    res = aggr_model.density(aggr.name, row)
                     aggr_results.append(res)
             else:
                 if len(splitby) == 0:
@@ -858,7 +871,8 @@ class Model:
                     if len(aggr.name) != aggr_model._n:  # debugging
                         raise ValueError("uh, interesting - check this out, and read the todo above this code line")
                     singlemodel = aggr_model.copy().marginalize(keep=aggr.name)
-                    res = singlemodel.aggregate(aggr.method, mode=mode)
+                    # res = singlemodel.aggregate(aggr.method, mode=mode)
+                    res = singlemodel.aggregate(aggr.method)
                     # reduce to requested dimension
                     i = singlemodel.asindex(aggr.yields)
                     aggr_results.append(select_idx(res, i))
@@ -867,55 +881,66 @@ class Model:
                         pairs = zip(split_names, ['=='] * len(row), row)  # TODO: reuse ['=='] * len(row) for speedup
                         # derive model for these specific conditions
                         rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr.name)
-                        res = rowmodel.aggregate(aggr.method, mode=mode)
+                        res = rowmodel.aggregate(aggr.method)
+                        # res = rowmodel.aggregate(aggr.method, mode=mode)
                         # reduce to requested dimension
                         i = rowmodel.asindex(aggr.yields)
                         aggr_results.append(select_idx(res, i))
 
             # generate DataSeries from it
             columns = [aggr_ids[idx]]
-            if mode == "both":
-                df = pd.DataFrame.from_records(aggr_results, columns=columns*2)
-                model_result_list.append(df.iloc[:, 0])
-                data_result_list.append(df.iloc[:, 1])
-            else:
-                df = pd.DataFrame(aggr_results, columns=columns)
-                if mode == "data":
-                    data_result_list.append(df)
-                elif mode == "model":
-                    model_result_list.append(df)
+            df = pd.DataFrame(aggr_results, columns=columns)
+            result_list.append(df)
+            # if mode == "both":
+            #     df = pd.DataFrame.from_records(aggr_results, columns=columns*2)
+            #     model_result_list.append(df.iloc[:, 0])
+            #     data_result_list.append(df.iloc[:, 1])
+            # else:
+            #     df = pd.DataFrame(aggr_results, columns=columns)
+            #     if mode == "data":
+            #         data_result_list.append(df)
+            #     elif mode == "model":
+            #         model_result_list.append(df)
 
         # (5) filter on aggregations?
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
 
         # (6) collect all results into data frames
-        if mode == "model" or mode == "both":
-            model_result_list.append(input_frame)
-            model_frame = pd.concat(model_result_list, axis=1)
-            # (7) get correctly ordered frame that only contain requested fields
-            model_frame = model_frame[predict_ids]  # flattens
-            # (8) rename columns to be readable (but not unique anymore)
-            model_frame.columns = predict_names
-        # same as above
-        if mode == "data" or mode == "both":
-            data_result_list.append(input_frame)
-            data_frame = pd.concat(data_result_list, axis=1)
-            data_frame = data_frame[predict_ids]
-            data_frame.columns = predict_names
+        result_list.append(input_frame)
+        data_frame = pd.concat(result_list, axis=1)
+        # (7) get correctly ordered frame that only contain requested fields
+        data_frame = data_frame[predict_ids]  # flattens
+        # (8) rename columns to be readable (but not unique anymore)
+        data_frame.columns = predict_names
+
+        # if mode == "model" or mode == "both":
+        #     model_result_list.append(input_frame)
+        #     model_frame = pd.concat(model_result_list, axis=1)
+        #     # (7) get correctly ordered frame that only contain requested fields
+        #     model_frame = model_frame[predict_ids]  # flattens
+        #     # (8) rename columns to be readable (but not unique anymore)
+        #     model_frame.columns = predict_names
+        # # same as above
+        # if mode == "data" or mode == "both":
+        #     data_result_list.append(input_frame)
+        #     data_frame = pd.concat(data_result_list, axis=1)
+        #     data_frame = data_frame[predict_ids]
+        #     data_frame.columns = predict_names
 
         # this is a little complicate, but I think necessary for a convenient interface
-        if returnbasemodel:
-            if mode == 'both':
-                return model_frame, data_frame, basemodel
-            elif mode == 'model':
-                return model_frame, basemodel
-            elif mode == 'data':
-                return data_frame, basemodel
-        else:
-            if mode == 'both':
-                return model_frame, data_frame
-            elif mode == 'model':
-                return model_frame
-            elif mode == 'data':
-                return data_frame
-        raise ValueError("invalid mode: " + str(mode))
+        return data_frame, basemodel if returnbasemodel else data_frame
+        # if returnbasemodel:
+        #     if mode == 'both':
+        #         return model_frame, data_frame, basemodel
+        #     elif mode == 'model':
+        #         return model_frame, basemodel
+        #     elif mode == 'data':
+        #         return data_frame, basemodel
+        # else:
+        #     if mode == 'both':
+        #         return model_frame, data_frame
+        #     elif mode == 'model':
+        #         return model_frame
+        #     elif mode == 'data':
+        #         return data_frame
+        # raise ValueError("invalid mode: " + str(mode))
