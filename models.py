@@ -7,6 +7,8 @@ This module defines:
    * Model: an abstract base class for models.
    * Field: a class that represent random variables in a model.
 
+
+
 """
 import pandas as pd
 import copy as cp
@@ -14,6 +16,7 @@ from collections import namedtuple
 from functools import reduce
 import pickle as pickle
 import logging
+import domains as dm
 import splitter as sp
 import utils as utils
 
@@ -64,6 +67,9 @@ def Field(name, domain, extent, dtype='numerical'):
         'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
 """
 
+def _Modeldata_field():
+    """Returns a new field that represents the imaginary dimension of 'model vs data'."""
+    return Field('model vs data', dm.DiscreteDomain(), dm.DiscreteDomain('model', 'data'), dtype='string')
 
 def field_tojson(field):
     """Returns an adapted version of a field that in any case is JSON serializable. A fields domain may contain the
@@ -137,7 +143,22 @@ class Model:
     """An abstract base model that provides an interface to derive submodels
     from it or query density and other aggregations of it. It also defines stubs for those methods that actual models
     are required to implement.
+
+    A model has a number of fields (aka dimensions). The model models a probability density function on these fields
+    and allows various queries again this density. The model is based on data (aka evidence), and the data can be
+    queried the same way like the model.
+
+    In fact unified queries are possible, by means of an additional 'artificial' field 'model vs data'. That is an
+    ordinal field with the two values "model" and "data". It can only be filtered or split by this field, and the
+    results are accordingly for the results from the data or the model, respectively.
+
+    Internal:
+        Internally queries against the model and its data are answered differently. Also that field does not actually
+        exists in the model. Queries may contain it, however they are translated onto the 'internal' interface in the
+        .marginalize, .condition, .predict-methods.
     """
+
+    #_defaultMode = "both"
 
     # TODO: useful helper functions for dealing with fields and indexes:
 
@@ -217,6 +238,8 @@ class Model:
         self._aggrMethods = None
         self._n = 0
         self._name2idx = {}
+        #self.mode = Model._defaultMode
+        self._modeldata_field = _Modeldata_field()
 
     def _setempty(self):
         self.fields = []
@@ -226,8 +249,11 @@ class Model:
     def _isempty(self):
         return self._n == 0
 
-    def json_fields(self):
-        return list(map(field_tojson, self.fields))
+    def json_fields(self, include_modeldata_field=False):
+        json_ = list(map(field_tojson, self.fields))
+        if include_modeldata_field:
+            json_.append(field_tojson(self._modeldata_field))
+        return json_
 
     def fit(self, df):
         """Fits the model to passed DataFrame
@@ -245,7 +271,7 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
-    def marginalize(self, keep=None, remove=None):
+    def marginalize(self, keep=None, remove=None, is_pure=False):
         """Marginalizes random variables out of the model. Either specify which
         random variables to keep or specify which to remove.
 
@@ -268,9 +294,13 @@ class Model:
         if keep is not None:
             if keep == '*':
                 keep = self.names
+            elif not is_pure:
+                keep = [name for name in keep if name != 'model vs data']
             if not self.isfieldname(keep):
                 raise ValueError("invalid random variables names in argument 'keep': " + str(keep))
         elif remove is not None:
+            if not is_pure:
+                remove = [name for name in remove if name != 'model vs data']
             if not self.isfieldname(remove):
                 raise ValueError("invalid random variable names in argument 'remove': " + str(remove))
             keep = set(self.names) - set(remove)
@@ -316,7 +346,7 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
-    def condition(self, conditions):
+    def condition(self, conditions, is_pure=False):
         """Conditions this model according to the list of three-tuples
         (<name-of-random-variable>, <operator>, <value(s)>). In particular
         objects of type ConditionTuples are accepted and see there for allowed values.
@@ -328,17 +358,41 @@ class Model:
         Returns:
             The modified model.
         """
+
+        if is_pure:
+            pure_conditions = conditions
+        else:
+            # allow conditioning on modeldata_field
+            # find 'model vs data' field and apply conditions
+            pure_conditions = []
+            for condition in conditions:
+                (name, operator, values) = condition
+                if name == 'model vs data':
+                    field = self._modeldata_field
+                    domain = field['domain']
+                    if operator == 'in' or operator == 'equals' or operator == '==':
+                        domain.intersect(values)
+                    else:
+                        raise ValueError('invalid operator for condition: ' + str(operator))
+                    # set internal mode accordingly to both, data or model
+                    value = domain.value()
+                    self._mode = value if value == 'model' or value == 'data' else 'both'
+                else:
+                    pure_conditions.append(condition)
+
+        # continue with rest according to mode
+        # TODO: just do both for now. but later the _mode flag should have an effect
         df = self.data
-        for (name, operator, values) in conditions:
+        for (name, operator, values) in pure_conditions:
             operator = operator.lower()
-            domain = self.byname(name)['domain']
-            column = df[name]
             field = self.byname(name)
+            domain = field['domain']
+            column = df[name]
 
             if operator == 'in':
                 domain.intersect(values)
                 if field['dtype'] == 'numerical':
-                     df = df.loc[column.between(*values, inclusive=True)]
+                    df = df.loc[column.between(*values, inclusive=True)]
                 elif field['dtype'] == 'string':
                     df = df.loc[column.isin(values)]
                 else:
@@ -607,7 +661,7 @@ class Model:
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(self._n)))
         self.names = [f['name'] for f in self.fields]
 
-    def model(self, model, where=[], as_=None):
+    def model(self, model, where=[], as_=None, mode="both"):
         """Returns a model with name 'as_' that models the random variables in 'model'
         respecting conditions in 'where'.
 
@@ -628,6 +682,7 @@ class Model:
         self.name = self.name if as_ is None else as_
         return self.condition(where).marginalize(keep=model)
 
+    #def predict(self, predict, where=[], splitby=[], returnbasemodel=False):
     def predict(self, predict, where=[], splitby=[], returnbasemodel=False, mode="both"):
         """Calculates the prediction against the model and returns its result
         by means of a data frame.
@@ -650,11 +705,32 @@ class Model:
         Returns:
             A dataframe with the fields as given in 'predict', or a tuple (see
             returnbasemodel).
+
+        Internal:
+            .predict accepts the 'artificial field' 'model vs data' (mvd for short in the following)
+            in order to unify queries again model and data. It also translates it into to internal interfaces
+            for model queries and data queries.
         """
         if self._isempty():
-            return (pd.DataFrame(),pd.DataFrame()) if mode == 'both' else pd.DataFrame()
-
+            return pd.DataFrame()
+        #    return (pd.DataFrame(), pd.DataFrame()) if mode == 'both' else pd.DataFrame()
         idgen = utils.linear_id_generator()
+
+        # (0) take care of the 'artificial field': 'model vs data'. After that section
+        # possible cases:
+
+        #   (b) it occurs as a filter: that sets the internal mode of the model
+        #   (a) it occurs as a split: that doesn't really need anythin atm, does it?
+
+        # after all: need to make sure the result frame is correct...
+
+        # independently: may occur in predict-clause or not -> need to assemble result frame correctly
+        # independently: occurs in aggregation: raise error
+
+        #   (a) it occurs not at all and hence defaults to a filter to equal 'model'
+        #if mvg not in split_names and mvg not in filter_names:
+        #    filter.add(Filter('mvg','equals','model'))
+        #elif mvg in split_names
 
         # (1) derive base model, i.e. a model on all requested dimensions and measures, respecting filters
         predict_ids = []  # unique ids of columns in data frame. In correct order. For reordering of columns.
