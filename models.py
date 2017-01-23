@@ -664,7 +664,8 @@ class Model:
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(self._n)))
         self.names = [f['name'] for f in self.fields]
 
-    def model(self, model, where=[], as_=None, mode="both"):
+    # def model(self, model, where=[], as_=None, mode="both"):
+    def model(self, model, where=[], as_=None):
         """Returns a model with name 'as_' that models the random variables in 'model'
         respecting conditions in 'where'.
 
@@ -685,8 +686,8 @@ class Model:
         self.name = self.name if as_ is None else as_
         return self.condition(where).marginalize(keep=model)
 
+    # def predict(self, predict, where=[], splitby=[], returnbasemodel=False, mode="both"):
     def predict(self, predict, where=[], splitby=[], returnbasemodel=False):
-    #def predict(self, predict, where=[], splitby=[], returnbasemodel=False, mode="both"):
         """Calculates the prediction against the model and returns its result
         by means of a data frame.
 
