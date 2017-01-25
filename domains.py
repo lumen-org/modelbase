@@ -171,7 +171,7 @@ class DiscreteDomain:
         try:
             dvalue = domain._value
         except AttributeError:
-            dvalue = DiscreteDomain(domain)._values
+            dvalue = DiscreteDomain(domain)._value
 
         if not self.isbounded():
             self._value = dvalue

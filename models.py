@@ -69,7 +69,7 @@ def Field(name, domain, extent, dtype='numerical'):
 
 def _Modeldata_field():
     """Returns a new field that represents the imaginary dimension of 'model vs data'."""
-    return Field('model vs data', dm.DiscreteDomain(), dm.DiscreteDomain('model', 'data'), dtype='string')
+    return Field('model vs data', dm.DiscreteDomain(), dm.DiscreteDomain(['model', 'data']), dtype='string')
 
 def field_tojson(field):
     """Returns an adapted version of a field that in any case is JSON serializable. A fields domain may contain the
@@ -238,7 +238,7 @@ class Model:
         self._aggrMethods = None
         self._n = 0
         self._name2idx = {}
-        #self.mode = Model._defaultMode
+        self._mode = "both"
         self._modeldata_field = _Modeldata_field()
 
     def _setempty(self):
@@ -665,7 +665,7 @@ class Model:
         self.names = [f['name'] for f in self.fields]
 
     # def model(self, model, where=[], as_=None, mode="both"):
-    def model(self, model, where=[], as_=None):
+    def model(self, model='*', where=[], as_=None):
         """Returns a model with name 'as_' that models the random variables in 'model'
         respecting conditions in 'where'.
 

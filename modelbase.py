@@ -377,7 +377,20 @@ class ModelBase:
 
 
 if __name__ == '__main__':
+    import models as md
     mb = ModelBase("mymb")
-    cc = mb.models['car_crashes']
-    foo = cc.copy().model(["total", "alcohol"], [gm.ConditionTuple("alcohol", "equals", 10)])
-    print(str(foo))
+    iris = mb.models['iris']
+    i2 = iris.copy()
+    i2.marginalize(remove=["sepal_length"])
+    print(i2.aggregate(method='maximum'))
+    print(i2.aggregate(method='average'))
+    i3 = i2.copy()
+    i3.model(model='*', where=[md.ConditionTuple('model vs data', '==', 'model')])
+    print(i3.aggregate(method='average'))
+    i4 = i2.copy()
+    i4.model(model='*', where=[md.ConditionTuple('model vs data', '==', 'data')])
+    print(i4.aggregate(method='average'))
+
+
+    #foo = cc.copy().model(["total", "alcohol"], [gm.ConditionTuple("alcohol", "equals", 10)])
+    print(str(iris))
