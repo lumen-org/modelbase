@@ -38,6 +38,10 @@ https://github.com/rasbt/pattern_classification/blob/master/resources/python_dat
 AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'yields', 'args'])
 SplitTuple = namedtuple('SplitTuple', ['name', 'method', 'args'])
 ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
+NAME_IDX = 0
+METHOD_IDX = 1
+ARGS_IDX = 2
+
 """ A condition tuple describes the details of how a field of model is
     conditioned.
 
@@ -358,6 +362,8 @@ class Model:
         Returns:
             The modified model.
         """
+
+        # TODO: simplify the interface?
 
         if is_pure:
             pure_conditions = conditions
@@ -715,6 +721,10 @@ class Model:
             in order to unify queries again model and data. It also translates it into to internal interfaces
             for model queries and data queries.
         """
+
+        # TODO: add default splits for each data type?
+        # TODO: improve interface: allow scalar arguments instead of lists too
+
         if self._isempty():
             return pd.DataFrame()
         #    return (pd.DataFrame(), pd.DataFrame()) if mode == 'both' else pd.DataFrame()
@@ -739,8 +749,8 @@ class Model:
         predict_ids = []  # unique ids of columns in data frame. In correct order. For reordering of columns.
         predict_names = []  # names of columns as to be returned. In correct order. For renaming of columns.
 
-        split_names = [f.name for f in splitby]  # name of fields to split by. Same order as in split-by clause.
-        split_ids = [f.name + next(idgen) for f in
+        split_names = [f[NAME_IDX] for f in splitby]  # name of fields to split by. Same order as in split-by clause.
+        split_ids = [f[NAME_IDX] + next(idgen) for f in
                      splitby]  # ids for columns for fields to split by. Same order as in splitby-clause.
         split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids (for columns in data frames)
 
@@ -768,7 +778,7 @@ class Model:
                 aggr_ids.append(id_)
                 predict_names.append(_tuple2str(t))  # generate column name to return
                 predict_ids.append(id_)
-                basenames.update(t.name)
+                basenames.update(t[NAME_IDX])
 
         basemodel = self.copy().model(basenames, where, '__' + self.name + '_base')
 
@@ -797,14 +807,14 @@ class Model:
             def _get_group_frame(split, column_id):
                 # could be 'model vs data'
                 # TODO: does that really work? should I rather 'pimp' the 'byname' function? would that be consistent?
-                field = basemodel._modeldata_field if split.name == 'model vs data' else basemodel.byname(split.name)
-                # field = basemodel.byname(split.name)
+                field = basemodel._modeldata_field if split[NAME_IDX] == 'model vs data' \
+                    else basemodel.byname(split[NAME_IDX])
                 domain = field['domain'].bounded(field['extent'])
                 try:
-                    splitfct = sp.splitter[split.method.lower()]
+                    splitfct = sp.splitter[split[METHOD_IDX].lower()]
                 except KeyError:
-                    raise ValueError("split method '" + split.method + "' is not supported")
-                frame = pd.DataFrame({column_id: splitfct(domain.value(), split.args)})
+                    raise ValueError("split method '" + split[METHOD_IDX] + "' is not supported")
+                frame = pd.DataFrame({column_id: splitfct(domain.value(), split[ARGS_IDX])})
                 frame['__crossIdx__'] = 0  # need that index to cross join later
                 return frame
 
@@ -833,6 +843,7 @@ class Model:
         #maybe it becomes real nice?
 
         # define suitable selector function. prevents reevaluation of: mode == "both" in the inner loops
+        continue_here
         #if mode == "both":
         def select_idx(result_, idx_):
             return result_[0][idx_], result_[1][idx_]
@@ -929,7 +940,7 @@ class Model:
         #     data_frame.columns = predict_names
 
         # this is a little complicate, but I think necessary for a convenient interface
-        return data_frame, basemodel if returnbasemodel else data_frame
+        return (data_frame, basemodel) if returnbasemodel else data_frame
         # if returnbasemodel:
         #     if mode == 'both':
         #         return model_frame, data_frame, basemodel
