@@ -527,6 +527,15 @@ class Model:
         and values, or only one list with values. In the latter case values is
         assumed to be in the same order as the random variables of the model.
 
+        Also note that you may pass the special field with name 'model vs data'.
+        If the value is 'data' then it is interpreted as a density query against
+        the data, i.e. frequency of items is returned. If the value is 'model'
+        it is interpreted as a query against the model, i.e. density of input
+        is returned. If value is 'both' a 2-tuple of both is returned.
+
+        If you pass the 'model vs data' field, you must either also specify its name
+        or you must specify it as the last value.
+
         Args:
             values: may be anything that numpy.array accepts to construct from.
         """
@@ -536,9 +545,25 @@ class Model:
         if values is not None and len(names) != len(values):
             raise ValueError('Length of names and values does not match.')
 
+        mode = self._mode
         if len(names) != self._n:
-            raise ValueError('Not enough names/values provided. Require ' + str(self._n) +
-                             ' but got only ' + str(len(names)) + '.')
+            # it may be that the 'model cs data' field was passed in
+            if len(names) == self._n+1:
+                if values is None:
+                    mode = names.pop()
+                else:
+                    names_ = []
+                    values_ = []
+                    # find 'model vs data' and rebuild accordingly shortened arguments
+                    for (name, value) in zip(names, values):
+                        if name == 'model vs data':
+                            mode = value
+                        else:
+                            names_.append(name)
+                            values_.append(value)
+            if len(names) > self._n:
+                raise ValueError('Incorrect number names/values provided. Require ' + str(self._n) +
+                                 ' but got ' + len(names) + '.')
 
         if values is None:
             # in that case the only argument holds the (correctly sorted) values
@@ -555,7 +580,6 @@ class Model:
                 df = df.loc[df[col_name] == value]
             return df
 
-        mode = self._mode
         if mode == "both" or mode == "data":
             cnt = len(filter(self.data, zip(self.names, values)))
             if mode == "data":
@@ -623,6 +647,8 @@ class Model:
         mycopy = self.__class__(name)
         mycopy.data = self.data
         mycopy.fields = cp.deepcopy(self.fields)
+        mycopy._mode = self._mode;
+        mycopy._modeldata_field = cp.deepcopy(self._modeldata_field)
         mycopy._update()
         return mycopy
 
@@ -854,6 +880,8 @@ class Model:
                 #  is also super inefficient, since we really just need to group by all of the split-field and count
                 #  occurrences - instead of iteratively counting occurrences, which involves a linear scan on the data
                 #  frame for each call to density
+                # TODO (3) we even need special handling for the model/data field. See the density method.
+                # this is much too complicated. Somehow there must be an easier way to do all of this...
                 try:
                     # select relevant columns and iterate over it
                     ids = [split_name2id[name] for name in aggr.name]
