@@ -458,7 +458,12 @@ class Model:
                 grps = self.data.groupby(allcols)
                 # TODO: allow Nans in the result! it fails on the client when decoding the JSON at the moment
                 # data_res = grps.size().argmax() if len(grps) != 0 else [None]*len(allcols)
-                data_res = grps.size().argmax() if len(grps) != 0 else [0] * len(allcols)
+                # data_res = grps.size().argmax() if len(grps) != 0 else [0] * len(allcols)
+                if len(grps) == 0:
+                    data_res = 0 if self._n == 1 else [0] * self._n
+                else:
+                    data_res = grps.size().argmax()
+
             elif method == 'average':
                 # compute average of observations
                 # todo: what if mean cannot be computed, e.g. categorical columns?
@@ -865,6 +870,17 @@ class Model:
             dimensions (values) and then derive the measure models...
             note: for density however, no conditioning on the input is required
         """
+
+        # build list of comparison operators, depending on split types. Needed to condition on each tuple of the input
+        #  frame when aggregating
+        method2operator = {
+            "equidist": "==",
+            "equiinterval": "in",
+            "identity": "==",
+            "elements": "=="
+        }
+        operator_list = [method2operator[method] for (_, method, __) in splitby]
+
         result_list = [pd.DataFrame()]
         for idx, aggr in enumerate(aggrs):
             aggr_results = []
@@ -888,7 +904,7 @@ class Model:
                 for _, row in subframe.iterrows():
                     res = aggr_model.density(aggr.name, row)
                     aggr_results.append(res)
-            else:
+            else:  # it is some aggregation
                 if len(splitby) == 0:
                     # there is no fields to split by, hence only a single value will be aggregated
                     # i.e. marginalize all other fields out
@@ -902,7 +918,8 @@ class Model:
                     aggr_results.append(res[i])
                 else:
                     for _, row in input_frame.iterrows():
-                        pairs = zip(split_names, ['=='] * len(row), row)  # TODO: reuse ['=='] * len(row) for speedup
+                        pairs = zip(split_names, operator_list, row)
+                        #pairs = zip(split_names, ['=='] * len(row), row)  # TODO: reuse ['=='] * len(row) for speedup
                         # derive model for these specific conditions
                         rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr.name)
                         res = rowmodel.aggregate(aggr.method)
@@ -914,6 +931,15 @@ class Model:
             columns = [aggr_ids[idx]]
             df = pd.DataFrame(aggr_results, columns=columns)
             result_list.append(df)
+
+        # QUICK FIX: when splitting by 'equiinterval' we get intervals instead of scalars as entries
+        # however, I cannot currently handle intervals on the client side easily
+        # so we just turn it back into scalars
+        def mean(entry):
+            return (entry[0]+entry[1])/2
+        column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'equiinterval']
+        for column in column_interval_list:
+            input_frame[column] = input_frame[column].apply(mean)
 
         # (5) filter on aggregations?
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering

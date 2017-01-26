@@ -186,42 +186,42 @@ if __name__ == '__main__':
     foocp2 = foocp.model(['dim1', 'dim0'], as_="foocp2")
     print("\n\nmodel 2\n" + str(foocp2))
 
-    res = foo.predict(predict=['dim0'], splitby=[SplitTuple('dim0', 'equiDist', [5])])
+    res = foo.predict(predict=['dim0'], splitby=[SplitTuple('dim0', 'equidist', [5])])
     print("\n\npredict 1\n" + str(res))
 
     res = foo.predict(predict=[AggregationTuple(['dim1'], 'maximum', 'dim1', []), 'dim0'],
-                      splitby=[SplitTuple('dim0', 'equiDist', [10])])
+                      splitby=[SplitTuple('dim0', 'equidist', [10])])
     print("\n\npredict 2\n" + str(res))
 
     res = foo.predict(predict=[AggregationTuple(['dim0'], 'maximum', 'dim0', []), 'dim0'],
-                      where=[ConditionTuple('dim0', 'equals', 1)], splitby=[SplitTuple('dim0', 'equiDist', [10])])
+                      where=[ConditionTuple('dim0', 'equals', 1)], splitby=[SplitTuple('dim0', 'equidist', [10])])
     print("\n\npredict 3\n" + str(res))
 
     res = foo.predict(predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
-                      splitby=[SplitTuple('dim0', 'equiDist', [10])])
+                      splitby=[SplitTuple('dim0', 'equidist', [10])])
     print("\n\npredict 4\n" + str(res))
 
     res = foo.predict(
         predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
-        splitby=[SplitTuple('dim0', 'equiDist', [10])],
+        splitby=[SplitTuple('dim0', 'equidist', [10])],
         where=[ConditionTuple('dim0', 'greater', -1)])
     print("\n\npredict 5\n" + str(res))
 
     res = foo.predict(
         predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
-        splitby=[SplitTuple('dim0', 'equiDist', [10])],
+        splitby=[SplitTuple('dim0', 'equidist', [10])],
         where=[ConditionTuple('dim0', 'less', -1)])
     print("\n\npredict 6\n" + str(res))
 
     res = foo.predict(
         predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
-        splitby=[SplitTuple('dim0', 'equiDist', [10])],
+        splitby=[SplitTuple('dim0', 'equidist', [10])],
         where=[ConditionTuple('dim0', 'less', 0), ConditionTuple('dim2', 'equals', -5.0)])
     print("\n\npredict 7\n" + str(res))
 
     res, base = foo.predict(
         predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
-        splitby=[SplitTuple('dim0', 'equiDist', [10]), SplitTuple('dim1', 'equiDist', [7])],
+        splitby=[SplitTuple('dim0', 'equidist', [10]), SplitTuple('dim1', 'equidist', [7])],
         where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)],
         returnbasemodel=True)
     print("\n\npredict 8\n" + str(res))
@@ -229,7 +229,7 @@ if __name__ == '__main__':
     res, base = foo.predict(
         predict=[AggregationTuple(['dim0'], 'average', 'dim0', []), AggregationTuple(['dim0'], 'density', 'dim0', []),
                  'dim0'],
-        splitby=[SplitTuple('dim0', 'equiDist', [10])],
+        splitby=[SplitTuple('dim0', 'equidist', [10])],
         # where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)],
         returnbasemodel=True)
     print("\n\npredict 9\n" + str(res))
@@ -237,7 +237,7 @@ if __name__ == '__main__':
     res, base = foo.predict(
         predict=['dim0', 'dim1', AggregationTuple(['dim0', 'dim1'], 'average', 'dim0', []),
                  AggregationTuple(['dim0', 'dim1'], 'average', 'dim1', [])],
-        splitby=[SplitTuple('dim0', 'identity', []), SplitTuple('dim1', 'equiDist', [4])],
+        splitby=[SplitTuple('dim0', 'identity', []), SplitTuple('dim1', 'equidist', [4])],
         where=[ConditionTuple('dim0', '<', 2), ConditionTuple('dim0', '>', 1)],
         returnbasemodel=True)
     print("\n\npredict 10\n" + str(res))
