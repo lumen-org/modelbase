@@ -1,4 +1,4 @@
-# Copyright (c) 2016 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 Various utility functions
 

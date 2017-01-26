@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2016 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 @author: Philipp Lucas
 
@@ -39,7 +39,8 @@ known_models = {
     'cg_crabs': lambda: (ConditionallyGaussianModel('cg_crabs'), crabs.mixed()),
     'cg_olive_oils': lambda: (ConditionallyGaussianModel('cg_olive_oils'),
                               olive_oils.mixed('data/olive_oils/olive.csv')),
-    'cg_yeast': lambda: (ConditionallyGaussianModel('cg_yeast'), yeast.mixed('data/yeast/yeast.csv'))
+    'cg_yeast': lambda: (ConditionallyGaussianModel('cg_yeast'), yeast.mixed('data/yeast/yeast.csv')),
+    'cg_iris': lambda: (ConditionallyGaussianModel('cg_iris'), sns.load_dataset('iris'))
 }
 
 

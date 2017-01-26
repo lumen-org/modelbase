@@ -1,4 +1,4 @@
-# Copyright (c) 2016 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 import logging
 import numpy as np
 from numpy import pi, exp, matrix, ix_, nan

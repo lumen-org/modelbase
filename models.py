@@ -1,4 +1,4 @@
-# Copyright (c) 2016 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 @author: Philipp Lucas
 
@@ -6,9 +6,7 @@ This module defines:
 
    * Model: an abstract base class for models.
    * Field: a class that represent random variables in a model.
-
-
-
+   * ConditionTuple, SplitTuple, AggregationTuple: convenience tuples for handling such clauses in PQL queries
 """
 import pandas as pd
 import copy as cp
@@ -34,7 +32,7 @@ https://github.com/rasbt/pattern_classification/blob/master/resources/python_dat
     model.
 """
 
-### GENERIC / ABSTRACT MODELS and other base classes
+# GENERIC / ABSTRACT MODELS and other base classes
 AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'yields', 'args'])
 SplitTuple = namedtuple('SplitTuple', ['name', 'method', 'args'])
 ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
@@ -71,9 +69,11 @@ def Field(name, domain, extent, dtype='numerical'):
         'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
 """
 
+
 def _Modeldata_field():
     """Returns a new field that represents the imaginary dimension of 'model vs data'."""
     return Field('model vs data', dm.DiscreteDomain(), dm.DiscreteDomain(['model', 'data']), dtype='string')
+
 
 def field_tojson(field):
     """Returns an adapted version of a field that in any case is JSON serializable. A fields domain may contain the
@@ -161,11 +161,7 @@ class Model:
         exists in the model. Queries may contain it, however they are translated onto the 'internal' interface in the
         .marginalize, .condition, .predict-methods.
     """
-
-    #_defaultMode = "both"
-
     # TODO: useful helper functions for dealing with fields and indexes:
-
     # todo: put it in models.py for reuse in all models?
     # precondition: it works for all data types...
     # @staticmethod
@@ -187,6 +183,7 @@ class Model:
     #     return fields
 
     def __str__(self):
+        # TODO: add some more useful print out functions / info to that function
         return (self.__class__.__name__ + " " + self.name + "':\n" +
                 "dimension: " + str(self._n) + "\n" +
                 "names: " + str([self.names]) + "\n")
@@ -459,8 +456,8 @@ class Model:
                 # find observation with highest number of occurrences
                 allcols = list(self.data.columns)
                 grps = self.data.groupby(allcols)
-                #data_res = grps.size().argmax() if len(grps) != 0 else [None]*len(allcols)
                 # TODO: allow Nans in the result! it fails on the client when decoding the JSON at the moment
+                # data_res = grps.size().argmax() if len(grps) != 0 else [None]*len(allcols)
                 data_res = grps.size().argmax() if len(grps) != 0 else [0] * len(allcols)
             elif method == 'average':
                 # compute average of observations
@@ -561,9 +558,11 @@ class Model:
                         else:
                             names_.append(name)
                             values_.append(value)
+                    names = names_
+                    values = values_
             if len(names) > self._n:
                 raise ValueError('Incorrect number names/values provided. Require ' + str(self._n) +
-                                 ' but got ' + len(names) + '.')
+                                 ' but got ' + str(len(names)) + '.')
 
         if values is None:
             # in that case the only argument holds the (correctly sorted) values
@@ -748,7 +747,6 @@ class Model:
             in order to unify queries again model and data. It also translates it into to internal interfaces
             for model queries and data queries.
         """
-
         # TODO: add default splits for each data type?
         # TODO: improve interface: allow scalar arguments instead of lists too
 
@@ -757,8 +755,7 @@ class Model:
         #    return (pd.DataFrame(), pd.DataFrame()) if mode == 'both' else pd.DataFrame()
         idgen = utils.linear_id_generator()
 
-        # How to handle the 'artificial field' 'model vs data'.
-        # possible cases: 'model vs data' occurs ...
+        # How to handle the 'artificial field' 'model vs data': possible cases: 'model vs data' occurs ...
         #   * as a filter: that sets the internal mode of the model. Is handled in '.condition'
         #   * as a split: splits by the values of that field. Is handled where we handle splits.
         #   * not at all: defaults to a filter to equal 'model' and a default identity filter on it
@@ -889,7 +886,6 @@ class Model:
                     raise ValueError("missing split-clause for field '" + str(err) + "'.")
                 subframe = input_frame[ids]
                 for _, row in subframe.iterrows():
-                    #res = aggr_model.density(aggr.name, row, mode=mode)
                     res = aggr_model.density(aggr.name, row)
                     aggr_results.append(res)
             else:
@@ -900,7 +896,6 @@ class Model:
                     if len(aggr.name) != aggr_model._n:  # debugging
                         raise ValueError("uh, interesting - check this out, and read the todo above this code line")
                     singlemodel = aggr_model.copy().marginalize(keep=aggr.name)
-                    # res = singlemodel.aggregate(aggr.method, mode=mode)
                     res = singlemodel.aggregate(aggr.method)
                     # reduce to requested dimension
                     i = singlemodel.asindex(aggr.yields)
@@ -911,7 +906,6 @@ class Model:
                         # derive model for these specific conditions
                         rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr.name)
                         res = rowmodel.aggregate(aggr.method)
-                        # res = rowmodel.aggregate(aggr.method, mode=mode)
                         # reduce to requested dimension
                         i = rowmodel.asindex(aggr.yields)
                         aggr_results.append(res[i])
@@ -920,16 +914,6 @@ class Model:
             columns = [aggr_ids[idx]]
             df = pd.DataFrame(aggr_results, columns=columns)
             result_list.append(df)
-            # if mode == "both":
-            #     df = pd.DataFrame.from_records(aggr_results, columns=columns*2)
-            #     model_result_list.append(df.iloc[:, 0])
-            #     data_result_list.append(df.iloc[:, 1])
-            # else:
-            #     df = pd.DataFrame(aggr_results, columns=columns)
-            #     if mode == "data":
-            #         data_result_list.append(df)
-            #     elif mode == "model":
-            #         model_result_list.append(df)
 
         # (5) filter on aggregations?
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
@@ -942,34 +926,5 @@ class Model:
         # (8) rename columns to be readable (but not unique anymore)
         data_frame.columns = predict_names
 
-        # if mode == "model" or mode == "both":
-        #     model_result_list.append(input_frame)
-        #     model_frame = pd.concat(model_result_list, axis=1)
-        #     # (7) get correctly ordered frame that only contain requested fields
-        #     model_frame = model_frame[predict_ids]  # flattens
-        #     # (8) rename columns to be readable (but not unique anymore)
-        #     model_frame.columns = predict_names
-        # # same as above
-        # if mode == "data" or mode == "both":
-        #     data_result_list.append(input_frame)
-        #     data_frame = pd.concat(data_result_list, axis=1)
-        #     data_frame = data_frame[predict_ids]
-        #     data_frame.columns = predict_names
-
-        # this is a little complicate, but I think necessary for a convenient interface
         return (data_frame, basemodel) if returnbasemodel else data_frame
-        # if returnbasemodel:
-        #     if mode == 'both':
-        #         return model_frame, data_frame, basemodel
-        #     elif mode == 'model':
-        #         return model_frame, basemodel
-        #     elif mode == 'data':
-        #         return data_frame, basemodel
-        # else:
-        #     if mode == 'both':
-        #         return model_frame, data_frame
-        #     elif mode == 'model':
-        #         return model_frame
-        #     elif mode == 'data':
-        #         return data_frame
-        # raise ValueError("invalid mode: " + str(mode))
+

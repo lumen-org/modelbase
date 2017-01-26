@@ -1,4 +1,4 @@
-# Copyright (c) 2016 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 import pandas as pd
 import matplotlib.pyplot as plt
 from functools import reduce

@@ -1,4 +1,4 @@
-# Copyright (c) 2016 Philipp Lucas and Frank Nussbaum, FSU Jena
+# Copyright (c) 2017 Philipp Lucas and Frank Nussbaum, FSU Jena
 import logging
 import numpy as np
 from numpy import nan, pi, exp, dot, abs

@@ -1,4 +1,4 @@
-# Copyright (c) 2016 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 The following is taken from: 
 https://gist.github.com/internaut/5a653317688b14fd0fc67214c1352831#file-pandas_crossjoin_example-py
