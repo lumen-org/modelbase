@@ -577,20 +577,42 @@ class Model:
 
         # data frequency
         def filter(df, conditions):
-            # apply all '==' filters in the sequence of conditions
+            """ Apply all '==' filters in the sequence of conditions to given dataframe and return it."""
             # TODO: make it work with intervals!
             # TODO: do I need some general solution for the interval vs scalar problem?
-            continue_here+1
             for (col_name, value) in conditions:
-                df = df.loc[df[col_name] == value]
+                try:
+                    if not isinstance(value, str):  # try to access its elements
+                        # TODO: this really is more difficult. in the future we want to support values like ['A', 'B']
+                        # TODO: I guess I should pass a (list of) Domain to density
+                        # assuming interval for now
+                        df = df.loc[df[col_name].between(*value, inclusive=True)]
+                    else:
+                        df = df.loc[df[col_name] == value]
+                except TypeError:  # catch when expansion (*value) fails. its a scalar then...
+                    df = df.loc[df[col_name] == value]
             return df
+
+        def reduce_to_scalars(values):
+            """Reduce all elements of values to scalars. Scalars will be kept. Intervals are reduced to its mean."""
+            v = []
+            for value in values:
+                # all of the todos in filter apply here as well...
+                try:
+                    if not isinstance(value, str):
+                        v.append((value[0]+value[1])/2)
+                    else:
+                        v.append(value)
+                except TypeError:
+                    v.append(value)
+            return v
 
         if mode == "both" or mode == "data":
             cnt = len(filter(self.data, zip(self.names, values)))
             if mode == "data":
                 return cnt
 
-        p = self._density(values)
+        p = self._density(reduce_to_scalars(values))
         if mode == "model":
             return p
         elif mode == "both":
@@ -899,12 +921,31 @@ class Model:
                 try:
                     # select relevant columns and iterate over it
                     ids = [split_name2id[name] for name in aggr.name]
+                    names = aggr.name
+                    # if we split by 'model vs data' field we have to add this to the list of column ids
+                    if 'model vs data' in splitnames_unique:
+                        ids.append(split_name2id['model vs data'])
+                        names = list(aggr.name)
+                        names.append('model vs data')
                 except KeyError as err:
                     raise ValueError("missing split-clause for field '" + str(err) + "'.")
                 subframe = input_frame[ids]
                 for _, row in subframe.iterrows():
-                    res = aggr_model.density(aggr.name, row)
+                    res = aggr_model.density(names, row)
                     aggr_results.append(res)
+                # normalize data frequency to data probability
+                # get view on data. there is two distinct cases that we need to worry about
+                aggr_results = pd.Series(aggr_results)
+                if 'model vs data' in splitnames_unique:
+                    # case 1: we split by 'model vs data'. need to select only the 'data' rows
+                    id = split_name2id['model vs data']
+                    mask = input_frame[id] == 'data'
+                    sum = aggr_results.loc[mask].sum()
+                    aggr_results.loc[mask] /= sum
+                elif basemodel._mode == 'data':
+                    # case 2: we filter 'model vs data' on 'data'
+                    aggr_results = aggr_results / aggr_results.sum()
+
             else:  # it is some aggregation
                 if len(splitby) == 0:
                     # there is no fields to split by, hence only a single value will be aggregated
