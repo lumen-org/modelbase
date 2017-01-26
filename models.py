@@ -457,8 +457,6 @@ class Model:
                 allcols = list(self.data.columns)
                 grps = self.data.groupby(allcols)
                 # TODO: allow Nans in the result! it fails on the client when decoding the JSON at the moment
-                # data_res = grps.size().argmax() if len(grps) != 0 else [None]*len(allcols)
-                # data_res = grps.size().argmax() if len(grps) != 0 else [0] * len(allcols)
                 if len(grps) == 0:
                     data_res = 0 if self._n == 1 else [0] * self._n
                 else:
@@ -580,6 +578,9 @@ class Model:
         # data frequency
         def filter(df, conditions):
             # apply all '==' filters in the sequence of conditions
+            # TODO: make it work with intervals!
+            # TODO: do I need some general solution for the interval vs scalar problem?
+            continue_here+1
             for (col_name, value) in conditions:
                 df = df.loc[df[col_name] == value]
             return df
