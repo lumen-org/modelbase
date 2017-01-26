@@ -243,7 +243,8 @@ class ModelBase:
             # add to modelbase
             self.add(derived_model, query["AS"])
             # return header
-            return _json_dumps({"name": derived_model.name, "fields": derived_model.json_fields()})
+            return _json_dumps({"name": derived_model.name,
+                                "fields": derived_model.json_fields(include_modeldata_field=True)})
 
         # elif 'SELECT' in query:
         #     base = self._extractFrom(query)
@@ -256,15 +257,16 @@ class ModelBase:
 
         elif 'PREDICT' in query:
             base = self._extractFrom(query)
-            (model_frame, data_frame) = base.predict(
+            #(model_frame, data_frame) = base.predict(
+            resultframe = base.predict(
                 predict=self._extractPredict(query),
                 where=self._extractWhere(query),
-                splitby=self._extractSplitBy(query),
-                mode='both'   # DEBUG/DEVELOP: hard coded for now
+                splitby=self._extractSplitBy(query)
+                # ,mode='both'   # DEBUG/DEVELOP: hard coded for now
             )
-            return _json_dumps({"header": model_frame.columns.tolist(),
-                                "model": model_frame.to_csv(index=False, header=False),
-                                "data": data_frame.to_csv(index=False, header=False)})
+            return _json_dumps({"header": resultframe.columns.tolist(),
+                                #"model": model_frame.to_csv(index=False, header=False),
+                                "data": resultframe.to_csv(index=False, header=False)})
 
         elif 'DROP' in query:
             self.drop(name=query['DROP'])
@@ -274,7 +276,7 @@ class ModelBase:
             show = self._extractShow(query)
             if show == "HEADER":
                 model = self._extractFrom(query)
-                result = {"name": model.name, "fields": model.json_fields()}
+                result = {"name": model.name,  "fields": model.json_fields(include_modeldata_field=True)}
             elif show == "MODELS":
                 result = self.list_models()
             else:
@@ -394,6 +396,12 @@ if __name__ == '__main__':
     print(res)
     aggr = md.AggregationTuple(['sepal_width','petal_length'],'maximum','petal_length',[])
     res = i2.predict(predict=['model vs data', aggr], splitby=[('model vs data', 'elements', [])])
+    print(res)
+    res = i2.predict(predict=['model vs data', aggr], splitby=[('model vs data', 'elements', []), ('petal_width', 'equidist', [4])])
+    print(res)
+
+    res = i2.predict(predict=['model vs data', aggr],
+                     splitby=[('petal_width', 'equidist', [4])])
     print(res)
 
     #foo = cc.copy().model(["total", "alcohol"], [gm.ConditionTuple("alcohol", "equals", 10)])

@@ -459,12 +459,13 @@ class Model:
                 # find observation with highest number of occurrences
                 allcols = list(self.data.columns)
                 grps = self.data.groupby(allcols)
-                data_res = grps.size().argmax() if len(grps) != 0 else None
+                #data_res = grps.size().argmax() if len(grps) != 0 else [None]*len(allcols)
+                # TODO: allow Nans in the result! it fails on the client when decoding the JSON at the moment
+                data_res = grps.size().argmax() if len(grps) != 0 else [0] * len(allcols)
             elif method == 'average':
                 # compute average of observations
                 # todo: what if mean cannot be computed, e.g. categorical columns?
                 data_res = self.data.mean(axis=0)
-
             else:
                 raise ValueError("invalid value for method: " + str(method))
 
@@ -516,7 +517,7 @@ class Model:
         if mode == "model":
             return model_res
         elif mode == "both":
-            return (model_res, data_res)
+            return model_res, data_res
         else:
             raise ValueError("invalid value for mode : ", str(mode))
 
@@ -564,7 +565,7 @@ class Model:
         if mode == "model":
             return p
         elif mode == "both":
-            return (p, cnt)
+            return p, cnt
         else:
             raise ValueError("invalid value for mode : ", str(mode))
 
@@ -730,26 +731,28 @@ class Model:
         #    return (pd.DataFrame(), pd.DataFrame()) if mode == 'both' else pd.DataFrame()
         idgen = utils.linear_id_generator()
 
-        # (0) take care of the 'artificial field': 'model vs data'. After that section
-        # possible cases:
-        #   (b) it occurs as a filter: that sets the internal mode of the model
-        #   (a) it occurs as a split: that doesn't really need anything atm, does it?
+        # How to handle the 'artificial field' 'model vs data'.
+        # possible cases: 'model vs data' occurs ...
+        #   * as a filter: that sets the internal mode of the model. Is handled in '.condition'
+        #   * as a split: splits by the values of that field. Is handled where we handle splits.
+        #   * not at all: defaults to a filter to equal 'model' and a default identity filter on it
+        #   * in predict-clause or not -> need to assemble result frame correctly
+        #   * in aggregation: raise error
 
-        # after all: need to make sure the result frame is correct...
+        filter_names = [f[NAME_IDX] for f in where]
+        split_names = [f[NAME_IDX] for f in splitby]  # name of fields to split by. Same order as in split-by clause.
 
-        # independently: may occur in predict-clause or not -> need to assemble result frame correctly
-        # independently: occurs in aggregation: raise error
-
-        #   (a) it occurs not at all and hence defaults to a filter to equal 'model'
-        #if mvg not in split_names and mvg not in filter_names:
-        #    filter.add(Filter('mvg','equals','model'))
-        #elif mvg in split_names
+        # set default filter and split on 'model vs data' if necessary
+        if 'model vs data' not in split_names and 'model vs data' not in filter_names:
+            where.append(('model vs data', 'equals', 'model'))
+            filter_names.append('model vs data')
+            splitby.append(('model vs data', 'identity', []))
+            split_names.append('model vs data')
 
         # (1) derive base model, i.e. a model on all requested dimensions and measures, respecting filters
         predict_ids = []  # unique ids of columns in data frame. In correct order. For reordering of columns.
         predict_names = []  # names of columns as to be returned. In correct order. For renaming of columns.
 
-        split_names = [f[NAME_IDX] for f in splitby]  # name of fields to split by. Same order as in split-by clause.
         split_ids = [f[NAME_IDX] + next(idgen) for f in
                      splitby]  # ids for columns for fields to split by. Same order as in splitby-clause.
         split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids (for columns in data frames)
@@ -771,7 +774,7 @@ class Model:
             else:
                 # t is an aggregation/density tuple
                 # TODO: test this
-                if t == 'model vs data':  # it may not be 'model vs data'
+                if t == 'model vs data':
                     raise ValueError("Aggregations or Density queries on 'model vs data'-field are not possible")
                 id_ = _tuple2str(t) + next(idgen)
                 aggrs.append(t)
@@ -839,20 +842,6 @@ class Model:
             dimensions (values) and then derive the measure models...
             note: for density however, no conditioning on the input is required
         """
-        #continue here: need to implement aggregations/density for both modes
-        #maybe it becomes real nice?
-
-        # define suitable selector function. prevents reevaluation of: mode == "both" in the inner loops
-        continue_here
-        #if mode == "both":
-        def select_idx(result_, idx_):
-            return result_[0][idx_], result_[1][idx_]
-        # else:
-        #     def select_idx(result_, idx_):
-        #         return result_[idx_]
-
-        #model_result_list = [pd.DataFrame()]
-        #data_result_list = [pd.DataFrame()]
         result_list = [pd.DataFrame()]
         for idx, aggr in enumerate(aggrs):
             aggr_results = []
@@ -887,7 +876,7 @@ class Model:
                     res = singlemodel.aggregate(aggr.method)
                     # reduce to requested dimension
                     i = singlemodel.asindex(aggr.yields)
-                    aggr_results.append(select_idx(res, i))
+                    aggr_results.append(res[i])
                 else:
                     for _, row in input_frame.iterrows():
                         pairs = zip(split_names, ['=='] * len(row), row)  # TODO: reuse ['=='] * len(row) for speedup
@@ -897,7 +886,7 @@ class Model:
                         # res = rowmodel.aggregate(aggr.method, mode=mode)
                         # reduce to requested dimension
                         i = rowmodel.asindex(aggr.yields)
-                        aggr_results.append(select_idx(res, i))
+                        aggr_results.append(res[i])
 
             # generate DataSeries from it
             columns = [aggr_ids[idx]]
