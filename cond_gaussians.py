@@ -127,7 +127,7 @@ class ConditionallyGaussianModel(md.Model):
 
         return pML, musML, Sigma
 
-    def fit(self, df):
+    def _fit(self, df):
         # Internal: This method estimates the set of mean parameters that fit best to the data given in the dataframe df.
 
         # split in categorical and numeric columns

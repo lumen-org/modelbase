@@ -39,7 +39,7 @@ class MultiVariateGaussianModel(md.Model):
             fields.append(field)
         return fields
 
-    def fit(self, df):
+    def _fit(self, df):
         """Fits the model to passed DataFrame
 
         Returns:

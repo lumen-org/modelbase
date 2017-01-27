@@ -8,6 +8,8 @@ This module defines:
    * Field: a class that represent random variables in a model.
    * ConditionTuple, SplitTuple, AggregationTuple: convenience tuples for handling such clauses in PQL queries
 """
+from email.policy import strict
+
 import pandas as pd
 import copy as cp
 from collections import namedtuple
@@ -255,6 +257,33 @@ class Model:
             json_.append(field_tojson(self._modeldata_field))
         return json_
 
+    @staticmethod
+    def clean_dataframe(df):
+        # check that there are no NaNs or Nones
+        if df.isnull().any().any():
+            raise ValueError("DataFrame contains NaNs or Nulls.")
+
+        # convert any categorical columns that have numbers into strings
+        # and raise errors for unsupported dtypes
+        for colname in df.columns:
+            col = df[colname]
+            dtype = col.dtype
+            if dtype.name == 'category':
+                # categories must have string levels
+                cat_dtype = col.cat.categories.dtype
+                if cat_dtype != 'str' and cat_dtype != 'object':
+                    logger.warning('Column "' + str(colname) +
+                                   '" is categorical, however the categories levels are not of type "str" or "object" '
+                                   'but of type "' + str(cat_dtype) +
+                                   '". I\'m converting the column to dtype "object" (i.e. strings)!')
+                    df[colname] = col.astype(str)
+            elif dtype == 'float' or dtype == 'int' or dtype == 'bool' or dtype == 'object':
+                pass  # ok
+            else:
+                raise ValueError('Column "' + str(colname) + '" is of type "' + str(dtype) + '" which is not supported.')
+
+        return df
+
     def fit(self, df):
         """Fits the model to passed DataFrame
 
@@ -269,7 +298,12 @@ class Model:
         Returns:
             The fitted model.
         """
-        raise NotImplementedError("Implement this method in your model!")
+        df = Model.clean_dataframe(df)
+        try:
+            self._fit(df)
+        except NameError:
+            raise NotImplementedError("You have to implement the _fit method in your model!")
+        return self
 
     def marginalize(self, keep=None, remove=None, is_pure=False):
         """Marginalizes random variables out of the model. Either specify which
@@ -962,7 +996,6 @@ class Model:
                 else:
                     for _, row in input_frame.iterrows():
                         pairs = zip(split_names, operator_list, row)
-                        #pairs = zip(split_names, ['=='] * len(row), row)  # TODO: reuse ['=='] * len(row) for speedup
                         # derive model for these specific conditions
                         rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr.name)
                         res = rowmodel.aggregate(aggr.method)

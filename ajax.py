@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 @author: Philipp Lucas
@@ -13,13 +14,7 @@ import modelbase as mbase
 
 
 app = Flask(__name__, static_url_path='/static/')
-
-# setup root logger and local logger
-logging.basicConfig(
-    level=logging.WARNING,
-    format='%(asctime)s %(levelname)s %(filename)s %(message)s')
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger = None  # create module variable
 
 
 # the (static) start page
@@ -105,20 +100,20 @@ Usage:
     Run this script to start the server locally!
 """
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("-n", "--name", help="A name for the modelbase to start. Defaults to 'my_mb'", type=str)
+    parser.add_argument("-n", "--name", help="A name for the modelbase to start. Defaults to 'my_mb'",
+                        type=str, default='my_mb')
     parser.add_argument("-s", "--storage", help="storage directory of models to be loaded initially. Defaults to "
-                                                "'data_models'", type=str)
+                                                "'data_models'", type=str, default='data_models')
     parser.add_argument("-l", "--loglevel", help="loglevel for command line output. You can set it to: CRITICAL, "
-                                                 "ERROR, WARNING, INFO or DEBUG.", type=str)
+                                                 "ERROR, WARNING, INFO or DEBUG. Defaults to WARNING",
+                        type=str, default='WARNING')
     args = parser.parse_args()
 
-    if args.storage is None:
-        print("using default output directory 'data_models' ... ")
-        args.storage = 'data_models'
-
-    if args.name is None:
-        print("using default name for modelbase 'my_mb' ... ")
-        args.name = 'my_mb'
+    # setup root logger and local logger
+    logging.basicConfig(
+        level=args.loglevel,
+        format='%(asctime)s %(levelname)s %(filename)s %(message)s')
+    logger = logging.getLogger(__name__)
 
     print("starting modelbase ... ", end="")
     mb = mbase.ModelBase(name=args.name, model_dir=args.storage)

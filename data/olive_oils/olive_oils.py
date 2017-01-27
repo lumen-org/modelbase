@@ -33,6 +33,7 @@ def mixed(datafilepath='olive.csv', region_area_flag="region", ):
     if 'region-int' in df.columns:
         df['region'] = df['region-int'].astype('category').cat.rename_categories(["south", "sardinia", "north"])
         del df['region-int']
+    #df['region-int'] = df['region-int'].astype('category')
 
     return df
 

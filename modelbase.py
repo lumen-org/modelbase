@@ -165,7 +165,7 @@ class ModelBase:
                 self.add(model)
             except TypeError as err:
                 print(str(err))
-                logger.warn('file "' + str(file) + '" matches the naming pattern but does not contain a model instance')
+                logger.warning('file "' + str(file) + '" matches the naming pattern but does not contain a model instance')
 
     def save_all_models(self, directory=None, ext='.mdl'):
         """Saves all models currently in the model base in given directory using the naming convention:
@@ -185,7 +185,7 @@ class ModelBase:
     def add(self, model, name=None):
         """ Adds a model to the model base using the given name or the models name. """
         if name in self.models:
-            logger.warn('Overwriting existing model in model base: ' + name)
+            logger.warning('Overwriting existing model in model base: ' + name)
         if name is None:
             name = model.name
         self.models[name] = model
@@ -257,12 +257,10 @@ class ModelBase:
 
         elif 'PREDICT' in query:
             base = self._extractFrom(query)
-            #(model_frame, data_frame) = base.predict(
             resultframe = base.predict(
                 predict=self._extractPredict(query),
                 where=self._extractWhere(query),
                 splitby=self._extractSplitBy(query)
-                # ,mode='both'   # DEBUG/DEVELOP: hard coded for now
             )
             return _json_dumps({"header": resultframe.columns.tolist(),
                                 #"model": model_frame.to_csv(index=False, header=False),
