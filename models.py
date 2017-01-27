@@ -144,9 +144,8 @@ def _tuple2str(tuple_):
 
 
 class Model:
-    """An abstract base model that provides an interface to derive submodels
-    from it or query density and other aggregations of it. It also defines stubs for those methods that actual models
-    are required to implement.
+    """An abstract base model that provides an interface to derive submodels from it or query density and other
+    aggregations of it. It also defines stubs for those methods that actual models are required to implement.
 
     A model has a number of fields (aka dimensions). The model models a probability density function on these fields
     and allows various queries again this density. The model is based on data (aka evidence), and the data can be
@@ -578,13 +577,12 @@ class Model:
         # data frequency
         def filter(df, conditions):
             """ Apply all '==' filters in the sequence of conditions to given dataframe and return it."""
-            # TODO: make it work with intervals!
             # TODO: do I need some general solution for the interval vs scalar problem?
             for (col_name, value) in conditions:
                 try:
                     if not isinstance(value, str):  # try to access its elements
                         # TODO: this really is more difficult. in the future we want to support values like ['A', 'B']
-                        # TODO: I guess I should pass a (list of) Domain to density
+                        # TODO: I guess I should pass a (list of) Domain to the density-method in the first place
                         # assuming interval for now
                         df = df.loc[df[col_name].between(*value, inclusive=True)]
                     else:
@@ -786,7 +784,8 @@ class Model:
         # How to handle the 'artificial field' 'model vs data': possible cases: 'model vs data' occurs ...
         #   * as a filter: that sets the internal mode of the model. Is handled in '.condition'
         #   * as a split: splits by the values of that field. Is handled where we handle splits.
-        #   * not at all: defaults to a filter to equal 'model' and a default identity filter on it
+        #   * not at all: defaults to a filter to equal 'model' and a default identity filter on it, ONLY if
+        #       self._mode is 'both'
         #   * in predict-clause or not -> need to assemble result frame correctly
         #   * in aggregation: raise error
 
@@ -794,7 +793,9 @@ class Model:
         split_names = [f[NAME_IDX] for f in splitby]  # name of fields to split by. Same order as in split-by clause.
 
         # set default filter and split on 'model vs data' if necessary
-        if 'model vs data' not in split_names and 'model vs data' not in filter_names:
+        if 'model vs data' not in split_names \
+                and 'model vs data' not in filter_names\
+                and self._mode == 'both':
             where.append(('model vs data', 'equals', 'model'))
             filter_names.append('model vs data')
             splitby.append(('model vs data', 'identity', []))
