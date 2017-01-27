@@ -15,6 +15,7 @@ import data.heart_disease.heart as heart
 import data.crabs.crabs as crabs
 import data.olive_oils.olive_oils as olive_oils
 import data.yeast.yeast as yeast
+import data.starcraft.starcraft as starcraft
 
 from cond_gaussians import ConditionallyGaussianModel
 from gaussians import MultiVariateGaussianModel
@@ -40,7 +41,8 @@ known_models = {
     'cg_olive_oils': lambda: (ConditionallyGaussianModel('cg_olive_oils'),
                               olive_oils.mixed('data/olive_oils/olive.csv')),
     'cg_yeast': lambda: (ConditionallyGaussianModel('cg_yeast'), yeast.mixed('data/yeast/yeast.csv')),
-    'cg_iris': lambda: (ConditionallyGaussianModel('cg_iris'), sns.load_dataset('iris'))
+    'cg_iris': lambda: (ConditionallyGaussianModel('cg_iris'), sns.load_dataset('iris')),
+    'starcraft': lambda: (ConditionallyGaussianModel('starcraft'), starcraft.cg())
 }
 
 

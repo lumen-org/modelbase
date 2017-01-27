@@ -108,6 +108,8 @@ Usage:
     parser.add_argument("-n", "--name", help="A name for the modelbase to start. Defaults to 'my_mb'", type=str)
     parser.add_argument("-s", "--storage", help="storage directory of models to be loaded initially. Defaults to "
                                                 "'data_models'", type=str)
+    parser.add_argument("-l", "--loglevel", help="loglevel for command line output. You can set it to: CRITICAL, "
+                                                 "ERROR, WARNING, INFO or DEBUG.", type=str)
     args = parser.parse_args()
 
     if args.storage is None:
