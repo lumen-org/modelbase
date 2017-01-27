@@ -251,13 +251,11 @@ class ConditionallyGaussianModel(md.Model):
             condvalues = self._condition_values(num_remove)
 
             # calculate updated mu and sigma for conditional distribution, according to GM script
-            j = num_remove
-            i = [name for name in self._numericals if name not in num_remove]
+            j = num_remove  # remove
+            i = [name for name in self._numericals if name not in num_remove]  # keep
             S = self._S
-
-            sigma_expr = np.dot(S.loc[i, j], S.loc[j, j])  # reused below multiple times
+            sigma_expr = np.dot(S.loc[i, j], inv(S.loc[j, j]))  # reused below multiple times
             self._S = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
-
             cat_keep = self._mu.dims[:-1]
             if len(cat_keep) != 0:
                 # iterate over all mu and update them
@@ -307,7 +305,7 @@ class ConditionallyGaussianModel(md.Model):
             # marginalized sigma
             self._S = self._S.loc[num_keep, num_keep]
 
-        # update fields and dependent variabless
+        # update fields and dependent variables
         self.fields = [field for field in self.fields if field['name'] in keep]
         self._categoricals = [name for name in self._categoricals if name in keep]
         self._numericals = num_keep
