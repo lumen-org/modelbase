@@ -277,10 +277,10 @@ class Model:
                                    'but of type "' + str(cat_dtype) +
                                    '". I\'m converting the column to dtype "object" (i.e. strings)!')
                     df[colname] = col.astype(str)
-            elif dtype == 'float' or dtype == 'int' or dtype == 'bool' or dtype == 'object':
-                pass  # ok
-            else:
-                raise ValueError('Column "' + str(colname) + '" is of type "' + str(dtype) + '" which is not supported.')
+            #elif dtype == 'float' or dtype == 'int' or dtype == 'bool' or dtype == 'object':
+            #    pass  # ok
+            #else:
+            #    raise ValueError('Column "' + str(colname) + '" is of type "' + str(dtype) + '" which is not supported.')
 
         return df
 
