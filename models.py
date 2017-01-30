@@ -1029,4 +1029,3 @@ class Model:
         data_frame.columns = predict_names
 
         return (data_frame, basemodel) if returnbasemodel else data_frame
-
