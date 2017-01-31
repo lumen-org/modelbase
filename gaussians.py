@@ -128,34 +128,47 @@ class MultiVariateGaussianModel(md.Model):
         mycopy.update()
         return mycopy
 
-    @staticmethod
-    def custom_mvg(sigma, mu, name):
-        """Returns a MultiVariateGaussian model that uses the provided sigma, mu and name.
+    def _generate_model(self, opts):
+        """Generates a gaussian model according to options. This does not assign any data to the model.
+        It also sets the 'mode' of this model to 'model'.
 
-        Note: The domain of each field is set to (-10,10).
+        Options must have a key 'mode' of value 'custom' or 'normal':
 
-        Args:
-            sigma: a suitable numpy matrix
-            mu: a suitable numpy row vector
+        If mode is 'custom':
+            option must have keys 'sigma' and 'mu'. which are a suitable numpy matrix and row vector, resp.
+            The domain of each field is set to (-10,10).
+
+        if mode is 'normal'
+            option must have a key 'dim'. its value is the dimension of the model. The model will have the
+            identity matrix as its sigma and the zero vector as its mean.
+
         """
 
-        if not isinstance(mu, matrix) or not isinstance(sigma, matrix) or mu.shape[1] != 1:
-            raise ValueError("invalid arguments")
-        model = MultiVariateGaussianModel(name)
-        model._S = sigma
-        model._mu = mu
-        model.fields = [md.Field(name="dim" + str(idx),
-                                 domain=dm.NumericDomain(),
-                                 extent=dm.NumericDomain(mu[idx].item() - 2, mu[idx].item() + 2))
-                        for idx in range(sigma.shape[0])]
-        model.update()
-        return model
+        mode = opts['mode']
+        if mode == 'custom':
+            mu = opts['mu']
+            sigma = opts['sigma']
+            if not isinstance(mu, matrix) or not isinstance(sigma, matrix) or mu.shape[1] != 1:
+                raise ValueError("invalid arguments")
+            self._S = sigma
+            self._mu = mu
+            self.fields = [md.Field(name="dim" + str(idx),
+                                     domain=dm.NumericDomain(),
+                                     extent=dm.NumericDomain(mu[idx].item() - 2, mu[idx].item() + 2))
+                           for idx in range(sigma.shape[0])]
+            self._mode = 'model'
+            self.update()
+            return self
 
-    @staticmethod
-    def normal_mvg(dim, name):
-        sigma = matrix(np.eye(dim))
-        mu = matrix(np.zeros(dim)).T
-        return MultiVariateGaussianModel.custom_mvg(sigma, mu, name)
+        if mode == 'normal':
+            dim = opts['dim']
+            sigma = matrix(np.eye(dim))
+            mu = matrix(np.zeros(dim)).T
+            opts = {'mode': 'custom', 'sigma': sigma, 'mu': mu}
+            return self._generate_model(opts=opts)
+        else:
+            raise ValueError('invalid mode: ' + str(mode))
+
 
     @staticmethod
     def _schurcompl_upper(M, idx):
@@ -173,73 +186,3 @@ class MultiVariateGaussianModel(md.Model):
 if __name__ == '__main__':
     import pdb
 
-    # foo = MultiVariateGaussianModel.normalMVG(5,"foo")
-    sigma = matrix([
-        [1.0, 0.6, 0.0, 2.0],
-        [0.6, 1.0, 0.4, 0.0],
-        [0.0, 0.4, 1.0, 0.0],
-        [2.0, 0.0, 0.0, 1.]])
-    mu = np.matrix([1.0, 2.0, 0.0, 0.5]).T
-    foo = MultiVariateGaussianModel.custom_mvg(sigma, mu, "foo")
-    foocp = foo.copy("foocp")
-    print("\n\nmodel 1\n" + str(foocp))
-    foocp2 = foocp.model(['dim1', 'dim0'], as_="foocp2")
-    print("\n\nmodel 2\n" + str(foocp2))
-
-    res = foo.predict(predict=['dim0'], splitby=[SplitTuple('dim0', 'equidist', [5])])
-    print("\n\npredict 1\n" + str(res))
-
-    res = foo.predict(predict=[AggregationTuple(['dim1'], 'maximum', 'dim1', []), 'dim0'],
-                      splitby=[SplitTuple('dim0', 'equidist', [10])])
-    print("\n\npredict 2\n" + str(res))
-
-    res = foo.predict(predict=[AggregationTuple(['dim0'], 'maximum', 'dim0', []), 'dim0'],
-                      where=[ConditionTuple('dim0', 'equals', 1)], splitby=[SplitTuple('dim0', 'equidist', [10])])
-    print("\n\npredict 3\n" + str(res))
-
-    res = foo.predict(predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
-                      splitby=[SplitTuple('dim0', 'equidist', [10])])
-    print("\n\npredict 4\n" + str(res))
-
-    res = foo.predict(
-        predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
-        splitby=[SplitTuple('dim0', 'equidist', [10])],
-        where=[ConditionTuple('dim0', 'greater', -1)])
-    print("\n\npredict 5\n" + str(res))
-
-    res = foo.predict(
-        predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
-        splitby=[SplitTuple('dim0', 'equidist', [10])],
-        where=[ConditionTuple('dim0', 'less', -1)])
-    print("\n\npredict 6\n" + str(res))
-
-    res = foo.predict(
-        predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
-        splitby=[SplitTuple('dim0', 'equidist', [10])],
-        where=[ConditionTuple('dim0', 'less', 0), ConditionTuple('dim2', 'equals', -5.0)])
-    print("\n\npredict 7\n" + str(res))
-
-    res, base = foo.predict(
-        predict=[AggregationTuple(['dim0'], 'density', 'dim0', []), 'dim0'],
-        splitby=[SplitTuple('dim0', 'equidist', [10]), SplitTuple('dim1', 'equidist', [7])],
-        where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)],
-        returnbasemodel=True)
-    print("\n\npredict 8\n" + str(res))
-
-    res, base = foo.predict(
-        predict=[AggregationTuple(['dim0'], 'average', 'dim0', []), AggregationTuple(['dim0'], 'density', 'dim0', []),
-                 'dim0'],
-        splitby=[SplitTuple('dim0', 'equidist', [10])],
-        # where=[ConditionTuple('dim0', 'less', -1), ConditionTuple('dim2', 'equals', -5.0)],
-        returnbasemodel=True)
-    print("\n\npredict 9\n" + str(res))
-
-    res, base = foo.predict(
-        predict=['dim0', 'dim1', AggregationTuple(['dim0', 'dim1'], 'average', 'dim0', []),
-                 AggregationTuple(['dim0', 'dim1'], 'average', 'dim1', [])],
-        splitby=[SplitTuple('dim0', 'identity', []), SplitTuple('dim1', 'equidist', [4])],
-        where=[ConditionTuple('dim0', '<', 2), ConditionTuple('dim0', '>', 1)],
-        returnbasemodel=True)
-    print("\n\npredict 10\n" + str(res))
-
-    # print("\n\n" + str(base) + "\n")

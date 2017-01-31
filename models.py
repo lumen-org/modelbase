@@ -40,6 +40,7 @@ SplitTuple = namedtuple('SplitTuple', ['name', 'method', 'args'])
 ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
 NAME_IDX = 0
 METHOD_IDX = 1
+YIELDS_IDX = 2
 ARGS_IDX = 2
 
 """ A condition tuple describes the details of how a field of model is
@@ -141,8 +142,9 @@ def mergebyidx(list1, list2, idx1, idx2):
 
 def _tuple2str(tuple_):
     """Returns a string that summarizes the given splittuple or aggregation tuple"""
-    prefix = (str(tuple_.yields) + '@') if hasattr(tuple_, 'yields') and not tuple_.method == 'density' else ""
-    return prefix + str(tuple_[1]) + '(' + str(tuple_[0]) + ')'
+    is_aggr_tuple = len(tuple_) == 4 and not tuple_[METHOD_IDX] == 'density'
+    prefix = (str(tuple_[YIELDS_IDX]) + '@') if is_aggr_tuple else ""
+    return prefix + str(tuple_[METHOD_IDX]) + '(' + str(tuple_[NAME_IDX]) + ')'
 
 
 class Model:
@@ -351,7 +353,8 @@ class Model:
         cond_out = [name for name in remove if self.byname(name)['domain'].isbounded()]
 
         # Data marginalization
-        self.data = self.data.loc[:, keep]
+        if self._mode == 'both' or self._mode == 'data':
+            self.data = self.data.loc[:, keep]
 
         # Model marginalization
         # there are three cases of marginalization:
@@ -380,7 +383,7 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
-    def condition(self, conditions, is_pure=False):
+    def condition(self, conditions=[], is_pure=False):
         """Conditions this model according to the list of three-tuples
         (<name-of-random-variable>, <operator>, <value(s)>). In particular
         objects of type ConditionTuples are accepted and see there for allowed values.
@@ -394,6 +397,10 @@ class Model:
         """
 
         # TODO: simplify the interface?
+
+        # can't do that because I want to allow zip object as conditions...
+        #if len(conditions) == 0:
+        #    return self
 
         if is_pure:
             pure_conditions = conditions
@@ -416,37 +423,54 @@ class Model:
                 else:
                     pure_conditions.append(condition)
 
+        # TODO: code below aint DRY but I don't know how to do it better and high-performance
         # continue with rest according to mode
-        # TODO: just do both for now. but later the _mode flag should have an effect
-        df = self.data
-        for (name, operator, values) in pure_conditions:
-            operator = operator.lower()
-            field = self.byname(name)
-            domain = field['domain']
-            column = df[name]
-
-            if operator == 'in':
-                domain.intersect(values)
-                if field['dtype'] == 'numerical':
-                    df = df.loc[column.between(*values, inclusive=True)]
-                elif field['dtype'] == 'string':
-                    df = df.loc[column.isin(values)]
-                else:
-                    raise TypeError("unsupported field type: " + str(field.dtype))
-            else:
-                # values is necessarily a single scalar value, not a list
-                if operator == 'equals' or operator == '==':
+        if self._mode == 'model':
+            for (name, operator, values) in pure_conditions:
+                operator = operator.lower()
+                field = self.byname(name)
+                domain = field['domain']
+                if operator == 'in':
                     domain.intersect(values)
-                    df = df.loc[column == values]
-                elif operator == 'greater' or operator == '>':
-                    domain.setlowerbound(values)
-                    df = df.loc[column > values]
-                elif operator == 'less' or operator == '<':
-                    domain.setupperbound(values)
-                    df = df.loc[column < values]
                 else:
-                    raise ValueError('invalid operator for condition: ' + str(operator))
-        self.data = df
+                    # values is necessarily a single scalar value, not a list
+                    if operator == 'equals' or operator == '==':
+                        domain.intersect(values)
+                    elif operator == 'greater' or operator == '>':
+                        domain.setlowerbound(values)
+                    elif operator == 'less' or operator == '<':
+                        domain.setupperbound(values)
+                    else:
+                        raise ValueError('invalid operator for condition: ' + str(operator))
+        else:
+            df = self.data
+            for (name, operator, values) in pure_conditions:
+                operator = operator.lower()
+                field = self.byname(name)
+                domain = field['domain']
+                column = df[name]
+                if operator == 'in':
+                    domain.intersect(values)
+                    if field['dtype'] == 'numerical':
+                        df = df.loc[column.between(*values, inclusive=True)]
+                    elif field['dtype'] == 'string':
+                        df = df.loc[column.isin(values)]
+                    else:
+                        raise TypeError("unsupported field type: " + str(field.dtype))
+                else:
+                    # values is necessarily a single scalar value, not a list
+                    if operator == 'equals' or operator == '==':
+                        domain.intersect(values)
+                        df = df.loc[column == values]
+                    elif operator == 'greater' or operator == '>':
+                        domain.setlowerbound(values)
+                        df = df.loc[column > values]
+                    elif operator == 'less' or operator == '<':
+                        domain.setupperbound(values)
+                        df = df.loc[column < values]
+                    else:
+                        raise ValueError('invalid operator for condition: ' + str(operator))
+            self.data = df
         return self
 
     def _conditionout(self, remove):
@@ -635,7 +659,7 @@ class Model:
                         v.append((value[0]+value[1])/2)
                     else:
                         v.append(value)
-                except TypeError:
+                except (TypeError, IndexError):
                     v.append(value)
             return v
 
@@ -670,7 +694,7 @@ class Model:
         raise NotImplementedError("Implement this method in your model!")
 
     def sample(self, n=1):
-        """Returns n samples drawn from the model."""
+        """Returns n samples drawn from the model as a dataframe with suitable column names."""
         if self._isempty():
             raise ValueError('Cannot sample from 0-dimensional model')
 
@@ -778,7 +802,6 @@ class Model:
         self.name = self.name if as_ is None else as_
         return self.condition(where).marginalize(keep=model)
 
-    # def predict(self, predict, where=[], splitby=[], returnbasemodel=False, mode="both"):
     def predict(self, predict, where=[], splitby=[], returnbasemodel=False):
         """Calculates the prediction against the model and returns its result
         by means of a data frame.
@@ -860,7 +883,7 @@ class Model:
             else:
                 # t is an aggregation/density tuple
                 # TODO: test this
-                if t == 'model vs data':
+                if t[NAME_IDX] == 'model vs data':
                     raise ValueError("Aggregations or Density queries on 'model vs data'-field are not possible")
                 id_ = _tuple2str(t) + next(idgen)
                 aggrs.append(t)
@@ -881,10 +904,10 @@ class Model:
 
         def _derive_aggregation_model(aggr):
             aggr_model = basemodel.copy()
-            if aggr.method == 'density':
-                return aggr_model.model(model=aggr.name)
+            if aggr[METHOD_IDX] == 'density':
+                return aggr_model.model(model=aggr[NAME_IDX])
             else:
-                return aggr_model.model(model=list(splitnames_unique | set(aggr.name)))
+                return aggr_model.model(model=list(splitnames_unique | set(aggr[NAME_IDX])))
 
         aggr_models = [_derive_aggregation_model(aggr) for aggr in aggrs]
 
@@ -943,7 +966,7 @@ class Model:
         for idx, aggr in enumerate(aggrs):
             aggr_results = []
             aggr_model = aggr_models[idx]
-            if aggr.method == 'density':
+            if aggr[METHOD_IDX] == 'density':
                 # TODO (1): this is inefficient because it recalculates the same value many times, when we split on more
                 #  than what the density is calculated on
                 # TODO: to solve it: calculate density only on the required groups and then join into the result table.
@@ -955,12 +978,12 @@ class Model:
                 # this is much too complicated. Somehow there must be an easier way to do all of this...
                 try:
                     # select relevant columns and iterate over it
-                    ids = [split_name2id[name] for name in aggr.name]
-                    names = aggr.name
+                    names = aggr[NAME_IDX]
+                    ids = [split_name2id[name] for name in names]
                     # if we split by 'model vs data' field we have to add this to the list of column ids
                     if 'model vs data' in splitnames_unique:
                         ids.append(split_name2id['model vs data'])
-                        names = list(aggr.name)
+                        # names = list(aggr[NAME_IDX])
                         names.append('model vs data')
                 except KeyError as err:
                     raise ValueError("missing split-clause for field '" + str(err) + "'.")
@@ -986,21 +1009,21 @@ class Model:
                     # there is no fields to split by, hence only a single value will be aggregated
                     # i.e. marginalize all other fields out
                     # TODO: can there ever be more fields left than the one(s) that is aggregated over?
-                    if len(aggr.name) != aggr_model._n:  # debugging
+                    if len(aggr[NAME_IDX]) != aggr_model._n:  # debugging
                         raise ValueError("uh, interesting - check this out, and read the todo above this code line")
-                    singlemodel = aggr_model.copy().marginalize(keep=aggr.name)
-                    res = singlemodel.aggregate(aggr.method)
+                    singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
+                    res = singlemodel.aggregate(aggr[METHOD_IDX])
                     # reduce to requested dimension
-                    i = singlemodel.asindex(aggr.yields)
+                    i = singlemodel.asindex(aggr[YIELDS_IDX])
                     aggr_results.append(res[i])
                 else:
                     for _, row in input_frame.iterrows():
                         pairs = zip(split_names, operator_list, row)
                         # derive model for these specific conditions
-                        rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr.name)
-                        res = rowmodel.aggregate(aggr.method)
+                        rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr[NAME_IDX])
+                        res = rowmodel.aggregate(aggr[METHOD_IDX])
                         # reduce to requested dimension
-                        i = rowmodel.asindex(aggr.yields)
+                        i = rowmodel.asindex(aggr[YIELDS_IDX])
                         aggr_results.append(res[i])
 
             # generate DataSeries from it
@@ -1029,3 +1052,14 @@ class Model:
         data_frame.columns = predict_names
 
         return (data_frame, basemodel) if returnbasemodel else data_frame
+
+    def _generate_data(self, opts):
+        """Provided that self is a functional model, this method it samples options['n'] many samples from it
+        and sets it as the models data. It also sets the 'mode' of this model to 'both'.
+        """
+
+        if 'n' not in opts:
+            raise ValueError('missing required option "n".')
+        self.data = self.sample(opts['n'])
+        self._mode = 'both'
+        return self
