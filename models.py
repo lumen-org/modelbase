@@ -991,6 +991,8 @@ class Model:
                 for _, row in subframe.iterrows():
                     res = aggr_model.density(names, row)
                     aggr_results.append(res)
+
+                # TODO: the normalization is incorrect: it must not normalize to 1, but to some slice
                 # normalize data frequency to data probability
                 # get view on data. there is two distinct cases that we need to worry about
                 aggr_results = pd.Series(aggr_results)
@@ -998,8 +1000,9 @@ class Model:
                     # case 1: we split by 'model vs data'. need to select only the 'data' rows
                     id = split_name2id['model vs data']
                     mask = input_frame[id] == 'data'
-                    sum = aggr_results.loc[mask].sum()
-                    aggr_results.loc[mask] /= sum
+                    if mask.any():
+                        sum = aggr_results.loc[mask].sum()
+                        aggr_results.loc[mask] /= sum
                 elif basemodel._mode == 'data':
                     # case 2: we filter 'model vs data' on 'data'
                     aggr_results = aggr_results / aggr_results.sum()

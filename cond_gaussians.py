@@ -77,7 +77,8 @@ class ConditionallyGaussianModel(md.Model):
     @staticmethod
     def _fitFullLikelihood(data, fields, dc):
         """fit full likelihood for CG model. the data frame data consists of dc many categorical columns and the rest are
-        numerical columns. all categorical columns occure before the numercial ones."""
+        numerical columns. all categorical columns occur before the numerical ones."""
+        k = 1  # laplacian smoothing parameter
         n, d = data.shape
         dg = d - dc
 
@@ -102,7 +103,6 @@ class ConditionallyGaussianModel(md.Model):
         for row in data.itertuples():
             cats = row[1:1 + dc]
             gauss = row[1 + dc:]
-
             pML.loc[cats] += 1
             musML.loc[cats] += gauss
 
@@ -111,7 +111,10 @@ class ConditionallyGaussianModel(md.Model):
             ind = it.multi_index
             musML[ind] /= pML[ind]
             it.iternext()
-        pML /= 1.0 * n
+
+        # smooth and normalize
+        # pML /= 1.0 * n  # without smoothing
+        pML = (pML + k) / (pML.sum() + k*pML.size)
 
         Sigma = np.zeros((dg, dg))
         for row in data.itertuples():
