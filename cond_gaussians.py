@@ -8,8 +8,6 @@ import xarray as xr
 
 import models as md
 import domains as dm
-from cond_gaussian.datasampling import genCGSample, genCatData, genCatDataJEx
-from cond_gaussian.output import plothist
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -128,8 +126,9 @@ class ConditionallyGaussianModel(md.Model):
         return pML, musML, Sigma
 
     def _fit(self, df):
-        # Internal: This method estimates the set of mean parameters that fit best to the data given in the dataframe df.
-
+        """ Internal: This method estimates the set of mean parameters that fit best to the data given in the
+        dataframe df.
+        """
         # split in categorical and numeric columns
         categoricals = []
         numericals = []
@@ -166,42 +165,6 @@ class ConditionallyGaussianModel(md.Model):
         self.data = df
 
         return self.update()
-
-    @staticmethod
-    def cg_dummy():
-        """Returns a dataframe that contains sample of a 4d cg distribution. See the code for the used parameters."""
-
-        # chose fixed parameters
-        mu_M_Jena = [0, 0]
-        mu_F_Jena = [1, 3]
-        mu_M_Erfurt = [-10, 1]
-        mu_F_Erfurt = [-5, -6]
-        p_M_Jena = 0.35
-        p_F_Jena = 0.25
-        p_M_Erfurt = 0.1
-        p_F_Erfurt = 0.3
-        S = [[3, 0.5], [0.5, 1]]
-        dims = ['sex', 'city', 'age', 'income']
-        # and a sample size
-        samplecnt = 1000
-
-        # generate samples for each and arrange in dataframe
-        df_cat = pd.concat([
-            pd.DataFrame([["M", "Jena"]] * round(samplecnt * p_M_Jena), columns=['sex', 'city']),
-            pd.DataFrame([["F", "Jena"]] * round(samplecnt * p_F_Jena), columns=['sex', 'city']),
-            pd.DataFrame([["M", "Erfurt"]] * round(samplecnt * p_M_Erfurt), columns=['sex', 'city']),
-            pd.DataFrame([["F", "Erfurt"]] * round(samplecnt * p_F_Erfurt), columns=['sex', 'city'])
-        ])
-
-        df_num = pd.concat([
-            pd.DataFrame(np.random.multivariate_normal(mu_M_Jena, S, round(samplecnt * p_M_Jena)), columns=['age', 'income']),
-            pd.DataFrame(np.random.multivariate_normal(mu_F_Jena, S, round(samplecnt * p_F_Jena)), columns=['age', 'income']),
-            pd.DataFrame(np.random.multivariate_normal(mu_M_Erfurt, S, round(samplecnt * p_M_Erfurt)), columns=['age', 'income']),
-            pd.DataFrame(np.random.multivariate_normal(mu_F_Erfurt, S, round(samplecnt * p_F_Erfurt)), columns=['age', 'income'])
-        ])
-        df = pd.concat([df_cat, df_num], axis=1)
-#        df.plot.scatter(x="age", y="income")
-        return df
 
     def update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
@@ -371,66 +334,4 @@ class ConditionallyGaussianModel(md.Model):
         return mycopy
 
 if __name__ == '__main__':
-    # generate input data
-    Sigma = np.diag([1, 1, 1])
-    Sigma = np.matrix([[1, 0, 0.5], [0, 1, 0], [0.5, 0, 1]])
-    Sigma = np.diag([1, 1, 1, 1])
-
-    # select data set using this indicator variable
-    #dataset = "dummy_cg"
-    #dataset = "a"
-    dataset = "b"
-
-    if dataset == "a":
-        n = 1000
-        testopts = {'levels': {0: [1, 2, 3, 4], 1: [2, 5, 10], 2: [1, 2]},
-                    'Sigma': Sigma,
-                    'fun': genCatData,
-                    'catvalasmean': 1,  # works if dc = dg
-                    'seed': 10}
-        data = genCGSample(n, testopts)  # categoricals first, then gaussians, np array
-        dc = len(testopts.keys())
-    elif dataset == "b":
-        n = 1000
-        testopts = {'levels': {0: [0, 1], 1: [0, 1], 2: [0, 1]},
-                    'Sigma': Sigma,
-                    'fun': genCatDataJEx,
-                    'catvalasmean': 1,
-                    'seed': 10}
-        data = genCGSample(n, testopts)  # categoricals first, then gaussians, np array
-        dc = len(testopts.keys())
-        print("dc ", dc)
-    elif dataset == "dummy_cg":
-        data = ConditionallyGaussianModel.cg_dummy()
-
-    # fit model
-    model = ConditionallyGaussianModel('testmodel')
-    model.fit(data)
-
-    # print some information about the model
-    print(model)
-    print('p_ML: \n', model._p)
-    print('mu_ML: \n', model._mu)
-    print('Sigma_ML: \n', model._S)
-
-    if dataset == "dummy_cg":
-        md.Model.save(model, 'mymb.cg_dummy.mdl')
-        copy = model.copy()
-
-        print('p(M) = ', model._density(['M', 'Jena', 0, -6]))
-        print('argmax of p(sex, city, age, income) = ', model._maximum())
-        model.model(model=['sex', 'city', 'age'])  # marginalize income out
-        print('p(M) = ', model._density(['M', 'Jena', 0]))
-        print('argmax of p(sex, city, age) = ', model._maximum())
-        model.model(model=['sex', 'age'], where=[('city', "==", 'Jena')])  # condition city out
-        print('p(M) = ', model._density(['M', 0]))
-        print('argmax of p(sex, agge) = ', model._maximum())
-        model.model(model=['sex'], where=[('age', "==", 0)])  # condition age out
-        print('p(M) = ', model._density(['M']))
-        print('p(F) = ', model._density(['F']))
-        print('argmax of p(sex) = ', model._maximum())
-
-    # ind = (0, 1, 1)
-    # print('mu(', [model._extents[i][ind[i]] for i in ind], '):', model._mu[ind])
-    #print(np.histogram(data[:, dc]))
-    #plothist(data.iloc[:, dc + 1].ravel())
+    pass
