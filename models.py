@@ -507,6 +507,7 @@ class Model:
         Returns:
             The aggregation of the model. It always returns a list, even if it contains only a single value.
         """
+
         if self._isempty():
             raise ValueError('Cannot query aggregation of 0-dimensional model')
 
@@ -515,14 +516,34 @@ class Model:
         mode = self._mode
         if mode == "data" or mode == "both":
             if method == 'maximum':
+                data = self.data
+                k = min(4, len(data))
+
+                # derive interval levels for each numerical column
+                mycopy = pd.DataFrame()
+                for colname in data.columns:
+                    dtype = data[colname].dtype.name
+                    if dtype == "category" or dtype == "object":
+                        mycopy[colname] = data[colname]
+                    else:
+                        # attached leveled numerical column
+                        bins = utils.equiweightedintervals(seq=data[colname], k=k, bins=True)
+                        mycopy[colname] = pd.cut(x=data[colname], bins=bins)
+                        # todo: what if that fails, because there is not enough data...
+
                 # find observation with highest number of occurrences
-                allcols = list(self.data.columns)
-                grps = self.data.groupby(allcols)
+                # allcols = list(data.columns)
+                allcols = list(mycopy.columns)
+                # grps = data.groupby(allcols)
+                grps = mycopy.groupby(allcols)
                 # TODO: allow Nans in the result! it fails on the client when decoding the JSON at the moment
                 if len(grps) == 0:
                     data_res = 0 if self._n == 1 else [0] * self._n
                 else:
                     data_res = grps.size().argmax()
+
+                # now turn level for numericals back to scalar values
+                # pff...
 
             elif method == 'average':
                 # compute average of observations
