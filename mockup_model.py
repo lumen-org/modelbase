@@ -1,14 +1,11 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 import logging
-import numpy as np
-from numpy import pi, exp, matrix, ix_, nan
+import math
 
 import utils
 import models as md
-from models import AggregationTuple, SplitTuple, ConditionTuple
 import domains as dm
 
-# setup logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
@@ -25,7 +22,7 @@ class MockUpModel(md.Model):
 
     Deriving sub-models: works just as you'd expect.
 
-    Aggregations: returns always the same: a vector has 0 for numerical fields and "foo" for categorical fields.
+    Aggregations: returns the vector that has the first/smallest element of each fields domain as its elements.
 
     Density: returns always 0.
 
@@ -67,7 +64,8 @@ class MockUpModel(md.Model):
         return 0
 
     def _maximum(self):
-        return [0 if field['dtype'] == 'numerical' else 'foo' for field in self.fields]
+        # return [0 if field['dtype'] == 'numerical' else 'A' for field in self.fields]
+        return self._sample()
 
     def _sample(self):
         values = []
@@ -76,11 +74,35 @@ class MockUpModel(md.Model):
             val = domain.bounded(field['extent']).value()
             values.append(val if domain.issingular() else val[0])
         return values
-        # return [0 if field['dtype'] == 'numerical' else 'foo' for field in self.fields]
 
     def copy(self, name=None):
         return self._defaultcopy(name)
 
-    def _generate_model(self, opts):
-        pass
+    def _generate_model(self, opts={}):
+        """opts has a optional key 'dim' that defaults to 6 and specifies the dimension of the model that you want to
+        have."""
+        if 'dim' not in opts:
+            dim = 6
+        else:
+            dim = opts['dim']
+
+        ncat = math.floor(dim/2)
+        nnum = dim - ncat
+        self.fields = []
+
+        # numeric
+        for idx in range(ncat):
+            field = md.Field(name="dim" + str(idx),
+                             domain=dm.NumericDomain(),
+                             extent=dm.NumericDomain(list("ABCDEFG")))
+            self.fields.append(field)
+
+        # categorical
+        for idx in range(ncat):
+            field = md.Field(name="dim" + str(idx+nnum),
+                             domain=dm.DiscreteDomain(),
+                             extent=dm.DiscreteDomain())
+            self.fields.append(field)
+
+        return self.update()
 
