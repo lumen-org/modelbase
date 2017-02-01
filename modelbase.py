@@ -166,7 +166,8 @@ class ModelBase:
                 self.add(model)
             except TypeError as err:
                 print(str(err))
-                logger.warning('file "' + str(file) + '" matches the naming pattern but does not contain a model instance')
+                logger.warning('file "' + str(file) +
+                               '" matches the naming pattern but does not contain a model instance')
 
     def save_all_models(self, directory=None, ext='.mdl'):
         """Saves all models currently in the model base in given directory using the naming convention:

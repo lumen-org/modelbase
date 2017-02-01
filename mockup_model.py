@@ -12,7 +12,8 @@ import domains as dm
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
-class MockupModel(md.Model):
+
+class MockUpModel(md.Model):
     """A mock up model solely for testing of the abstract Model class.
 
     You can use it as any other model class, i.e. you can fit data to it, marginalize, aggregate, density-query, ...
@@ -44,7 +45,7 @@ class MockupModel(md.Model):
 
     def _fit(self, df):
         self.data = df
-        self.fields = MockupModel._get_header(self.data)
+        self.fields = MockUpModel._get_header(self.data)
         return self.update()
 
     def update(self):
@@ -69,15 +70,13 @@ class MockupModel(md.Model):
         return [0 if field['dtype'] == 'numerical' else 'foo' for field in self.fields]
 
     def _sample(self):
-        value = []
+        values = []
         for field in self.fields:
-            domain_value = field['domain'].bounded(field['extent']).value
-            value.append(domain_value[0])
-            # if field['dtype'] == 'numerical':
-            #
-            # else:
-
-        return [0 if field['dtype'] == 'numerical' else 'foo' for field in self.fields]
+            domain = field['domain']
+            val = domain.bounded(field['extent']).value()
+            values.append(val if domain.issingular() else val[0])
+        return values
+        # return [0 if field['dtype'] == 'numerical' else 'foo' for field in self.fields]
 
     def copy(self, name=None):
         return self._defaultcopy(name)
