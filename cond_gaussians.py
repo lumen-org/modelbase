@@ -157,6 +157,7 @@ class ConditionallyGaussianModel(md.Model):
             column = df[colname]
             field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
             fields.append(field)
+
         self.fields = fields
         self._update()
 

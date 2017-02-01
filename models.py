@@ -165,25 +165,30 @@ class Model:
         .marginalize, .condition, .predict-methods.
     """
     # TODO: useful helper functions for dealing with fields and indexes:
-    # todo: put it in models.py for reuse in all models?
-    # precondition: it works for all data types...
-    # @staticmethod
-    # def _get_header(df):
-    #     """ Returns suitable fields for this model from a given pandas dataframe.
-    #     """
-    #     fields = []
-    #     for colname in df:
-    #         column = df[colname]
-    #         # if categorical of some sort, create discrete field from it
-    #         if column.dtype == "category" or column.dtype == "object":
-    #             domain = dm.DiscreteDomain()
-    #             extent = dm.DiscreteDomain(sorted(column.unique()))
-    #             field = md.Field(colname, domain, extent, 'string')
-    #         # else it's numeric
-    #         else:
-    #             field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
-    #         fields.append(field)
-    #     return fields
+
+    @staticmethod
+    def _get_header(df):
+        """ Returns suitable fields for a model given a given pandas data frame.
+        column of dtypes == 'category' or dtype == 'object' are recognized as categorical.
+        All other columns are regarded as numerical.
+        The order of fields is the same as the order of columns in the data frame.
+
+        Args:
+            df: a pandas data frame.
+        """
+        fields = []
+        for colname in df:
+            column = df[colname]
+            # if categorical of some sort, create discrete field from it
+            if column.dtype == "category" or column.dtype == "object":
+                domain = dm.DiscreteDomain()
+                extent = dm.DiscreteDomain(sorted(column.unique()))
+                field = Field(colname, domain, extent, 'string')
+            # else it's numeric
+            else:
+                field = Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+            fields.append(field)
+        return fields
 
     def __str__(self):
         # TODO: add some more useful print out functions / info to that function
