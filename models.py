@@ -227,15 +227,18 @@ class Model:
     def inverse_names(self, names):
         """Given a sequence of names of random variables (or a single name), returns a sorted list of all names
         of random variables in this model which are _not_ in names. The order of names is the same as the order of
-        fields in the model."""
+        fields in the model.
+        It ignores silently any name that is not a name of a field in this model.
+        """
         if isinstance(names, str):
             names = [names]
         names = set(names)
-        return [name for name in self._name2idx if name not in names]
+        return [name for name in self.names if name not in names]
 
     def sorted_names(self, names):
         """Given a set, sequence or list of random variables of this model, returns a list of the
-        same names but in the same order as the random variables in the model. If names contains
+        same names but in the same order as the random variables in the model.
+        It ignores silently any name that is not a name of a field in this model.
         """
         return utils.sort_filter_list(names, self.names)
 
@@ -247,7 +250,8 @@ class Model:
         self._aggrMethods = None
         self._n = 0
         self._name2idx = {}
-        self._mode = "both"
+        self._mode = "empty"
+        #self._mode = "both"
         self._modeldata_field = _Modeldata_field()
 
     def _setempty(self):
@@ -310,6 +314,7 @@ class Model:
             self._fit(df)
         except NameError:
             raise NotImplementedError("You have to implement the _fit method in your model!")
+        self._mode = "both"
         return self
 
     def marginalize(self, keep=None, remove=None, is_pure=False):
@@ -702,9 +707,8 @@ class Model:
         """Returns n samples drawn from the model as a dataframe with suitable column names."""
         if self._isempty():
             raise ValueError('Cannot sample from 0-dimensional model')
-
         samples = (self._sample() for i in range(n))
-        return pd.DataFrame.from_records(samples, self.names)
+        return pd.DataFrame.from_records(data=samples, columns=self.names)
 
     def _sample(self):
         """Returns a single sample drawn from the model.
@@ -1061,13 +1065,19 @@ class Model:
 
         return (data_frame, basemodel) if returnbasemodel else data_frame
 
-    def _generate_data(self, opts):
-        """Provided that self is a functional model, this method it samples options['n'] many samples from it
-        and sets it as the models data. It also sets the 'mode' of this model to 'both'.
-        """
+    def _generate_data(self, opts=None):
+        """Provided that self is a functional model, this method it samples opts['n'] many samples from it
+        and sets it as the models data. It also sets the 'mode' of this model to 'both'. If not n is given 1000
+        samples will be created
 
-        if 'n' not in opts:
-            raise ValueError('missing required option "n".')
-        self.data = self.sample(opts['n'])
+        """
+        if opts is None:
+            opts = {}
+        n = opts['n'] if 'n' in opts else 1000
+
+        if self._mode != "model" and self._mode != "both":
+            raise ValueError("cannot sample from empty model, i.e. the model has not been learned/set yet.")
+
+        self.data = self.sample(n)
         self._mode = 'both'
         return self

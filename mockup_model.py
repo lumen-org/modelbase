@@ -33,7 +33,7 @@ class MockUpModel(md.Model):
     Density queries also return constant 0.
     """
 
-    def __init__(self, name):
+    def __init__(self, name="no-name"):
         super().__init__(name)
         self._aggrMethods = {
             'maximum': self._maximum,
@@ -94,15 +94,21 @@ class MockUpModel(md.Model):
         for idx in range(ncat):
             field = md.Field(name="dim" + str(idx),
                              domain=dm.NumericDomain(),
-                             extent=dm.NumericDomain(list("ABCDEFG")))
+                             extent=dm.NumericDomain(-5, 5))
             self.fields.append(field)
 
         # categorical
         for idx in range(ncat):
             field = md.Field(name="dim" + str(idx+nnum),
                              domain=dm.DiscreteDomain(),
-                             extent=dm.DiscreteDomain())
+                             extent=dm.DiscreteDomain(list("ABCDEFG")))
             self.fields.append(field)
+
+        self._mode = 'model'
 
         return self.update()
 
+if __name__ == "__main__":
+    model = MockUpModel()
+    model._generate_model(opts={'dim': 4})
+    pass
