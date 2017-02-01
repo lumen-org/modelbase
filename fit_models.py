@@ -36,7 +36,7 @@ known_models = {
     'car_crashes': lambda: (MultiVariateGaussianModel('car_crashes'), sns.load_dataset('car_crashes').iloc[:, 0:-1]),
 
     # conditionally gaussian models
-    'cg_dummy': lambda: (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
+    #'cg_dummy': lambda: (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
     'cg_crabs': lambda: (ConditionallyGaussianModel('cg_crabs'), crabs.mixed()),
     'cg_olive_oils': lambda: (ConditionallyGaussianModel('cg_olive_oils'),
                               olive_oils.mixed('data/olive_oils/olive.csv')),

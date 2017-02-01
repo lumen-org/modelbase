@@ -9,6 +9,7 @@ import json
 import logging
 from functools import reduce
 from pathlib import Path
+import os
 import numpy
 
 import models as gm
@@ -177,7 +178,12 @@ class ModelBase:
          """
         if directory is None:
             directory = self.model_dir
+
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
         dir_ = Path(directory)
+
         for key, model in self.models.items():
             filepath = dir_.joinpath(model.name + ext)
             gm.Model.save(model, str(filepath))
