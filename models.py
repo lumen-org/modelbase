@@ -517,8 +517,9 @@ class Model:
             if len(data) == 0:
                 # can not compute any aggregation. return nan
                 # TODO: allows Nans
-                raise ValueError("empty data frame - cannot compute any aggregations. implement nans.")
-            if method == 'maximum':
+                data_res = [0] * self._n
+                #raise ValueError("empty data frame - cannot compute any aggregations. implement nans.")
+            elif method == 'maximum':
                 k = min(23, len(data))
                 # derive interval levels for each numerical column
                 mycopy = pd.DataFrame()
