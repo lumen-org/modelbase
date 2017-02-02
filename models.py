@@ -499,7 +499,66 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
-    def aggregate(self, method):
+    def aggregate_data(self, method, opts=None):
+        data = self.data
+        if len(data) == 0:
+            # can not compute any aggregation. return nan
+            # TODO: allows Nans
+            data_res = [0] * self._n
+            # raise ValueError("empty data frame - cannot compute any aggregations. implement nans.")
+        elif method == 'maximum':
+            k = opts[0] if (opts is not None and opts != []) else 23
+            k = min(k, len(data))
+            # derive interval levels for each numerical column
+            mycopy = pd.DataFrame()
+            for colname in data.columns:
+                dtype = data[colname].dtype.name
+                if dtype == "category" or dtype == "object":
+                    mycopy[colname] = data[colname]
+                else:
+                    # attached leveled numerical column
+                    bins = utils.equiweightedintervals(seq=data[colname].tolist(), k=k, bins=True)
+                    # collapse bins to unique
+                    bins = sorted(set(bins))
+                    intervals = [(bins[idx], bins[idx + 1]) for idx, _ in enumerate(bins[:-1])]
+                    # cut to levels
+                    mycopy[colname] = pd.cut(x=data[colname], bins=bins, include_lowest=True, labels=intervals)
+
+            # find observation with highest number of occurrences
+            allcols = list(mycopy.columns)
+            grps = mycopy.groupby(allcols)
+            # TODO: allow Nans in the result! it fails on the client when decoding the JSON at the moment
+            if len(grps) == 0:
+                data_res = [0] * self._n
+            else:
+                data_res = grps.size().argmax()
+                if self._n == 1:
+                    data_res = [data_res]
+                else:
+                    data_res = list(data_res)  # because argmax returns tuples...
+                # now turn level for numericals back to scalar values
+                # i.e. for the numerical columns the result of argmax() was a level (i.e. the interval we set as label
+                # in pd.cut before)
+                assert (len(data_res) == len(mycopy.columns) and len(data_res) == self._n)
+                for idx, field in enumerate(self.fields):
+                    if field['dtype'] == 'numerical':
+                        data_res[idx] = sum(data_res[idx]) / 2
+
+        elif method == 'average':
+            # compute average of observations
+            # todo: what if mean cannot be computed, e.g. categorical columns?
+            data_res = self.data.mean(axis=0)
+
+            # in case of 1-dimensional selection pandas returns a scalar, not a single-element list
+            # we want a list in all cases, however
+            if self._n == 1:
+                data_res = [data_res]
+        else:
+            raise ValueError("invalid value for method: " + str(method))
+
+        return data_res
+
+    def aggregate(self, method, opts=None):
         """Aggregates this model using the given method and returns the
         aggregation as a list. The order of elements in the list matches the
         order of random variables in fields attribute of the model.
@@ -514,28 +573,7 @@ class Model:
         # see my notes for how to calculate a single aggregation
         mode = self._mode
         if mode == "data" or mode == "both":
-            if method == 'maximum':
-                # find observation with highest number of occurrences
-                allcols = list(self.data.columns)
-                grps = self.data.groupby(allcols)
-                # TODO: allow Nans in the result! it fails on the client when decoding the JSON at the moment
-                if len(grps) == 0:
-                    data_res = 0 if self._n == 1 else [0] * self._n
-                else:
-                    data_res = grps.size().argmax()
-
-            elif method == 'average':
-                # compute average of observations
-                # todo: what if mean cannot be computed, e.g. categorical columns?
-                data_res = self.data.mean(axis=0)
-            else:
-                raise ValueError("invalid value for method: " + str(method))
-
-            # in case of 1-dimensional selection pandas returns a scalar, not a single-element list
-            # we want a list in all cases, however
-            if self._n == 1:
-                data_res = [data_res]
-
+            data_res = self.aggregate_data(method, opts)
             if mode == "data":
                 return data_res
 
@@ -1020,7 +1058,7 @@ class Model:
                     if len(aggr[NAME_IDX]) != aggr_model._n:  # debugging
                         raise ValueError("uh, interesting - check this out, and read the todo above this code line")
                     singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
-                    res = singlemodel.aggregate(aggr[METHOD_IDX])
+                    res = singlemodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX+1])
                     # reduce to requested dimension
                     i = singlemodel.asindex(aggr[YIELDS_IDX])
                     aggr_results.append(res[i])
@@ -1029,7 +1067,7 @@ class Model:
                         pairs = zip(split_names, operator_list, row)
                         # derive model for these specific conditions
                         rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr[NAME_IDX])
-                        res = rowmodel.aggregate(aggr[METHOD_IDX])
+                        res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX+1])
                         # reduce to requested dimension
                         i = rowmodel.asindex(aggr[YIELDS_IDX])
                         aggr_results.append(res[i])
