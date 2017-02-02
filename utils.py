@@ -10,27 +10,45 @@ import random
 from functools import wraps
 
 
-def equiweightedintervals(seq, k, is_sorted=False, bins=False):
-    """divide into k intervals where each interval contains 1/k-th of the data."""
+def equiweightedintervals(seq, k, is_sorted=False, bins=False, eps=0.1):
+    """Divide seq into k intervals where each interval contains 1/k-th of the data.
+
+    Args:
+        bins:
+            if bins == False:  Returns the value borders of the intervals as a sequence of 2-tuples of the
+                form [min, max].
+            else: Returns a the sequence of interval borders.
+
+        eps: the range of seq is extended by eps% on each side of the interval to include the min or max values of seq.
+
+    Note: seq _will_ be altered if is_sorted is False.
+
+    Note: the intervals cannot be guaranteed to each hold the same or even similar number of elements if there are
+    many elements in seq that occur more than once.
+    """
 
     intervals = []
 
-    assert(k >= 0)
+    if k <= 0:
+        raise ValueError("k must be > 0")
 
     n = len(seq)
-    if n <= k:
+    if n < k:
         raise ValueError("cannot generate more intervals than the sequence is long")
 
-    # sort
+    # sort in place
     if not is_sorted:
         list.sort(seq)
 
-    aggr_borders = [seq[0]]
-    borders = [seq[0]]
+    eps *= (seq[-1]-seq[0])*0.01
+    aggr_borders = [seq[0]-eps]
+    borders = [seq[0]-eps]
     l = n/k
+    leps = l-eps  # is that nice?
     cnt = 0
-    for idx, val in enumerate(seq):
-        if cnt >= l:  # add a new border
+    for val in seq:
+        cnt += 1
+        if cnt >= leps:  # add a new border
             cnt -= l
             borders.append(val)
             aggr_borders.append(val)
@@ -39,25 +57,21 @@ def equiweightedintervals(seq, k, is_sorted=False, bins=False):
                 low = borders.pop()
                 intervals.append((low, high))
                 borders.append(val)
-        cnt += 1
-
-    # sometimes, for numerical reasons, an interval remains unclosed
-    if len(borders) != 0:
-        borders.append(seq[-1])
-        aggr_borders.append(seq[-1])
-        high = borders.pop()
-        low = borders.pop()
-        intervals.append((low, high))
 
     return aggr_borders if bins else intervals
 
 
 def shortest_interval(seq):
-    if len(seq) == 0:
-        return None
+    """ Given a sequence of intervals (i.e. a 2-tuple or a 2-element list), return the index of the shortest interval"""
     width = [s[1] - s[0] for s in seq]
-    min_ = min(width)
-    return seq[width.index(min_)]
+    try:
+        min_ = min(width)
+        idx = width.index(min_)
+        return idx
+#        return seq[idx]
+    except ValueError:
+        # min() arg is an empty sequence
+        return None
 
 
 def unique_list(iter_):
@@ -131,8 +145,8 @@ def log_it(before, after):
 
 if __name__ == '__main__':
     import numpy as np
-    vec = list(np.floor(np.random.rand(6) * 100))  # vector of random numbers
-    k = 5  # number of intervals
+    vec = list(np.floor(np.random.rand(18) * 100))  # vector of random numbers
+    k = 6  # number of intervals
     res = equiweightedintervals(vec, k)#, bins=True)
     print(res)
     print(vec)

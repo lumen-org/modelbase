@@ -8,8 +8,6 @@ This module defines:
    * Field: a class that represent random variables in a model.
    * ConditionTuple, SplitTuple, AggregationTuple: convenience tuples for handling such clauses in PQL queries
 """
-from email.policy import strict
-
 import pandas as pd
 import copy as cp
 from collections import namedtuple
@@ -515,10 +513,13 @@ class Model:
         # see my notes for how to calculate a single aggregation
         mode = self._mode
         if mode == "data" or mode == "both":
+            data = self.data
+            if len(data) == 0:
+                # can not compute any aggregation. return nan
+                # TODO: allows Nans
+                raise ValueError("empty data frame - cannot compute any aggregations. implement nans.")
             if method == 'maximum':
-                data = self.data
-                k = min(4, len(data))
-
+                k = min(23, len(data))
                 # derive interval levels for each numerical column
                 mycopy = pd.DataFrame()
                 for colname in data.columns:
@@ -527,35 +528,44 @@ class Model:
                         mycopy[colname] = data[colname]
                     else:
                         # attached leveled numerical column
-                        bins = utils.equiweightedintervals(seq=data[colname], k=k, bins=True)
-                        mycopy[colname] = pd.cut(x=data[colname], bins=bins)
-                        # todo: what if that fails, because there is not enough data...
+                        bins = utils.equiweightedintervals(seq=data[colname].tolist(), k=k, bins=True)
+                        # collapse bins to unique
+                        bins = sorted(set(bins))
+                        intervals = [(bins[idx], bins[idx+1]) for idx, _ in enumerate(bins[:-1])]
+                        # cut to levels
+                        mycopy[colname] = pd.cut(x=data[colname], bins=bins, include_lowest=True, labels=intervals)
 
                 # find observation with highest number of occurrences
-                # allcols = list(data.columns)
                 allcols = list(mycopy.columns)
-                # grps = data.groupby(allcols)
                 grps = mycopy.groupby(allcols)
                 # TODO: allow Nans in the result! it fails on the client when decoding the JSON at the moment
                 if len(grps) == 0:
-                    data_res = 0 if self._n == 1 else [0] * self._n
+                    data_res = [0] * self._n
                 else:
                     data_res = grps.size().argmax()
-
-                # now turn level for numericals back to scalar values
-                # pff...
+                    if self._n == 1:
+                        data_res = [data_res]
+                    else:
+                        data_res = list(data_res)  # because argmax returns tuples...
+                    # now turn level for numericals back to scalar values
+                    # i.e. for the numerical columns the result of argmax() was a level (i.e. the interval we set as label
+                    # in pd.cut before)
+                    assert(len(data_res) == len(mycopy.columns) and len(data_res) == self._n)
+                    for idx, field in enumerate(self.fields):
+                        if field['dtype'] == 'numerical':
+                            data_res[idx] = sum(data_res[idx])/2
 
             elif method == 'average':
                 # compute average of observations
                 # todo: what if mean cannot be computed, e.g. categorical columns?
                 data_res = self.data.mean(axis=0)
+
+                # in case of 1-dimensional selection pandas returns a scalar, not a single-element list
+                # we want a list in all cases, however
+                if self._n == 1:
+                    data_res = [data_res]
             else:
                 raise ValueError("invalid value for method: " + str(method))
-
-            # in case of 1-dimensional selection pandas returns a scalar, not a single-element list
-            # we want a list in all cases, however
-            if self._n == 1:
-                data_res = [data_res]
 
             if mode == "data":
                 return data_res
