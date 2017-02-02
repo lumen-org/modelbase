@@ -68,7 +68,6 @@ def shortest_interval(seq):
         min_ = min(width)
         idx = width.index(min_)
         return idx
-#        return seq[idx]
     except ValueError:
         # min() arg is an empty sequence
         return None
@@ -88,7 +87,7 @@ def unique_list(iter_):
 
 
 def sort_filter_list(seq, reference):
-    """Returns the list unique elements of seq that are contained in iterable reference in
+    """Returns the list of unique elements of seq that are contained in iterable reference in
     the same order as they appear in reference
     """
     seq = set(seq)
@@ -145,9 +144,3 @@ def log_it(before, after):
 
 if __name__ == '__main__':
     import numpy as np
-    vec = list(np.floor(np.random.rand(18) * 100))  # vector of random numbers
-    k = 6  # number of intervals
-    res = equiweightedintervals(vec, k)#, bins=True)
-    print(res)
-    print(vec)
-    #shortest = shor

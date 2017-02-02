@@ -10,13 +10,14 @@ def cg(file='data/starcraft/starcraft.csv'):
     #sc2df['LeagueIndex'] = sc2df['LeagueIndex'].astype('category')\
     #    .cat.rename_categories([str(level) for level in sc2df['LeagueIndex'].cat.categories])
     sc2df['LeagueIndex'] = sc2df['LeagueIndex'].astype('str')
-    sc2df.drop(['GameID',
-                'NumberOfPACs',
-                'GapBetweenPACs',
-                'ActionLatency',
-                'ActionsInPAC'], axis=1, inplace=True)
+    sc2df.drop(['GameID'], axis=1, inplace=True)
+                # 'NumberOfPACs',
+                # 'GapBetweenPACs',
+                # 'ActionLatency',
+                # 'ActionsInPAC'], axis=1, inplace=True)
     return sc2df
 
 
 if __name__ == "__main__":
     df = cg("starcraft.csv")
+    pass

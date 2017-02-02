@@ -96,7 +96,8 @@ class TestInvalidParams(unittest.TestCase):
             self.assertEqual(m.names, m.sorted_names(shuffled))
 
         for i in range(20):
-            shuffled = shuffle(list(m.names) + ['foo', 'bar', 'foobar'])
+            shuffled = list(m.names) + ['foo', 'bar', 'foobar']
+            shuffle(shuffled)
             self.assertEqual(m.names, m.sorted_names(shuffled))
 
 
