@@ -8,8 +8,6 @@ This module defines:
    * Field: a class that represent random variables in a model.
    * ConditionTuple, SplitTuple, AggregationTuple: convenience tuples for handling such clauses in PQL queries
 """
-from email.policy import strict
-
 import pandas as pd
 import copy as cp
 from collections import namedtuple
@@ -566,6 +564,7 @@ class Model:
         Returns:
             The aggregation of the model. It always returns a list, even if it contains only a single value.
         """
+
         if self._isempty():
             raise ValueError('Cannot query aggregation of 0-dimensional model')
 

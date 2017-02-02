@@ -10,6 +10,70 @@ import random
 from functools import wraps
 
 
+def equiweightedintervals(seq, k, is_sorted=False, bins=False, eps=0.1):
+    """Divide seq into k intervals where each interval contains 1/k-th of the data.
+
+    Args:
+        bins:
+            if bins == False:  Returns the value borders of the intervals as a sequence of 2-tuples of the
+                form [min, max].
+            else: Returns a the sequence of interval borders.
+
+        eps: the range of seq is extended by eps% on each side of the interval to include the min or max values of seq.
+
+    Note: seq _will_ be altered if is_sorted is False.
+
+    Note: the intervals cannot be guaranteed to each hold the same or even similar number of elements if there are
+    many elements in seq that occur more than once.
+    """
+
+    intervals = []
+
+    if k <= 0:
+        raise ValueError("k must be > 0")
+
+    n = len(seq)
+    if n < k:
+        raise ValueError("cannot generate more intervals than the sequence is long")
+
+    # sort in place
+    if not is_sorted:
+        list.sort(seq)
+
+    eps *= (seq[-1]-seq[0])*0.01
+    aggr_borders = [seq[0]-eps]
+    borders = [seq[0]-eps]
+    l = n/k
+    leps = l-eps  # is that nice?
+    cnt = 0
+    for val in seq:
+        cnt += 1
+        if cnt >= leps:  # add a new border
+            cnt -= l
+            borders.append(val)
+            aggr_borders.append(val)
+            if len(borders) % 2 == 0:  # add a new interval
+                high = borders.pop()
+                low = borders.pop()
+                intervals.append((low, high))
+                borders.append(val)
+
+    return aggr_borders if bins else intervals
+
+
+def shortest_interval(seq):
+    """ Given a sequence of intervals (i.e. a 2-tuple or a 2-element list), return the index of the shortest interval"""
+    width = [s[1] - s[0] for s in seq]
+    try:
+        min_ = min(width)
+        idx = width.index(min_)
+        return idx
+#        return seq[idx]
+    except ValueError:
+        # min() arg is an empty sequence
+        return None
+
+
 def unique_list(iter_):
     """ Creates and returns a list from given iterable which only contains 
     each item once. Order is preserved. 
@@ -77,3 +141,13 @@ def log_it(before, after):
             print(after)
         return wrapper
     return real_decorator
+
+
+if __name__ == '__main__':
+    import numpy as np
+    vec = list(np.floor(np.random.rand(18) * 100))  # vector of random numbers
+    k = 6  # number of intervals
+    res = equiweightedintervals(vec, k)#, bins=True)
+    print(res)
+    print(vec)
+    #shortest = shor
