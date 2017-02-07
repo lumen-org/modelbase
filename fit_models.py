@@ -16,6 +16,11 @@ import data.crabs.crabs as crabs
 import data.olive_oils.olive_oils as olive_oils
 import data.yeast.yeast as yeast
 import data.starcraft.starcraft as starcraft
+import data.glass.glass as glass
+import data.abalone.abalone as abalone
+import data.flea.flea as flea
+import data.music.music as music
+import data.mpg.mpg as mpg
 
 from cond_gaussians import ConditionallyGaussianModel
 from gaussians import MultiVariateGaussianModel
@@ -36,13 +41,18 @@ known_models = {
     'car_crashes': lambda: (MultiVariateGaussianModel('car_crashes'), sns.load_dataset('car_crashes').iloc[:, 0:-1]),
 
     # conditionally gaussian models
-    #'cg_dummy': lambda: (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
+    # 'cg_dummy': lambda: (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
     'cg_crabs': lambda: (ConditionallyGaussianModel('cg_crabs'), crabs.mixed()),
     'cg_olive_oils': lambda: (ConditionallyGaussianModel('cg_olive_oils'),
                               olive_oils.mixed('data/olive_oils/olive.csv')),
     'cg_yeast': lambda: (ConditionallyGaussianModel('cg_yeast'), yeast.mixed('data/yeast/yeast.csv')),
     'cg_iris': lambda: (ConditionallyGaussianModel('cg_iris'), sns.load_dataset('iris')),
-    'starcraft': lambda: (ConditionallyGaussianModel('starcraft'), starcraft.cg())
+    'starcraft': lambda: (ConditionallyGaussianModel('starcraft'), starcraft.cg()),
+    'glass': lambda: (ConditionallyGaussianModel('glass'), glass.mixed('data/glass/glass.data.csv')),
+    'abalone': lambda: (ConditionallyGaussianModel('abalone'), abalone.cg()),
+    'flea': lambda: (ConditionallyGaussianModel('flea'), flea.mixed()),
+    'music': lambda: (ConditionallyGaussianModel('music'), music.mixed()),
+    'mpg': lambda: (ConditionallyGaussianModel('mpg'), mpg.cg())
 }
 
 
@@ -53,6 +63,8 @@ def refit_all_models(verbose=False, include=None, exclude=None):
         include = known_models.keys()
     if exclude is None:
         exclude = []
+
+    # TODO: refactor below to detect if user specified models to include that don't exist
 
     # fit it!
     models = []
@@ -111,6 +123,7 @@ Examples:
 
     # for debugging:
     # args.include = ['cg_olive_oils']
+    # args.include = ['cg_glass']
 
     modelbase = mb.ModelBase("refitter", load_all=False, model_dir=args.directory)
     models = refit_all_models(verbose=True, include=args.include, exclude=args.exclude)

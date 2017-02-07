@@ -92,3 +92,6 @@ ENV/
 
 # pycharm / webstorm project stuff
 .idea/
+
+# project specific excludes
+stuff/
