@@ -100,6 +100,8 @@ class TestInvalidParams(unittest.TestCase):
             shuffle(shuffled)
             self.assertEqual(m.names, m.sorted_names(shuffled))
 
+#    def test
+
 
 class TestAllModels(unittest.TestCase):
     """This test case tests simple invariants that should hold for all concrete models, that however,

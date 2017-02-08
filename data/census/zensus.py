@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def mixed(path='data/zensus/zensus.csv'):
+def mixed(path='data/census/zensus.csv'):
     df = pd.read_csv(path, delimiter=';')
     #print(df.head())
     df['Bundesland'] = df['Bundesland'].astype('category')
@@ -9,4 +9,4 @@ def mixed(path='data/zensus/zensus.csv'):
     return df
 
 if __name__ == '__main__':
-    mixed('zensus.csv')
+    mixed('census.csv')

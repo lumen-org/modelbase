@@ -21,6 +21,9 @@ import data.abalone.abalone as abalone
 import data.flea.flea as flea
 import data.music.music as music
 import data.mpg.mpg as mpg
+import data.census.zensus as zensus
+import data.bank.bank as bank
+import data.banknotes.banknotes as banknotes
 
 from cond_gaussians import ConditionallyGaussianModel
 from gaussians import MultiVariateGaussianModel
@@ -52,7 +55,9 @@ known_models = {
     'abalone': lambda: (ConditionallyGaussianModel('abalone'), abalone.cg()),
     'flea': lambda: (ConditionallyGaussianModel('flea'), flea.mixed()),
     'music': lambda: (ConditionallyGaussianModel('music'), music.mixed()),
-    'mpg': lambda: (ConditionallyGaussianModel('mpg'), mpg.cg())
+    'mpg': lambda: (ConditionallyGaussianModel('mpg'), mpg.cg()),
+    'census': lambda: (ConditionallyGaussianModel('census'), zensus.mixed()),
+    'cg_banknotes': lambda: (ConditionallyGaussianModel('cg_banknotes'), banknotes.mixed('data/banknotes/banknotes.csv'))
 }
 
 
