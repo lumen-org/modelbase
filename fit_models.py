@@ -43,6 +43,9 @@ known_models = {
     'iris': lambda: (MultiVariateGaussianModel('iris'), sns.load_dataset('iris').iloc[:, 0:-1]),
     'car_crashes': lambda: (MultiVariateGaussianModel('car_crashes'), sns.load_dataset('car_crashes').iloc[:, 0:-1]),
 
+    # mixutres of multivariate gaussians
+    # 'faithful': lambda: (MMVG('faithful'), df.read_csv('data/faithful/faithful.csv')),
+
     # conditionally gaussian models
     # 'cg_dummy': lambda: (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
     'cg_crabs': lambda: (ConditionallyGaussianModel('cg_crabs'), crabs.mixed()),
