@@ -6,8 +6,6 @@ import numpy as np
 import pandas as pd
 
 import utils
-import data.crabs.crabs as crabs
-
 
 DEFAULT_BIN_NUMBER = 10
 
@@ -168,6 +166,10 @@ def average(df):
 
 if __name__ == '__main__':
     import seaborn.apionly as sns
+    import numpy as np
+    import pandas as pd
+    import data.crabs.crabs as crabs
+
     iris = sns.load_dataset('iris')
     crabs = crabs.mixed('data/crabs/australian-crabs.csv')
 

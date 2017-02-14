@@ -461,7 +461,7 @@ class Model:
             # raise ValueError("empty data frame - cannot compute any aggregations. implement nans.")
             return [0] * self._n
         elif method == 'maximum' or method == 'average':
-            #return data_aggr.most_frequent_equi_sized(data, opts)  # this is also an options, but I think its worse
+            # return data_aggr.most_frequent_equi_sized(data, opts)  # this is also an option, but I think it's worse
             return data_aggr.average_most_frequent(data, opts)
         else:
             raise ValueError("invalid value for method: " + str(method))
@@ -1007,6 +1007,39 @@ class Model:
 
         return (data_frame, basemodel) if returnbasemodel else data_frame
 
+    def select(self, select, where, opts=None):
+        """Returns selected the selected attributes of all data items that satisfy the conditions as a
+        pandas DataFrame.
+        """
+        # select columns
+        df = self.data.loc[:, select]
+
+        # select rows
+        # TODO: improve performance by using combined boolean arrays to select all at once
+        for (name, operator, values) in where:
+            operator = operator.lower()
+            field = self.byname(name)
+            column = df[name]
+            if operator == 'in':
+                if field['dtype'] == 'numerical':
+                    df = df.loc[column.between(*values, inclusive=True)]
+                elif field['dtype'] == 'string':
+                    df = df.loc[column.isin(values)]
+                else:
+                    raise TypeError("unsupported field type: " + str(field.dtype))
+            else:
+                # values is necessarily a single scalar value, not a list
+                if operator == 'equals' or operator == '==':
+                    df = df.loc[column == values]
+                elif operator == 'greater' or operator == '>':
+                    df = df.loc[column > values]
+                elif operator == 'less' or operator == '<':
+                    df = df.loc[column < values]
+                else:
+                    raise ValueError('invalid operator for condition: ' + str(operator))
+
+        return df
+
     def _generate_data(self, opts=None):
         """Provided that self is a functional model, this method it samples opts['n'] many samples from it
         and sets it as the models data. It also sets the 'mode' of this model to 'both'. If not n is given 1000
@@ -1023,3 +1056,19 @@ class Model:
         self.data = self.sample(n)
         self._mode = 'both'
         return self
+
+
+if __name__ == '__main__':
+    import seaborn.apionly as sns
+    import numpy as np
+    import pandas as pd
+    import data.crabs.crabs as crabs
+
+    import cond_gaussians as cg
+
+    iris = sns.load_dataset('iris')
+    crabs = crabs.mixed('data/crabs/australian-crabs.csv')
+
+    iris_model = cg.ConditionallyGaussianModel("iris").fit(iris)
+
+    pass
