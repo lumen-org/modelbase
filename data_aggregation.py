@@ -30,7 +30,7 @@ def most_frequent_equi_sized(data, opts=None):
     # TODO: this _copies_ the whole data!!!
     # todo: can I circumvent this by passing in the numpy structures instead?
 
-    if np.number in list(iris.dtypes):
+    if np.number in list(data.dtypes):
         df = pd.DataFrame()
         for colname in data.columns:
             dtype = data[colname].dtype
@@ -133,18 +133,29 @@ def average_most_frequent(df, opts=None):
         For the categorical part of the data it returns the most frequent row
         For the numerical part of the data it returns the average row
     """
+    n,d = df.shape
+    if n == 0:
+        raise NotImplementedError("cannot return NaNs at the moment.")
+    if d == 0:
+        raise ValueError("cannot aggregate dataframe without any column")
+
     num_idx = []
     cat_idx = []
+
     for idx, dtype in enumerate(df.dtypes):
         if dtype == np.number:
             num_idx.append(idx)
         else:
             cat_idx.append(idx)
 
-    num_avg = average(df.iloc[:, num_idx])
-    cat_mstfrqt = most_frequent(df.iloc[:, cat_idx])
-
-    return utils.mergebyidx(num_avg, cat_mstfrqt, num_idx, cat_idx)
+    if len(num_idx) == 0:
+        return most_frequent(df)
+    if len(cat_idx) == 0:
+        return average(df)
+    else:
+        num_avg = average(df.iloc[:, num_idx])
+        cat_mstfrqt = most_frequent(df.iloc[:, cat_idx])
+        return utils.mergebyidx(num_avg, cat_mstfrqt, num_idx, cat_idx)
 
 
 def average(df):

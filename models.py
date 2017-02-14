@@ -460,9 +460,8 @@ class Model:
             # TODO: allows Nans
             # raise ValueError("empty data frame - cannot compute any aggregations. implement nans.")
             return [0] * self._n
-        elif method == 'maximum':
-            return data_aggr.most_frequent_equi_sized(data, opts)
-        elif method == 'average':
+        elif method == 'maximum' or method == 'average':
+            #return data_aggr.most_frequent_equi_sized(data, opts)  # this is also an options, but I think its worse
             return data_aggr.average_most_frequent(data, opts)
         else:
             raise ValueError("invalid value for method: " + str(method))
@@ -483,8 +482,7 @@ class Model:
         # see my notes for how to calculate a single aggregation
         mode = self._mode
         if mode == "data" or mode == "both":
-            #data_res = self.aggregate_data(method, opts)
-            data_res = self.aggregate_data_mixed(opts)
+            data_res = self.aggregate_data(method, opts)
             if mode == "data":
                 return data_res
 
