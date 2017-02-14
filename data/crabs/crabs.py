@@ -8,11 +8,11 @@ Data Preprocessing and cleansing for the crabs data set
 import pandas as pd
 
 
-def mixed():
+def mixed(filepath='australian-crabs.csv'):
     """Loads the crabs data set from a csv file, removes the index column and returns the
     remaining data as a pandas data frame
     """
-    df = pd.read_csv('data/crabs/australian-crabs.csv')
+    df = pd.read_csv(filepath)
 
     # drop index column
     del df['index']

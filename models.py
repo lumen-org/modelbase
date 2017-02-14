@@ -509,7 +509,8 @@ class Model:
             # TODO: allows Nans
             data_res = [0] * self._n
             # raise ValueError("empty data frame - cannot compute any aggregations. implement nans.")
-        elif method == 'maximum':
+            # elif method == 'maximum':
+        elif method == 'average':
             k = opts[0] if (opts is not None and opts != []) else 23
             k = min(k, len(data))
             # derive interval levels for each numerical column
@@ -547,19 +548,42 @@ class Model:
                     if field['dtype'] == 'numerical':
                         data_res[idx] = sum(data_res[idx]) / 2
 
-        elif method == 'average':
+        # elif method == 'average':
+        elif method == 'maximum':
             # compute average of observations
             # todo: what if mean cannot be computed, e.g. categorical columns?
-            data_res = self.data.mean(axis=0)
+            data_res = self.data.mean(axis=0).values  # values always returns an array
 
             # in case of 1-dimensional selection pandas returns a scalar, not a single-element list
             # we want a list in all cases, however
-            if self._n == 1:
-                data_res = [data_res]
+            #if self._n == 1:
+            #    data_res = [data_res]
         else:
             raise ValueError("invalid value for method: " + str(method))
 
         return data_res
+
+    def aggregate_data_mixed(self, opts=None):
+        """Aggregates the data of the model as follows:
+          return the average for the continuous part of the data, and
+          return the most frequent value for the diskrete part of the data.
+        """
+
+        numeric = []
+        discrete = []
+        for field in self.fields:
+            if field['dtype'] == 'numerical':
+                numeric.append(field['name'])
+            elif field['dtype'] == 'string':
+                discrete.append(field['name'])
+
+        res_discrete = self.data.loc[:, discrete].value_counts().argmax()
+        res_numeric = self.data.loc[:, numeric].mean()
+
+        result = pd.concat(res_discrete, res_numeric)
+        result.columns = self.data.columns.slice()
+
+        return result
 
     def aggregate(self, method, opts=None):
         """Aggregates this model using the given method and returns the
@@ -577,7 +601,8 @@ class Model:
         # see my notes for how to calculate a single aggregation
         mode = self._mode
         if mode == "data" or mode == "both":
-            data_res = self.aggregate_data(method, opts)
+            #data_res = self.aggregate_data(method, opts)
+            data_res = self.aggregate_data_mixed(opts)
             if mode == "data":
                 return data_res
 

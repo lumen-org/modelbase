@@ -10,6 +10,10 @@ import random
 from functools import wraps
 
 
+def rolling_1d_mean(seq):
+    return [(seq[i]+seq[i+1])/2 for i in range(len(seq)-1)]
+
+
 def equiweightedintervals(seq, k, is_sorted=False, bins=False, eps=0.1):
     """Divide seq into k intervals where each interval contains 1/k-th of the data.
 

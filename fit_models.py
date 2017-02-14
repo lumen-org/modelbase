@@ -48,7 +48,7 @@ known_models = {
 
     # conditionally gaussian models
     # 'cg_dummy': lambda: (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
-    'cg_crabs': lambda: (ConditionallyGaussianModel('cg_crabs'), crabs.mixed()),
+    'cg_crabs': lambda: (ConditionallyGaussianModel('cg_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
     'cg_olive_oils': lambda: (ConditionallyGaussianModel('cg_olive_oils'),
                               olive_oils.mixed('data/olive_oils/olive.csv')),
     'cg_yeast': lambda: (ConditionallyGaussianModel('cg_yeast'), yeast.mixed('data/yeast/yeast.csv')),
