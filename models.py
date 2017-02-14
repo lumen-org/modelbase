@@ -17,6 +17,7 @@ import logging
 import domains as dm
 import splitter as sp
 import utils as utils
+import data_aggregation as data_aggr
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -85,57 +86,6 @@ def field_tojson(field):
     copy['domain'] = field['domain'].tojson()
     copy['extent'] = field['extent'].tojson()
     return copy
-
-
-def mergebyidx2(zips):
-    """Merges list l1 and list l2 into one list in increasing index order, where the indices are given by idx1
-    and idx2, respectively. idx1 and idx2 are expected to be sorted. No index may be occur twice. Indexing starts at 0.
-
-    For example mergebyidx2( [zip(["a","b"], [1,3]), zip(["c","d"] , [0,2])] )
-
-    TODO: it doesn't work yet, but I'd like to fix it, just because I think its cool
-    TODO: change it to be a generator! should be super simple! just put yield instead of append!
-    """
-    def next_(iter_):
-        return next(iter_, (None, None))  # helper function
-
-    zips = list(zips)  # necessary since we iterate over zips several times
-    for (idx, lst) in zips:
-        assert len(idx) == len(lst)
-    merged = []  # we collect the merged list in here
-    currents = list(map(next_, zips))  # a list of the heads of each of the input sequences
-    result_len = reduce(lambda sum_, zip_: sum_ + len(zip_[0]), zips, 0)
-    for idxres in range(result_len):
-        for zipidx, (idx, val) in enumerate(currents):
-            if idx == idxres:  # for each index we find the currently matching 'head'
-                merged.append(val)  # if found, the corresponding value is appended to the merged list
-                currents[zipidx] = next_(zips[idx])  # and the head is advanced
-                break
-    return merged
-
-
-def mergebyidx(list1, list2, idx1, idx2):
-    """Merges list l1 and list l2 into one list in increasing index order, where the indices are given by idx1
-    and idx2, respectively. idx1 and idx2 are expected to be sorted. No index may be occur twice. Indexing starts at 0.
-
-    For example mergebyidx( [a,b], [c,d], [1,3], [0,2] ) gives [c,a,d,b] )
-    """
-    assert (len(list1) == len(idx1) and len(list2) == len(idx2))
-    result = []
-    zip1 = zip(idx1, list1)
-    zip2 = zip(idx2, list2)
-    cur1 = next(zip1, (None, None))
-    cur2 = next(zip2, (None, None))
-    for idxres in range(len(list1) + len(list2)):
-        if cur1[0] == idxres:
-            result.append(cur1[1])
-            cur1 = next(zip1, (None, None))
-        elif cur2[0] == idxres:
-            result.append(cur2[1])
-            cur2 = next(zip2, (None, None))
-        else:
-            raise ValueError("missing index " + str(idxres) + " in given index ranges")
-    return result
 
 
 def _tuple2str(tuple_):
@@ -503,87 +453,19 @@ class Model:
         raise NotImplementedError("Implement this method in your model!")
 
     def aggregate_data(self, method, opts=None):
+        """Aggregate the models data according to given method and options, and returns this aggregation."""
         data = self.data
         if len(data) == 0:
             # can not compute any aggregation. return nan
             # TODO: allows Nans
-            data_res = [0] * self._n
             # raise ValueError("empty data frame - cannot compute any aggregations. implement nans.")
-            # elif method == 'maximum':
-        elif method == 'average':
-            k = opts[0] if (opts is not None and opts != []) else 23
-            k = min(k, len(data))
-            # derive interval levels for each numerical column
-            mycopy = pd.DataFrame()
-            for colname in data.columns:
-                dtype = data[colname].dtype.name
-                if dtype == "category" or dtype == "object":
-                    mycopy[colname] = data[colname]
-                else:
-                    # attached leveled numerical column
-                    bins = utils.equiweightedintervals(seq=data[colname].tolist(), k=k, bins=True)
-                    # collapse bins to unique
-                    bins = sorted(set(bins))
-                    intervals = [(bins[idx], bins[idx + 1]) for idx, _ in enumerate(bins[:-1])]
-                    # cut to levels
-                    mycopy[colname] = pd.cut(x=data[colname], bins=bins, include_lowest=True, labels=intervals)
-
-            # find observation with highest number of occurrences
-            allcols = list(mycopy.columns)
-            grps = mycopy.groupby(allcols)
-            # TODO: allow Nans in the result! it fails on the client when decoding the JSON at the moment
-            if len(grps) == 0:
-                data_res = [0] * self._n
-            else:
-                data_res = grps.size().argmax()
-                if self._n == 1:
-                    data_res = [data_res]
-                else:
-                    data_res = list(data_res)  # because argmax returns tuples...
-                # now turn level for numericals back to scalar values
-                # i.e. for the numerical columns the result of argmax() was a level (i.e. the interval we set as label
-                # in pd.cut before)
-                assert (len(data_res) == len(mycopy.columns) and len(data_res) == self._n)
-                for idx, field in enumerate(self.fields):
-                    if field['dtype'] == 'numerical':
-                        data_res[idx] = sum(data_res[idx]) / 2
-
-        # elif method == 'average':
+            return [0] * self._n
         elif method == 'maximum':
-            # compute average of observations
-            # todo: what if mean cannot be computed, e.g. categorical columns?
-            data_res = self.data.mean(axis=0).values  # values always returns an array
-
-            # in case of 1-dimensional selection pandas returns a scalar, not a single-element list
-            # we want a list in all cases, however
-            #if self._n == 1:
-            #    data_res = [data_res]
+            return data_aggr.most_frequent_equi_sized(data, opts)
+        elif method == 'average':
+            return data_aggr.average_most_frequent(data, opts)
         else:
             raise ValueError("invalid value for method: " + str(method))
-
-        return data_res
-
-    def aggregate_data_mixed(self, opts=None):
-        """Aggregates the data of the model as follows:
-          return the average for the continuous part of the data, and
-          return the most frequent value for the diskrete part of the data.
-        """
-
-        numeric = []
-        discrete = []
-        for field in self.fields:
-            if field['dtype'] == 'numerical':
-                numeric.append(field['name'])
-            elif field['dtype'] == 'string':
-                discrete.append(field['name'])
-
-        res_discrete = self.data.loc[:, discrete].value_counts().argmax()
-        res_numeric = self.data.loc[:, numeric].mean()
-
-        result = pd.concat(res_discrete, res_numeric)
-        result.columns = self.data.columns.slice()
-
-        return result
 
     def aggregate(self, method, opts=None):
         """Aggregates this model using the given method and returns the
@@ -641,7 +523,7 @@ class Model:
                 other_res[idx] = field['domain'].clamp(other_res[idx])
 
             # 5. merge with singular results
-            model_res = mergebyidx(singular_res, other_res, singular_idx, other_idx)
+            model_res = utils.mergebyidx(singular_res, other_res, singular_idx, other_idx)
 
         if mode == "model":
             return model_res

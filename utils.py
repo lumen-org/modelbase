@@ -10,6 +10,59 @@ import random
 from functools import wraps
 
 
+
+
+def mergebyidx2(zips):
+    """Merges list l1 and list l2 into one list in increasing index order, where the indices are given by idx1
+    and idx2, respectively. idx1 and idx2 are expected to be sorted. No index may be occur twice. Indexing starts at 0.
+
+    For example mergebyidx2( [zip(["a","b"], [1,3]), zip(["c","d"] , [0,2])] )
+
+    TODO: it doesn't work yet, but I'd like to fix it, just because I think its cool
+    TODO: change it to be a generator! should be super simple! just put yield instead of append!
+    """
+    def next_(iter_):
+        return next(iter_, (None, None))  # helper function
+
+    zips = list(zips)  # necessary since we iterate over zips several times
+    for (idx, lst) in zips:
+        assert len(idx) == len(lst)
+    merged = []  # we collect the merged list in here
+    currents = list(map(next_, zips))  # a list of the heads of each of the input sequences
+    result_len = reduce(lambda sum_, zip_: sum_ + len(zip_[0]), zips, 0)
+    for idxres in range(result_len):
+        for zipidx, (idx, val) in enumerate(currents):
+            if idx == idxres:  # for each index we find the currently matching 'head'
+                merged.append(val)  # if found, the corresponding value is appended to the merged list
+                currents[zipidx] = next_(zips[idx])  # and the head is advanced
+                break
+    return merged
+
+
+def mergebyidx(list1, list2, idx1, idx2):
+    """Merges list l1 and list l2 into one list in increasing index order, where the indices are given by idx1
+    and idx2, respectively. idx1 and idx2 are expected to be sorted. No index may be occur twice. Indexing starts at 0.
+
+    For example mergebyidx( [a,b], [c,d], [1,3], [0,2] ) gives [c,a,d,b] )
+    """
+    assert (len(list1) == len(idx1) and len(list2) == len(idx2))
+    result = []
+    zip1 = zip(idx1, list1)
+    zip2 = zip(idx2, list2)
+    cur1 = next(zip1, (None, None))
+    cur2 = next(zip2, (None, None))
+    for idxres in range(len(list1) + len(list2)):
+        if cur1[0] == idxres:
+            result.append(cur1[1])
+            cur1 = next(zip1, (None, None))
+        elif cur2[0] == idxres:
+            result.append(cur2[1])
+            cur2 = next(zip2, (None, None))
+        else:
+            raise ValueError("missing index " + str(idxres) + " in given index ranges")
+    return result
+
+
 def rolling_1d_mean(seq):
     return [(seq[i]+seq[i+1])/2 for i in range(len(seq)-1)]
 

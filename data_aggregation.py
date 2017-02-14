@@ -113,6 +113,7 @@ def most_frequent(df):
     """ Expects a pandas data frame of only categorical columns (dtype == 'object' or dtype == 'string').
     Returns the most frequent row in the data frame.
     """
+    assert(np.number not in list(df.dtypes))
 
     n, d = df.shape
     allcols = list(df.columns)
@@ -124,6 +125,26 @@ def most_frequent(df):
     else:
         data_res = grps.size().argmax()
         return [data_res] if d == 1 else list(data_res)
+
+
+def average_most_frequent(df, opts=None):
+    """ Expects a pandas data frame of possibly both numerical and categorical columns.
+    Returns an 'mixed-heuristic' average-maximum aggregation, as follows:
+        For the categorical part of the data it returns the most frequent row
+        For the numerical part of the data it returns the average row
+    """
+    num_idx = []
+    cat_idx = []
+    for idx, dtype in enumerate(df.dtypes):
+        if dtype == np.number:
+            num_idx.append(idx)
+        else:
+            cat_idx.append(idx)
+
+    num_avg = average(df.iloc[:, num_idx])
+    cat_mstfrqt = most_frequent(df.iloc[:, cat_idx])
+
+    return utils.mergebyidx(num_avg, cat_mstfrqt, num_idx, cat_idx)
 
 
 def average(df):
@@ -145,14 +166,20 @@ if __name__ == '__main__':
     print('average crabs cont: ')
     print(average(crabs.iloc[:, 2:]))
 
-    print('most_frequent_equi_massed iris mixed')
-    print(most_frequent_equi_massed(iris, opts=[5]))
-
-    print('most_frequent_equi_massed crabs mixed')
-    print(most_frequent_equi_massed(crabs, opts=[5]))
+    # print('most_frequent_equi_massed iris mixed')
+    # print(most_frequent_equi_massed(iris, opts=[5]))
+    #
+    # print('most_frequent_equi_massed crabs mixed')
+    # print(most_frequent_equi_massed(crabs, opts=[5]))
 
     print('most_frequent_equi_sized iris mixed')
     print(most_frequent_equi_sized(iris, opts=[5]))
 
     print('most_frequent_equi_sized crabs mixed')
     print(most_frequent_equi_sized(crabs, opts=[5]))
+
+    print('average_most_frequent iris mixed')
+    print(average_most_frequent(iris))
+
+    print('average_most_frequent crabs mixed')
+    print(average_most_frequent(crabs))
