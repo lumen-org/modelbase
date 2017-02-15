@@ -49,9 +49,13 @@ class CategoricalModel(md.Model):
         # smooth, normalize and return
         return (counts + k) / (counts.sum() + k * counts.size)
 
-    def _fit(self, df):
+    def _set_data(self, df):
+        self.data = df
         self.fields = CategoricalModel._get_header(df)
-        self._p = CategoricalModel._maximum_aposteriori(df, self.fields)
+        return self
+
+    def _fit(self):
+        self._p = CategoricalModel._maximum_aposteriori(self.data, self.fields)
         return self.update()
 
     # def __str__(self):

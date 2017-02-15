@@ -128,10 +128,7 @@ class ConditionallyGaussianModel(md.Model):
 
         return pML, musML, Sigma
 
-    def _fit(self, df):
-        """ Internal: This method estimates the set of mean parameters that fit best to the data given in the
-        dataframe df.
-        """
+    def _set_data(self, df):
         # split in categorical and numeric columns
         categoricals = []
         numericals = []
@@ -139,13 +136,18 @@ class ConditionallyGaussianModel(md.Model):
             column = df[colname]
             if column.dtype.name == "category" or column.dtype.name == "object":
                 categoricals.append(colname)
-            else:
+            elif column.dtype == np.number:
                 numericals.append(colname)
+            else:
+                raise TypeError("unsupported column dtype : " + str(column.dtype.name) + " of column " + str(colname))
+        self._categoricals = categoricals
+        self._numericals = numericals
 
-        # reorder data frame such that categorical columns are first
+        # set data for model as needed
+        #  reorder data frame such that categorical columns are first
         df = pd.DataFrame(df, columns=categoricals + numericals)
 
-        #  derive fields
+        # derive and set fields
         fields = []
         for colname in categoricals:
             column = df[colname]
@@ -159,15 +161,18 @@ class ConditionallyGaussianModel(md.Model):
             fields.append(field)
 
         self.fields = fields
-        self._update()
+        self.data = df
+        return self
 
-        dc = len(categoricals)
-
-        self._p, self._mu, self._S = ConditionallyGaussianModel._fitFullLikelihood(df, fields, dc)
-        self._categoricals = categoricals
-        self._numericals = numericals
-
-        return self.update()
+    def _fit(self):
+        """ Internal: estimates the set of mean parameters that fit best to the data given in the
+        dataframe df.
+        """
+        assert(self.mode != 'none')
+        df = self.data
+        dc = len(self._categoricals)
+        self._p, self._mu, self._S = ConditionallyGaussianModel._fitFullLikelihood(df, self.fields, dc)
+        return self.update()  # needed to compute precalculated values
 
     def update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""

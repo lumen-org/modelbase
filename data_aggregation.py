@@ -87,6 +87,7 @@ def most_frequent_equi_massed(data, opts=None):
             mycopy[colname] = data[colname]
         else:
             # attached leveled numerical column
+            # TODO: ahhh!! stupid me. I could have used pd.qcut!
             bins = utils.equiweightedintervals(seq=data[colname].tolist(), k=k, bins=True)
             # collapse to unique bins
             bins = sorted(set(bins))

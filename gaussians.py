@@ -39,13 +39,17 @@ class MultiVariateGaussianModel(md.Model):
             fields.append(field)
         return fields
 
-    def _fit(self, df):
-        """Fits the model to passed DataFrame
+    def _set_data(self, df):
+        self.data = df
+        self.fields = MultiVariateGaussianModel._get_header(df)
+        return self
+
+    def _fit(self):
+        """Fits the model to data of the model
 
         Returns:
             The modified model.
         """
-        self.fields = MultiVariateGaussianModel._get_header(df)
 
         # fit using scikit learn mixtures
         model = mixture.GMM(n_components=1, covariance_type='full')
@@ -155,7 +159,7 @@ class MultiVariateGaussianModel(md.Model):
                                      domain=dm.NumericDomain(),
                                      extent=dm.NumericDomain(mu[idx].item() - 2, mu[idx].item() + 2))
                            for idx in range(sigma.shape[0])]
-            self._mode = 'model'
+            self.mode = 'model'
             self.update()
             return self
 

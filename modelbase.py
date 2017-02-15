@@ -253,14 +253,13 @@ class ModelBase:
             return _json_dumps({"name": derived_model.name,
                                 "fields": derived_model.json_fields(include_modeldata_field=True)})
 
-        # elif 'SELECT' in query:
-        #     base = self._extractFrom(query)
-        #     resultframe = base.select(
-        #         predict=self._extractPredict(query),
-        #         where=self._extractWhere(query),
-        #         splitby=self._extractSplitBy(query))
-        #     return _json_dumps({"header": resultframe.columns.tolist(),
-        #                         "data": resultframe.to_csv(index=False, header=False)})
+        elif 'SELECT' in query:
+            base = self._extractFrom(query)
+            resultframe = base.select(
+                select=self._extractSelect(query),
+                where=self._extractWhere(query))
+            return _json_dumps({"header": resultframe.columns.tolist(),
+                                "data": resultframe.to_csv(index=False, header=False)})
 
         elif 'PREDICT' in query:
             base = self._extractFrom(query)

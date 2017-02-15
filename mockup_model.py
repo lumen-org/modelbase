@@ -104,7 +104,7 @@ class MockUpModel(md.Model):
                              extent=dm.DiscreteDomain(list("ABCDEFG")))
             self.fields.append(field)
 
-        self._mode = 'model'
+        self.mode = 'model'
 
         return self.update()
 

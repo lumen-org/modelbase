@@ -198,8 +198,8 @@ class Model:
         self._aggrMethods = None
         self._n = 0
         self._name2idx = {}
-        self._mode = "empty"
-        #self._mode = "both"
+        self.mode = "empty"
+        #self.mode = "both"
         self._modeldata_field = _Modeldata_field()
 
     def _setempty(self):
@@ -245,18 +245,44 @@ class Model:
 
     def set_data(self, df):
         """Sets a automatically cleansed (and hence copied) version of the pandas DataFrame df as the data of this
-         model. Existing data are overwritten.
-        If this instance had already an actual model fit to it, this model will be lost.
-        As a result of this call the mode of this model is set to 'data'.
+         model.
 
-        Note that set_data does not perform any type checking, e.g. you can set categorical data to a purely gaussian
-        model this way. However, when fitting the model an exception is raised.
+        This method has the following effects:
+         - the models mode is set to 'data'
+         - the models data is set to some model specific cleaned version of the data.
+         - the models fields attribute is derived accordingly
+         - possibly existing data of the model are overwritten
+         - possibly fitted model parameters are lost
+
+        Note that if the data does not fit to the specific type of the model, it my raise a ValueError. E.g. a gaussian
+        model cannot be fit on categorical data.
 
         Returns self.
         """
-        self.data = Model.clean_dataframe(df)
-        self._mode = 'data'
+        # general clean up
+        df = Model.clean_dataframe(df)
+
+        # model specific clean up, setting of data, models fields, and possible more model specific stuff
+        self._set_data(df)
+        self.mode = 'data'
+        self._update()
         return self
+
+    def _set_data(self, df):
+        """ Derives suitable, cleansed data from df for a particular model, sets this as the models data and
+         also sets up auxiliary data structures or such if necessary. This is however, only concerned
+         with the data part of the
+         model and does not do any fitting or such.
+
+        This method must be implemented by all actual model classes.
+
+        Args:
+            df: a pandas DataFrame
+
+        Returns:
+            self
+        """
+        raise NotImplementedError("your model must implement this method")
 
     def fit(self, df=None):
         """Fits the model to passed DataFrame
@@ -274,15 +300,16 @@ class Model:
             The fitted model.
         """
 
-        if df is None and self._mode != 'data':
-            raise ValueError('No data frame to fit to present: pass it as an argument or set it using set_data(df)')
         if df is not None:
-            self.set_data(df)
+            return self.set_data(df).fit()
+
+        if df is None and self.mode != 'data':
+            raise ValueError('No data frame to fit to present: pass it as an argument or set it using set_data(df)')
         try:
-            self._fit(self.data)
+            self._fit()
         except NameError:
             raise NotImplementedError("You have to implement the _fit method in your model!")
-        self._mode = "both"
+        self.mode = "both"
         return self
 
     def marginalize(self, keep=None, remove=None, is_pure=False):
@@ -331,7 +358,7 @@ class Model:
         cond_out = [name for name in remove if self.byname(name)['domain'].isbounded()]
 
         # Data marginalization
-        if self._mode == 'both' or self._mode == 'data':
+        if self.mode == 'both' or self.mode == 'data':
             self.data = self.data.loc[:, keep]
 
         # Model marginalization
@@ -397,13 +424,13 @@ class Model:
                         raise ValueError('invalid operator for condition: ' + str(operator))
                     # set internal mode accordingly to both, data or model
                     value = domain.value()
-                    self._mode = value if value == 'model' or value == 'data' else 'both'
+                    self.mode = value if value == 'model' or value == 'data' else 'both'
                 else:
                     pure_conditions.append(condition)
 
         # TODO: code below aint DRY but I don't know how to do it better and high-performance
         # continue with rest according to mode
-        if self._mode == 'model':
+        if self.mode == 'model':
             for (name, operator, values) in pure_conditions:
                 operator = operator.lower()
                 field = self.byname(name)
@@ -500,7 +527,7 @@ class Model:
 
         # the data part can be aggregated without any model specific code and merged into the model results at the end
         # see my notes for how to calculate a single aggregation
-        mode = self._mode
+        mode = self.mode
         if mode == "data" or mode == "both":
             data_res = self.aggregate_data(method, opts)
             if mode == "data":
@@ -574,7 +601,7 @@ class Model:
         if values is not None and len(names) != len(values):
             raise ValueError('Length of names and values does not match.')
 
-        mode = self._mode
+        mode = self.mode
         if len(names) != self._n:
             # it may be that the 'model cs data' field was passed in
             if len(names) == self._n+1:
@@ -701,7 +728,7 @@ class Model:
         mycopy = self.__class__(name)
         mycopy.data = self.data
         mycopy.fields = cp.deepcopy(self.fields)
-        mycopy._mode = self._mode;
+        mycopy._mode = self.mode;
         mycopy._modeldata_field = cp.deepcopy(self._modeldata_field)
         mycopy._update()
         return mycopy
@@ -813,7 +840,7 @@ class Model:
         #   * as a filter: that sets the internal mode of the model. Is handled in '.condition'
         #   * as a split: splits by the values of that field. Is handled where we handle splits.
         #   * not at all: defaults to a filter to equal 'model' and a default identity filter on it, ONLY if
-        #       self._mode is 'both'
+        #       self.mode is 'both'
         #   * in predict-clause or not -> need to assemble result frame correctly
         #   * in aggregation: raise error
 
@@ -823,7 +850,7 @@ class Model:
         # set default filter and split on 'model vs data' if necessary
         if 'model vs data' not in split_names \
                 and 'model vs data' not in filter_names\
-                and self._mode == 'both':
+                and self.mode == 'both':
             where.append(('model vs data', 'equals', 'model'))
             filter_names.append('model vs data')
             splitby.append(('model vs data', 'identity', []))
@@ -1074,11 +1101,11 @@ class Model:
             opts = {}
         n = opts['n'] if 'n' in opts else 1000
 
-        if self._mode != "model" and self._mode != "both":
+        if self.mode != "model" and self.mode != "both":
             raise ValueError("cannot sample from empty model, i.e. the model has not been learned/set yet.")
 
         self.data = self.sample(n)
-        self._mode = 'both'
+        self.mode = 'both'
         return self
 
 
