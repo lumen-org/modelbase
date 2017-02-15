@@ -243,7 +243,22 @@ class Model:
 
         return df
 
-    def fit(self, df):
+    def set_data(self, df):
+        """Sets a automatically cleansed (and hence copied) version of the pandas DataFrame df as the data of this
+         model. Existing data are overwritten.
+        If this instance had already an actual model fit to it, this model will be lost.
+        As a result of this call the mode of this model is set to 'data'.
+
+        Note that set_data does not perform any type checking, e.g. you can set categorical data to a purely gaussian
+        model this way. However, when fitting the model an exception is raised.
+
+        Returns self.
+        """
+        self.data = Model.clean_dataframe(df)
+        self._mode = 'data'
+        return self
+
+    def fit(self, df=None):
         """Fits the model to passed DataFrame
 
         This method must be implemented by any actual model that derives from the abstract Model class.
@@ -252,14 +267,19 @@ class Model:
         was used to fit the model.
 
         Args:
-            df: A pandas data frame that holds the data to fit the model to.
+            df: Optional. A pandas data frame that holds the data to fit the model to. You can also previously set the
+             data to fit to using the set_data method.
 
         Returns:
             The fitted model.
         """
-        df = Model.clean_dataframe(df)
+
+        if df is None and self._mode != 'data':
+            raise ValueError('No data frame to fit to present: pass it as an argument or set it using set_data(df)')
+        if df is not None:
+            self.set_data(df)
         try:
-            self._fit(df)
+            self._fit(self.data)
         except NameError:
             raise NotImplementedError("You have to implement the _fit method in your model!")
         self._mode = "both"
@@ -1007,12 +1027,16 @@ class Model:
 
         return (data_frame, basemodel) if returnbasemodel else data_frame
 
-    def select(self, select, where, opts=None):
+    def select(self, what, where=[], opts=None):
         """Returns selected the selected attributes of all data items that satisfy the conditions as a
         pandas DataFrame.
         """
+        # check that all columns to select are in data
+        if any((label not in self.data.columns for label in what)):
+            raise KeyError('at least on of ' + str(what) + ' is not a column label of the data.')
+
         # select columns
-        df = self.data.loc[:, select]
+        df = self.data.loc[:, what]
 
         # select rows
         # TODO: improve performance by using combined boolean arrays to select all at once
@@ -1066,9 +1090,9 @@ if __name__ == '__main__':
 
     import cond_gaussians as cg
 
-    iris = sns.load_dataset('iris')
-    crabs = crabs.mixed('data/crabs/australian-crabs.csv')
+    irisdata = sns.load_dataset('iris')
+    crabsdata = crabs.mixed('data/crabs/australian-crabs.csv')
 
-    iris_model = cg.ConditionallyGaussianModel("iris").fit(iris)
+    iris = cg.ConditionallyGaussianModel("iris").fit(irisdata)
 
-    pass
+    print(iris.name)

@@ -50,8 +50,7 @@ class CategoricalModel(md.Model):
         return (counts + k) / (counts.sum() + k * counts.size)
 
     def _fit(self, df):
-        self.data = df
-        self.fields = CategoricalModel._get_header(self.data)
+        self.fields = CategoricalModel._get_header(df)
         self._p = CategoricalModel._maximum_aposteriori(df, self.fields)
         return self.update()
 

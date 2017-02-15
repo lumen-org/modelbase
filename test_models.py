@@ -16,6 +16,9 @@ from categoricals import CategoricalModel
 from gaussians import MultiVariateGaussianModel as GaussianModel
 from cond_gaussians import ConditionallyGaussianModel as CGModel
 
+import data.crabs.crabs as crabs
+
+crabsdata = crabs.mixed('data/crabs/australian-crabs.csv')
 
 class TestJustRun(unittest.TestCase):
     """ This is not a real test case... it's just a couple of model queries that should go through
@@ -23,6 +26,47 @@ class TestJustRun(unittest.TestCase):
 
     def test_A(self):
         pass
+
+class TestDataSelect(unittest.TestCase):
+    """Test the model.select method."""
+
+    def setUp(self):
+        # crabs has columns: 'species', 'sex', 'FL', 'RW', 'CL', 'CW', 'BD'
+        self.data = pd.DataFrame(crabsdata)
+        self.model = CGModel('crabs').set_data(crabsdata)
+        self.cols = list(crabsdata.columns)
+        self.shape = self.data.shape
+        pass
+
+    def test_it(self):
+        result = self.model.select(what=['species'])
+        self.assertTrue((self.shape[0],1) == result.shape
+                        and result.columns[0] == 'species',
+                        'tests that correct columns are returned')
+
+        result = self.model.select(what=['FL','species','RW'])
+        self.assertTrue((self.shape[0],3) == result.shape
+                        and result.columns[0] == 'FL'
+                        and result.columns[1] == 'species'
+                        and result.columns[2] == 'RW',
+                        'test that columns are in correct order')
+
+        # test conditions are followed: no values incorrectly left out
+        result = self.model.select(what=['FL','species','RW'])
+        self.assertTrue((self.shape[0],3) == result.shape
+                        and result.columns[0] == 'FL'
+                        and result.columns[1] == 'species'
+                        and result.columns[2] == 'RW',
+                        'test that columns are in correct order')
+
+        # test conditions are followed: no values incorrectly left in
+        # TODO
+
+        # test that invalid column names are reported as KeyErrors
+        with self.assertRaises(KeyError):
+            self.model.select(what=['foobar'])
+        with self.assertRaises(KeyError):
+            self.model.select(what=['foobar', 'RW'])
 
 
 class TestInvalidParams(unittest.TestCase):
@@ -101,7 +145,6 @@ class TestInvalidParams(unittest.TestCase):
             self.assertEqual(m.names, m.sorted_names(shuffled))
 
 #    def test
-
 
 class TestAllModels(unittest.TestCase):
     """This test case tests simple invariants that should hold for all concrete models, that however,

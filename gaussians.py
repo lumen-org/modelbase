@@ -45,12 +45,11 @@ class MultiVariateGaussianModel(md.Model):
         Returns:
             The modified model.
         """
-        self.data = df
-        self.fields = MultiVariateGaussianModel._get_header(self.data)
+        self.fields = MultiVariateGaussianModel._get_header(df)
 
         # fit using scikit learn mixtures
         model = mixture.GMM(n_components=1, covariance_type='full')
-        model.fit(self.data)
+        model.fit(df)
         self._mu = matrix(model.means_).T
         self._S = matrix(model.covars_)
         return self.update()

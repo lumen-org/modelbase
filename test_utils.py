@@ -34,8 +34,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(1, utils.shortest_interval(seq))
 
         seq = []
-        with self.assertRaises(IndexError):
-            utils.shortest_interval(seq)
+        self.assertIsNone(utils.shortest_interval(seq))
 
         seq = [(-1, -1), (10, 20)]
         self.assertEqual(0, utils.shortest_interval(seq))
