@@ -20,6 +20,7 @@ import data.crabs.crabs as crabs
 
 crabsdata = crabs.mixed('data/crabs/australian-crabs.csv')
 
+
 class TestJustRun(unittest.TestCase):
     """ This is not a real test case... it's just a couple of model queries that should go through
      without raising any exception """
