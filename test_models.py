@@ -161,11 +161,11 @@ class TestAllModels(unittest.TestCase):
     def test_automated_model_creation(self):
         for class_ in TestAllModels.subclasses:
             model = class_("foo")
-            self.assertEqual(model._mode, 'empty')
+            self.assertEqual(model.mode, 'empty')
             model._generate_model()
-            self.assertEqual(model._mode, 'model')
+            self.assertEqual(model.mode, 'model')
             model._generate_data()
-            self.assertEqual(model._mode, 'both')
+            self.assertEqual(model.mode, 'both')
 
 if __name__ == '__main__':
     unittest.main()

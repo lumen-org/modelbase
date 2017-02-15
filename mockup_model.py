@@ -40,8 +40,11 @@ class MockUpModel(md.Model):
             'average': self._maximum
         }
 
-    def _fit(self, df):
+    def _set_data(self, df):
         self.data = df
+        return self
+
+    def _fit(self):
         self.fields = MockUpModel._get_header(self.data)
         return self.update()
 

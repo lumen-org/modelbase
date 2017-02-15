@@ -199,7 +199,6 @@ class Model:
         self._n = 0
         self._name2idx = {}
         self.mode = "empty"
-        #self.mode = "both"
         self._modeldata_field = _Modeldata_field()
 
     def _setempty(self):
@@ -728,7 +727,7 @@ class Model:
         mycopy = self.__class__(name)
         mycopy.data = self.data
         mycopy.fields = cp.deepcopy(self.fields)
-        mycopy._mode = self.mode;
+        mycopy.mode = self.mode;
         mycopy._modeldata_field = cp.deepcopy(self._modeldata_field)
         mycopy._update()
         return mycopy
@@ -1001,7 +1000,7 @@ class Model:
                     if mask.any():
                         sum = aggr_results.loc[mask].sum()
                         aggr_results.loc[mask] /= sum
-                elif basemodel._mode == 'data':
+                elif basemodel.mode == 'data':
                     # case 2: we filter 'model vs data' on 'data'
                     aggr_results = aggr_results / aggr_results.sum()
 
