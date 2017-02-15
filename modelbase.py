@@ -256,7 +256,7 @@ class ModelBase:
         elif 'SELECT' in query:
             base = self._extractFrom(query)
             resultframe = base.select(
-                select=self._extractSelect(query),
+                what=self._extractSelect(query),
                 where=self._extractWhere(query))
             return _json_dumps({"header": resultframe.columns.tolist(),
                                 "data": resultframe.to_csv(index=False, header=False)})
@@ -269,7 +269,6 @@ class ModelBase:
                 splitby=self._extractSplitBy(query)
             )
             return _json_dumps({"header": resultframe.columns.tolist(),
-                                #"model": model_frame.to_csv(index=False, header=False),
                                 "data": resultframe.to_csv(index=False, header=False)})
 
         elif 'DROP' in query:
@@ -381,6 +380,13 @@ class ModelBase:
         else:
             return query['WHERE']
 
+    def _extractSelect(self, query):
+        if 'SELECT' not in query:
+            raise QuerySyntaxError("'SELECT'-statement missing")
+        if query['SELECT'] == '*':
+            return self.models[query['FROM']].names
+        else:
+            return query['SELECT']
 
 if __name__ == '__main__':
     import models as md
