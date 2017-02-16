@@ -431,21 +431,23 @@ class Model:
         # continue with rest according to mode
         if self.mode == 'model':
             for (name, operator, values) in pure_conditions:
-                operator = operator.lower()
-                field = self.byname(name)
-                domain = field['domain']
-                if operator == 'in':
-                    domain.intersect(values)
-                else:
-                    # values is necessarily a single scalar value, not a list
-                    if operator == 'equals' or operator == '==':
-                        domain.intersect(values)
-                    elif operator == 'greater' or operator == '>':
-                        domain.setlowerbound(values)
-                    elif operator == 'less' or operator == '<':
-                        domain.setupperbound(values)
-                    else:
-                        raise ValueError('invalid operator for condition: ' + str(operator))
+                self.byname(name)['domain'].apply(operator, values)
+            # for (name, operator, values) in pure_conditions:
+            #     operator = operator.lower()
+            #     field = self.byname(name)
+            #     domain = field['domain']
+            #     if operator == 'in':
+            #         domain.intersect(values)
+            #     else:
+            #         # values is necessarily a single scalar value, not a list
+            #         if operator == 'equals' or operator == '==':
+            #             domain.intersect(values)
+            #         elif operator == 'greater' or operator == '>':
+            #             domain.setlowerbound(values)
+            #         elif operator == 'less' or operator == '<':
+            #             domain.setupperbound(values)
+            #         else:
+            #             raise ValueError('invalid operator for condition: ' + str(operator))
         else:
             df = self.data
             for (name, operator, values) in pure_conditions:
@@ -838,7 +840,7 @@ class Model:
         # How to handle the 'artificial field' 'model vs data': possible cases: 'model vs data' occurs ...
         #   * as a filter: that sets the internal mode of the model. Is handled in '.condition'
         #   * as a split: splits by the values of that field. Is handled where we handle splits.
-        #   * not at all: defaults to a filter to equal 'model' and a default identity filter on it, ONLY if
+        #   * not at all: defaults to a filter to equal 'model' and a default identity split on it, ONLY if
         #       self.mode is 'both'
         #   * in predict-clause or not -> need to assemble result frame correctly
         #   * in aggregation: raise error
@@ -1053,22 +1055,9 @@ class Model:
 
         return (data_frame, basemodel) if returnbasemodel else data_frame
 
-    def select(self, what, where=[], opts=None):
-        """Returns selected the selected attributes of all data items that satisfy the conditions as a
-        pandas DataFrame.
-        """
-        # check that all columns to select are in data
-        if any((label not in self.data.columns for label in what)):
-            raise KeyError('at least on of ' + str(what) + ' is not a column label of the data.')
-
-        # check for empty queries
-        if len(what) == 0:
-            return pd.DataFrame()
-
-        # select rows
-        # TODO (done): improve performance by using combined boolean arrays to select all at once
-        #df = self.data
+    def select_data(self, what, where=[], opts=None):
         mask = [True]*len(self.data)
+        # iteratively build boolean selection mask
         for (name, operator, values) in where:
             operator = operator.lower()
             column = self.data[name]
@@ -1095,10 +1084,73 @@ class Model:
                     mask &= column < values
                 else:
                     raise ValueError('invalid operator for condition: ' + str(operator))
-
-        # select columns
-        # return df.loc[:, what]
         return self.data.loc[mask, what]
+
+    def select(self, what, where=[], opts=None):
+        """Returns selected the selected attributes of all data items that satisfy the conditions as a
+        pandas DataFrame.
+        """
+        # check for empty queries
+        if len(what) == 0:
+            return pd.DataFrame()
+
+        # if 'model vs data' is present as a filter the filter is respected: i.e. either one of them or both data is
+        #  generated
+        # iff 'model vs data' is present in what the column will be returned
+        # if 'model vs data' is not present in any of the arguments it defaults to a data-select, i.e. a filter for data
+
+        # remove 'model vs data' from what
+        pure_what = [w for w in what if w != 'model vs data']
+
+        # check that all columns to select are in data
+        if any((label not in self.data.columns for label in pure_what)):
+            raise KeyError('at least on of ' + str(pure_what) + ' is not a column label of the data.')
+
+        # remove 'model vs data' from filters
+        mvd_filter = None
+        pure_where = []
+        for w in where:
+            if w[0] == 'model vs data':
+                mvd_filter = w
+            else:
+                pure_where.append(w)
+
+        # set default filter for 'model vs data'. Do not if 'model vs data' is in what, because that implies the query
+        #  wants both
+        if mvd_filter is None and 'model vs data' not in what:
+            mvd_filter = ConditionTuple('model vs data', "==", "data")
+
+        # DEBUG/DEVELOP: always set it to data only
+        mvd_filter = ConditionTuple('model vs data', "==", "data")
+
+        # now infer mode
+        mode = dm.DiscreteDomain(['model', 'data'])
+        if mvd_filter is not None:
+            mode.apply(mvd_filter.operator, mvd_filter.value)
+        mode = mode.values()
+
+        # select data and or sample, and add model vs data column if requested
+        if 'model' in mode:
+            # todo: does not meet conditions...!!
+            # todo: sampling from less requires model marginalization?
+            samples = self.sample(100)
+            if 'model vs data' in what:
+                samples['model vs data'] = 'model'
+        if 'data' in mode:
+            data = self.select_data(pure_what, pure_where)
+            if 'model vs data' in what:
+                data['model vs data'] = 'data'
+
+        # concatenate to one dataframe (and prevent copy if possible)
+        if 'model' in mode and 'data' in mode:
+            df = pd.concat([samples, data], ignore_index=True)
+        elif 'model' in mode:
+            df = samples
+        else:
+            df = data
+
+        # return reordered
+        return df.loc[:, what]
 
     def _generate_data(self, opts=None):
         """Provided that self is a functional model, this method it samples opts['n'] many samples from it

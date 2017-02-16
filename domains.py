@@ -4,7 +4,24 @@ import math
 # TODO: is it better to use immutable tuples instead of mutable lists for the internal representation of domains?
 
 
-class NumericDomain:
+class Domain:
+
+    def apply(self, op, values):
+        if op == 'in':
+            self.intersect(values)
+        else:
+            # values is necessarily a single scalar value, not a list
+            if op == 'equals' or op == '==':
+                self.intersect(values)
+            elif op == 'greater' or op == '>':
+                self.setlowerbound(values)
+            elif op == 'less' or op == '<':
+                self.setupperbound(values)
+            else:
+                raise ValueError('invalid operator for condition: ' + str(op))
+
+
+class NumericDomain(Domain):
     """A continuous domain that can be represented by an interval [min, max]."""
 
     def __init__(self, *args):
@@ -61,6 +78,9 @@ class NumericDomain:
     def value(self):
         return self._value[0] if self.issingular() else self._value
 
+    def values(self):
+        return self._value
+
     def tojson(self):
         if self.isbounded():
             return self.value()
@@ -103,7 +123,7 @@ class NumericDomain:
         return self
 
 
-class DiscreteDomain:
+class DiscreteDomain(Domain):
     """An (ordered) discrete domain that can be represented by a list of values [val1, val2, ... ]."""
 
     def __init__(self, *args):
@@ -153,6 +173,9 @@ class DiscreteDomain:
 
     def value(self):
         return self._value[0] if self.issingular() else self._value
+
+    def values(self):
+        return self._value
 
     def tojson(self):
         # requires special treatment, because math.inf would often not be handled correctly in JSON
