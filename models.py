@@ -1061,34 +1061,44 @@ class Model:
         if any((label not in self.data.columns for label in what)):
             raise KeyError('at least on of ' + str(what) + ' is not a column label of the data.')
 
-        # select columns
-        df = self.data.loc[:, what]
+        # check for empty queries
+        if len(what) == 0:
+            return pd.DataFrame()
 
         # select rows
-        # TODO: improve performance by using combined boolean arrays to select all at once
+        # TODO (done): improve performance by using combined boolean arrays to select all at once
+        #df = self.data
+        mask = [True]*len(self.data)
         for (name, operator, values) in where:
             operator = operator.lower()
-            field = self.byname(name)
-            column = df[name]
+            column = self.data[name]
             if operator == 'in':
-                if field['dtype'] == 'numerical':
-                    df = df.loc[column.between(*values, inclusive=True)]
-                elif field['dtype'] == 'string':
-                    df = df.loc[column.isin(values)]
+                dtype = self.byname(name)['dtype']
+                if dtype == 'numerical':
+                    # df = df.loc[column.between(*values, inclusive=True)]
+                    mask &= column.between(*values, inclusive=True)
+                elif dtype == 'string':
+                    # df = df.loc[column.isin(values)]
+                    mask &= column.isin(values)
                 else:
-                    raise TypeError("unsupported field type: " + str(field.dtype))
+                    raise TypeError("unsupported field type: " + str(dtype))
             else:
                 # values is necessarily a single scalar value, not a list
                 if operator == 'equals' or operator == '==':
-                    df = df.loc[column == values]
+                    # df = df.loc[column == values]
+                    mask &= column == values
                 elif operator == 'greater' or operator == '>':
-                    df = df.loc[column > values]
+                    # df = df.loc[column > values]
+                    mask &= column > values
                 elif operator == 'less' or operator == '<':
-                    df = df.loc[column < values]
+                    # df = df.loc[column < values]
+                    mask &= column < values
                 else:
                     raise ValueError('invalid operator for condition: ' + str(operator))
 
-        return df
+        # select columns
+        # return df.loc[:, what]
+        return self.data.loc[mask, what]
 
     def _generate_data(self, opts=None):
         """Provided that self is a functional model, this method it samples opts['n'] many samples from it
