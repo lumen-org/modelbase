@@ -46,6 +46,8 @@ known_models = {
     # mixutres of multivariate gaussians
     # 'faithful': lambda: (MMVG('faithful'), df.read_csv('data/faithful/faithful.csv')),
 
+    # http://docs.ggplot2.org/0.9.3.1/diamonds.html check it out!
+
     # conditionally gaussian models
     # 'cg_dummy': lambda: (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
     'cg_crabs': lambda: (ConditionallyGaussianModel('cg_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
