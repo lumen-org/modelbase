@@ -28,11 +28,15 @@ def most_frequent_equi_sized(data, opts=None):
     # TODO: this _copies_ the whole data!!!
     # todo: can I circumvent this by passing in the numpy structures instead?
 
-    if np.number in list(data.dtypes):
+    numeric = [np.issubdtype(dtype, np.number) for dtype in list(data.dtype)]
+
+    if any(numeric):
+    #if np.number in list(data.dtypes):
         df = pd.DataFrame()
-        for colname in data.columns:
-            dtype = data[colname].dtype
-            if dtype == np.number:
+        for idx, colname in enumerate(data.columns):
+            # dtype = data[colname].dtype
+            if numeric[idx]:
+            # np.issubdtype(dtype, np.number):
                 # attached leveled numerical column by cutting it to levels
                 df[colname], bins = pd.cut(x=data[colname], bins=k, retbins=True)
                 # change level values to the later result
@@ -142,7 +146,7 @@ def average_most_frequent(df, opts=None):
     cat_idx = []
 
     for idx, dtype in enumerate(df.dtypes):
-        if dtype == np.number:
+        if np.issubdtype(dtype, np.number):
             num_idx.append(idx)
         else:
             cat_idx.append(idx)

@@ -134,6 +134,7 @@ Examples:
     # for debugging:
     # args.include = ['cg_olive_oils']
     # args.include = ['cg_glass']
+    # args.include = ['starcraft']
 
     modelbase = mb.ModelBase("refitter", load_all=False, model_dir=args.directory)
     models = refit_all_models(verbose=True, include=args.include, exclude=args.exclude)
@@ -143,3 +144,4 @@ Examples:
     print("saving all models to " + str(args.directory) + "...")
     modelbase.save_all_models()
     print("...done")
+

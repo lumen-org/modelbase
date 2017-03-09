@@ -53,7 +53,7 @@ class MultiVariateGaussianModel(md.Model):
 
         # fit using scikit learn mixtures
         model = mixture.GMM(n_components=1, covariance_type='full')
-        model.fit(df)
+        model.fit(self.data)
         self._mu = matrix(model.means_).T
         self._S = matrix(model.covars_)
         return self.update()

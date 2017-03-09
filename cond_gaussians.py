@@ -136,7 +136,7 @@ class ConditionallyGaussianModel(md.Model):
             column = df[colname]
             if column.dtype.name == "category" or column.dtype.name == "object":
                 categoricals.append(colname)
-            elif column.dtype == np.number:
+            elif np.issubdtype(column.dtype, np.number):
                 numericals.append(colname)
             else:
                 raise TypeError("unsupported column dtype : " + str(column.dtype.name) + " of column " + str(colname))
