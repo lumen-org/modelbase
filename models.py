@@ -751,7 +751,7 @@ class Model:
             if not domain.isbounded():
                 raise ValueError("cannot condition random variables with not bounded domain!")
             if field['dtype'] == 'numerical':
-                cond_values.append(dvalue if domain.issingular() else (dvalue[1] - dvalue[0]) / 2)
+                cond_values.append(dvalue if domain.issingular() else (dvalue[1] + dvalue[0]) / 2)
             elif field['dtype'] == 'string':
                 cond_values.append(dvalue if domain.issingular() else dvalue[0])
             else:
@@ -1088,7 +1088,7 @@ class Model:
 
     def select(self, what, where=[], opts=None):
         """Returns selected the selected attributes of all data items that satisfy the conditions as a
-        pandas DataFrame.
+        pandas DataFrame. By default it selects data only, i.e. it will not return any samples from the model.
         """
         # check for empty queries
         if len(what) == 0:

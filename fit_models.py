@@ -42,10 +42,12 @@ known_models = {
     # multivariate gaussian models
     'iris': lambda: (MultiVariateGaussianModel('iris'), sns.load_dataset('iris').iloc[:, 0:-1]),
     'car_crashes': lambda: (MultiVariateGaussianModel('car_crashes'), sns.load_dataset('car_crashes').iloc[:, 0:-1]),
+    'mvg_dummy_2d': lambda: (MultiVariateGaussianModel.dummy2d_model('mvg_dummy_2d'), 'no data'),
 
     # mixutres of multivariate gaussians
     # 'faithful': lambda: (MMVG('faithful'), df.read_csv('data/faithful/faithful.csv')),
 
+    # DIAMONDS
     # http://docs.ggplot2.org/0.9.3.1/diamonds.html check it out!
 
     # conditionally gaussian models
@@ -83,7 +85,9 @@ def refit_all_models(verbose=False, include=None, exclude=None):
             (model_, df) = getter()
             if verbose:
                 print("Fitting model for data set '" + str(id_) + "' ...")
-            models.append(model_.fit(df))
+            if df != 'no data':
+                model_.fit(df)
+            models.append(model_)
             if verbose:
                 print("...done.")
 

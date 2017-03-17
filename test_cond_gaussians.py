@@ -22,7 +22,7 @@ def print_info(model):
 
 
 def cg_dummy():
-    """Returns a dataframe that contains sample of a 4d cg distribution. See the code for the used parameters."""
+    """Returns a dataframe that contains samples of a 4d cg distribution. See the code for the used parameters."""
 
     # chose fixed parameters
     mu_M_Jena = [0, 0]

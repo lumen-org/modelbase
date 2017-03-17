@@ -91,7 +91,7 @@ class TestRunningShouldNotRaiseException(unittest.TestCase):
 class TestInferenceLvl01(unittest.TestCase):
     
     def setUp(self):
-        # setup model with zero mean and identiy matrix as sigma
+        # setup model with zero mean and identity matrix as sigma
         self.m = Gaussian("test")
         self.m._generate_model(opts={'mode': 'normal', 'dim': 5})
 
@@ -130,14 +130,24 @@ class TestInferenceLvl01(unittest.TestCase):
         npt.assert_equal(res, np.zeros(m._n))
         
 
+class TestSimple2DMVG(unittest.TestCase):
 
-# class TestModelSelection(unittest.TestCase):
-#
-#     def test_it(self):
-#         pass
-#
-#     def test_fitting(self):
-#         pass
+    def setUp(self):
+        self.m = Gaussian("test")
+        mu = np.matrix(np.zeros(2)).T
+        sigma = np.matrix([[1, 0.5], [0.5, 1]])
+        self.m._generate_model({'mode': 'custom', 'mu': mu, 'sigma': sigma})
+        self.m._generate_data({'n': 500})
+
+    def test_it(self):
+        m = self.m
+        result = m.predict(predict=[(['dim0'], 'maximum', 'dim0', [])], where=[('dim1', '==', 1)])
+        print(result)
+        # self.assertEqual(result, 0.5)
+        result = m.predict(predict=['dim1', (['dim0'], 'maximum', 'dim0', [])], splitby=[('dim1', 'equidist', [5])])
+        print(result)
+        result = m.predict(predict=['dim1', (['dim0'], 'maximum', 'dim0', [])], splitby=[('dim1', 'equiinterval', [5])])
+        print(result)
 
 
 if __name__ == '__main__':

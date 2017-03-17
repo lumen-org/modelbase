@@ -122,7 +122,8 @@ class MultiVariateGaussianModel(md.Model):
         return self._mu.T.tolist()[0]
 
     def _sample(self):
-        return self._S * np.matrix(np.random.randn(self._n)).T + self._mu
+        sample = self._S * np.matrix(np.random.randn(self._n)).T + self._mu
+        return sample.T.tolist()[0]   # we want it as a 'normal' list
 
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)
@@ -185,6 +186,14 @@ class MultiVariateGaussianModel(md.Model):
         # that's the definition of the upper Schur complement
         return M[ix_(i, i)] - M[ix_(i, j)] * M[ix_(j, j)].I * M[ix_(j, i)]
 
+    @staticmethod
+    def dummy2d_model(name='test'):
+        m = MultiVariateGaussianModel(name)
+        mu = np.matrix(np.zeros(2)).T
+        sigma = np.matrix([[1, 0.5], [0.5, 1]])
+        m._generate_model({'mode': 'custom', 'mu': mu, 'sigma': sigma})
+        m._generate_data({'n': 200})
+        return m
 
 if __name__ == '__main__':
     import pdb
