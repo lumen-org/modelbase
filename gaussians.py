@@ -29,20 +29,8 @@ class MultiVariateGaussianModel(md.Model):
             'average': self._maximum
         }
 
-    @staticmethod
-    def _get_header(df):
-        """ Returns suitable fields for a model from a given pandas dataframe.
-        """
-        fields = []
-        for column in df:
-            field = md.Field(column, dm.NumericDomain(), dm.NumericDomain(df[column].min(), df[column].max()), 'numerical')
-            fields.append(field)
-        return fields
-
     def _set_data(self, df):
-        self.data = df
-        self.fields = MultiVariateGaussianModel._get_header(df)
-        return self
+        return self._set_data_continuous(df)
 
     def _fit(self):
         """Fits the model to data of the model

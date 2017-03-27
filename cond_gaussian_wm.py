@@ -3,21 +3,21 @@ import logging
 import numpy as np
 from numpy import nan, pi, exp, dot, abs
 from numpy.linalg import inv, det
-import pandas as pd
 import xarray as xr
 
 import models as md
-import domains as dm
+import ConditionallyGaussianModel as cg
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
-class ConditionallyGaussianModel(md.Model):
+class CgWmModel(md.Model):
     """A conditional gaussian model and methods to derive submodels from it
     or query density and other aggregations of it.
 
-    Note that all conditional Gaussians use the same covariance matrix. Their mean, however, is not identical.
+    In this model each conditional Gaussian uses its own covariance matrix and mean vector. This is
+    effective difference to the ConditionallyGaussianModel-class.
 
     Internal:
         Assume a CG-model on m categorical random variables and n continuous random variables.
@@ -27,15 +27,18 @@ class ConditionallyGaussianModel(md.Model):
                 data structure used: xarray DataArray. The labels of the dimensions and the coordinates of each
                     dimension are the same as the name of the categorical fields and their domain, respectively.
                     Each entry of the DataArray is a scalar, i.e. the probability of that event.
+
             _S:
-                meaning: covariance matrix of the conditionals. All conditionals share the same covariance!
-                data structure used: xarray DataArray with 2 dimensions dim_0 and dim_1. Both dimensions have
-                    coordinates that match the names of the continuous random variables.
+                meaning: covariance matrix of each of the conditionals.
+                data structure used: xarray DataArray with m+2 dimensions. The first m dimensions represent the
+                    categorical random variables of the model and are labeled accordingly. The last two dimensions
+                    represents the mean vector of the continuous part of the model and are therefore of length n.
+
             _mu:
                 meaning: the mean of each conditional gaussian.
                 data structure used: xarray DataArray with m+1 dimensions. The first m dimensions represent the
-                categorical random variables of the model and are labeled accordingly. The last dimension represents
-                the mean vector of the continuous part of the model and is therefore of length n.
+                    categorical random variables of the model and are labeled accordingly. The last dimension represents
+                    the mean vector of the continuous part of the model and is therefore of length n.
 
             _categoricals:
                 list of names of all categorical fields (in same order as they appear in fields)
@@ -54,10 +57,11 @@ class ConditionallyGaussianModel(md.Model):
 
     Limitations:
         inference queries:
-            marginalizing out on any categorical variable leads to an inexact model. Problem is that the best
-            CG-approximation does not have a single Sigma but a different one for each remaining x in omega_X.
-            See the equation for Sigma_II^"Dach" in the GM-script. We calculate a sum over all categorical
-            elements to be removed.
+            Marginalizing out on any categorical variable leads to an inexact model. Conditional Gaussian models are
+             not closed under marginalization, but lead to a mixture of conditional gaussians. In this model we stay
+             inside the class of CG Models by using the best CG Model (in terms of the Kulbeck-Leibler divergence)
+             as an approximation to the true marginal model. This is called weak marginals (WM) and gave the name
+             to this class.
     """
 
     def __init__(self, name):
@@ -72,13 +76,16 @@ class ConditionallyGaussianModel(md.Model):
         self._p = xr.DataArray([])
         self._mu = xr.DataArray([])
         self._S = xr.DataArray([])
-        self._SInv = nan
-        self._detS = nan
+        self._SInv = xr.DataArray([])
+        self._detS = xr.DataArray([])
 
     @staticmethod
     def _fitFullLikelihood(data, fields, dc):
         """fit full likelihood for CG model. the data frame data consists of dc many categorical columns and the rest are
         numerical columns. all categorical columns occur before the numerical ones."""
+
+        # TODO we may reuse for now - just set the same
+
         k = 1  # laplacian smoothing parameter
         n, d = data.shape
         dg = d - dc
@@ -140,7 +147,11 @@ class ConditionallyGaussianModel(md.Model):
         assert(self.mode != 'none')
         df = self.data
         dc = len(self._categoricals)
-        self._p, self._mu, self._S = ConditionallyGaussianModel._fitFullLikelihood(df, self.fields, dc)
+        self._p, self._mu, S = cg._fitFullLikelihood(df, self.fields, dc)
+
+        # TODO: spread S to full xarray
+        # self._S = S...
+
         return self.update()  # needed to compute precalculated values
 
     def update(self):
@@ -148,11 +159,12 @@ class ConditionallyGaussianModel(md.Model):
         self._update()
 
         if len(self._numericals) == 0:
-            self._detS = nan
-            self._SInv = nan
+            self._detS = xr.DataArray([])
+            self._SInv = xr.DataArray([])
             self._S = xr.DataArray([])
             self._mu = xr.DataArray([])
         else:
+            # TODO: compute on all conditionals
             self._detS = abs(det(self._S))
             self._SInv = inv(self._S)
 
@@ -193,26 +205,41 @@ class ConditionallyGaussianModel(md.Model):
             # calculate updated mu and sigma for conditional distribution, according to GM script
             j = num_remove  # remove
             i = [name for name in self._numericals if name not in num_remove]  # keep
-            S = self._S
-            sigma_expr = np.dot(S.loc[i, j], inv(S.loc[j, j]))  # reused below multiple times
-            self._S = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
+
             cat_keep = self._mu.dims[:-1]
             if len(cat_keep) != 0:
-                # iterate over all mu and update them
-                # this is a view on mu! it stacks up all categorical dimensions and thus allows us to iterate on them
-                stacked = self._mu.stack(pl_stack=cat_keep)
-                for coord in stacked.pl_stack:
-                    indexer = dict(pl_stack=coord)
-                    mu = stacked.loc[indexer]
-                    # extent indexer to subselect only the part of mu that is updated. the rest is removed later.
-                    # problem is: we cannot assign a shorter vector to stacked.loc[indexer]
-                    indexer['mean'] = i
-                    stacked.loc[indexer] = mu.loc[i] + dot(sigma_expr, condvalues - mu.loc[j])
-                # above we partially updated only the relevant part of mu. the remaining part is now removed:
+                # iterate the mu and sigma of each cg and update them
+                #  for that create stacked _views_ on mu and sigma! it stacks up all categorical dimensions and thus
+                #  allows us to iterate on them
+                # TODO: can I use the same access structure or do i need seperate ones for mu and S?
+                mu_stacked = self._mu.stack(pl_stack=cat_keep)
+                S_stacked = self._S.stack(pl_stack=cat_keep)
+                for mu_coord, S_coord in zip(mu_stacked.pl_stack, S_stacked):
+                    mu_indexer = dict(pl_stack=mu_coord)
+                    S_indexer = dict(pl_stack=S_coord)
+
+                    mu = mu_stacked.loc[mu_indexer]
+                    S = S_stacked.loc[S_indexer]
+
+                    # extent indexer to subselect only the part of mu and S that is updated. the rest is removed later.
+                    #  problem is: we cannot assign a shorter vector to stacked.loc[indexer]
+                    mu_indexer['mean'] = i
+                    S_indexer['S1'] = i
+                    S_indexer['S2'] = i
+
+                    # update Sigma and mu
+                    sigma_expr = np.dot(S.loc[i, j], inv(S.loc[j, j]))   # reused below multiple times
+                    S_stacked.loc[S_indexer] = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
+                    mu_stacked.loc[mu_indexer] = mu.loc[i] + dot(sigma_expr, condvalues - mu.loc[j])
+
+                # above we partially updated only the relevant part of mu and Sigma. the remaining part is now removed:
                 self._mu = self._mu.loc[dict(mean=i)]
+                self._S = self._S.loc[dict(S1=i,S2=i)]
             else:
-                # special case: no categorical fields left. hence we cannot stack over then, it is only a single mu left
+                # special case: no categorical fields left. hence we cannot stack over them, it is only a single mu left
                 # and we only need to update that
+                sigma_expr = np.dot(self._S.loc[i, j], inv(self._S.loc[j, j]))  # reused below multiple times
+                self._S = self._S.loc[i, i] - dot(sigma_expr, self._S.loc[j, i])  # upper Schur complement
                 self._mu = self._mu.loc[i] + dot(sigma_expr, condvalues - self._mu.loc[j])
 
         # remove fields as needed

@@ -22,16 +22,6 @@ class CategoricalModel(md.Model):
         }
 
     @staticmethod
-    def _get_header(df):
-        fields = []
-        for column_name in df:
-            column = df[column_name]
-            domain = dm.DiscreteDomain()
-            extent = dm.DiscreteDomain(sorted(column.unique()))
-            fields.append(md.Field(column_name, domain, extent, 'string'))
-        return fields
-
-    @staticmethod
     def _maximum_aposteriori(df, fields, k=1):
         extents = [f['extent'].value() for f in fields]
         sizes = tuple(len(e) for e in extents)
@@ -50,9 +40,7 @@ class CategoricalModel(md.Model):
         return (counts + k) / (counts.sum() + k * counts.size)
 
     def _set_data(self, df):
-        self.data = df
-        self.fields = CategoricalModel._get_header(df)
-        return self
+        return self._set_data_categorical(df)
 
     def _fit(self):
         self._p = CategoricalModel._maximum_aposteriori(self.data, self.fields)

@@ -3,6 +3,13 @@ import math
 
 # TODO: is it better to use immutable tuples instead of mutable lists for the internal representation of domains?
 
+# TODO: performance improvement
+#  when modfiying a domain compute its state (i.e. bounded, singular, unbounded) and cache it
+#  or: flexible caching on demand, i.e. cache on first request, reset cache on domain modification
+
+# TODO: performance improvement
+#  like above also cache a domains value() , values() and bounded()
+
 
 class Domain:
 

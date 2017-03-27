@@ -114,6 +114,8 @@ class Model:
     """
     # TODO: useful helper functions for dealing with fields and indexes:
 
+    # TODO: performance: introduce field lookup by name, i.e. _name2field
+
     @staticmethod
     def _get_header(df):
         """ Returns suitable fields for a model given a given pandas data frame.
@@ -186,7 +188,7 @@ class Model:
     def sorted_names(self, names):
         """Given a set, sequence or list of random variables of this model, returns a list of the
         same names but in the same order as the random variables in the model.
-        It ignores silently any name that is not a name of a field in this model.
+        It silently ignores any name that is not a name of a field in this model.
         """
         return utils.sort_filter_list(names, self.names)
 
@@ -273,7 +275,10 @@ class Model:
          with the data part of the
          model and does not do any fitting or such.
 
-        This method must be implemented by all actual model classes.
+        This method must be implemented by all actual model classes. You might just want to use one of the following:
+         * Model._set_data_mixed: for continuous and categorical data
+         * Model._set_data_continuous: for continuous data
+         * Model._set_data_categorical: for categorical data
 
         Args:
             df: a pandas DataFrame
@@ -282,6 +287,74 @@ class Model:
             self
         """
         raise NotImplementedError("your model must implement this method")
+
+    def _set_data_mixed(self, df):
+        # split in categorical and numeric columns
+        categoricals = []
+        numericals = []
+        for colname in df:
+            column = df[colname]
+            if column.dtype.name == "category" or column.dtype.name == "object":
+                categoricals.append(colname)
+            elif np.issubdtype(column.dtype, np.number):
+                numericals.append(colname)
+            else:
+                raise TypeError("unsupported column dtype : " + str(column.dtype.name) + " of column " + str(colname))
+        self._categoricals = categoricals
+        self._numericals = numericals
+
+        # set data for model as needed
+        #  reorder data frame such that categorical columns are first
+        df = pd.DataFrame(df, columns=categoricals + numericals)
+
+        # derive and set fields
+        fields = []
+        for colname in categoricals:
+            column = df[colname]
+            domain = dm.DiscreteDomain()
+            extent = dm.DiscreteDomain(sorted(column.unique()))
+            field = md.Field(colname, domain, extent, 'string')
+            fields.append(field)
+        for colname in numericals:
+            column = df[colname]
+            field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+            fields.append(field)
+
+        self.fields = fields
+        self.data = df
+        return self
+
+    def _set_data_continuous(self, df):
+        # TODO: check integrety of data
+        self.data = df
+        self.fields = Model._get_header_continuous(df)
+        return self
+
+    def _set_data_categorical(self, df):
+        # TODO: check integrety of data
+        self.data = df
+        self.fields = Model._get_header_categorical(df)
+        return self
+
+    @staticmethod
+    def _get_header_continuous(df):
+        """ Returns suitable fields for a continuous model from a given pandas dataframe.
+        """
+        fields = []
+        for column in df:
+            field = Field(column, dm.NumericDomain(), dm.NumericDomain(df[column].min(), df[column].max()), 'numerical')
+            fields.append(field)
+        return fields
+
+    @staticmethod
+    def _get_header_categorical(df):
+        fields = []
+        for column_name in df:
+            column = df[column_name]
+            domain = dm.DiscreteDomain()
+            extent = dm.DiscreteDomain(sorted(column.unique()))
+            fields.append(Field(column_name, domain, extent, 'string'))
+        return fields
 
     def fit(self, df=None):
         """Fits the model to passed DataFrame
@@ -387,6 +460,31 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
+    def _condition_data(self, name, operator, values):
+        """Conditions the data of the model according to given parameters. Returns nothing.
+        """
+        df = self.data  # shortcut
+        field = self.byname(name)
+        column = df[name]
+        if operator == 'in':
+            if field['dtype'] == 'numerical':
+                df = df.loc[column.between(*values, inclusive=True)]
+            elif field['dtype'] == 'string':
+                df = df.loc[column.isin(values)]
+            else:
+                raise TypeError("unsupported field type: " + str(field.dtype))
+        else:
+            # values is necessarily a single scalar value, not a list
+            if operator == 'equals' or operator == '==':
+                df = df.loc[column == values]
+            elif operator == 'greater' or operator == '>':
+                df = df.loc[column > values]
+            elif operator == 'less' or operator == '<':
+                df = df.loc[column < values]
+            else:
+                raise ValueError('invalid operator for condition: ' + str(operator))
+        self.data = df
+
     def condition(self, conditions=[], is_pure=False):
         """Conditions this model according to the list of three-tuples
         (<name-of-random-variable>, <operator>, <value(s)>). In particular
@@ -427,56 +525,16 @@ class Model:
                 else:
                     pure_conditions.append(condition)
 
-        # TODO: code below aint DRY but I don't know how to do it better and high-performance
         # continue with rest according to mode
         if self.mode == 'model':
             for (name, operator, values) in pure_conditions:
                 self.byname(name)['domain'].apply(operator, values)
-            # for (name, operator, values) in pure_conditions:
-            #     operator = operator.lower()
-            #     field = self.byname(name)
-            #     domain = field['domain']
-            #     if operator == 'in':
-            #         domain.intersect(values)
-            #     else:
-            #         # values is necessarily a single scalar value, not a list
-            #         if operator == 'equals' or operator == '==':
-            #             domain.intersect(values)
-            #         elif operator == 'greater' or operator == '>':
-            #             domain.setlowerbound(values)
-            #         elif operator == 'less' or operator == '<':
-            #             domain.setupperbound(values)
-            #         else:
-            #             raise ValueError('invalid operator for condition: ' + str(operator))
         else:
-            df = self.data
             for (name, operator, values) in pure_conditions:
-                operator = operator.lower()
-                field = self.byname(name)
-                domain = field['domain']
-                column = df[name]
-                if operator == 'in':
-                    domain.intersect(values)
-                    if field['dtype'] == 'numerical':
-                        df = df.loc[column.between(*values, inclusive=True)]
-                    elif field['dtype'] == 'string':
-                        df = df.loc[column.isin(values)]
-                    else:
-                        raise TypeError("unsupported field type: " + str(field.dtype))
-                else:
-                    # values is necessarily a single scalar value, not a list
-                    if operator == 'equals' or operator == '==':
-                        domain.intersect(values)
-                        df = df.loc[column == values]
-                    elif operator == 'greater' or operator == '>':
-                        domain.setlowerbound(values)
-                        df = df.loc[column > values]
-                    elif operator == 'less' or operator == '<':
-                        domain.setupperbound(values)
-                        df = df.loc[column < values]
-                    else:
-                        raise ValueError('invalid operator for condition: ' + str(operator))
-            self.data = df
+                # condition model
+                self.byname(name)['domain'].apply(operator, values)
+                # condition data
+                self._condition_data(name, operator, values)
         return self
 
     def _conditionout(self, remove):
@@ -542,6 +600,7 @@ class Model:
 
         # 1. find singular fields (fields with singular domain)
         # any aggregation on such fields will yield the singular value of the domain
+        # TODO: performance: cache these at model level ?!
         for (idx, field) in enumerate(self.fields):
             domain = field['domain']
             if domain.issingular():
@@ -565,6 +624,7 @@ class Model:
                 raise ValueError("Your model does not provide the requested aggregation: '" + method + "'")
 
             # 4. clamp to values within domain
+            # TODO bug/mistake: should we really clamp?
             for (idx, field) in enumerate(submodel.fields):
                 other_res[idx] = field['domain'].clamp(other_res[idx])
 
@@ -579,7 +639,6 @@ class Model:
             raise ValueError("invalid value for mode : ", str(mode))
 
     def density(self, names, values=None):
-    # def density(self, names, values=None, mode="model"):
         """Returns the density at given point. You may either pass both, names
         and values, or only one list with values. In the latter case values is
         assumed to be in the same order as the random variables of the model.
@@ -596,6 +655,11 @@ class Model:
         Args:
             values: may be anything that numpy.array accepts to construct from.
         """
+
+        # TODO: design: the way of handling the 'model vs data' field sucks ... how to do it better?
+        # TODO: also, this is a lot of code for just querying density!? we need a _fast_ way to do that,
+        # i.e. an interface that is used internally needs little preprocessing
+
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
 
@@ -604,7 +668,7 @@ class Model:
 
         mode = self.mode
         if len(names) != self._n:
-            # it may be that the 'model cs data' field was passed in
+            # it may be that the 'model vs data' field was passed in
             if len(names) == self._n+1:
                 if values is None:
                     mode = names.pop()
@@ -633,7 +697,7 @@ class Model:
             values = [pair[1] for pair in sorted_]
 
         # data frequency
-        def filter(df, conditions):
+        def filter_(df, conditions):
             """ Apply all '==' filters in the sequence of conditions to given dataframe and return it."""
             # TODO: do I need some general solution for the interval vs scalar problem?
             for (col_name, value) in conditions:
@@ -664,7 +728,7 @@ class Model:
             return v
 
         if mode == "both" or mode == "data":
-            cnt = len(filter(self.data, zip(self.names, values)))
+            cnt = len(filter_(self.data, zip(self.names, values)))
             if mode == "data":
                 return cnt
 
