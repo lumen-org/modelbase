@@ -1,11 +1,52 @@
 # -*- coding: utf-8 -*-
 """
-Copyright: Frank Nussbaum (frank.nussbaum@uni-jena.de)
+Copyright (c) 2017: Frank Nussbaum (frank.nussbaum@uni-jena.de), Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 
 
 import numpy as np
 import pandas as pd
+
+
+def cg_dummy():
+    """Returns a dataframe that contains samples of a 4d cg distribution. See the code for the used parameters.
+    @author: Philipp Lucas
+    """
+
+    # chose fixed parameters
+    mu_M_Jena = [0, 0]
+    mu_F_Jena = [1, 3]
+    mu_M_Erfurt = [-10, 1]
+    mu_F_Erfurt = [-5, -6]
+    p_M_Jena = 0.35
+    p_F_Jena = 0.25
+    p_M_Erfurt = 0.1
+    p_F_Erfurt = 0.3
+    S = [[3, 0.5], [0.5, 1]]
+    dims = ['sex', 'city', 'age', 'income']
+    # and a sample size
+    samplecnt = 1000
+
+    # generate samples for each and arrange in dataframe
+    df_cat = pd.concat([
+        pd.DataFrame([["M", "Jena"]] * round(samplecnt * p_M_Jena), columns=['sex', 'city']),
+        pd.DataFrame([["F", "Jena"]] * round(samplecnt * p_F_Jena), columns=['sex', 'city']),
+        pd.DataFrame([["M", "Erfurt"]] * round(samplecnt * p_M_Erfurt), columns=['sex', 'city']),
+        pd.DataFrame([["F", "Erfurt"]] * round(samplecnt * p_F_Erfurt), columns=['sex', 'city'])
+    ])
+
+    df_num = pd.concat([
+        pd.DataFrame(np.random.multivariate_normal(mu_M_Jena, S, round(samplecnt * p_M_Jena)),
+                     columns=['age', 'income']),
+        pd.DataFrame(np.random.multivariate_normal(mu_F_Jena, S, round(samplecnt * p_F_Jena)),
+                     columns=['age', 'income']),
+        pd.DataFrame(np.random.multivariate_normal(mu_M_Erfurt, S, round(samplecnt * p_M_Erfurt)),
+                     columns=['age', 'income']),
+        pd.DataFrame(np.random.multivariate_normal(mu_F_Erfurt, S, round(samplecnt * p_F_Erfurt)),
+                     columns=['age', 'income'])
+    ])
+    df = pd.concat([df_cat, df_num], axis=1)
+    return df
 
 def genCatData(n, levels, seed = 10):
     """ uniform/ independent draws according to the levels given in <levels>"""

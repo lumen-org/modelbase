@@ -6,7 +6,7 @@ from numpy.linalg import inv, det
 import xarray as xr
 
 import models as md
-import ConditionallyGaussianModel as cg
+import cond_gaussians as cg
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -33,12 +33,14 @@ class CgWmModel(md.Model):
                 data structure used: xarray DataArray with m+2 dimensions. The first m dimensions represent the
                     categorical random variables of the model and are labeled accordingly. The last two dimensions
                     represents the mean vector of the continuous part of the model and are therefore of length n.
+                    The labels of the last two dimensions are 'S1' and 'S2'.
 
             _mu:
                 meaning: the mean of each conditional gaussian.
                 data structure used: xarray DataArray with m+1 dimensions. The first m dimensions represent the
                     categorical random variables of the model and are labeled accordingly. The last dimension represents
-                    the mean vector of the continuous part of the model and is therefore of length n.
+                    the mean vector of the continuous part of the model and is therefore of length n. The label of the
+                    last dimension is 'mean'
 
             _categoricals:
                 list of names of all categorical fields (in same order as they appear in fields)
@@ -53,7 +55,7 @@ class CgWmModel(md.Model):
             _SInv:
                 meaning: the inverse of _S
             _detS
-                meaning: the determinant of _S
+                meaning: abs(det(S))**-0.5
 
     Limitations:
         inference queries:
@@ -79,63 +81,6 @@ class CgWmModel(md.Model):
         self._SInv = xr.DataArray([])
         self._detS = xr.DataArray([])
 
-    @staticmethod
-    def _fitFullLikelihood(data, fields, dc):
-        """fit full likelihood for CG model. the data frame data consists of dc many categorical columns and the rest are
-        numerical columns. all categorical columns occur before the numerical ones."""
-
-        # TODO we may reuse for now - just set the same
-
-        k = 1  # laplacian smoothing parameter
-        n, d = data.shape
-        dg = d - dc
-
-        cols = data.columns
-        catcols = cols[:dc]
-        gausscols = cols[dc:]
-
-        extents = [f['extent'].value() for f in fields[:dc]]  # levels
-        sizes = [len(v) for v in extents]
-        #        print('extents:', extents)
-
-        z = np.zeros(tuple(sizes))
-        pML = xr.DataArray(data=z, coords=extents, dims=catcols)
-
-        # mus
-        mus = np.zeros(tuple(sizes + [dg]))
-        coords = extents + [[contname for contname in gausscols]]
-        dims = list(catcols) + ['mean']
-        musML = xr.DataArray(data=mus, coords=coords, dims=dims)
-
-        # calculate p(x)
-        for row in data.itertuples():
-            cats = row[1:1 + dc]
-            gauss = row[1 + dc:]
-            pML.loc[cats] += 1
-            musML.loc[cats] += gauss
-
-        it = np.nditer(pML, flags=['multi_index'])  # iterator over complete array
-        while not it.finished:
-            ind = it.multi_index
-            musML[ind] /= pML[ind]
-            it.iternext()
-
-        # smooth and normalize
-        # pML /= 1.0 * n  # without smoothing
-        pML = (pML + k) / (pML.sum() + k*pML.size)
-
-        Sigma = np.zeros((dg, dg))
-        for row in data.itertuples():
-            cats = row[1:1 + dc]
-            gauss = row[1 + dc:]
-            ymu = gauss - musML.loc[cats]
-            Sigma += np.outer(ymu, ymu)
-
-        Sigma /= n
-        Sigma = xr.DataArray(Sigma, coords=[gausscols]*2)
-
-        return pML, musML, Sigma
-
     # base
     def _set_data(self, df):
         return self._set_data_mixed(df)
@@ -147,10 +92,25 @@ class CgWmModel(md.Model):
         assert(self.mode != 'none')
         df = self.data
         dc = len(self._categoricals)
-        self._p, self._mu, S = cg._fitFullLikelihood(df, self.fields, dc)
+        self._p, mu, S_single = cg.ConditionallyGaussianModel._fitFullLikelihood(df, self.fields, dc)
 
-        # TODO: spread S to full xarray
-        # self._S = S...
+        # replicate S_single to a individual S for each cg
+        # setup coords as dict of dim names to extents
+        #dims = mu.dims[:-1]
+        #coords = {key: mu.coords[key] for key in dims}
+        dims = self._p.dims
+        coords = dict(self._p.coords)
+        coords['S1'] = self._numericals  # extent is the list of numerical variables
+        coords['S2'] = self._numericals
+        sizes = [len(coords[dim]) for dim in dims]  # generate blow-up sizes
+
+        S = np.outer(np.ones(tuple(sizes)), S_single.values)  # replicate S as many times as needed
+        dims += ('S1', 'S2')  # add missing dimensions for Sigma
+        shape = tuple(sizes + [len(self._numericals)]*2)  # update shape
+        S = S.reshape(shape)  # reshape to match dimension requirements
+
+        self._S = xr.DataArray(data=S, coords=coords, dims=dims)
+        self._mu = mu
 
         return self.update()  # needed to compute precalculated values
 
@@ -164,10 +124,11 @@ class CgWmModel(md.Model):
             self._S = xr.DataArray([])
             self._mu = xr.DataArray([])
         else:
-            # TODO: compute on all conditionals
-            self._detS = abs(det(self._S))
-            self._SInv = inv(self._S)
-
+            S = self._S
+            detS = abs(det(S.values)) ** -0.5
+            invS = inv(S.values)
+            self._detS = xr.DataArray(data=detS, coords=self._p.coords, dims=self._p.dims)   # reuse coords from p
+            self._SInv = xr.DataArray(data=invS, coords=S.coords, dims=S.dims)  # reuse coords from Sigma
         if len(self._categoricals) == 0:
             self._p = xr.DataArray([])
 
@@ -179,7 +140,6 @@ class CgWmModel(md.Model):
         # condition on categorical fields
         cat_remove = [name for name in self._categoricals if name in remove]
         if len(cat_remove) != 0:
-            # _S remains unchanged
             pairs = dict(self._condition_values(cat_remove, True))
 
             # _p changes like in the categoricals.py case
@@ -191,6 +151,7 @@ class CgWmModel(md.Model):
             # note: if we condition on all categoricals this also works: it simply remains the single 'selected' mu...
             if len(self._numericals) != 0:
                 self._mu = self._mu.loc[pairs]
+                self._S = self._S.loc[pairs]
 
         # condition on continuous fields
         num_remove = [name for name in self._numericals if name in remove]
@@ -214,7 +175,7 @@ class CgWmModel(md.Model):
                 # TODO: can I use the same access structure or do i need seperate ones for mu and S?
                 mu_stacked = self._mu.stack(pl_stack=cat_keep)
                 S_stacked = self._S.stack(pl_stack=cat_keep)
-                for mu_coord, S_coord in zip(mu_stacked.pl_stack, S_stacked):
+                for mu_coord, S_coord in zip(mu_stacked.pl_stack, S_stacked.pl_stack):
                     mu_indexer = dict(pl_stack=mu_coord)
                     S_indexer = dict(pl_stack=S_coord)
 
@@ -238,7 +199,7 @@ class CgWmModel(md.Model):
             else:
                 # special case: no categorical fields left. hence we cannot stack over them, it is only a single mu left
                 # and we only need to update that
-                sigma_expr = np.dot(self._S.loc[i, j], inv(self._S.loc[j, j]))  # reused below multiple times
+                sigma_expr = np.dot(self._S.loc[i, j], inv(self._S.loc[j, j]))  # reused below
                 self._S = self._S.loc[i, i] - dot(sigma_expr, self._S.loc[j, i])  # upper Schur complement
                 self._mu = self._mu.loc[i] + dot(sigma_expr, condvalues - self._mu.loc[j])
 
@@ -257,20 +218,47 @@ class CgWmModel(md.Model):
 
         if len(self._categoricals) != 0:  # only enter if there is work to do
             # clone old p for later reuse
-            p = self._p.copy()
-            # marginalized p: just like in the categorical case (categoricals.py), i.e. sum up over removed dimensions
-            self._p = self._p.sum(cat_remove)
-
-        # marginalized mu (taken from the script)
-        # slice out the gaussian part to keep; sum over the categorical part to remove
-        if len(num_keep) != 0:
-            mu = self._mu.loc[dict(mean=num_keep)]
-            if len(self._categoricals) == 0:
-                self._mu = mu
+            if len(cat_remove) > 0:
+                # marginalized p: just like in the categorical case (categoricals.py), i.e. sum over removed dimensions
+                p = self._p.copy()
+                self._p = self._p.sum(cat_remove)
             else:
+                # no need to copy it
+                p = self._p
+
+        # marginalized mu and Sigma (taken from the script)
+        if len(num_keep) != 0:
+            # slice out the gaussian part to keep
+            mu = self._mu.loc[dict(mean=num_keep)]
+            S = self._S.loc[dict(S1=num_keep, S2=num_keep)]
+            if len(cat_remove) == 0:
+                # just set the sliced out gaussian parts
+                self._mu = mu
+                self._S = S
+            else:
+                # marginalized mu
+                # sum over the categorical part to remove
                 self._mu = (p * mu).sum(cat_remove) / self._p
-            # marginalized sigma
-            self._S = self._S.loc[num_keep, num_keep]
+
+                # marginalized Sigma - see script
+                # only in that case the following operations yield something different from S
+                mu_diff = mu - self._mu
+
+                # outer product of each mu_diff.
+                #  do it in numpy with einsum: 1st reshape to [x, len(mu)], 2nd use einsum
+                #  credits to: http://stackoverflow.com/questions/20683725/numpy-multiple-outer-products
+                shape = mu_diff.shape
+                shape = (np.prod(shape[:-1]), shape[-1:][0])
+                mu_diff_np = mu_diff.values.reshape(shape)
+                mu_dyad = np.einsum('ij,ik->ijk' ,mu_diff_np, mu_diff_np)
+                mu_dyad = mu_dyad.reshape(S.shape)  # match to shape of S
+
+                inner_sum = mu_dyad + S
+
+                times_p = inner_sum * p
+                marginalized_sum = times_p.sum(cat_remove)
+                normalized = marginalized_sum / self._p
+                self._S = normalized
 
         # update fields and dependent variables
         self.fields = [field for field in self.fields if field['name'] in keep]
@@ -285,17 +273,20 @@ class CgWmModel(md.Model):
         cat = tuple(x[:cat_len])  # need it as a tuple for indexing below
         num = np.array(x[cat_len:])  # need as np array for dot product
 
-        p = self._p.loc[cat].data
+        p = self._p.loc[cat].values
 
         if num_len == 0:
             return p
 
         # works because gaussian variables are - by design of this class - after categoricals.
         # Therefore the only not specified dimension is the last one, i.e. the one that holds the mean!
-        mu = self._mu.loc[cat].data
-
+        mu = self._mu.loc[cat].values
+        S = self._S.loc[cat].values
+        detS = self._detS.loc[cat].values
+        invS = self._SInv.loc[cat].values
         xmu = num - mu
-        gauss = (2 * pi) ** (-num_len / 2) * (self._detS ** -.5) * exp(-.5 * np.dot(xmu, np.dot(self._SInv, xmu)))
+        #gauss = (2 * pi) ** (-num_len / 2) * (abs(det(S)) ** -.5) * exp(-.5 * np.dot(xmu, np.dot(inv(S), xmu)))
+        gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
 
         if cat_len == 0:
             return gauss
@@ -309,23 +300,37 @@ class CgWmModel(md.Model):
 
         if cat_len == 0:
             # then there is only a single gaussian left and the maximum is its mean value, i.e. the value of _mu
-            return list(self._mu.data)
+            return list(self._mu.values)
 
-        # categorical part
-        # TODO: ask Frank about it
-        # I think its just scanning over all x of omega_x, since there is only one sigma
-        # i.e. this is like in the categorical case
-        p = self._p
-        pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
-        cat_argmax = [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
+        # observation 1: for a given x in Omega_X the maximum is taken at the corresponding cg's mu, lets call it
+        #  argmu(x). hence, in order to determine the maximum, we scan over all x of Omega_x and
+        #  calculate the density over p(x, argmu(x))
+        # observation 2: the density of a gaussian at its mean is quite simple since the (x-mu) terms evaluate to 0.
+        # observation 3: we are only interested in where the maximum is taken, no its actual value. Hence we can remove
+        #  any values that are equal for all. Hence, the following simplies:
+        #     (2*pi)^(-n/2) * det(Sigma)^-0.5 * exp( -0.5 * (x-mu)^T * Sigma^-1 * (x-mu) )
+        # to: det(Sigma)^-0.5
+        # observation 4: luckily, we already have that precalculated!
 
         if num_len == 0:
-            return cat_argmax
+            # find maximum in p and return its coordinates
+            p = self._p
+            pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
+            return [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
 
-        # gaussian part
-        # the mu is the mean and the maximum of the conditional gaussian
-        num_argmax = self._mu.loc[tuple(cat_argmax)]
-        return cat_argmax + list(num_argmax.data)
+        else:
+            # find compound maximum
+
+            # compute pseudo-density at all gaussian means to find maximum
+            p = self._p * self._detS
+            pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
+
+            # now figure out the coordinates
+            cat_argmax = [idx[0] for idx in pmax.indexes.values()]  # extract categorical coordinates from indexes
+            num_argmax = self._mu.loc[tuple(cat_argmax)]  # extract numerical coordinates as mean
+
+            # return compound coordinates
+            return cat_argmax + list(num_argmax.values)
 
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)
@@ -338,4 +343,74 @@ class CgWmModel(md.Model):
         return mycopy
 
 if __name__ == '__main__':
+    import numpy as np
+    import pandas as pd
+    from cond_gaussian_wm import CgWmModel
+    from cond_gaussian.datasampling import genCGSample, genCatData, genCatDataJEx, cg_dummy
+
+    # generate input data
+    data = cg_dummy()
+
+    # fit model
+    model = CgWmModel('testmodel')
+    model.fit(data)
+    original = model.copy()
+
+    # marginalize a single continuous variable out: income
+    model = original.copy().model(model=['sex', 'city', 'age'])
+    print("model of sex, city, age:\n", model)
+
+    # marginalize two continuous variables out: income, age
+    model = original.copy().model(model=['sex', 'city'])
+    print("model of sex, city:\n", model)
+
+    # marginalize a single categorical variable out: sex
+    model = original.copy().model(model=['city', 'age', 'income'])
+    print("model of city, age, income:\n", model)
+
+    # marginalize two categorical variables out: sex, city
+    model = original.copy().model(model=['age', 'income'])
+    print("model of age, income:\n", model)
+
+    # marginalize a continuous and a categorical variable out: sex, income
+    model = original.copy().model(model=['city', 'age'])
+    print("model of city, age:\n", model)
+
+    # marginalize two continuous and a single categorical variable out: sex, income, age
+    model = original.copy().model(model=['city'])
+    print("model of city:\n", model)
+
+    # marginalize a single continuous and a two categorical variables out: sex, city, age
+    model = original.copy().model(model=['income'])
+    print("model of income:\n", model)
+
+    ## older stuff
+    model = original.copy()
+    print('p(M) = ', model._density(['M', 'Jena', 0, -6]))
+
+    print('argmax of p(sex, city, age, income) = ', model._maximum())
+
+    print('p(M) = ', model._density(['M', 'Jena', 0]))
+
+    print('argmax of p(sex, city, age) = ', model._maximum())
+
+    model.model(model=['sex', 'age'], where=[('city', "==", 'Jena')])  # condition city out
+    print("model [sex, city == Jena, age]:\n", model)
+
+    print('p(M) = ', model._density(['M', 0]))
+
+    print('argmax of p(sex, agge) = ', model._maximum())
+
+    model.model(model=['sex'], where=[('age', "==", 0)])  # condition age out
+    print("model [sex, city == Jena, age == 0]:\n", model)
+
+    print('p(M) = ', model._density(['M']))
+
+    print('p(F) = ', model._density(['F']))
+
+    print('argmax of p(sex) = ', model._maximum())
+
+    model = original.copy().model(['sex', 'age', 'income'])  # marginalize city out
+    print("model [sex, age, income]:\n", model)
+
     pass

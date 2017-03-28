@@ -18,6 +18,7 @@ import domains as dm
 import splitter as sp
 import utils as utils
 import data_aggregation as data_aggr
+import numpy as np
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -313,11 +314,11 @@ class Model:
             column = df[colname]
             domain = dm.DiscreteDomain()
             extent = dm.DiscreteDomain(sorted(column.unique()))
-            field = md.Field(colname, domain, extent, 'string')
+            field = Field(colname, domain, extent, 'string')
             fields.append(field)
         for colname in numericals:
             column = df[colname]
-            field = md.Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+            field = Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
             fields.append(field)
 
         self.fields = fields

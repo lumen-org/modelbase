@@ -2,14 +2,14 @@
 """
 @author: Philipp Lucas
 
-Test Suite for cond_gaussians.py
+Test Suite for cond_gaussians_wm.py
 """
 
 import unittest
 import numpy as np
 import pandas as pd
 
-from cond_gaussians import ConditionallyGaussianModel as CondGauss
+from cond_gaussian_wm import CgWmModel
 from cond_gaussian.datasampling import genCGSample, genCatData, genCatDataJEx, cg_dummy
 
 
@@ -25,63 +25,12 @@ class TestJustRun(unittest.TestCase):
     """ This is not a real test case... it's just a couple of model queries that should go through
      without raising any exception """
 
-    def test_A(self):
-        # Sigma = np.diag([1, 1, 1])
-        Sigma = np.matrix([[1, 0, 0.5], [0, 1, 0], [0.5, 0, 1]])
-        # Sigma = np.diag([1, 1, 1, 1])
-
-        n = 1000
-        testopts = {'levels': {0: [1, 2, 3, 4], 1: [2, 5, 10], 2: [1, 2]},
-                    'Sigma': Sigma,
-                    'fun': genCatData,
-                    'catvalasmean': 1,  # works if dc = dg
-                    'seed': 10}
-        data = genCGSample(n, testopts)  # categoricals first, then gaussians, np array
-        dc = len(testopts.keys())
-
-        # fit model
-        model = CondGauss('testmodel')
-        model.fit(data)
-
-        print_info(model)
-        # ind = (0, 1, 1)
-        # print('mu(', [model._extents[i][ind[i]] for i in ind], '):', model._mu[ind])
-        # print(np.histogram(data[:, dc]))
-        # plothist(data.iloc[:, dc + 1].ravel())
-        pass
-
-    def test_B(self):
-        # Sigma = np.diag([1, 1, 1])
-        # Sigma = np.matrix([[1, 0, 0.5], [0, 1, 0], [0.5, 0, 1]])
-        Sigma = np.diag([1, 1, 1, 1])
-
-        n = 1000
-        testopts = {'levels': {0: [0, 1], 1: [0, 1], 2: [0, 1]},
-                    'Sigma': Sigma,
-                    'fun': genCatDataJEx,
-                    'catvalasmean': 1,
-                    'seed': 10}
-        data = genCGSample(n, testopts)  # categoricals first, then gaussians, np array
-        dc = len(testopts.keys())
-        print("dc ", dc)
-
-        # fit model
-        model = CondGauss('testmodel')
-        model.fit(data)
-
-        print_info(model)
-        # ind = (0, 1, 1)
-        # print('mu(', [model._extents[i][ind[i]] for i in ind], '):', model._mu[ind])
-        # print(np.histogram(data[:, dc]))
-        # plothist(data.iloc[:, dc + 1].ravel())
-        pass
-
     def test_dummy_cg(self):
         # generate input data
         data = cg_dummy()
 
         # fit model
-        model = CondGauss('testmodel')
+        model = CgWmModel('testmodel')
         model.fit(data)
 
         print_info(model)
