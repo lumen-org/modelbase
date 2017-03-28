@@ -26,6 +26,7 @@ import data.bank.bank as bank
 import data.banknotes.banknotes as banknotes
 
 from cond_gaussians import ConditionallyGaussianModel
+from cond_gaussian_wm import CgWmModel
 from gaussians import MultiVariateGaussianModel
 from categoricals import CategoricalModel
 
@@ -42,7 +43,7 @@ known_models = {
     # multivariate gaussian models
     'iris': lambda: (MultiVariateGaussianModel('iris'), sns.load_dataset('iris').iloc[:, 0:-1]),
     'car_crashes': lambda: (MultiVariateGaussianModel('car_crashes'), sns.load_dataset('car_crashes').iloc[:, 0:-1]),
-    'mvg_dummy_2d': lambda: (MultiVariateGaussianModel.dummy2d_model('mvg_dummy_2d'), 'no data'),
+    'mvg_dummy_2d': lambda: (MultiVariateGaussianModel.dummy2d_model('mvg_dummy_2d'), None),
 
     # mixutres of multivariate gaussians
     # 'faithful': lambda: (MMVG('faithful'), df.read_csv('data/faithful/faithful.csv')),
@@ -64,7 +65,11 @@ known_models = {
     'music': lambda: (ConditionallyGaussianModel('music'), music.mixed()),
     'mpg': lambda: (ConditionallyGaussianModel('mpg'), mpg.cg()),
     'census': lambda: (ConditionallyGaussianModel('census'), zensus.mixed()),
-    'cg_banknotes': lambda: (ConditionallyGaussianModel('cg_banknotes'), banknotes.mixed('data/banknotes/banknotes.csv'))
+    'cg_banknotes': lambda: (ConditionallyGaussianModel('cg_banknotes'), banknotes.mixed('data/banknotes/banknotes.csv')),
+
+    # condtionally gaussian models with weak marginals
+    'cgw_iris': lambda: (CgWmModel('cgw_iris'), sns.load_dataset('iris')),
+    'cgw_crabs': lambda: (CgWmModel('cgw_crabs'), crabs.mixed('data/crabs/australian-crabs.csv'))
 }
 
 
@@ -85,7 +90,7 @@ def refit_all_models(verbose=False, include=None, exclude=None):
             (model_, df) = getter()
             if verbose:
                 print("Fitting model for data set '" + str(id_) + "' ...")
-            if df != 'no data':
+            if df is None:
                 model_.fit(df)
             models.append(model_)
             if verbose:
@@ -139,6 +144,7 @@ Examples:
     # args.include = ['cg_olive_oils']
     # args.include = ['cg_glass']
     # args.include = ['starcraft']
+    # args.include = ['cgw_iris']
 
     modelbase = mb.ModelBase("refitter", load_all=False, model_dir=args.directory)
     models = refit_all_models(verbose=True, include=args.include, exclude=args.exclude)
