@@ -90,7 +90,8 @@ def refit_all_models(verbose=False, include=None, exclude=None):
             (model_, df) = getter()
             if verbose:
                 print("Fitting model for data set '" + str(id_) + "' ...")
-            if df is None:
+            if df is not None:
+                # only fit if data available. otherwise we expect that the model has been fitted elsewhere
                 model_.fit(df)
             models.append(model_)
             if verbose:

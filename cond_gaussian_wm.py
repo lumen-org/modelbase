@@ -125,10 +125,16 @@ class CgWmModel(md.Model):
             self._mu = xr.DataArray([])
         else:
             S = self._S
-            detS = abs(det(S.values)) ** -0.5
+
             invS = inv(S.values)
-            self._detS = xr.DataArray(data=detS, coords=self._p.coords, dims=self._p.dims)   # reuse coords from p
             self._SInv = xr.DataArray(data=invS, coords=S.coords, dims=S.dims)  # reuse coords from Sigma
+
+            detS = abs(det(S.values)) ** -0.5
+            if len(self._categoricals) == 0:
+                self._detS = xr.DataArray(data=detS)  # no coordinates left to use...
+            else:
+                self._detS = xr.DataArray(data=detS, coords=self._p.coords, dims=self._p.dims)   # reuse coords from p
+
         if len(self._categoricals) == 0:
             self._p = xr.DataArray([])
 
