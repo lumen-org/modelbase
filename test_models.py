@@ -2,7 +2,12 @@
 """
 @author: Philipp Lucas
 
-Test Suite for cond_gaussians.py
+Test Suite for the models base class.
+
+Its tests the abstract functionality provided by the Model class. It does not intend to test any specific implementation
+of subclasses.
+
+For generic testing of subclasses see test_models_generic.py.
 """
 
 import unittest
@@ -12,9 +17,9 @@ from random import shuffle
 
 from models import Model
 from mockup_model import MockUpModel
-from categoricals import CategoricalModel
-from gaussians import MultiVariateGaussianModel as GaussianModel
-from cond_gaussians import ConditionallyGaussianModel as CGModel
+#from categoricals import CategoricalModel
+#from gaussians import MultiVariateGaussianModel as GaussianModel
+#from cond_gaussians import ConditionallyGaussianModel as CGModel
 
 import data.crabs.crabs as crabs
 
@@ -34,7 +39,7 @@ class TestDataSelect(unittest.TestCase):
     def setUp(self):
         # crabs has columns: 'species', 'sex', 'FL', 'RW', 'CL', 'CW', 'BD'
         self.data = pd.DataFrame(crabsdata)
-        self.model = CGModel('crabs').set_data(crabsdata)
+        self.model = MockUpModel('crabs').set_data(crabsdata)
         self.cols = list(crabsdata.columns)
         self.shape = self.data.shape
         pass

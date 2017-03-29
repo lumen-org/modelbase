@@ -145,7 +145,7 @@ Examples:
     # args.include = ['cg_olive_oils']
     # args.include = ['cg_glass']
     # args.include = ['starcraft']
-    # args.include = ['cgw_iris']
+    args.include = ['cgw_iris']
 
     modelbase = mb.ModelBase("refitter", load_all=False, model_dir=args.directory)
     models = refit_all_models(verbose=True, include=args.include, exclude=args.exclude)

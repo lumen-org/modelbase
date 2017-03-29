@@ -29,8 +29,8 @@ class MultiVariateGaussianModel(md.Model):
             'average': self._maximum
         }
 
-    def _set_data(self, df):
-        return self._set_data_continuous(df)
+    def _set_data(self, df, drop_silently):
+        return self._set_data_continuous(df, drop_silently)
 
     def _fit(self):
         """Fits the model to data of the model

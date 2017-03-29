@@ -14,6 +14,9 @@ from collections import namedtuple
 from functools import reduce
 import pickle as pickle
 import logging
+
+from _pytest.cacheprovider import cache
+
 import domains as dm
 import splitter as sp
 import utils as utils
@@ -117,29 +120,29 @@ class Model:
 
     # TODO: performance: introduce field lookup by name, i.e. _name2field
 
-    @staticmethod
-    def _get_header(df):
-        """ Returns suitable fields for a model given a given pandas data frame.
-        column of dtypes == 'category' or dtype == 'object' are recognized as categorical.
-        All other columns are regarded as numerical.
-        The order of fields is the same as the order of columns in the data frame.
-
-        Args:
-            df: a pandas data frame.
-        """
-        fields = []
-        for colname in df:
-            column = df[colname]
-            # if categorical of some sort, create discrete field from it
-            if column.dtype == "category" or column.dtype == "object":
-                domain = dm.DiscreteDomain()
-                extent = dm.DiscreteDomain(sorted(column.unique()))
-                field = Field(colname, domain, extent, 'string')
-            # else it's numeric
-            else:
-                field = Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
-            fields.append(field)
-        return fields
+    # @staticmethod
+    # def _get_header(df):
+    #     """ Returns suitable fields for a model given a given pandas data frame.
+    #     column of dtypes == 'category' or dtype == 'object' are recognized as categorical.
+    #     All other columns are regarded as numerical.
+    #     The order of fields is the same as the order of columns in the data frame.
+    #
+    #     Args:
+    #         df: a pandas data frame.
+    #     """
+    #     fields = []
+    #     for colname in df:
+    #         column = df[colname]
+    #         # if categorical of some sort, create discrete field from it
+    #         if column.dtype == "category" or column.dtype == "object":
+    #             domain = dm.DiscreteDomain()
+    #             extent = dm.DiscreteDomain(sorted(column.unique()))
+    #             field = Field(colname, domain, extent, 'string')
+    #         # else it's numeric
+    #         else:
+    #             field = Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+    #         fields.append(field)
+    #     return fields
 
     def __str__(self):
         # TODO: add some more useful print out functions / info to that function
@@ -197,6 +200,7 @@ class Model:
         self.name = name
         self.fields = []
         self.names = []
+        self.extents = []
         self.data = pd.DataFrame([])
         self._aggrMethods = None
         self._n = 0
@@ -245,9 +249,10 @@ class Model:
 
         return df
 
-    def set_data(self, df):
-        """Sets a automatically cleansed (and hence copied) version of the pandas DataFrame df as the data of this
-         model.
+    def set_data(self, df, silently_drop=False):
+        """Derives suitable, cleansed (and copied) data from df for a particular model, sets this as the models data
+         and also sets up auxiliary data structures or such if necessary. This is however, only concerned with the data
+         part of the model and does not do any fitting or such.
 
         This method has the following effects:
          - the models mode is set to 'data'
@@ -256,41 +261,46 @@ class Model:
          - possibly existing data of the model are overwritten
          - possibly fitted model parameters are lost
 
-        Note that if the data does not fit to the specific type of the model, it my raise a ValueError. E.g. a gaussian
+        Note that if the data does not fit to the specific type of the model, it will raise a TypeError. E.g. a gaussian
         model cannot be fit on categorical data.
 
-        Returns self.
+        Args:
+            df: a pandas data frame
+            silently_drop: If set to True any column of df that is suitable for the model to be learned will silently
+                be dropped. Otherwise this will raise a TypeError.
+
+        Returns:
+            self
         """
         # general clean up
         df = Model.clean_dataframe(df)
 
         # model specific clean up, setting of data, models fields, and possible more model specific stuff
-        self._set_data(df)
+        self._set_data(df, silently_drop)
         self.mode = 'data'
         self._update()
         return self
 
-    def _set_data(self, df):
-        """ Derives suitable, cleansed data from df for a particular model, sets this as the models data and
-         also sets up auxiliary data structures or such if necessary. This is however, only concerned
-         with the data part of the
-         model and does not do any fitting or such.
+    def _set_data(self, df, silently_drop):
+        """
+        See Model.set_data.
 
         This method must be implemented by all actual model classes. You might just want to use one of the following:
          * Model._set_data_mixed: for continuous and categorical data
          * Model._set_data_continuous: for continuous data
          * Model._set_data_categorical: for categorical data
-
-        Args:
-            df: a pandas DataFrame
-
-        Returns:
-            self
         """
         raise NotImplementedError("your model must implement this method")
 
-    def _set_data_mixed(self, df):
-        # split in categorical and numeric columns
+    @staticmethod
+    def _get_columns_by_dtype(df):
+        """Returns a triple of colnames (all, cat, num) where:
+          * all is all names of columns in df,
+          * cat is the names of all categorical columns in df, and
+          * num is the names of all numerical columns in df.
+          Any column in df that is not recognized as either categorical or numerical will raise a TypeError.
+          """
+        all = []
         categoricals = []
         numericals = []
         for colname in df:
@@ -301,61 +311,87 @@ class Model:
                 numericals.append(colname)
             else:
                 raise TypeError("unsupported column dtype : " + str(column.dtype.name) + " of column " + str(colname))
-        self._categoricals = categoricals
-        self._numericals = numericals
+            all.append(colname)
+        return all, categoricals, numericals
 
-        # set data for model as needed
-        #  reorder data frame such that categorical columns are first
-        df = pd.DataFrame(df, columns=categoricals + numericals)
-
-        # derive and set fields
+    @staticmethod
+    def _get_discrete_fields(df, colnames):
+        """Returns discrete fields constructed from the columns in colname of dataframe df.
+        This assumes colnames only contains names of discrete columns of df."""
         fields = []
-        for colname in categoricals:
+        for colname in colnames:
             column = df[colname]
             domain = dm.DiscreteDomain()
             extent = dm.DiscreteDomain(sorted(column.unique()))
             field = Field(colname, domain, extent, 'string')
             fields.append(field)
-        for colname in numericals:
+        return fields
+
+    @staticmethod
+    def _get_numerical_fields(df, colnames):
+        """Returns numerical fields constructed from the columns in colname of dataframe df.
+        This assumes colnames only contains names of numerical columns of df."""
+        fields = []
+        for colname in colnames:
             column = df[colname]
             field = Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
             fields.append(field)
-
-        self.fields = fields
-        self.data = df
-        return self
-
-    def _set_data_continuous(self, df):
-        # TODO: check integrety of data
-        self.data = df
-        self.fields = Model._get_header_continuous(df)
-        return self
-
-    def _set_data_categorical(self, df):
-        # TODO: check integrety of data
-        self.data = df
-        self.fields = Model._get_header_categorical(df)
-        return self
-
-    @staticmethod
-    def _get_header_continuous(df):
-        """ Returns suitable fields for a continuous model from a given pandas dataframe.
-        """
-        fields = []
-        for column in df:
-            field = Field(column, dm.NumericDomain(), dm.NumericDomain(df[column].min(), df[column].max()), 'numerical')
-            fields.append(field)
         return fields
 
-    @staticmethod
-    def _get_header_categorical(df):
-        fields = []
-        for column_name in df:
-            column = df[column_name]
-            domain = dm.DiscreteDomain()
-            extent = dm.DiscreteDomain(sorted(column.unique()))
-            fields.append(Field(column_name, domain, extent, 'string'))
-        return fields
+    def _set_data_mixed(self, df, silently_drop):
+        """see Model._set_data"""
+
+        # split in categorical and numeric columns
+        _, self._categoricals, self._numericals = Model._get_columns_by_dtype(df)
+
+        # check if dtype are ok
+        #  ... nothing to do here ...
+
+        # set data for model as needed
+        #  reorder data frame such that categorical columns are first
+        self.data = pd.DataFrame(df, columns=self._categoricals + self._numericals)
+
+        # derive and set fields
+        self.fields = Model._get_discrete_fields(self.data, self._categoricals) + \
+                 Model._get_numerical_fields(self.data, self._numericals)
+
+        return self
+
+    def _set_data_continuous(self, df, silently_drop):
+        """see Model._set_data"""
+
+        # split in categorical and numeric columns
+        all, categoricals, numericals = Model._get_columns_by_dtype(df)
+
+        # check if dtype are ok
+        if len(categoricals) > 0:
+            raise ValueError('Data frame contains categorical columns: ' + str(categoricals))
+
+        # set data for model as needed
+        self.data = pd.DataFrame(df, columns=numericals)
+
+        # derive and set fields
+        self.fields = Model._get_discrete_fields(self.data, numericals)
+
+        return self
+
+    def _set_data_categorical(self, df, silently_drop):
+        """see Model._set_data"""
+
+        # split in categorical and numeric columns
+        all, categoricals, numericals = Model._get_columns_by_dtype(df)
+
+        # check if dtype are ok
+        if len(numericals) > 0:
+            raise ValueError('Data frame contains numerical columns: ' + str(numericals))
+
+        # set data for model as needed
+        self.data = pd.DataFrame(df, columns=categoricals)
+
+        # derive and set fields
+        self.fields = Model._get_discrete_fields(self.data, categoricals)
+
+        return self
 
     def fit(self, df=None):
         """Fits the model to passed DataFrame
@@ -843,6 +879,7 @@ class Model:
         self._n = len(self.fields)
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(self._n)))
         self.names = [f['name'] for f in self.fields]
+        self.extents = [field['domain'].bounded(field['extent']) for field in self.fields]
 
     # def model(self, model, where=[], as_=None, mode="both"):
     def model(self, model='*', where=[], as_=None):
@@ -985,6 +1022,7 @@ class Model:
                 # TODO: does that really work? should I rather 'pimp' the 'byname' function? would that be consistent?
                 field = basemodel._modeldata_field if split[NAME_IDX] == 'model vs data' \
                     else basemodel.byname(split[NAME_IDX])
+                # TODO: replace with self.extent
                 domain = field['domain'].bounded(field['extent'])
                 try:
                     splitfct = sp.splitter[split[METHOD_IDX].lower()]
