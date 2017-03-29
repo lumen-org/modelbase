@@ -10,22 +10,6 @@ such and it is not intended for that.
 
 Such tests must be model specific and are hence found in the corresponding model specific test scripts.
 
-
-General idea for this test suite:
-
-base of all testing
- * a 6D data set of 3 categorical and 3 continuous random variables
-
-maintain list of model classes seperated by:
- * continuous, discrete or mixed model?
-
-how to test each model class:
- 1. train model on data
- 2. run tests
-
-about these tests:
- * they are generic, i.e. queries are generated at runtime depending on available fields in model
-
 """
 import unittest
 
@@ -46,10 +30,11 @@ import data.crabs.crabs as crabs
 # REGISTER ALL YOUR MODEL SUBCLASSES TO TEST HERE
 # model classes
 models = {
-    'discrete' : [CategoricalModel],
-    'continuous': [GaussianModel],
-    'mixed': [CGModel, CGWMModel]
+    'discrete': [CategoricalModel, MockUpModel],
+    'continuous': [GaussianModel, MockUpModel],
+    'mixed': [CGModel, CGWMModel, MockUpModel]
 }
+
 
 def _values_of_extents(extents):
     """Returns a list of list, where each list consists of 'valid' values from the given extents.

@@ -11,15 +11,11 @@ For generic testing of subclasses see test_models_generic.py.
 """
 
 import unittest
-import numpy as np
 import pandas as pd
 from random import shuffle
 
 from models import Model
 from mockup_model import MockUpModel
-#from categoricals import CategoricalModel
-#from gaussians import MultiVariateGaussianModel as GaussianModel
-#from cond_gaussians import ConditionallyGaussianModel as CGModel
 
 import data.crabs.crabs as crabs
 
@@ -32,6 +28,7 @@ class TestJustRun(unittest.TestCase):
 
     def test_A(self):
         pass
+
 
 class TestDataSelect(unittest.TestCase):
     """Test the model.select method."""
@@ -150,15 +147,12 @@ class TestInvalidParams(unittest.TestCase):
             shuffle(shuffled)
             self.assertEqual(m.names, m.sorted_names(shuffled))
 
-#    def test
-
 class TestAllModels(unittest.TestCase):
     """This test case tests simple invariants that should hold for all concrete models, that however,
     are not abstracted into the abstract base class."""
 
     # register all subclasses here
     subclasses = [MockUpModel]
-    # subclasses = [MockUpModel, CategoricalModel, GaussianModel, CGModel]
 
     def test_subclasses(self):
         for class_ in TestAllModels.subclasses:

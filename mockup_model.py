@@ -27,10 +27,6 @@ class MockUpModel(md.Model):
     Density: returns always 0.
 
     Samples: returns the vector that has the first/smallest element of each fields domain as its elements.
-
-
-    It returns 0 for numerical and "foo" for categorical fields, no matter what the aggregations or queries are.
-    Density queries also return constant 0.
     """
 
     def __init__(self, name="no-name"):
@@ -40,12 +36,10 @@ class MockUpModel(md.Model):
             'average': self._maximum
         }
 
-    def _set_data(self, df):
-        self.data = df
-        return self
+    def _set_data(self, df, drop_silently):
+        return self._set_data_mixed(df, drop_silently)
 
     def _fit(self):
-        self.fields = MockUpModel._get_header(self.data)
         return self.update()
 
     def update(self):

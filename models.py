@@ -8,20 +8,18 @@ This module defines:
    * Field: a class that represent random variables in a model.
    * ConditionTuple, SplitTuple, AggregationTuple: convenience tuples for handling such clauses in PQL queries
 """
-import pandas as pd
 import copy as cp
 from collections import namedtuple
 from functools import reduce
 import pickle as pickle
+import numpy as np
+import pandas as pd
 import logging
-
-from _pytest.cacheprovider import cache
 
 import domains as dm
 import splitter as sp
 import utils as utils
 import data_aggregation as data_aggr
-import numpy as np
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)

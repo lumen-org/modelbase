@@ -285,7 +285,6 @@ class ConditionallyGaussianModel(md.Model):
             return list(self._mu.data)
 
         # categorical part
-        # TODO: ask Frank about it
         # I think its just scanning over all x of omega_x, since there is only one sigma
         # i.e. this is like in the categorical case
         p = self._p

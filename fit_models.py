@@ -46,11 +46,8 @@ known_models = {
     'car_crashes': lambda: (MultiVariateGaussianModel('car_crashes'), sns.load_dataset('car_crashes').iloc[:, 0:-1]),
     'mvg_dummy_2d': lambda: (MultiVariateGaussianModel.dummy2d_model('mvg_dummy_2d'), None),
 
-    # mixutres of multivariate gaussians
+    # mixtures of multivariate gaussians
     # 'faithful': lambda: (MMVG('faithful'), df.read_csv('data/faithful/faithful.csv')),
-
-    # DIAMONDS
-    # http://docs.ggplot2.org/0.9.3.1/diamonds.html check it out!
 
     # conditionally gaussian models
     # 'cg_dummy': lambda: (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
@@ -68,7 +65,7 @@ known_models = {
     'census': lambda: (ConditionallyGaussianModel('census'), zensus.mixed()),
     'cg_banknotes': lambda: (ConditionallyGaussianModel('cg_banknotes'), banknotes.mixed('data/banknotes/banknotes.csv')),
 
-    # condtionally gaussian models with weak marginals
+    # conditionally gaussian models with weak marginals
     'cgw_iris': lambda: (CgWmModel('cgw_iris'), sns.load_dataset('iris')),
     'cgw_crabs': lambda: (CgWmModel('cgw_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
     'cgw_diamonds': lambda: (CgWmModel('cgw_diamonds'), diamonds.mixed('data/diamonds/diamonds.csv'))
