@@ -99,6 +99,75 @@ def _tuple2str(tuple_):
     return prefix + str(tuple_[METHOD_IDX]) + '(' + str(tuple_[NAME_IDX]) + ')'
 
 
+def clean_dataframe(df):
+    # check that there are no NaNs or Nones
+    if df.isnull().any().any():
+        raise ValueError("DataFrame contains NaNs or Nulls.")
+
+    # convert any categorical columns that have numbers into strings
+    # and raise errors for unsupported dtypes
+    for colname in df.columns:
+        col = df[colname]
+        dtype = col.dtype
+        if dtype.name == 'category':
+            # categories must have string levels
+            cat_dtype = col.cat.categories.dtype
+            if cat_dtype != 'str' and cat_dtype != 'object':
+                logger.warning('Column "' + str(colname) +
+                               '" is categorical, however the categories levels are not of type "str" or "object" '
+                               'but of type "' + str(cat_dtype) +
+                               '". I\'m converting the column to dtype "object" (i.e. strings)!')
+                df[colname] = col.astype(str)
+
+    return df
+
+
+def get_columns_by_dtype(df):
+    """Returns a triple of colnames (all, cat, num) where:
+      * all is all names of columns in df,
+      * cat is the names of all categorical columns in df, and
+      * num is the names of all numerical columns in df.
+      Any column in df that is not recognized as either categorical or numerical will raise a TypeError.
+      """
+    all = []
+    categoricals = []
+    numericals = []
+    for colname in df:
+        column = df[colname]
+        if column.dtype.name == "category" or column.dtype.name == "object":
+            categoricals.append(colname)
+        elif np.issubdtype(column.dtype, np.number):
+            numericals.append(colname)
+        else:
+            raise TypeError("unsupported column dtype : " + str(column.dtype.name) + " of column " + str(colname))
+        all.append(colname)
+    return all, categoricals, numericals
+
+
+def get_discrete_fields(df, colnames):
+    """Returns discrete fields constructed from the columns in colname of dataframe df.
+    This assumes colnames only contains names of discrete columns of df."""
+    fields = []
+    for colname in colnames:
+        column = df[colname]
+        domain = dm.DiscreteDomain()
+        extent = dm.DiscreteDomain(sorted(column.unique()))
+        field = Field(colname, domain, extent, 'string')
+        fields.append(field)
+    return fields
+
+
+def get_numerical_fields(df, colnames):
+    """Returns numerical fields constructed from the columns in colname of dataframe df.
+    This assumes colnames only contains names of numerical columns of df."""
+    fields = []
+    for colname in colnames:
+        column = df[colname]
+        field = Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+        fields.append(field)
+    return fields
+
+
 class Model:
     """An abstract base model that provides an interface to derive submodels from it or query density and other
     aggregations of it. It also defines stubs for those methods that actual models are required to implement.
@@ -116,38 +185,13 @@ class Model:
         exists in the model. Queries may contain it, however they are translated onto the 'internal' interface in the
         .marginalize, .condition, .predict-methods.
     """
-    # TODO: useful helper functions for dealing with fields and indexes:
 
     # TODO: performance: introduce field lookup by name, i.e. _name2field
-
-    # @staticmethod
-    # def _get_header(df):
-    #     """ Returns suitable fields for a model given a given pandas data frame.
-    #     column of dtypes == 'category' or dtype == 'object' are recognized as categorical.
-    #     All other columns are regarded as numerical.
-    #     The order of fields is the same as the order of columns in the data frame.
-    #
-    #     Args:
-    #         df: a pandas data frame.
-    #     """
-    #     fields = []
-    #     for colname in df:
-    #         column = df[colname]
-    #         # if categorical of some sort, create discrete field from it
-    #         if column.dtype == "category" or column.dtype == "object":
-    #             domain = dm.DiscreteDomain()
-    #             extent = dm.DiscreteDomain(sorted(column.unique()))
-    #             field = Field(colname, domain, extent, 'string')
-    #         # else it's numeric
-    #         else:
-    #             field = Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
-    #         fields.append(field)
-    #     return fields
 
     def __str__(self):
         # TODO: add some more useful print out functions / info to that function
         return (self.__class__.__name__ + " " + self.name + "':\n" +
-                "dimension: " + str(self._n) + "\n" +
+                "dimension: " + str(self.dim) + "\n" +
                 "names: " + str([self.names]) + "\n")
                 # "names: " + str([self.names]) + "\n" +
                 # "fields: " + str([str(field) for field in self.fields]))
@@ -203,7 +247,7 @@ class Model:
         self.extents = []
         self.data = pd.DataFrame([])
         self._aggrMethods = None
-        self._n = 0
+        self.dim = 0
         self._name2idx = {}
         self.mode = "empty"
         self._modeldata_field = _Modeldata_field()
@@ -214,40 +258,13 @@ class Model:
         return self
 
     def _isempty(self):
-        return self._n == 0
+        return self.dim == 0
 
     def json_fields(self, include_modeldata_field=False):
         json_ = list(map(field_tojson, self.fields))
         if include_modeldata_field:
             json_.append(field_tojson(self._modeldata_field))
         return json_
-
-    @staticmethod
-    def clean_dataframe(df):
-        # check that there are no NaNs or Nones
-        if df.isnull().any().any():
-            raise ValueError("DataFrame contains NaNs or Nulls.")
-
-        # convert any categorical columns that have numbers into strings
-        # and raise errors for unsupported dtypes
-        for colname in df.columns:
-            col = df[colname]
-            dtype = col.dtype
-            if dtype.name == 'category':
-                # categories must have string levels
-                cat_dtype = col.cat.categories.dtype
-                if cat_dtype != 'str' and cat_dtype != 'object':
-                    logger.warning('Column "' + str(colname) +
-                                   '" is categorical, however the categories levels are not of type "str" or "object" '
-                                   'but of type "' + str(cat_dtype) +
-                                   '". I\'m converting the column to dtype "object" (i.e. strings)!')
-                    df[colname] = col.astype(str)
-            #elif dtype == 'float' or dtype == 'int' or dtype == 'bool' or dtype == 'object':
-            #    pass  # ok
-            #else:
-            #    raise ValueError('Column "' + str(colname) + '" is of type "' + str(dtype) + '" which is not supported.')
-
-        return df
 
     def set_data(self, df, silently_drop=False):
         """Derives suitable, cleansed (and copied) data from df for a particular model, sets this as the models data
@@ -273,7 +290,7 @@ class Model:
             self
         """
         # general clean up
-        df = Model.clean_dataframe(df)
+        df = clean_dataframe(df)
 
         # model specific clean up, setting of data, models fields, and possible more model specific stuff
         self._set_data(df, silently_drop)
@@ -292,57 +309,11 @@ class Model:
         """
         raise NotImplementedError("your model must implement this method")
 
-    @staticmethod
-    def _get_columns_by_dtype(df):
-        """Returns a triple of colnames (all, cat, num) where:
-          * all is all names of columns in df,
-          * cat is the names of all categorical columns in df, and
-          * num is the names of all numerical columns in df.
-          Any column in df that is not recognized as either categorical or numerical will raise a TypeError.
-          """
-        all = []
-        categoricals = []
-        numericals = []
-        for colname in df:
-            column = df[colname]
-            if column.dtype.name == "category" or column.dtype.name == "object":
-                categoricals.append(colname)
-            elif np.issubdtype(column.dtype, np.number):
-                numericals.append(colname)
-            else:
-                raise TypeError("unsupported column dtype : " + str(column.dtype.name) + " of column " + str(colname))
-            all.append(colname)
-        return all, categoricals, numericals
-
-    @staticmethod
-    def _get_discrete_fields(df, colnames):
-        """Returns discrete fields constructed from the columns in colname of dataframe df.
-        This assumes colnames only contains names of discrete columns of df."""
-        fields = []
-        for colname in colnames:
-            column = df[colname]
-            domain = dm.DiscreteDomain()
-            extent = dm.DiscreteDomain(sorted(column.unique()))
-            field = Field(colname, domain, extent, 'string')
-            fields.append(field)
-        return fields
-
-    @staticmethod
-    def _get_numerical_fields(df, colnames):
-        """Returns numerical fields constructed from the columns in colname of dataframe df.
-        This assumes colnames only contains names of numerical columns of df."""
-        fields = []
-        for colname in colnames:
-            column = df[colname]
-            field = Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
-            fields.append(field)
-        return fields
-
     def _set_data_mixed(self, df, silently_drop):
         """see Model._set_data"""
 
         # split in categorical and numeric columns
-        _, self._categoricals, self._numericals = Model._get_columns_by_dtype(df)
+        _, self._categoricals, self._numericals = get_columns_by_dtype(df)
 
         # check if dtype are ok
         #  ... nothing to do here ...
@@ -352,8 +323,8 @@ class Model:
         self.data = pd.DataFrame(df, columns=self._categoricals + self._numericals)
 
         # derive and set fields
-        self.fields = Model._get_discrete_fields(self.data, self._categoricals) + \
-                 Model._get_numerical_fields(self.data, self._numericals)
+        self.fields = get_discrete_fields(self.data, self._categoricals) + \
+                 get_numerical_fields(self.data, self._numericals)
 
         return self
 
@@ -361,7 +332,7 @@ class Model:
         """see Model._set_data"""
 
         # split in categorical and numeric columns
-        all, categoricals, numericals = Model._get_columns_by_dtype(df)
+        all, categoricals, numericals = get_columns_by_dtype(df)
 
         # check if dtype are ok
         if len(categoricals) > 0:
@@ -371,7 +342,7 @@ class Model:
         self.data = pd.DataFrame(df, columns=numericals)
 
         # derive and set fields
-        self.fields = Model._get_discrete_fields(self.data, numericals)
+        self.fields = get_numerical_fields(self.data, numericals)
 
         return self
 
@@ -379,7 +350,7 @@ class Model:
         """see Model._set_data"""
 
         # split in categorical and numeric columns
-        all, categoricals, numericals = Model._get_columns_by_dtype(df)
+        all, categoricals, numericals = get_columns_by_dtype(df)
 
         # check if dtype are ok
         if len(numericals) > 0:
@@ -389,7 +360,7 @@ class Model:
         self.data = pd.DataFrame(df, columns=categoricals)
 
         # derive and set fields
-        self.fields = Model._get_discrete_fields(self.data, categoricals)
+        self.fields = get_discrete_fields(self.data, categoricals)
 
         return self
 
@@ -457,7 +428,7 @@ class Model:
         else:
             raise ValueError("Missing required argument: You must specify either 'keep' or 'remove'.")
 
-        if len(keep) == self._n or self._isempty():
+        if len(keep) == self.dim or self._isempty():
             return self
         if len(keep) == 0:
             return self._setempty()
@@ -477,7 +448,7 @@ class Model:
         if len(cond_out) != 0:
             self._conditionout(cond_out)
 
-        if len(keep) == self._n or self._isempty():
+        if len(keep) == self.dim or self._isempty():
             return self
 
         return self._marginalizeout(keep)
@@ -602,7 +573,7 @@ class Model:
             # can not compute any aggregation. return nan
             # TODO: allows Nans
             # raise ValueError("empty data frame - cannot compute any aggregations. implement nans.")
-            return [0] * self._n
+            return [0] * self.dim
         elif method == 'maximum' or method == 'average':
             # return data_aggr.most_frequent_equi_sized(data, opts)  # this is also an option, but I think it's worse
             return data_aggr.average_most_frequent(data, opts)
@@ -704,9 +675,9 @@ class Model:
             raise ValueError('Length of names and values does not match.')
 
         mode = self.mode
-        if len(names) != self._n:
+        if len(names) != self.dim:
             # it may be that the 'model vs data' field was passed in
-            if len(names) == self._n+1:
+            if len(names) == self.dim+1:
                 if values is None:
                     mode = names.pop()
                 else:
@@ -721,8 +692,8 @@ class Model:
                             values_.append(value)
                     names = names_
                     values = values_
-            if len(names) > self._n:
-                raise ValueError('Incorrect number names/values provided. Require ' + str(self._n) +
+            if len(names) > self.dim:
+                raise ValueError('Incorrect number names/values provided. Require ' + str(self.dim) +
                                  ' but got ' + str(len(names)) + '.')
 
         if values is None:
@@ -876,8 +847,8 @@ class Model:
     def _update(self):
         """Updates the _n, name2idx and names based on the fields in .fields"""
         # TODO: call it from aggregate, ... make it transparent to subclasses!? is that possible?
-        self._n = len(self.fields)
-        self._name2idx = dict(zip([f['name'] for f in self.fields], range(self._n)))
+        self.dim = len(self.fields)
+        self._name2idx = dict(zip([f['name'] for f in self.fields], range(self.dim)))
         self.names = [f['name'] for f in self.fields]
         self.extents = [field['domain'].bounded(field['extent']) for field in self.fields]
 
@@ -1114,7 +1085,7 @@ class Model:
                     # there is no fields to split by, hence only a single value will be aggregated
                     # i.e. marginalize all other fields out
                     # TODO: can there ever be more fields left than the one(s) that is aggregated over?
-                    if len(aggr[NAME_IDX]) != aggr_model._n:  # debugging
+                    if len(aggr[NAME_IDX]) != aggr_model.dim:  # debugging
                         raise ValueError("uh, interesting - check this out, and read the todo above this code line")
                     singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
                     res = singlemodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX+1])

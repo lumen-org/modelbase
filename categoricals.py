@@ -48,7 +48,7 @@ class CategoricalModel(md.Model):
 
     # def __str__(self):
     #     return ("Multivariate Categorical Model '" + self.name + "':\n" +
-    #             "dimension: " + str(self._n) + "\n" +
+    #             "dimension: " + str(self.dim) + "\n" +
     #             "names: " + str([self.names]) + "\n" +
     #             "fields: " + str([str(field['name']) + ':' + str(field['domain']) + ':' + str(field['extent'])
     #                               for field in self.fields]))
@@ -56,7 +56,7 @@ class CategoricalModel(md.Model):
     def update(self):
         """updates dependent parameters / precalculated values of the model"""
         self._update()
-        if self._n == 0:
+        if self.dim == 0:
             self._p = xr.DataArray([])
         return self
 
@@ -81,7 +81,7 @@ class CategoricalModel(md.Model):
 
     def _marginalizeout(self, keep):
         keepidx = sorted(self.asindex(keep))
-        removeidx = utils.invert_indexes(keepidx, self._n)
+        removeidx = utils.invert_indexes(keepidx, self.dim)
         # the marginal probability is the sum along the variable(s) to marginalize out
         self._p = self._p.sum(dim=[self.names[idx] for idx in removeidx])
         self.fields = [self.fields[idx] for idx in keepidx]

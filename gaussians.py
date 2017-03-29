@@ -48,22 +48,22 @@ class MultiVariateGaussianModel(md.Model):
 
     def __str__(self):
         return ("Multivariate Gaussian Model '" + self.name + "':\n" +
-                "dimension: " + str(self._n) + "\n" +
+                "dimension: " + str(self.dim) + "\n" +
                 "names: " + str([self.names]) + "\n" +
                 "fields: " + str([str(field) for field in self.fields]))
 
     def update(self):
         """updates dependent parameters / precalculated values of the model"""
         self._update()
-        if self._n == 0:
+        if self.dim == 0:
             self._detS = nan
             self._SInv = nan
         else:
             self._detS = np.abs(np.linalg.det(self._S))
             self._SInv = self._S.I
 
-        assert (self._mu.shape == (self._n, 1) and
-                self._S.shape == (self._n, self._n))
+        assert (self._mu.shape == (self.dim, 1) and
+                self._S.shape == (self.dim, self.dim))
 
         return self
 
@@ -82,7 +82,7 @@ class MultiVariateGaussianModel(md.Model):
 
         # calculate updated mu and sigma for conditional distribution, according to GM script
         j = self.asindex(remove)
-        i = utils.invert_indexes(j, self._n)
+        i = utils.invert_indexes(j, self.dim)
         S = self._S
         mu = self._mu
         self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
@@ -102,7 +102,7 @@ class MultiVariateGaussianModel(md.Model):
     def _density(self, x):
         x = matrix(x).T  # turn into column vector of type numpy matrix
         xmu = x - self._mu
-        return ((2 * pi) ** (-self._n / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item()
+        return ((2 * pi) ** (-self.dim / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item()
 
     def _maximum(self):
         """Returns the point of the maximum density in this model"""
@@ -110,7 +110,7 @@ class MultiVariateGaussianModel(md.Model):
         return self._mu.T.tolist()[0]
 
     def _sample(self):
-        sample = self._S * np.matrix(np.random.randn(self._n)).T + self._mu
+        sample = self._S * np.matrix(np.random.randn(self.dim)).T + self._mu
         return sample.T.tolist()[0]   # we want it as a 'normal' list
 
     def copy(self, name=None):

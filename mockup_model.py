@@ -54,7 +54,7 @@ class MockUpModel(md.Model):
 
     def _conditionout(self, remove):
         removeidx = self.asindex(remove)
-        keepidx = utils.invert_indexes(removeidx, self._n)
+        keepidx = utils.invert_indexes(removeidx, self.dim)
         self.fields = [self.fields[i] for i in keepidx]
         return self.update()
 

@@ -98,36 +98,36 @@ class TestInferenceLvl01(unittest.TestCase):
     def test_marginalize_1(self):
         m = self.m
         m.model(model=m.names[1:4])
-        dim = m._n
+        dim = m.dim
         npt.assert_equal(m._S, np.eye(dim))
         npt.assert_equal(m._mu, np.matrix(np.zeros(dim)).T)
 
         m.model(model=m.names[0:2])
-        dim = m._n
+        dim = m.dim
         npt.assert_equal(m._S, np.eye(dim))
         npt.assert_equal(m._mu, np.matrix(np.zeros(dim)).T)
 
     def test_condition_1(self):
         m = self.m
         m.model(model='*', where=[('dim1', '==', 0)])
-        dim = m._n
+        dim = m.dim
         npt.assert_equal(m._S, np.eye(dim))
         npt.assert_equal(m._mu, np.matrix(np.zeros(dim)).T)
 
         m.model(model='*', where=[('dim3', '==', 0), ('dim4', '==', 0)])
-        dim = m._n
+        dim = m.dim
         npt.assert_equal(m._S, np.eye(dim))
         npt.assert_equal(m._mu, np.matrix(np.zeros(dim)).T)
 
     def test_maximum_1(self):
         m = self.m
         res = m.aggregate('maximum')
-        npt.assert_equal(res, np.zeros(m._n))
+        npt.assert_equal(res, np.zeros(m.dim))
 
     def test_predict_1(self):
         m = self.m
         res = m.aggregate('maximum')
-        npt.assert_equal(res, np.zeros(m._n))
+        npt.assert_equal(res, np.zeros(m.dim))
         
 
 class TestSimple2DMVG(unittest.TestCase):
