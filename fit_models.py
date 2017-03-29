@@ -24,6 +24,7 @@ import data.mpg.mpg as mpg
 import data.census.zensus as zensus
 import data.bank.bank as bank
 import data.banknotes.banknotes as banknotes
+import data.diamonds.diamonds as diamonds
 
 from cond_gaussians import ConditionallyGaussianModel
 from cond_gaussian_wm import CgWmModel
@@ -69,7 +70,8 @@ known_models = {
 
     # condtionally gaussian models with weak marginals
     'cgw_iris': lambda: (CgWmModel('cgw_iris'), sns.load_dataset('iris')),
-    'cgw_crabs': lambda: (CgWmModel('cgw_crabs'), crabs.mixed('data/crabs/australian-crabs.csv'))
+    'cgw_crabs': lambda: (CgWmModel('cgw_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
+    'cgw_diamonds': lambda: (CgWmModel('cgw_diamonds'), diamonds.mixed('data/diamonds/diamonds.csv'))
 }
 
 
@@ -145,7 +147,7 @@ Examples:
     # args.include = ['cg_olive_oils']
     # args.include = ['cg_glass']
     # args.include = ['starcraft']
-    args.include = ['cgw_iris']
+    # args.include = ['cgw_iris']
 
     modelbase = mb.ModelBase("refitter", load_all=False, model_dir=args.directory)
     models = refit_all_models(verbose=True, include=args.include, exclude=args.exclude)

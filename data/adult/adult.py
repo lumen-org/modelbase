@@ -89,6 +89,8 @@ def categorical(datafilepath, verbose=False):
     # TODO: discretize any continuous columns to categorical?
     return dfcat
 
+#def mixed(datafilepath):
+#    df = _loadfromfile(datafilepath)
 
 def continuous(verbose=False):
     df = _loadfromfile(verbose=verbose)
