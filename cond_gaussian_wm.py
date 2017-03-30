@@ -313,7 +313,7 @@ class CgWmModel(md.Model):
         #  calculate the density over p(x, argmu(x))
         # observation 2: the density of a gaussian at its mean is quite simple since the (x-mu) terms evaluate to 0.
         # observation 3: we are only interested in where the maximum is taken, no its actual value. Hence we can remove
-        #  any values that are equal for all. Hence, the following simplies:
+        #  any values that are equal for all. Hence, the following simplifies:
         #     (2*pi)^(-n/2) * det(Sigma)^-0.5 * exp( -0.5 * (x-mu)^T * Sigma^-1 * (x-mu) )
         # to: det(Sigma)^-0.5
         # observation 4: luckily, we already have that precalculated!

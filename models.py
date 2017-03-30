@@ -1159,7 +1159,7 @@ class Model:
         return self.data.loc[mask, what]
 
     def select(self, what, where=[], opts=None):
-        """Returns selected the selected attributes of all data items that satisfy the conditions as a
+        """Returns the selected attributes of all data items that satisfy the conditions as a
         pandas DataFrame. By default it selects data only, i.e. it will not return any samples from the model.
         """
         # check for empty queries
