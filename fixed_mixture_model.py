@@ -68,10 +68,6 @@ class FixedMixtureModel(md.Model):
         meaning: The mixtures models components.
         data structure: a dict that maps the class name (MyModelClass.__name__) to a tuple of actual models of that
             class
-
-    _comp_seq:
-        meaning: an easily iterable sequence of all components of this mixture.
-         data structure: a list
     """
     @staticmethod
     def create_components(models):
@@ -79,9 +75,9 @@ class FixedMixtureModel(md.Model):
          tuple of dicts.
          """
         components = dict()
-        for class_, count in enumerate(models):
+        for class_, count in models.items():
             class_name = class_.__name__
-            instances = tuple(class_(class_name + str(i)) for i in range(count))
+            instances = tuple(class_(str(class_name) + str(i)) for i in range(count))
             components[class_name] = instances
         return components
 
@@ -111,14 +107,11 @@ class FixedMixtureModel(md.Model):
         """
         self._models = models  # just to store it
         self.components = self.create_components(models)
-        # TODO: auxilary structure for iteration over all models
+        self._update_in_components()
 
     def _update_in_components(self, attrs_to_update = _attrs_to_update):
-        """Update dependend variables/states in all components to avoid recalculation / duplicated storage.
+        """Update dependent variables/states in all components to avoid recalculation / duplicated storage.
         """
-        # iterate over all models
-        #for models_per_class in self.components:
-        #    for model in models_per_class:
         for model in self:
             for attr in attrs_to_update:
                 setattr(model, attr, getattr(self, attr))
@@ -135,7 +128,7 @@ class FixedMixtureModel(md.Model):
     def update(self):
         """Updates dependent parameters / precalculated values of the model"""
         self._update()
-        # TODO: should that call _update_in_components ?
+        # TODO: should this method call _update_in_components ?
         return self
 
     def _conditionout(self, remove):
@@ -153,7 +146,7 @@ class FixedMixtureModel(md.Model):
         mycopy = self._defaultcopy(name)
 
         # copy all models
-        for class_name, models_per_class in self.components:
+        for class_name, models_per_class in self.components.items():
             mycopy.components[class_name] = tuple(model.copy() for model in models_per_class)
 
         # update/link all
