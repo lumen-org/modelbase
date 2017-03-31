@@ -450,6 +450,9 @@ class Model:
             return self
 
         return self._marginalizeout(keep)
+        #callback = self._marginalizeout(keep)
+        #self._update()
+        #callback()
 
     def _marginalizeout(self, keep):
         """Marginalizes the model such that only random variables with names in keep remain.
@@ -605,7 +608,7 @@ class Model:
         singular_res = []
 
         # 1. find singular fields (fields with singular domain)
-        # any aggregation on such fields will yield the singular value of the domain
+        # any aggregation on such fields must yield the singular value of the domain
         # TODO: performance: cache these at model level ?!
         for (idx, field) in enumerate(self.fields):
             domain = field['domain']
@@ -621,6 +624,7 @@ class Model:
             model_res = singular_res
         else:
             # 2. marginalize singular fields out
+            # TODO: use internal, faster version of marginalize / marginalizeout?
             submodel = self.copy().marginalize(remove=singular_names)
 
             # 3. calculate 'unrestricted' aggregation on the remaining model

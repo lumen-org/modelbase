@@ -36,7 +36,7 @@ class FixedMixtureModel(md.Model):
     # Ideas to improve performance:
     The largest performance overhead probably stems from duplicated data and fields.
 
-    data: We can let all models use the same dataframe. And we can maybe(?) can use the 'mode' variable to disable
+    data: We can let all models use the same dataframe. And we can maybe(?) use the 'mode' variable to disable
      data computations on all but one (e.g. the first) component model.
 
     fields: Somehow we need to let all models use the same set of fields, and only update them once...
@@ -61,6 +61,11 @@ class FixedMixtureModel(md.Model):
       objects this is easy to handle.
 
     Solution Idea: Assign getter and setter to each of components attributes. See http://stackabuse.com/python-properties/
+
+    Solution Idea2: ah, just don't care about it, at least for fields etc. Only avoid copying data many times!
+
+    Avoid premature optimization!
+
 
     ## Instance Attributes
 
