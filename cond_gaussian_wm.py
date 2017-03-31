@@ -140,7 +140,7 @@ class CgWmModel(md.Model):
 
         return self
 
-    def _conditionout(self, remove):
+    def _conditionout(self, keep, remove):
         remove = set(remove)
 
         # condition on categorical fields
@@ -216,7 +216,7 @@ class CgWmModel(md.Model):
 
         return self.update()
 
-    def _marginalizeout(self, keep):
+    def _marginalizeout(self, keep, remove):
         # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
         keep = set(keep)
         num_keep = [name for name in self._numericals if name in keep]  # note: this is guaranteed to be sorted

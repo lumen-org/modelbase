@@ -136,12 +136,12 @@ class FixedMixtureModel(md.Model):
         # TODO: should this method call _update_in_components ?
         return self
 
-    def _conditionout(self, remove):
+    def _conditionout(self, keep, remove):
         for model in self:
             pass
         return self.update()
 
-    def _marginalizeout(self, keep):
+    def _marginalizeout(self, keep, remove):
         return self.update()
 
     def _density(self, x):

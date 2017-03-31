@@ -220,16 +220,25 @@ class Model:
             names = [names]
         return all([name in self._name2idx for name in names])
 
-    def inverse_names(self, names):
+    def inverse_names(self, names, sorted_=False):
         """Given a sequence of names of random variables (or a single name), returns a sorted list of all names
         of random variables in this model which are _not_ in names. The order of names is the same as the order of
         fields in the model.
         It ignores silently any name that is not a name of a field in this model.
+
+        Args:
+            names: a sequence of names (strings)
+            sorted_: Boolean flag that indicates whether or not names is in sorted order with respect to the
+             order of fields in this model.
         """
         if isinstance(names, str):
             names = [names]
-        names = set(names)
-        return [name for name in self.names if name not in names]
+            sorted_ = True
+        if sorted_:
+            return utils.invert_sequence(names, self.names)
+        else:
+            names = set(names)
+            return [name for name in self.names if name not in names]
 
     def sorted_names(self, names):
         """Given a set, sequence or list of random variables of this model, returns a list of the
@@ -432,7 +441,7 @@ class Model:
             return self._setempty()
 
         keep = self.sorted_names(keep)
-        remove = self.inverse_names(keep)
+        remove = self.inverse_names(keep, sorted_=True)
         cond_out = [name for name in remove if self.byname(name)['domain'].isbounded()]
 
         # Data marginalization
@@ -444,18 +453,19 @@ class Model:
         # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
         # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
         if len(cond_out) != 0:
-            self._conditionout(cond_out)
+            self._conditionout(self.inverse_names(cond_out, sorted_=True), cond_out)
 
         if len(keep) == self.dim or self._isempty():
             return self
 
-        return self._marginalizeout(keep)
+        return self._marginalizeout(keep, self.inverse_names(keep, sorted_=True))
         #callback = self._marginalizeout(keep)
         #self._update()
         #callback()
 
-    def _marginalizeout(self, keep):
-        """Marginalizes the model such that only random variables with names in keep remain.
+    def _marginalizeout(self, keep, remove):
+        """Marginalizes the model such that only random variables with names in keep remain and
+        variables with name in remove are removed.
 
         This method must be implemented by any actual model that derived from the abstract Model class.
 
@@ -464,8 +474,9 @@ class Model:
           * keep is empty
           * the model itself is empty
           * keep contains all names of the model
+          * remove is anything but the inverse list of names of fields with respect to keep
 
-        Moreover keep is guaranteed to be in the same order than the random variables of the model.
+        Moreover keep and remove are guaranteed to be in the same order than the random variables of this model
         """
         raise NotImplementedError("Implement this method in your model!")
 
@@ -546,7 +557,7 @@ class Model:
                 self._condition_data(name, operator, values)
         return self
 
-    def _conditionout(self, remove):
+    def _conditionout(self, keep, remove):
         """Conditions the random variables with name in remove on their available, //not unbounded// domain and
         marginalizes them out.
 
@@ -557,8 +568,9 @@ class Model:
           * remove is empty
           * the model itself is empty
           * remove contains all names of the model
+          * keep is anything but the inverse list of names of fields with respect to remove
 
-        Moreover when called remove is guaranteed to be in the same order than the random variables of the model.
+        Moreover keep and remove are guaranteed to be in the same order than the random variables of this model
 
         Note that we don't know yet how to condition on a non-singular domain (i.e. condition on interval or sets).
         As a work around we therefore:

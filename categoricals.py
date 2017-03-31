@@ -60,7 +60,7 @@ class CategoricalModel(md.Model):
             self._p = xr.DataArray([])
         return self
 
-    def _conditionout(self, remove):
+    def _conditionout(self, keep, remove):
         # Conditioning out categorical variables works by means of the definition of conditional probability:
         #   p(x|c) = p(x,c) / p(c)
         # where p(x,c) is the join probability. Hence it works by normalizing a subrange of the probability
@@ -79,11 +79,15 @@ class CategoricalModel(md.Model):
         self.fields = [field for field in self.fields if field['name'] not in remove]
         return self.update()
 
-    def _marginalizeout(self, keep):
+    def _marginalizeout(self, keep, remove):
+
         keepidx = sorted(self.asindex(keep))
         removeidx = utils.invert_indexes(keepidx, self.dim)
+
+        #keepidx = self.asindex(keep)
+        #removeidx = self.asindex(remove)
         # the marginal probability is the sum along the variable(s) to marginalize out
-        self._p = self._p.sum(dim=[self.names[idx] for idx in removeidx])
+        self._p = self._p.sum(dim=[self.names[idx] for idx in removeidx])  # TODO: cant I use integer indexing?!
         self.fields = [self.fields[idx] for idx in keepidx]
         return self.update()
 

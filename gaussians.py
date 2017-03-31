@@ -67,7 +67,7 @@ class MultiVariateGaussianModel(md.Model):
 
         return self
 
-    def _conditionout(self, remove):
+    def _conditionout(self, keep, remove):
         """Conditions the random variables with name in remove on their available, //not unbounded// domain and marginalizes
                 them out.
 
@@ -91,7 +91,7 @@ class MultiVariateGaussianModel(md.Model):
         self.fields = [self.fields[idx] for idx in i]
         return self.update()
 
-    def _marginalizeout(self, keep):
+    def _marginalizeout(self, keep, remove):
         # i.e.: just select the part of mu and sigma that remains
         keepidx = self.asindex(keep)
         self._mu = self._mu[keepidx]

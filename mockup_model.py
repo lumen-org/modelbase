@@ -46,13 +46,13 @@ class MockUpModel(md.Model):
         self._update()
         return self
 
-    def _conditionout(self, remove):
+    def _conditionout(self, keep, remove):
         removeidx = self.asindex(remove)
         keepidx = utils.invert_indexes(removeidx, self.dim)
         self.fields = [self.fields[i] for i in keepidx]
         return self.update()
 
-    def _marginalizeout(self, keep):
+    def _marginalizeout(self, keep, remove):
         keepidx = self.asindex(keep)
         self.fields = [self.fields[idx] for idx in keepidx]
         return self.update()

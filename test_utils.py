@@ -90,5 +90,28 @@ class TestUtils(unittest.TestCase):
         # already tested in test_models.py
         pass
 
+    def test_invert_sequence(self):
+        base = list('ABCDEFGHI')
+
+        seq = list('A')
+        inv = list('BCDEFGHI')
+        self.assertEqual(utils.invert_sequence(seq, base), inv)
+
+        seq = list('I')
+        inv = list('ABCDEFGH')
+        self.assertEqual(utils.invert_sequence(seq, base), inv)
+
+        seq = list('ABCDEFGHI')
+        inv = list('')
+        self.assertEqual(utils.invert_sequence(seq, base), inv)
+
+        seq = list('')
+        inv = list('ABCDEFGHI')
+        self.assertEqual(utils.invert_sequence(seq, base), inv)
+
+        seq = list('ABCGHI')
+        inv = list('DEF')
+        self.assertEqual(utils.invert_sequence(seq, base), inv)
+
 if __name__ == '__main__':
     unittest.main()

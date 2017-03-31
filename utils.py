@@ -173,6 +173,8 @@ def issorted(seq):
 def invert_indexes(idx, len_):
     """utility function that returns an inverted index list given a sorted 
     sequence of indexes, e.g. given [0,1,4] and len=6 it returns [2,3,5].
+
+    This is a special case of invert_sequence.
     """
     it = iter(idx)
     cur = next(it, None)
@@ -183,6 +185,21 @@ def invert_indexes(idx, len_):
         else:
             inv.append(i)                
     return inv
+
+
+def invert_sequence(seq, base):
+    """utility function that returns an inverted sequence given a base sequence and  sorted
+    sequence of objects (with respect to base), e.g. given [0,1,4] and len=6 it returns [2,3,5].
+    """
+    it = iter(seq)
+    cur = next(it, None)
+    inverted = []
+    for val in base:
+        if val == cur:
+            cur = next(it, None)
+        else:
+            inverted.append(val)
+    return inverted
 
 
 def log_it(before, after):
