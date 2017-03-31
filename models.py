@@ -249,19 +249,20 @@ class Model:
 
     def __init__(self, name):
         self.name = name
-        self.fields = []
-        self.names = []
-        self.extents = []
+        # self.fields = []
+        # self.names = []
+        # self.extents = []
+        # self.dim = 0
+        # self._name2idx = {}
+        self._fields_set_empty()
         self.data = pd.DataFrame([])
         self._aggrMethods = None
-        self.dim = 0
-        self._name2idx = {}
         self.mode = "empty"
         self._modeldata_field = _Modeldata_field()
 
     def _setempty(self):
-        self.fields = []
-        self._update()
+        #self._update_field_derivatives()
+        self._update_remove_fields()
         return self
 
     def _isempty(self):
@@ -302,7 +303,8 @@ class Model:
         # model specific clean up, setting of data, models fields, and possible more model specific stuff
         self._set_data(df, silently_drop)
         self.mode = 'data'
-        self._update()
+        #self._update_field_derivatives()
+        self._update_all_field_derivatives()
         return self
 
     def _set_data(self, df, silently_drop):
@@ -368,11 +370,10 @@ class Model:
 
         # derive and set fields
         self.fields = get_discrete_fields(self.data, categoricals)
-
         return self
 
     def fit(self, df=None):
-        """Fits the model to passed DataFrame
+        """Fits the model to a models data or an optionally passed DataFrame
 
         This method must be implemented by any actual model that derives from the abstract Model class.
 
@@ -453,15 +454,18 @@ class Model:
         # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
         # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
         if len(cond_out) != 0:
-            self._conditionout(self.inverse_names(cond_out, sorted_=True), cond_out)
+            callback = self._conditionout(self.inverse_names(cond_out, sorted_=True), cond_out)
+            self._update_remove_fields(cond_out)
+            callback()
 
         if len(keep) == self.dim or self._isempty():
             return self
 
-        return self._marginalizeout(keep, self.inverse_names(keep, sorted_=True))
-        #callback = self._marginalizeout(keep)
-        #self._update()
-        #callback()
+        remove = self.inverse_names(keep, sorted_=True)
+        callback = self._marginalizeout(keep, remove)
+        self._update_remove_fields(remove)
+        callback()
+        return self
 
     def _marginalizeout(self, keep, remove):
         """Marginalizes the model such that only random variables with names in keep remain and
@@ -520,10 +524,10 @@ class Model:
 
         # TODO: simplify the interface?
 
-        # can't do that because I want to allow zip object as conditions...
-        #if len(conditions) == 0:
-        #    return self
-
+        # can't do that because I want to allow a zip object as conditions...
+        # if len(conditions) == 0:
+        #     return self
+        names = []
         if is_pure:
             pure_conditions = conditions
         else:
@@ -543,6 +547,7 @@ class Model:
                     value = domain.value()
                     self.mode = value if value == 'model' or value == 'data' else 'both'
                 else:
+                    names.append(name)
                     pure_conditions.append(condition)
 
         # continue with rest according to mode
@@ -551,10 +556,11 @@ class Model:
                 self.byname(name)['domain'].apply(operator, values)
         else:
             for (name, operator, values) in pure_conditions:
-                # condition model
+                # condition model. actually, this only restricts the domain of the fields
                 self.byname(name)['domain'].apply(operator, values)
                 # condition data
                 self._condition_data(name, operator, values)
+        self._update_extents(names)
         return self
 
     def _conditionout(self, keep, remove):
@@ -817,7 +823,8 @@ class Model:
         mycopy.fields = cp.deepcopy(self.fields)
         mycopy.mode = self.mode;
         mycopy._modeldata_field = cp.deepcopy(self._modeldata_field)
-        mycopy._update()
+        #mycopy._update_field_derivatives()
+        mycopy._update_all_field_derivatives()
         return mycopy
 
     def _condition_values(self, remove, pairflag=False):
@@ -858,13 +865,76 @@ class Model:
                 raise TypeError('pickled input is not an instance of Model.')
             return model
 
-    def _update(self):
-        """Updates the _n, name2idx and names based on the fields in .fields"""
-        # TODO: call it from aggregate, ... make it transparent to subclasses!? is that possible?
+    def _fields_set_empty(self):
+        self.fields = []
+        self.names = []
+        self.extents = []
+        self.dim = 0
+        self._name2idx = {}
+        return
+
+    def _update_extents(self, to_update=None):
+        """Updates self.extents of the fields with names in the sequence to_update. Updates all if to_update is None.
+        @fields
+        """
+        if to_update is None:
+            to_remove = self.names
+        to_update_idx = self.asindex(to_update)
+        for idx in to_update_idx:
+            field = self.fields[idx]
+            self.extent[idx] = field['domain'].bounded(field['extent'])
+        return self
+
+    def _update_remove_fields(self, to_remove=None):
+        """Removes the fields in the sequence to_remove (and correspondingly derived structure) from self.fields.
+         Removes all if to_remove is None
+         @fields
+        """
+        if to_remove is None:
+            self._fields_set_empty()
+
+        to_remove_idx = self.asindex(to_remove)
+
+        for name in to_remove:
+            del self._name2idx[name]
+
+        # TODO: I guess it is much faster to recreate that list ...
+        # however in the solution now we never change what object we reference to by self.name, ...
+        for idx in to_remove_idx:
+            del self.name[idx]
+            del self.extents[idx]
+            del self.fields[idx]
+
+        self.dim = len(self.fields)
+        return self
+
+    def _update_all_field_derivatives(self):
+        """Rebuild all field derivatives. self.fields must be set before calling
+        @fields
+        """
         self.dim = len(self.fields)
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(self.dim)))
         self.names = [f['name'] for f in self.fields]
         self.extents = [field['domain'].bounded(field['extent']) for field in self.fields]
+        return self
+
+
+    def _update_field_derivatives(self):
+        """Updates the _n, name2idx and names based on the fields in .fields
+
+        what could have happened:
+         * _conditionout, _marginalizeout: some fields are removed
+         * set_empty:  like above, but all removed
+         * set_data, default_copy: all fields are new
+         * conditioning: some extents are changed
+
+        """
+        raise NotImplementedError
+        # # TODO: call it from aggregate, ... make it transparent to subclasses!? is that possible?
+        # self.dim = len(self.fields)
+        # self._name2idx = dict(zip([f['name'] for f in self.fields], range(self.dim)))
+        # self.names = [f['name'] for f in self.fields]
+        # self.extents = [field['domain'].bounded(field['extent']) for field in self.fields]
 
     # def model(self, model, where=[], as_=None, mode="both"):
     def model(self, model='*', where=[], as_=None):

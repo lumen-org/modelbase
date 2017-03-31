@@ -40,22 +40,25 @@ class MockUpModel(md.Model):
         return self._set_data_mixed(df, drop_silently)
 
     def _fit(self):
-        return self.update()
+        #return self.update()
+        return self
 
     def update(self):
-        self._update()
+        #self._update()
         return self
 
     def _conditionout(self, keep, remove):
-        removeidx = self.asindex(remove)
-        keepidx = utils.invert_indexes(removeidx, self.dim)
-        self.fields = [self.fields[i] for i in keepidx]
-        return self.update()
+        return self.update
+        #removeidx = self.asindex(remove)
+        #keepidx = utils.invert_indexes(removeidx, self.dim)
+        #self.fields = [self.fields[i] for i in keepidx]
+        #return self.update()
 
     def _marginalizeout(self, keep, remove):
-        keepidx = self.asindex(keep)
-        self.fields = [self.fields[idx] for idx in keepidx]
-        return self.update()
+        return self.update
+        #keepidx = self.asindex(keep)
+        #self.fields = [self.fields[idx] for idx in keepidx]
+        #return self.update()
 
     def _density(self, x):
         return 0
@@ -103,7 +106,8 @@ class MockUpModel(md.Model):
 
         self.mode = 'model'
 
-        return self.update()
+        return self._update_all_field_derivatives()
+        #return self.update()
 
 if __name__ == "__main__":
     model = MockUpModel()

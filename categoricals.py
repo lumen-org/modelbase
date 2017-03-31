@@ -44,7 +44,8 @@ class CategoricalModel(md.Model):
 
     def _fit(self):
         self._p = CategoricalModel._maximum_aposteriori(self.data, self.fields)
-        return self.update()
+        #return self.update()
+        return self
 
     # def __str__(self):
     #     return ("Multivariate Categorical Model '" + self.name + "':\n" +
@@ -55,7 +56,7 @@ class CategoricalModel(md.Model):
 
     def update(self):
         """updates dependent parameters / precalculated values of the model"""
-        self._update()
+        #self._update()
         if self.dim == 0:
             self._p = xr.DataArray([])
         return self
@@ -76,20 +77,20 @@ class CategoricalModel(md.Model):
         self._p = p / p.sum()
 
         # 3. keep all fields not in remove
-        self.fields = [field for field in self.fields if field['name'] not in remove]
-        return self.update()
+        #self.fields = [field for field in self.fields if field['name'] not in remove]
+        return self.update
 
     def _marginalizeout(self, keep, remove):
-
         keepidx = sorted(self.asindex(keep))
         removeidx = utils.invert_indexes(keepidx, self.dim)
-
+        # TODO: I think it is already sorted and no need to recompute. test it.
         #keepidx = self.asindex(keep)
         #removeidx = self.asindex(remove)
         # the marginal probability is the sum along the variable(s) to marginalize out
         self._p = self._p.sum(dim=[self.names[idx] for idx in removeidx])  # TODO: cant I use integer indexing?!
-        self.fields = [self.fields[idx] for idx in keepidx]
-        return self.update()
+        #self.fields = [self.fields[idx] for idx in keepidx]
+        # return self.update()
+        return self.update
 
     def _density(self, x):
         # note1: need to convert x to tuple for indexing

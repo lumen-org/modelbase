@@ -112,11 +112,12 @@ class CgWmModel(md.Model):
         self._S = xr.DataArray(data=S, coords=coords, dims=dims)
         self._mu = mu
 
-        return self.update()  # needed to compute precalculated values
+        #return self.update()  # needed to compute precalculated values
+        return self
 
     def update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
-        self._update()
+        #self._update()
 
         if len(self._numericals) == 0:
             self._detS = xr.DataArray([])
@@ -210,11 +211,11 @@ class CgWmModel(md.Model):
                 self._mu = self._mu.loc[i] + dot(sigma_expr, condvalues - self._mu.loc[j])
 
         # remove fields as needed
-        self.fields = [field for field in self.fields if field['name'] not in remove]
+        #self.fields = [field for field in self.fields if field['name'] not in remove]
         self._categoricals = [name for name in self._categoricals if name not in remove]
         self._numericals = [name for name in self._numericals if name not in remove]
 
-        return self.update()
+        return self.update
 
     def _marginalizeout(self, keep, remove):
         # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
@@ -267,11 +268,12 @@ class CgWmModel(md.Model):
                 self._S = normalized
 
         # update fields and dependent variables
-        self.fields = [field for field in self.fields if field['name'] in keep]
+        #self.fields = [field for field in self.fields if field['name'] in keep]
         self._categoricals = [name for name in self._categoricals if name in keep]
         self._numericals = num_keep
 
-        return self.update()
+        #return self.update()
+        return self.update
 
     def _density(self, x):
         cat_len = len(self._categoricals)

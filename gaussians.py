@@ -44,7 +44,8 @@ class MultiVariateGaussianModel(md.Model):
         model.fit(self.data)
         self._mu = matrix(model.means_).T
         self._S = matrix(model.covars_)
-        return self.update()
+        return self
+        #return self.update()
 
     def __str__(self):
         return ("Multivariate Gaussian Model '" + self.name + "':\n" +
@@ -54,7 +55,7 @@ class MultiVariateGaussianModel(md.Model):
 
     def update(self):
         """updates dependent parameters / precalculated values of the model"""
-        self._update()
+        #self._update()
         if self.dim == 0:
             self._detS = nan
             self._SInv = nan
@@ -88,16 +89,18 @@ class MultiVariateGaussianModel(md.Model):
         self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
         self._mu = mu[i] + S[ix_(i, j)] * S[ix_(j, j)].I * (condvalues - mu[j])
 
-        self.fields = [self.fields[idx] for idx in i]
-        return self.update()
+        return self.update
+        #self.fields = [self.fields[idx] for idx in i]
+        #return self.update()
 
     def _marginalizeout(self, keep, remove):
         # i.e.: just select the part of mu and sigma that remains
         keepidx = self.asindex(keep)
         self._mu = self._mu[keepidx]
         self._S = self._S[np.ix_(keepidx, keepidx)]
-        self.fields = [self.fields[idx] for idx in keepidx]
-        return self.update()
+        return self.update
+        #self.fields = [self.fields[idx] for idx in keepidx]
+        #return self.update()
 
     def _density(self, x):
         x = matrix(x).T  # turn into column vector of type numpy matrix
