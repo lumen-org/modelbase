@@ -121,15 +121,6 @@ class FixedMixtureModel(md.Model):
             for attr in attrs_to_update:
                 setattr(model, attr, getattr(self, attr))
 
-    def __str__(self):
-        # todo: add information about mixture components
-        return ("Fixed Mixture Model '" + self.name + "':\n" +
-                "dimension: " + str(self.dim) + "\n" +
-                "names: " + str([self.names]) + "\n" +
-                "fields: " + str([str(field) for field in self.fields]) + "\n")
-        #+
-        #        "\n".join([]))
-
     def _conditionout(self, keep, remove):
         return [FixedMixtureModel._update_in_components] + [model._conditionout(keep, remove) for model in self]
 
