@@ -80,13 +80,14 @@ class FixedMixtureModel(md.Model):
          tuple of dicts.
          """
         components = dict()
-        for class_, count in models.items():
+        for class_, count in models:
+        #for class_, count in models:
             class_name = class_.__name__
             instances = tuple(class_(str(class_name) + str(i)) for i in range(count))
             components[class_name] = instances
         return components
 
-    def __init__(self, name, models):
+    def __init__(self, name):
         """Constructs a new instance of a fixed mixture model.
 
         Args:
@@ -101,11 +102,11 @@ class FixedMixtureModel(md.Model):
 
     def __iter__(self):
         """Returns an iterator over all component models of this mixture model."""
-        for models_per_class in self.components:
+        for models_per_class in self.components.values():
             for model in models_per_class:
                 yield model
 
-    def set_models(self, models):
+    def _set_models(self, models):
         """ Args:
             models: a sequence of pairs (model_class, k), where model_class is the model class of the components
                 and k is the number of model instances to be used for that.
@@ -142,18 +143,27 @@ class FixedMixtureModel(md.Model):
         mycopy._update_in_components()
         return mycopy
 
+    def _sample(self):
+        # TODO: can be done generically!
+        raise NotImplementedError("Implement this method in your subclass")
+
     def _set_data(self, df, drop_silently):
-        # cannot generically implement it, because I don't know which _set_data I should call
-        # however, don't forget to update after setting the data
+        # we need to link the set data to all components, hence we need to run _update_in_components after setting
+        # data in all mixture models
+
+        # the actual data setting, however, cannot be generically implemented
+        callbacks = self._set_data_4mixture(df, drop_silently)
+        return (FixedMixtureModel._update_in_components,) + callbacks
+
+    def __set_data(self):
         raise NotImplementedError("Implement this method in your subclass")
 
     def _maximum(self):
+        # cannot be done generically
         raise NotImplementedError("Implement this method in your subclass")
 
     def _fit(self):
-        raise NotImplementedError("Implement this method in your subclass")
-
-    def _sample(self):
+        # cannot be done generically
         raise NotImplementedError("Implement this method in your subclass")
 
     def _generate_model(self, opts):

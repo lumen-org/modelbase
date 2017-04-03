@@ -83,7 +83,8 @@ class CgWmModel(md.Model):
 
     # base
     def _set_data(self, df, drop_silently):
-        return self._set_data_mixed(df, drop_silently)
+        self._set_data_mixed(df, drop_silently)
+        return ()
 
     def _fit(self):
         """ Internal: estimates the set of mean parameters that fit best to the data given in the

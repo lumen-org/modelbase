@@ -40,7 +40,8 @@ class CategoricalModel(md.Model):
         return (counts + k) / (counts.sum() + k * counts.size)
 
     def _set_data(self, df, drop_silently):
-        return self._set_data_categorical(df, drop_silently)
+        self._set_data_categorical(df, drop_silently)
+        return ()
 
     def _fit(self):
         self._p = CategoricalModel._maximum_aposteriori(self.data, self.fields)

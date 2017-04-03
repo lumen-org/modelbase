@@ -37,7 +37,8 @@ class MockUpModel(md.Model):
         }
 
     def _set_data(self, df, drop_silently):
-        return self._set_data_mixed(df, drop_silently)
+        self._set_data_mixed(df, drop_silently)
+        return MockUpModel.update,
 
     def _fit(self):
         return MockUpModel.update,

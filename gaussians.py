@@ -30,7 +30,8 @@ class MultiVariateGaussianModel(md.Model):
         }
 
     def _set_data(self, df, drop_silently):
-        return self._set_data_continuous(df, drop_silently)
+        self._set_data_continuous(df, drop_silently)
+        return ()
 
     def _fit(self):
         """Fits the model to data of the model
@@ -54,7 +55,6 @@ class MultiVariateGaussianModel(md.Model):
 
     def update(self):
         """updates dependent parameters / precalculated values of the model"""
-        #self._update()
         if self.dim == 0:
             self._detS = nan
             self._SInv = nan

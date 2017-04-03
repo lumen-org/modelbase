@@ -300,10 +300,11 @@ class Model:
         df = clean_dataframe(df)
 
         # model specific clean up, setting of data, models fields, and possible more model specific stuff
-        self._set_data(df, silently_drop)
+        callbacks = self._set_data(df, silently_drop)
         self.mode = 'data'
-        #self._update_field_derivatives()
         self._update_all_field_derivatives()
+        for callback in callbacks:
+            callback(self)
         return self
 
     def _set_data(self, df, silently_drop):
