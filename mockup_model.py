@@ -40,7 +40,7 @@ class MockUpModel(md.Model):
         return self._set_data_mixed(df, drop_silently)
 
     def _fit(self):
-        return self
+        return MockUpModel.update,
 
     def update(self):
         return self

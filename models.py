@@ -393,7 +393,9 @@ class Model:
         if df is None and self.mode != 'data':
             raise ValueError('No data frame to fit to present: pass it as an argument or set it using set_data(df)')
         try:
-            self._fit()
+            callbacks = self._fit()
+            for callback in callbacks:
+                callback(self)
         except NameError:
             raise NotImplementedError("You have to implement the _fit method in your model!")
         self.mode = "both"

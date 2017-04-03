@@ -109,7 +109,7 @@ class CgWmModel(md.Model):
 
         self._S = xr.DataArray(data=S, coords=coords, dims=dims)
         self._mu = mu
-        return self
+        return CgWmModel.update,
 
     def update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""

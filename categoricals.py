@@ -44,7 +44,7 @@ class CategoricalModel(md.Model):
 
     def _fit(self):
         self._p = CategoricalModel._maximum_aposteriori(self.data, self.fields)
-        return self
+        return CategoricalModel.update,
 
     # def __str__(self):
     #     return ("Multivariate Categorical Model '" + self.name + "':\n" +

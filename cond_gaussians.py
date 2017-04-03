@@ -141,7 +141,7 @@ class ConditionallyGaussianModel(md.Model):
         df = self.data
         dc = len(self._categoricals)
         self._p, self._mu, self._S = ConditionallyGaussianModel._fitFullLikelihood(df, self.fields, dc)
-        return self
+        return ConditionallyGaussianModel.update,
 
     def update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""

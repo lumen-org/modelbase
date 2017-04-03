@@ -44,8 +44,7 @@ class MultiVariateGaussianModel(md.Model):
         model.fit(self.data)
         self._mu = matrix(model.means_).T
         self._S = matrix(model.covars_)
-        return self
-        #return self.update()
+        return MultiVariateGaussianModel.update,
 
     def __str__(self):
         return ("Multivariate Gaussian Model '" + self.name + "':\n" +
