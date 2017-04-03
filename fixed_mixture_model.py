@@ -130,30 +130,24 @@ class FixedMixtureModel(md.Model):
         #+
         #        "\n".join([]))
 
-    def update(self):
-        """Updates dependent parameters / precalculated values of the model"""
-        return self
-
     def _conditionout(self, keep, remove):
-        for model in self:
-            pass
-        return FixedMixtureModel.update,
+        return [FixedMixtureModel._update_in_components] + [model._conditionout(keep, remove) for model in self]
 
     def _marginalizeout(self, keep, remove):
-        return FixedMixtureModel.update,
+        return [FixedMixtureModel._update_in_components] + [model._marginalizeout(keep, remove) for model in self]
 
     def _density(self, x):
-        return 0
+        return sum(model._density(x) for model in self)
 
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)
+        mycopy._models = self._models
 
         # copy all models
         for class_name, models_per_class in self.components.items():
             mycopy.components[class_name] = tuple(model.copy() for model in models_per_class)
 
         # update/link all
-        mycopy.update()
         mycopy._update_in_components()
         return mycopy
 
