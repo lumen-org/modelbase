@@ -40,31 +40,21 @@ class MockUpModel(md.Model):
         return self._set_data_mixed(df, drop_silently)
 
     def _fit(self):
-        #return self.update()
         return self
 
     def update(self):
-        #self._update()
         return self
 
     def _conditionout(self, keep, remove):
         return MockUpModel.update,
-        #removeidx = self.asindex(remove)
-        #keepidx = utils.invert_indexes(removeidx, self.dim)
-        #self.fields = [self.fields[i] for i in keepidx]
-        #return self.update()
 
     def _marginalizeout(self, keep, remove):
         return MockUpModel.update,
-        #keepidx = self.asindex(keep)
-        #self.fields = [self.fields[idx] for idx in keepidx]
-        #return self.update()
 
     def _density(self, x):
         return 0
 
     def _maximum(self):
-        # return [0 if field['dtype'] == 'numerical' else 'A' for field in self.fields]
         return self._sample()
 
     def _sample(self):

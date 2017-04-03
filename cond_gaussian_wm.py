@@ -96,8 +96,6 @@ class CgWmModel(md.Model):
 
         # replicate S_single to a individual S for each cg
         # setup coords as dict of dim names to extents
-        #dims = mu.dims[:-1]
-        #coords = {key: mu.coords[key] for key in dims}
         dims = self._p.dims
         coords = dict(self._p.coords)
         coords['S1'] = self._numericals  # extent is the list of numerical variables
@@ -111,14 +109,10 @@ class CgWmModel(md.Model):
 
         self._S = xr.DataArray(data=S, coords=coords, dims=dims)
         self._mu = mu
-
-        #return self.update()  # needed to compute precalculated values
         return self
 
     def update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
-        #self._update()
-
         if len(self._numericals) == 0:
             self._detS = xr.DataArray([])
             self._SInv = xr.DataArray([])
@@ -213,7 +207,6 @@ class CgWmModel(md.Model):
         # remove fields as needed
         self._categoricals = [name for name in self._categoricals if name not in remove]
         self._numericals = [name for name in self._numericals if name not in remove]
-
         return CgWmModel.update,
 
     def _marginalizeout(self, keep, remove):
@@ -269,7 +262,6 @@ class CgWmModel(md.Model):
         # update fields and dependent variables
         self._categoricals = [name for name in self._categoricals if name in keep]
         self._numericals = num_keep
-
         return CgWmModel.update,
 
     def _density(self, x):
@@ -290,7 +282,6 @@ class CgWmModel(md.Model):
         detS = self._detS.loc[cat].values
         invS = self._SInv.loc[cat].values
         xmu = num - mu
-        #gauss = (2 * pi) ** (-num_len / 2) * (abs(det(S)) ** -.5) * exp(-.5 * np.dot(xmu, np.dot(inv(S), xmu)))
         gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
 
         if cat_len == 0:

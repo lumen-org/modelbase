@@ -261,7 +261,6 @@ class Model:
         self._modeldata_field = _Modeldata_field()
 
     def _setempty(self):
-        #self._update_field_derivatives()
         self._update_remove_fields()
         return self
 
@@ -823,9 +822,8 @@ class Model:
         mycopy = self.__class__(name)
         mycopy.data = self.data
         mycopy.fields = cp.deepcopy(self.fields)
-        mycopy.mode = self.mode;
+        mycopy.mode = self.mode
         mycopy._modeldata_field = cp.deepcopy(self._modeldata_field)
-        #mycopy._update_field_derivatives()
         mycopy._update_all_field_derivatives()
         return mycopy
 
@@ -896,7 +894,7 @@ class Model:
          @fields
         """
         if to_remove is None:
-            self._fields_set_empty()
+            return self._fields_set_empty()
 
         to_remove_idx = self.asindex(to_remove)
 

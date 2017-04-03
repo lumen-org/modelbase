@@ -132,8 +132,6 @@ class FixedMixtureModel(md.Model):
 
     def update(self):
         """Updates dependent parameters / precalculated values of the model"""
-        #self._update()
-        # TODO: should this method call _update_in_components ?
         return self
 
     def _conditionout(self, keep, remove):
@@ -142,7 +140,6 @@ class FixedMixtureModel(md.Model):
         return FixedMixtureModel.update,
 
     def _marginalizeout(self, keep, remove):
-        #return self.update()
         return FixedMixtureModel.update,
 
     def _density(self, x):

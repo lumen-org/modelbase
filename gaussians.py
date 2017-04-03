@@ -89,18 +89,14 @@ class MultiVariateGaussianModel(md.Model):
         self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
         self._mu = mu[i] + S[ix_(i, j)] * S[ix_(j, j)].I * (condvalues - mu[j])
 
-        return (MultiVariateGaussianModel.update,)
-        #self.fields = [self.fields[idx] for idx in i]
-        #return self.update()
+        return MultiVariateGaussianModel.update,
 
     def _marginalizeout(self, keep, remove):
         # i.e.: just select the part of mu and sigma that remains
         keepidx = self.asindex(keep)
         self._mu = self._mu[keepidx]
         self._S = self._S[np.ix_(keepidx, keepidx)]
-        return (MultiVariateGaussianModel.update,)
-        #self.fields = [self.fields[idx] for idx in keepidx]
-        #return self.update()
+        return MultiVariateGaussianModel.update,
 
     def _density(self, x):
         x = matrix(x).T  # turn into column vector of type numpy matrix

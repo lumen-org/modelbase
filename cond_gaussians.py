@@ -142,12 +142,9 @@ class ConditionallyGaussianModel(md.Model):
         dc = len(self._categoricals)
         self._p, self._mu, self._S = ConditionallyGaussianModel._fitFullLikelihood(df, self.fields, dc)
         return self
-        #return self.update()  # needed to compute precalculated values
 
     def update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
-        #self._update()
-
         if len(self._numericals) == 0:
             self._detS = nan
             self._SInv = nan
@@ -159,7 +156,6 @@ class ConditionallyGaussianModel(md.Model):
 
         if len(self._categoricals) == 0:
             self._p = xr.DataArray([])
-
         return self
 
     def _conditionout(self, keep, remove):
@@ -217,11 +213,9 @@ class ConditionallyGaussianModel(md.Model):
                 self._mu = self._mu.loc[i] + dot(sigma_expr, condvalues - self._mu.loc[j])
 
         # remove fields as needed
-        #self.fields = [field for field in self.fields if field['name'] not in remove]
         self._categoricals = [name for name in self._categoricals if name not in remove]
         self._numericals = [name for name in self._numericals if name not in remove]
-
-        return (ConditionallyGaussianModel.update,)
+        return ConditionallyGaussianModel.update,
 
     def _marginalizeout(self, keep, remove):
         # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
@@ -247,12 +241,9 @@ class ConditionallyGaussianModel(md.Model):
             self._S = self._S.loc[num_keep, num_keep]
 
         # update fields and dependent variables
-        #self.fields = [field for field in self.fields if field['name'] in keep]
         self._categoricals = [name for name in self._categoricals if name in keep]
         self._numericals = num_keep
-
-        #return self.update()
-        return (ConditionallyGaussianModel.update,)
+        return ConditionallyGaussianModel.update,
 
     def _density(self, x):
         cat_len = len(self._categoricals)
