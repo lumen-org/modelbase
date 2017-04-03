@@ -48,14 +48,14 @@ class MockUpModel(md.Model):
         return self
 
     def _conditionout(self, keep, remove):
-        return self.update
+        return MockUpModel.update,
         #removeidx = self.asindex(remove)
         #keepidx = utils.invert_indexes(removeidx, self.dim)
         #self.fields = [self.fields[i] for i in keepidx]
         #return self.update()
 
     def _marginalizeout(self, keep, remove):
-        return self.update
+        return MockUpModel.update,
         #keepidx = self.asindex(keep)
         #self.fields = [self.fields[idx] for idx in keepidx]
         #return self.update()
@@ -105,11 +105,9 @@ class MockUpModel(md.Model):
             self.fields.append(field)
 
         self.mode = 'model'
-
-        return self._update_all_field_derivatives()
-        #return self.update()
+        return MockUpModel.update,
 
 if __name__ == "__main__":
     model = MockUpModel()
-    model._generate_model(opts={'dim': 4})
+    model.generate_model(opts={'dim': 4})
     pass

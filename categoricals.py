@@ -78,7 +78,7 @@ class CategoricalModel(md.Model):
 
         # 3. keep all fields not in remove
         #self.fields = [field for field in self.fields if field['name'] not in remove]
-        return self.update
+        return (CategoricalModel.update,)
 
     def _marginalizeout(self, keep, remove):
         keepidx = sorted(self.asindex(keep))
@@ -90,7 +90,7 @@ class CategoricalModel(md.Model):
         self._p = self._p.sum(dim=[self.names[idx] for idx in removeidx])  # TODO: cant I use integer indexing?!
         #self.fields = [self.fields[idx] for idx in keepidx]
         # return self.update()
-        return self.update
+        return (CategoricalModel.update,)
 
     def _density(self, x):
         # note1: need to convert x to tuple for indexing

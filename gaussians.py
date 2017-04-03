@@ -89,7 +89,7 @@ class MultiVariateGaussianModel(md.Model):
         self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
         self._mu = mu[i] + S[ix_(i, j)] * S[ix_(j, j)].I * (condvalues - mu[j])
 
-        return self.update
+        return (MultiVariateGaussianModel.update,)
         #self.fields = [self.fields[idx] for idx in i]
         #return self.update()
 
@@ -98,7 +98,7 @@ class MultiVariateGaussianModel(md.Model):
         keepidx = self.asindex(keep)
         self._mu = self._mu[keepidx]
         self._S = self._S[np.ix_(keepidx, keepidx)]
-        return self.update
+        return (MultiVariateGaussianModel.update,)
         #self.fields = [self.fields[idx] for idx in keepidx]
         #return self.update()
 
@@ -152,8 +152,7 @@ class MultiVariateGaussianModel(md.Model):
                                      extent=dm.NumericDomain(mu[idx].item() - 2, mu[idx].item() + 2))
                            for idx in range(sigma.shape[0])]
             self.mode = 'model'
-            self.update()
-            return self
+            return MultiVariateGaussianModel.update,
 
         if mode == 'normal':
             dim = opts['dim']

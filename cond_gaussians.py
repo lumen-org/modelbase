@@ -221,7 +221,7 @@ class ConditionallyGaussianModel(md.Model):
         self._categoricals = [name for name in self._categoricals if name not in remove]
         self._numericals = [name for name in self._numericals if name not in remove]
 
-        return self.update
+        return (ConditionallyGaussianModel.update,)
 
     def _marginalizeout(self, keep, remove):
         # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
@@ -252,7 +252,7 @@ class ConditionallyGaussianModel(md.Model):
         self._numericals = num_keep
 
         #return self.update()
-        return self.update
+        return (ConditionallyGaussianModel.update,)
 
     def _density(self, x):
         cat_len = len(self._categoricals)

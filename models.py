@@ -454,17 +454,19 @@ class Model:
         # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
         # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
         if len(cond_out) != 0:
-            callback = self._conditionout(self.inverse_names(cond_out, sorted_=True), cond_out)
+            callbacks = self._conditionout(self.inverse_names(cond_out, sorted_=True), cond_out)
             self._update_remove_fields(cond_out)
-            callback()
+            for callback in callbacks:
+                callback(self)
 
         if len(keep) == self.dim or self._isempty():
             return self
 
         remove = self.inverse_names(keep, sorted_=True)
-        callback = self._marginalizeout(keep, remove)
+        callbacks = self._marginalizeout(keep, remove)
         self._update_remove_fields(remove)
-        callback()
+        for callback in callbacks:
+            callback(self)
         return self
 
     def _marginalizeout(self, keep, remove):
@@ -882,8 +884,11 @@ class Model:
         to_update_idx = self.asindex(to_update)
         for idx in to_update_idx:
             field = self.fields[idx]
-            self.extent[idx] = field['domain'].bounded(field['extent'])
+            self.extents[idx] = field['domain'].bounded(field['extent'])
         return self
+
+    def _update_name2idx_dict(self):
+        self._name2idx = dict(zip([f['name'] for f in self.fields], range(self.dim)))
 
     def _update_remove_fields(self, to_remove=None):
         """Removes the fields in the sequence to_remove (and correspondingly derived structure) from self.fields.
@@ -895,17 +900,17 @@ class Model:
 
         to_remove_idx = self.asindex(to_remove)
 
-        for name in to_remove:
-            del self._name2idx[name]
-
         # TODO: I guess it is much faster to recreate that list ...
         # however in the solution now we never change what object we reference to by self.name, ...
-        for idx in to_remove_idx:
-            del self.name[idx]
+        assert(all(to_remove_idx[i] <= to_remove_idx[i+1] for i in range(len(to_remove_idx)-1)))
+
+        for idx in reversed(to_remove_idx):
+            del self.names[idx]
             del self.extents[idx]
             del self.fields[idx]
 
         self.dim = len(self.fields)
+        self._update_name2idx_dict()
         return self
 
     def _update_all_field_derivatives(self):
@@ -913,7 +918,7 @@ class Model:
         @fields
         """
         self.dim = len(self.fields)
-        self._name2idx = dict(zip([f['name'] for f in self.fields], range(self.dim)))
+        self._update_name2idx_dict()
         self.names = [f['name'] for f in self.fields]
         self.extents = [field['domain'].bounded(field['extent']) for field in self.fields]
         return self
@@ -1309,6 +1314,14 @@ class Model:
 
         # return reordered
         return df.loc[:, what]
+
+    def generate_model(self, opts={}):
+        # call specific class method
+        callbacks = self._generate_model(opts)
+        self._update_all_field_derivatives()
+        for callback in callbacks:
+            callback(self)
+        return self
 
     def _generate_data(self, opts=None):
         """Provided that self is a functional model, this method it samples opts['n'] many samples from it

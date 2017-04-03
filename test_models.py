@@ -77,7 +77,7 @@ class TestInvalidParams(unittest.TestCase):
     def setUp(self):
         # setup model with known fixed paramters
         self.model = MockUpModel()
-        self.model._generate_model(opts={'dim': 6})
+        self.model.generate_model(opts={'dim': 6})
 
     def test_asindex(self):
         c = self.model
@@ -162,7 +162,7 @@ class TestAllModels(unittest.TestCase):
         for class_ in TestAllModels.subclasses:
             model = class_("foo")
             self.assertEqual(model.mode, 'empty')
-            model._generate_model()
+            model.generate_model()
             self.assertEqual(model.mode, 'model')
             model._generate_data()
             self.assertEqual(model.mode, 'both')

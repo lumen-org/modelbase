@@ -139,11 +139,11 @@ class FixedMixtureModel(md.Model):
     def _conditionout(self, keep, remove):
         for model in self:
             pass
-        return self.update
+        return FixedMixtureModel.update,
 
     def _marginalizeout(self, keep, remove):
         #return self.update()
-        return self.update
+        return FixedMixtureModel.update,
 
     def _density(self, x):
         return 0

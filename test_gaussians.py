@@ -25,7 +25,7 @@ class TestRunningShouldNotRaiseException(unittest.TestCase):
         mu = np.matrix([1.0, 2.0, 0.0, 0.5]).T
         foo = Gaussian("foo")
         opts = {'mode': 'custom', 'sigma': sigma, 'mu': mu}
-        foo._generate_model(opts)
+        foo.generate_model(opts)
         foocp = foo.copy("foocp")
         print("\n\nmodel 1\n" + str(foocp))
         foocp2 = foocp.model(['dim1', 'dim0'], as_="foocp2")
@@ -93,7 +93,7 @@ class TestInferenceLvl01(unittest.TestCase):
     def setUp(self):
         # setup model with zero mean and identity matrix as sigma
         self.m = Gaussian("test")
-        self.m._generate_model(opts={'mode': 'normal', 'dim': 5})
+        self.m.generate_model(opts={'mode': 'normal', 'dim': 5})
 
     def test_marginalize_1(self):
         m = self.m
@@ -136,7 +136,7 @@ class TestSimple2DMVG(unittest.TestCase):
         self.m = Gaussian("test")
         mu = np.matrix(np.zeros(2)).T
         sigma = np.matrix([[1, 0.5], [0.5, 1]])
-        self.m._generate_model({'mode': 'custom', 'mu': mu, 'sigma': sigma})
+        self.m.generate_model({'mode': 'custom', 'mu': mu, 'sigma': sigma})
         self.m._generate_data({'n': 500})
 
     def test_it(self):
