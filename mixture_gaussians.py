@@ -1,5 +1,5 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
-import functools
+
 import logging
 import math
 
@@ -8,7 +8,7 @@ from gaussians import MultiVariateGaussianModel
 import seaborn.apionly as sns
 
 from sklearn import mixture
-from numpy import pi, exp, matrix, ix_, nan
+from numpy import matrix
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -61,40 +61,9 @@ class MixtureOfGaussiansModel(FixedMixtureModel):
 
         return maximum
 
-    def _generate_model(self, opts={}):
-        # TODO
-        """opts has a optional key 'dim' that defaults to 6 and specifies the dimension of the model that you want to
-        have."""
-        # if 'dim' not in opts:
-        #     dim = 6
-        # else:
-        #     dim = opts['dim']
-        #
-        # ncat = math.floor(dim/2)
-        # nnum = dim - ncat
-        # self.fields = []
-        #
-        # # numeric
-        # for idx in range(ncat):
-        #     field = md.Field(name="dim" + str(idx),
-        #                      domain=dm.NumericDomain(),
-        #                      extent=dm.NumericDomain(-5, 5))
-        #     self.fields.append(field)
-        #
-        # # categorical
-        # for idx in range(ncat):
-        #     field = md.Field(name="dim" + str(idx+nnum),
-        #                      domain=dm.DiscreteDomain(),
-        #                      extent=dm.DiscreteDomain(list("ABCDEFG")))
-        #     self.fields.append(field)
-        #
-        # self.mode = 'model'
-        # return MixtureOfGaussiansModel.update,
-        raise NotImplementedError("Implement this method in your subclass")
-
 
 def MoGModelWithK(name, k):
-    """Returns an empty Mixture of k Gaussians model"""
+    """Returns an empty Mixture of k Gaussians model."""
     model = MixtureOfGaussiansModel(name)
     model.set_k(k)
     return model

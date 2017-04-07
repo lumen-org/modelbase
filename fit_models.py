@@ -72,8 +72,10 @@ known_models = {
     'cgw_crabs': lambda: (CgWmModel('cgw_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
     'cgw_diamonds': lambda: (CgWmModel('cgw_diamonds'), diamonds.mixed('data/diamonds/diamonds.csv')),
 
-    # mixture of gaussians model
-    'mog_crabs': lambda: (MoGModelWithK('mog_crabs', 4), crabs.continuous('data/crabs/australian-crabs.csv'))
+    # mixture of gaussians models
+    'mo4g_crabs': lambda: (MoGModelWithK('mo4g_crabs', 4), crabs.continuous('data/crabs/australian-crabs.csv')),
+
+    'mo10g_crabs': lambda: (MoGModelWithK('mo10g_crabs', 10), crabs.continuous('data/crabs/australian-crabs.csv'))
 }
 
 

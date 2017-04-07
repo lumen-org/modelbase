@@ -889,6 +889,7 @@ class Model:
         return self
 
     def _update_name2idx_dict(self):
+        """Updates (i.e. recreates) the _name2idx dictionary from current self.fields."""
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(self.dim)))
 
     def _update_remove_fields(self, to_remove=None):
@@ -900,11 +901,11 @@ class Model:
             return self._fields_set_empty()
 
         to_remove_idx = self.asindex(to_remove)
+        # assert order of indexes
+        assert(all(to_remove_idx[i] <= to_remove_idx[i+1] for i in range(len(to_remove_idx)-1)))
 
         # TODO: I guess it is much faster to recreate that list ...
         # however in the solution now we never change what object we reference to by self.name, ...
-        assert(all(to_remove_idx[i] <= to_remove_idx[i+1] for i in range(len(to_remove_idx)-1)))
-
         for idx in reversed(to_remove_idx):
             del self.names[idx]
             del self.extents[idx]
@@ -923,24 +924,6 @@ class Model:
         self.names = [f['name'] for f in self.fields]
         self.extents = [field['domain'].bounded(field['extent']) for field in self.fields]
         return self
-
-
-    def _update_field_derivatives(self):
-        """Updates the _n, name2idx and names based on the fields in .fields
-
-        what could have happened:
-         * _conditionout, _marginalizeout: some fields are removed
-         * set_empty:  like above, but all removed
-         * set_data, default_copy: all fields are new
-         * conditioning: some extents are changed
-
-        """
-        raise NotImplementedError
-        # # TODO: call it from aggregate, ... make it transparent to subclasses!? is that possible?
-        # self.dim = len(self.fields)
-        # self._name2idx = dict(zip([f['name'] for f in self.fields], range(self.dim)))
-        # self.names = [f['name'] for f in self.fields]
-        # self.extents = [field['domain'].bounded(field['extent']) for field in self.fields]
 
     # def model(self, model, where=[], as_=None, mode="both"):
     def model(self, model='*', where=[], as_=None):
