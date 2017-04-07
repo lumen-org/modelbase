@@ -1,4 +1,5 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
+import functools
 import numpy as np
 from numpy import nan
 import xarray as xr
@@ -20,6 +21,8 @@ class CategoricalModel(md.Model):
         self._aggrMethods = {
             'maximum': self._maximum
         }
+        # creates an self contained update function. we use it as a callback function later
+        self._unbound_updater = functools.partial(self.__class__._update, self)
 
     @staticmethod
     def _maximum_aposteriori(df, fields, k=1):
@@ -45,7 +48,7 @@ class CategoricalModel(md.Model):
 
     def _fit(self):
         self._p = CategoricalModel._maximum_aposteriori(self.data, self.fields)
-        return CategoricalModel.update,
+        return self._unbound_updater,
 
     # def __str__(self):
     #     return ("Multivariate Categorical Model '" + self.name + "':\n" +
@@ -54,7 +57,7 @@ class CategoricalModel(md.Model):
     #             "fields: " + str([str(field['name']) + ':' + str(field['domain']) + ':' + str(field['extent'])
     #                               for field in self.fields]))
 
-    def update(self):
+    def _update(self):
         """updates dependent parameters / precalculated values of the model"""
         if self.dim == 0:
             self._p = xr.DataArray([])
@@ -76,7 +79,7 @@ class CategoricalModel(md.Model):
         self._p = p / p.sum()
 
         # 3. keep all fields not in remove
-        return CategoricalModel.update,
+        return self._unbound_updater,
 
     def _marginalizeout(self, keep, remove):
         keepidx = sorted(self.asindex(keep))
@@ -86,7 +89,7 @@ class CategoricalModel(md.Model):
         #removeidx = self.asindex(remove)
         # the marginal probability is the sum along the variable(s) to marginalize out
         self._p = self._p.sum(dim=[self.names[idx] for idx in removeidx])  # TODO: cant I use integer indexing?!
-        return CategoricalModel.update,
+        return self._unbound_updater,
 
     def _density(self, x):
         # note1: need to convert x to tuple for indexing
@@ -106,7 +109,7 @@ class CategoricalModel(md.Model):
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)
         mycopy._p = self._p
-        mycopy.update()
+        mycopy._update()
         return mycopy
 
 if __name__ == '__main__':

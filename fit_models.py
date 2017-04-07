@@ -30,6 +30,8 @@ from cond_gaussians import ConditionallyGaussianModel
 from cond_gaussian_wm import CgWmModel
 from gaussians import MultiVariateGaussianModel
 from categoricals import CategoricalModel
+from mixture_gaussians import MixtureOfGaussiansModel
+from mixture_gaussians import MoGModelWithK
 
 known_models = {
     # dict of what to fit how:
@@ -68,7 +70,10 @@ known_models = {
     # conditionally gaussian models with weak marginals
     'cgw_iris': lambda: (CgWmModel('cgw_iris'), sns.load_dataset('iris')),
     'cgw_crabs': lambda: (CgWmModel('cgw_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
-    'cgw_diamonds': lambda: (CgWmModel('cgw_diamonds'), diamonds.mixed('data/diamonds/diamonds.csv'))
+    'cgw_diamonds': lambda: (CgWmModel('cgw_diamonds'), diamonds.mixed('data/diamonds/diamonds.csv')),
+
+    # mixture of gaussians model
+    'mog_crabs': lambda: (MoGModelWithK('mog_crabs', 4), crabs.continuous('data/crabs/australian-crabs.csv'))
 }
 
 

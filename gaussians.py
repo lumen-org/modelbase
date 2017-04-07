@@ -1,4 +1,5 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
+import functools
 import logging
 import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
@@ -28,6 +29,8 @@ class MultiVariateGaussianModel(md.Model):
             'maximum': self._maximum,
             'average': self._maximum
         }
+        # creates an self contained update function. we use it as a callback function later
+        self._unbound_updater = functools.partial(self.__class__._update, self)
 
     def _set_data(self, df, drop_silently):
         self._set_data_continuous(df, drop_silently)
@@ -45,7 +48,7 @@ class MultiVariateGaussianModel(md.Model):
         model.fit(self.data)
         self._mu = matrix(model.means_).T
         self._S = matrix(model.covars_)
-        return MultiVariateGaussianModel.update,
+        return self._unbound_updater,
 
     def __str__(self):
         return ("Multivariate Gaussian Model '" + self.name + "':\n" +
@@ -53,7 +56,7 @@ class MultiVariateGaussianModel(md.Model):
                 "names: " + str([self.names]) + "\n" +
                 "fields: " + str([str(field) for field in self.fields]))
 
-    def update(self):
+    def _update(self):
         """updates dependent parameters / precalculated values of the model"""
         if self.dim == 0:
             self._detS = nan
@@ -88,14 +91,14 @@ class MultiVariateGaussianModel(md.Model):
         self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
         self._mu = mu[i] + S[ix_(i, j)] * S[ix_(j, j)].I * (condvalues - mu[j])
 
-        return MultiVariateGaussianModel.update,
+        return self._unbound_updater,
 
     def _marginalizeout(self, keep, remove):
         # i.e.: just select the part of mu and sigma that remains
         keepidx = self.asindex(keep)
         self._mu = self._mu[keepidx]
         self._S = self._S[np.ix_(keepidx, keepidx)]
-        return MultiVariateGaussianModel.update,
+        return self._unbound_updater,
 
     def _density(self, x):
         x = matrix(x).T  # turn into column vector of type numpy matrix
@@ -115,7 +118,7 @@ class MultiVariateGaussianModel(md.Model):
         mycopy = self._defaultcopy(name)
         mycopy._mu = self._mu.copy()
         mycopy._S = self._S.copy()
-        mycopy.update()
+        mycopy._update()
         return mycopy
 
     def _generate_model(self, opts):
@@ -147,7 +150,7 @@ class MultiVariateGaussianModel(md.Model):
                                      extent=dm.NumericDomain(mu[idx].item() - 2, mu[idx].item() + 2))
                            for idx in range(sigma.shape[0])]
             self.mode = 'model'
-            return MultiVariateGaussianModel.update,
+            return self._unbound_updater,
 
         if mode == 'normal':
             dim = opts['dim']

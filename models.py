@@ -304,7 +304,7 @@ class Model:
         self.mode = 'data'
         self._update_all_field_derivatives()
         for callback in callbacks:
-            callback(self)
+            callback()
         return self
 
     def _set_data(self, df, silently_drop):
@@ -396,7 +396,7 @@ class Model:
         try:
             callbacks = self._fit()
             for callback in callbacks:
-                callback(self)
+                callback()
         except NameError:
             raise NotImplementedError("You have to implement the _fit method in your model!")
         self.mode = "both"
@@ -459,7 +459,7 @@ class Model:
             callbacks = self._conditionout(self.inverse_names(cond_out, sorted_=True), cond_out)
             self._update_remove_fields(cond_out)
             for callback in callbacks:
-                callback(self)
+                callback()
 
         if len(keep) == self.dim or self._isempty():
             return self
@@ -468,7 +468,7 @@ class Model:
         callbacks = self._marginalizeout(keep, remove)
         self._update_remove_fields(remove)
         for callback in callbacks:
-            callback(self)
+            callback()
         return self
 
     def _marginalizeout(self, keep, remove):
@@ -1321,7 +1321,7 @@ class Model:
         callbacks = self._generate_model(opts)
         self._update_all_field_derivatives()
         for callback in callbacks:
-            callback(self)
+            callback()
         return self
 
     def _generate_data(self, opts=None):

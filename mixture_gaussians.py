@@ -1,5 +1,7 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
+import functools
 import logging
+import math
 
 from fixed_mixture_model import FixedMixtureModel
 from gaussians import MultiVariateGaussianModel
@@ -18,6 +20,10 @@ class MixtureOfGaussiansModel(FixedMixtureModel):
     def __init__(self, name):
         super().__init__(name)
         self._k = None
+        self._aggrMethods = {
+            'maximum': self._maximum,
+            'average': self._maximum
+        }
 
     def set_k(self, k):
         self._k = k
@@ -25,7 +31,7 @@ class MixtureOfGaussiansModel(FixedMixtureModel):
 
     def _set_data_4mixture(self, df, drop_silently):
         self._set_data_continuous(df, drop_silently)
-        return FixedMixtureModel._update_in_components,
+        return self._unbound_component_updater,
 
     def _fit(self):
         # learn model using sklearn
@@ -38,12 +44,22 @@ class MixtureOfGaussiansModel(FixedMixtureModel):
         for idx, model in enumerate(self):
             model._mu = matrix(mus[idx]).T
             model._S = matrix(Sigmas[idx])
-            model.update()
-        return FixedMixtureModel._update_in_components,
+            model._update()
+        return self._unbound_component_updater,
 
     def _maximum(self):
-        # TODO:
-        return self._sample()
+        # this is an pretty stupid heuristic :-)
+        maximum = None
+        maximum_density = -math.inf
+
+        for model in self:
+            cur_maximum = model._maximum()
+            cur_density = model._density(cur_maximum)
+            if cur_density > maximum_density:
+                maximum = cur_maximum
+                maximum_density = cur_density
+
+        return maximum
 
     def _generate_model(self, opts={}):
         # TODO
@@ -75,6 +91,14 @@ class MixtureOfGaussiansModel(FixedMixtureModel):
         # self.mode = 'model'
         # return MixtureOfGaussiansModel.update,
         raise NotImplementedError("Implement this method in your subclass")
+
+
+def MoGModelWithK(name, k):
+    """Returns an empty Mixture of k Gaussians model"""
+    model = MixtureOfGaussiansModel(name)
+    model.set_k(k)
+    return model
+
 
 if __name__ == "__main__":
     iris = sns.load_dataset('iris').iloc[:, 0:-1]

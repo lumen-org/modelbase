@@ -1,4 +1,5 @@
 # Copyright (c) 2017 Philipp Lucas and Frank Nussbaum, FSU Jena
+import functools
 import logging
 import numpy as np
 from numpy import nan, pi, exp, dot, abs
@@ -80,6 +81,8 @@ class CgWmModel(md.Model):
         self._S = xr.DataArray([])
         self._SInv = xr.DataArray([])
         self._detS = xr.DataArray([])
+        # creates an self contained update function. we use it as a callback function later
+        self._unbound_updater = functools.partial(self.__class__._update, self)
 
     # base
     def _set_data(self, df, drop_silently):
@@ -110,9 +113,9 @@ class CgWmModel(md.Model):
 
         self._S = xr.DataArray(data=S, coords=coords, dims=dims)
         self._mu = mu
-        return CgWmModel.update,
+        return self._unbound_updater,
 
-    def update(self):
+    def _update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
         if len(self._numericals) == 0:
             self._detS = xr.DataArray([])
@@ -208,7 +211,7 @@ class CgWmModel(md.Model):
         # remove fields as needed
         self._categoricals = [name for name in self._categoricals if name not in remove]
         self._numericals = [name for name in self._numericals if name not in remove]
-        return CgWmModel.update,
+        return self._unbound_updater,
 
     def _marginalizeout(self, keep, remove):
         # use weak marginals to get the best approximation of the marginal distribution that is still a cg-distribution
@@ -263,7 +266,7 @@ class CgWmModel(md.Model):
         # update fields and dependent variables
         self._categoricals = [name for name in self._categoricals if name in keep]
         self._numericals = num_keep
-        return CgWmModel.update,
+        return self._unbound_updater,
 
     def _density(self, x):
         cat_len = len(self._categoricals)
@@ -336,7 +339,7 @@ class CgWmModel(md.Model):
         mycopy._p = self._p.copy()
         mycopy._categoricals = self._categoricals.copy()
         mycopy._numericals = self._numericals.copy()
-        mycopy.update()
+        mycopy._update()
         return mycopy
 
 if __name__ == '__main__':

@@ -22,6 +22,7 @@ import models as md
 from mockup_model import MockUpModel
 from categoricals import CategoricalModel
 from gaussians import MultiVariateGaussianModel as GaussianModel
+from mixture_gaussians import MixtureOfGaussiansModel
 from cond_gaussians import ConditionallyGaussianModel as CGModel
 from cond_gaussian_wm import CgWmModel as CGWMModel
 
@@ -29,10 +30,19 @@ import data.crabs.crabs as crabs
 
 # REGISTER ALL YOUR MODEL SUBCLASSES TO TEST HERE
 # model classes
+# models = {
+#     'discrete': [],
+#     'continuous': [MixtureOfGaussiansModel],
+#     'mixed': []
+# }
 models = {
-    'discrete': [CategoricalModel, MockUpModel],
-    'continuous': [GaussianModel, MockUpModel],
-    'mixed': [CGModel, CGWMModel, MockUpModel]
+    'discrete': [MockUpModel, CategoricalModel],
+    'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
+    'mixed': [MockUpModel, CGModel, CGWMModel]
+}
+
+model_setup = {
+    ('continuous', MixtureOfGaussiansModel): lambda x: x.set_k(4)
 }
 
 
@@ -208,6 +218,11 @@ def test_all():
         for model_class in models[mode]:
             # create and fit model
             model = model_class(name=model_class.__name__)
+
+            # additional setup?
+            if (mode, model_class) in model_setup:
+                (model_setup[(mode, model_class)])(model)  # call it!
+
             model.fit(df=data[mode])
 
             # test model

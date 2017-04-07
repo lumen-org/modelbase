@@ -18,3 +18,10 @@ def mixed(filepath='australian-crabs.csv'):
     del df['index']
 
     return df
+
+
+def continuous(filepath='australian-crabs.csv'):
+    df = mixed(filepath)
+    del df['sex']
+    del df['species']
+    return df

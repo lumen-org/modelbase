@@ -1,5 +1,7 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
+
 import logging
+import functools
 import math
 
 import utils
@@ -35,22 +37,23 @@ class MockUpModel(md.Model):
             'maximum': self._maximum,
             'average': self._maximum
         }
+        self._unbound_updater = functools.partial(self.__class__._update, self)
 
     def _set_data(self, df, drop_silently):
         self._set_data_mixed(df, drop_silently)
-        return MockUpModel.update,
+        return self._unbound_updater,
 
     def _fit(self):
-        return MockUpModel.update,
+        return self._unbound_updater,
 
-    def update(self):
+    def _update(self):
         return self
 
     def _conditionout(self, keep, remove):
-        return MockUpModel.update,
+        return self._unbound_updater,
 
     def _marginalizeout(self, keep, remove):
-        return MockUpModel.update,
+        return self._unbound_updater,
 
     def _density(self, x):
         return 0
@@ -96,7 +99,7 @@ class MockUpModel(md.Model):
             self.fields.append(field)
 
         self.mode = 'model'
-        return MockUpModel.update,
+        return self._unbound_updater,
 
 if __name__ == "__main__":
     model = MockUpModel()

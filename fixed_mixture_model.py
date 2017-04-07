@@ -1,4 +1,5 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
+import functools
 import logging
 import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
@@ -81,7 +82,6 @@ class FixedMixtureModel(md.Model):
          """
         components = dict()
         for class_, count in models:
-        #for class_, count in models:
             class_name = class_.__name__
             instances = tuple(class_(str(class_name) + str(i)) for i in range(count))
             components[class_name] = instances
@@ -98,7 +98,9 @@ class FixedMixtureModel(md.Model):
         # TODO: combine set_models and __init__ into one. Problem: _defaultcopy
         super().__init__(name)
         self._models = None
-        self.components = None
+        self.components = {}
+        # creates an self contained update function. we use it as a callback function later
+        self._unbound_component_updater = functools.partial(self.__class__._update_in_components, self)
 
     def __iter__(self):
         """Returns an iterator over all component models of this mixture model."""
@@ -106,13 +108,21 @@ class FixedMixtureModel(md.Model):
             for model in models_per_class:
                 yield model
 
+    def __len__(self):
+        return len(self._component_sequence)
+
+    def __getitem__(self, idx):
+        return self._component_sequence[idx]
+
     def _set_models(self, models):
-        """ Args:
+        """ Fills the mixture with (empty) models.
+         Args:
             models: a sequence of pairs (model_class, k), where model_class is the model class of the components
                 and k is the number of model instances to be used for that.
         """
         self._models = models  # just to store it
         self.components = self.create_components(models)
+        self._component_sequence = [model for model in self]
         self._update_in_components()
 
     def _update_in_components(self, attrs_to_update = _attrs_to_update):
@@ -123,10 +133,17 @@ class FixedMixtureModel(md.Model):
                 setattr(model, attr, getattr(self, attr))
 
     def _conditionout(self, keep, remove):
-        return [FixedMixtureModel._update_in_components] + [model._conditionout(keep, remove) for model in self]
+        callbacks = [self._unbound_component_updater]
+        for conditions in (model._conditionout(keep, remove) for model in self):
+            callbacks.extend(conditions)
+        return callbacks
 
     def _marginalizeout(self, keep, remove):
-        return [FixedMixtureModel._update_in_components] + [model._marginalizeout(keep, remove) for model in self]
+        callbacks = [self._unbound_component_updater]
+        for conditions in (model._marginalizeout(keep, remove) for model in self):
+            callbacks.extend(conditions)
+        return callbacks
+        # return [FixedMixtureModel._update_in_components] + [model._marginalizeout(keep, remove) for model in self]
 
     def _density(self, x):
         return sum(model._density(x) for model in self)
@@ -153,7 +170,7 @@ class FixedMixtureModel(md.Model):
 
         # the actual data setting, however, cannot be generically implemented
         callbacks = self._set_data_4mixture(df, drop_silently)
-        return (FixedMixtureModel._update_in_components,) + callbacks
+        return (self._unbound_component_updater,) + callbacks
 
     def __set_data(self):
         raise NotImplementedError("Implement this method in your subclass")
