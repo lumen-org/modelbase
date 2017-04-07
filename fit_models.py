@@ -74,8 +74,8 @@ known_models = {
 
     # mixture of gaussians models
     'mo4g_crabs': lambda: (MoGModelWithK('mo4g_crabs', 4), crabs.continuous('data/crabs/australian-crabs.csv')),
-
-    'mo10g_crabs': lambda: (MoGModelWithK('mo10g_crabs', 10), crabs.continuous('data/crabs/australian-crabs.csv'))
+    'mo10g_crabs': lambda: (MoGModelWithK('mo10g_crabs', 10), crabs.continuous('data/crabs/australian-crabs.csv')),
+    'mo3g_iris': lambda: (MoGModelWithK('mo3g_iris', 3), sns.load_dataset('iris').iloc[:, 0:-1])
 }
 
 
