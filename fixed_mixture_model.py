@@ -59,16 +59,37 @@ class FixedMixtureModel(md.Model):
     iter:
         meaning: iterate over the mixture to access the components one after another.
     """
+    # @staticmethod
+    # def create_components(models):
+    #     """Create requested number of models of each model class and store them in a dict that maps class name to
+    #      tuple of dicts.
+    #      """
+    #     components = dict()
+    #     for class_, count in models:
+    #         class_name = class_.__name__
+    #         instances = tuple(class_(str(class_name) + str(i)) for i in range(count))
+    #         components[class_name] = instances
+    #     return components
+
     @staticmethod
     def create_components(models):
-        """Create requested number of models of each model class and store them in a dict that maps class name to
-         tuple of dicts.
-         """
+        """
+        :param models: sequence of (model_class, weight)
+        :return: a component dictionary that maps model_class to a list of (model_instance, weight)
+        """
         components = dict()
-        for class_, count in models:
+        for class_, weight in models:
             class_name = class_.__name__
-            instances = tuple(class_(str(class_name) + str(i)) for i in range(count))
-            components[class_name] = instances
+            if class_name not in components:
+                components[class_name] = []
+            l = len(components[class_name])
+            model = class_(str(class_name) + str(l))
+            components[class_name].append((weight, model))
+
+        # make it tuples
+        for class_name in components.keys():
+            components[class_name] = tuple(components[class_name])
+
         return components
 
     def __init__(self, name):
@@ -86,7 +107,7 @@ class FixedMixtureModel(md.Model):
         self._unbound_component_updater = functools.partial(self.__class__._update_in_components, self)
 
     def __iter__(self):
-        """Returns an iterator over all component models of this mixture model."""
+        """Returns an iterator over all component (weight, models) pairs of this mixture model."""
         for models_per_class in self.components.values():
             for model in models_per_class:
                 yield model
@@ -99,11 +120,21 @@ class FixedMixtureModel(md.Model):
         """Supports numeric indexing to access component models."""
         return self._component_sequence[idx]
 
+    # def _set_models(self, models):
+    #     """ Fills the mixture with (empty) models.
+    #      Args:
+    #         models: a sequence of pairs (model_class, k), where model_class is the model class of the components
+    #             and k is the number of model instances to be used for that.
+    #     """
+    #     self.components = self.create_components(models)
+    #     self._component_sequence = [model for model in self]
+    #     self._update_in_components()
+
     def _set_models(self, models):
         """ Fills the mixture with (empty) models.
          Args:
-            models: a sequence of pairs (model_class, k), where model_class is the model class of the components
-                and k is the number of model instances to be used for that.
+            models: a sequence of pairs (model_class, weight), where model_class is the model class of a
+            component and k is the weight of this model instances to be used for that.
         """
         self.components = self.create_components(models)
         self._component_sequence = [model for model in self]
@@ -113,31 +144,31 @@ class FixedMixtureModel(md.Model):
         """Update dependent variables/states in all components to avoid recalculation / duplicated storage.
         By default it updates all relevant attributes of an abstract model. This, however, can be customized.
         """
-        for model in self:
+        for weight, model in self:
             for attr in attrs_to_update:
                 setattr(model, attr, getattr(self, attr))
 
     def _conditionout(self, keep, remove):
         callbacks = [self._unbound_component_updater]
-        for conditions in (model._conditionout(keep, remove) for model in self):
+        for conditions in (model._conditionout(keep, remove) for _, model in self):
             callbacks.extend(conditions)
         return callbacks
 
     def _marginalizeout(self, keep, remove):
         callbacks = [self._unbound_component_updater]
-        for conditions in (model._marginalizeout(keep, remove) for model in self):
+        for conditions in (model._marginalizeout(keep, remove) for _, model in self):
             callbacks.extend(conditions)
         return callbacks
 
     def _density(self, x):
-        return sum(model._density(x) for model in self)
+        return sum(model._density(x)*weight for weight, model in self)
 
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)
 
         # copy all models
         for class_name, models_per_class in self.components.items():
-            mycopy.components[class_name] = tuple(model.copy() for model in models_per_class)
+            mycopy.components[class_name] = tuple((weight, model.copy()) for weight, model in models_per_class)
 
         # update/link all
         mycopy._update_in_components()
@@ -154,7 +185,7 @@ class FixedMixtureModel(md.Model):
         callbacks = self._set_data_4mixture(df, drop_silently)
         return (self._unbound_component_updater,) + callbacks
 
-    def __set_data(self):
+    def _set_data_4mixture(self):
         raise NotImplementedError("Implement this method in your subclass")
 
     def _maximum(self):

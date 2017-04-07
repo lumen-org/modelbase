@@ -27,11 +27,11 @@ class MixtureOfGaussiansModel(FixedMixtureModel):
 
     def set_k(self, k):
         self._k = k
-        self._set_models([(MultiVariateGaussianModel, k)])
+        self._set_models([(MultiVariateGaussianModel, 1/k)]*k)
 
     def _set_data_4mixture(self, df, drop_silently):
         self._set_data_continuous(df, drop_silently)
-        return self._unbound_component_updater,
+        return ()
 
     def _fit(self):
         # learn model using sklearn
@@ -41,7 +41,7 @@ class MixtureOfGaussiansModel(FixedMixtureModel):
         Sigmas = sklgmm.covars_
 
         # set mean and covar of each component
-        for idx, model in enumerate(self):
+        for idx, (weight, model) in enumerate(self):
             model._mu = matrix(mus[idx]).T
             model._S = matrix(Sigmas[idx])
             model._update()
@@ -52,9 +52,9 @@ class MixtureOfGaussiansModel(FixedMixtureModel):
         maximum = None
         maximum_density = -math.inf
 
-        for model in self:
+        for weight, model in self:
             cur_maximum = model._maximum()
-            cur_density = model._density(cur_maximum)
+            cur_density = model._density(cur_maximum)*weight
             if cur_density > maximum_density:
                 maximum = cur_maximum
                 maximum_density = cur_density
