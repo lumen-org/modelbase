@@ -152,6 +152,8 @@ Examples:
     # args.include = ['cg_glass']
     # args.include = ['starcraft']
     # args.include = ['cgw_iris']
+    # args.include = ['mvg_dummy_2d']
+
 
     modelbase = mb.ModelBase("refitter", load_all=False, model_dir=args.directory)
     models = refit_all_models(verbose=True, include=args.include, exclude=args.exclude)

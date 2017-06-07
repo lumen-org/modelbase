@@ -125,6 +125,8 @@ class MultiVariateGaussianModel(md.Model):
         """Generates a gaussian model according to options. This does not assign any data to the model.
         It also sets the 'mode' of this model to 'model'.
 
+        Note that this method is solely called by Model.generate_model.
+
         Options must have a key 'mode' of value 'custom' or 'normal':
 
         If mode is 'custom':
@@ -179,7 +181,7 @@ class MultiVariateGaussianModel(md.Model):
         m = MultiVariateGaussianModel(name)
         mu = np.matrix(np.zeros(2)).T
         sigma = np.matrix([[1, 0.5], [0.5, 1]])
-        m._generate_model({'mode': 'custom', 'mu': mu, 'sigma': sigma})
+        m.generate_model({'mode': 'custom', 'mu': mu, 'sigma': sigma})
         m._generate_data({'n': 200})
         return m
 

@@ -375,9 +375,7 @@ class Model:
     def fit(self, df=None):
         """Fits the model to a models data or an optionally passed DataFrame
 
-        This method must be implemented by any actual model that derives from the abstract Model class.
-
-        Note that on return on this method the attribute .data must be filled with the appropriate data that
+        Note that on return of this method the attribute .data must be filled with the appropriate data that
         was used to fit the model.
 
         Args:
