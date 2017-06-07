@@ -1,7 +1,6 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 
 import logging
-import math
 
 from fixed_mixture_model import FixedMixtureModel
 from gaussians import MultiVariateGaussianModel
@@ -49,19 +48,7 @@ class MixtureOfGaussiansModel(FixedMixtureModel):
             model._update()  # stupid me!!
         return self._unbound_component_updater,
 
-    def _maximum(self):
-        # this is an pretty stupid heuristic :-)
-        maximum = None
-        maximum_density = -math.inf
-
-        for weight, model in zip(self.weights, self):
-            cur_maximum = model._maximum()
-            cur_density = model._density(cur_maximum)*weight
-            if cur_density > maximum_density:
-                maximum = cur_maximum
-                maximum_density = cur_density
-
-        return maximum
+    _maximum = FixedMixtureModel._maximum_naiv_heuristic
 
 
 def MoGModelWithK(name, k):

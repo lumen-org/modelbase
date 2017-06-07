@@ -1,6 +1,7 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 import functools
 import logging
+import math
 
 import models as md
 
@@ -146,6 +147,10 @@ class FixedMixtureModel(md.Model):
         return mycopy
 
     def _sample(self):
+        # choose component by weight
+
+        # sample from it
+
         # TODO: can be done generically!
         raise NotImplementedError("Implement it - this can be done generically!")
 
@@ -155,6 +160,20 @@ class FixedMixtureModel(md.Model):
         # the actual data setting, however, cannot be generically implemented
         callbacks = self._set_data_4mixture(df, drop_silently)
         return (self._unbound_component_updater,) + callbacks
+
+    def _maximum_naiv_heuristic(self):
+        # this is an pretty stupid heuristic :-)
+        maximum = None
+        maximum_density = -math.inf
+
+        for weight, model in zip(self.weights, self):
+            cur_maximum = model._maximum()
+            cur_density = model._density(cur_maximum)*weight
+            if cur_density > maximum_density:
+                maximum = cur_maximum
+                maximum_density = cur_density
+
+        return maximum
 
     def _set_data_4mixture(self):
         raise NotImplementedError("Implement this method in your subclass")
