@@ -189,7 +189,7 @@ def invert_indexes(idx, len_):
 
 def invert_sequence(seq, base):
     """utility function that returns an inverted sequence given a base sequence and  sorted
-    sequence of objects (with respect to base), e.g. given [0,1,4] and len=6 it returns [2,3,5].
+    sequence of objects (with respect to base).
     """
     it = iter(seq)
     cur = next(it, None)

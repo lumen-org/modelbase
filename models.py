@@ -969,7 +969,7 @@ class Model:
             returnbasemodel).
 
         Internal:
-            .predict accepts the 'artificial field' 'model vs data' (mvd for short in the following)
+            .predict accepts the 'artificial field' 'model vs data' ('mvd' for short in the following)
             in order to unify queries again model and data. It also translates it into to internal interfaces
             for model queries and data queries.
         """
@@ -981,7 +981,8 @@ class Model:
         #    return (pd.DataFrame(), pd.DataFrame()) if mode == 'both' else pd.DataFrame()
         idgen = utils.linear_id_generator()
 
-        # How to handle the 'artificial field' 'model vs data': possible cases: 'model vs data' occurs ...
+        # How to handle the 'artificial field' 'model vs data':
+        # The possible cases, as which 'model vs data' occur are:
         #   * as a filter: that sets the internal mode of the model. Is handled in '.condition'
         #   * as a split: splits by the values of that field. Is handled where we handle splits.
         #   * not at all: defaults to a filter to equal 'model' and a default identity split on it, ONLY if
@@ -1083,7 +1084,7 @@ class Model:
 
         # (4) query models and fill result data frame
         """ question is: how to efficiently query the model? how can I vectorize it?
-            I believe that depends on the query. A typical query is consists of
+            I believe that depends on the query. A typical query consists of
             dimensions for splits and then aggregations and densities.
             For the case of aggregations a conditioned model has to be
             calculated for every split. I don't see how to vectorize / speed
@@ -1233,7 +1234,11 @@ class Model:
 
     def select(self, what, where=[], opts=None):
         """Returns the selected attributes of all data items that satisfy the conditions as a
-        pandas DataFrame. By default it selects data only, i.e. it will not return any samples from the model.
+        pandas DataFrame.
+        By default it selects data only, i.e. it will not return any samples from the model. It may, however, also
+        sample from the model if:
+          * the where-clause implies so (i.e. contains a filter of the 'model vs data'-field on the value 'model'.
+          * the what-clause contains teh 'model vs data'-field (both, data and samples, will be returned)
         """
         # check for empty queries
         if len(what) == 0:
@@ -1255,7 +1260,7 @@ class Model:
         mvd_filter = None
         pure_where = []
         for w in where:
-            if w[0] == 'model vs data':
+            if w[NAME_IDX] == 'model vs data':
                 mvd_filter = w
             else:
                 pure_where.append(w)
@@ -1265,6 +1270,7 @@ class Model:
         if mvd_filter is None and 'model vs data' not in what:
             mvd_filter = ConditionTuple('model vs data', "==", "data")
 
+        # !!!!!!!! !!!!!!!!! !!!!!!!!!!!! !!!!!!!!!!!!! #
         # DEBUG/DEVELOP: always set it to data only
         mvd_filter = ConditionTuple('model vs data', "==", "data")
 
@@ -1278,6 +1284,7 @@ class Model:
         if 'model' in mode:
             # todo: does not meet conditions...!!
             # todo: sampling from less requires model marginalization?
+            # todo: default number of samples?
             samples = self.sample(100)
             if 'model vs data' in what:
                 samples['model vs data'] = 'model'
@@ -1286,7 +1293,7 @@ class Model:
             if 'model vs data' in what:
                 data['model vs data'] = 'data'
 
-        # concatenate to one dataframe (and prevent copy if possible)
+        # concatenate to one data frame (and prevent copy if possible)
         if 'model' in mode and 'data' in mode:
             df = pd.concat([samples, data], ignore_index=True)
         elif 'model' in mode:
