@@ -18,13 +18,21 @@ class FixedMixtureModel(md.Model):
     particular model class occurring models[i].n many times.
 
     # Reduction to compontent models:
-    It is however easy to implement since it is straighforward to reduce most of mixture models functionality to the
+    It is however easy to implement since it is straightforward to reduce most of mixture models functionality to the
      (provided) functionality of its individual components:
 
-     conditioning, marginalizing, density, copy
+      * conditioning
+      * marginalizing
+      * density
+      * copy
 
-    Fitting a mixture model, setting its data, and querying its maximum, however, is not generically reducible.
-    Hence this is must be implemented by specific mixture subclasses.
+    Other functionality, however, is not generically reducible. Hence this is must be implemented by specific mixture subclasses:
+
+      * fitting a mixture model
+      * setting its data
+      * aggregations
+
+    However, for the maximum aggregation there is a simple, generic heuristic implemented. See _maximum_naive_heuristic.
 
     # internal performance note:
     This is a naive implementation of mixture models that tries to reuse as much of existing model classes as possible.
@@ -161,7 +169,7 @@ class FixedMixtureModel(md.Model):
         callbacks = self._set_data_4mixture(df, drop_silently)
         return (self._unbound_component_updater,) + callbacks
 
-    def _maximum_naiv_heuristic(self):
+    def _maximum_naive_heuristic(self):
         # this is an pretty stupid heuristic :-)
         maximum = None
         maximum_density = -math.inf

@@ -168,7 +168,15 @@ def get_numerical_fields(df, colnames):
 
 class Model:
     """An abstract base model that provides an interface to derive submodels from it or query density and other
-    aggregations of it. It also defines stubs for those methods that actual models are required to implement.
+    aggregations of it. It also defines stubs for those methods that actual models are required to implement. The stubs are:
+
+      * _set_data(self, df, drop_silently)
+      * _fit(self)
+      * _marginalizeout(self, keep, remove)
+      * _conditionout(self, keep, remove)
+      * _density(self, x)
+      * _sample(self)
+      * copy(self, name=None)
 
     A model has a number of fields (aka dimensions). The model models a probability density function on these fields
     and allows various queries again this density. The model is based on data (aka evidence), and the data can be
@@ -249,6 +257,7 @@ class Model:
 
     def __init__(self, name):
         self.name = name
+        # the following is all done in _fields_set_empty, which is called below
         # self.fields = []
         # self.names = []
         # self.extents = []

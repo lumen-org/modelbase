@@ -48,7 +48,7 @@ class MixtureOfCgWmModel(FixedMixtureModel):
         #     model._update()  # stupid me!!
         # return self._unbound_component_updater,
 
-    _maximum = FixedMixtureModel._maximum_naiv_heuristic
+    _maximum = FixedMixtureModel._maximum_naive_heuristic
 
 def MoCGModelWithK(name, k):
     """Returns an empty Mixture of Cond Gaussians model."""

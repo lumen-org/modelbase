@@ -18,7 +18,7 @@ class CgWmModel(md.Model):
     or query density and other aggregations of it.
 
     In this model each conditional Gaussian uses its own covariance matrix and mean vector. This is
-    effective difference to the ConditionallyGaussianModel-class.
+    the most important difference to the ConditionallyGaussianModel-class.
 
     Internal:
         Assume a CG-model on m categorical random variables and n continuous random variables.
@@ -306,7 +306,7 @@ class CgWmModel(md.Model):
         #  argmu(x). hence, in order to determine the maximum, we scan over all x of Omega_x and
         #  calculate the density over p(x, argmu(x))
         # observation 2: the density of a gaussian at its mean is quite simple since the (x-mu) terms evaluate to 0.
-        # observation 3: we are only interested in where the maximum is taken, no its actual value. Hence we can remove
+        # observation 3: we are only interested in where the maximum is taken, not its actual value. Hence we can remove
         #  any values that are equal for all. Hence, the following simplifies:
         #     (2*pi)^(-n/2) * det(Sigma)^-0.5 * exp( -0.5 * (x-mu)^T * Sigma^-1 * (x-mu) )
         # to: det(Sigma)^-0.5
