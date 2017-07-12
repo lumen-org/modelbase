@@ -11,7 +11,14 @@ logger.setLevel(logging.WARNING)
 
 
 class MixtureOfCgWmModel(FixedMixtureModel):
-    """A mixture of Conditional Gaussians with Weak Marginals."""
+    """A mixture of Conditional Gaussians (CG) with Weak Marginals (WM).
+
+    This mixture of CG with WM has a fixed number of mixture components, which is set at construction time by the k parameter.
+
+    The point here is the following: CGs are not closed under marginalization of discrete random variables. As you can easily verify the true marginals are mixtures of CG. However,these mixtures have a 'dynamic number of mixture components': the more discrete variables you marginalize, the more mixture components you get.
+
+    This model type in turn has a fixed number of components, and each component is handled independently just the way a single CG with WM is handled. The number of components therefore does not increase when marginalizing over discrete random variables.
+    """
 
     def __init__(self, name):
         super().__init__(name)
