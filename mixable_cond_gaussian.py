@@ -114,9 +114,6 @@ class MixableCondGaussianModel(md.Model):
             # mu = self._mu.loc[dict(mean=num_keep)]
             # S = self._S.loc[dict(S1=num_keep, S2=num_keep)]
 
-            # mark categorial fields to marginalize as such
-            self._marginalized += cat_remove
-
             # # marginalize categorical fields:
             # if len(cat_remove) == 0:
             #     # just set the sliced out gaussian parts
@@ -150,6 +147,7 @@ class MixableCondGaussianModel(md.Model):
         # update fields and dependent variables
         self._categoricals = [name for name in self._categoricals if name in keep]
         self._numericals = num_keep
+        self._marginalized += cat_remove   # mark categorial fields to marginalize as such
         return self._unbound_updater,
 
     def _conditionout(self, keep, remove):   # exactly like CG WM!!
@@ -299,7 +297,53 @@ class MixableCondGaussianModel(md.Model):
 #    def _sample(self):
 #        pass
 
+    def _maximum(self):
+        # mostly like cg wm ...
+
+        # simple heuristic: do like cg wm, but then sum over shadowed (marginalized) fields
+        cat_len = len(self._categoricals)
+        num_len = len(self._numericals)
+        mrg_len = len(self._marginalized)
+
+        if cat_len == 0 and mrg_len == 0:
+            # then there is only a single gaussian left and the maximum is its mean value, i.e. the value of _mu
+            return list(self._mu.values)
+
+        if num_len == 0:
+            # find maximum in p and return its coordinates
+            p = self._p.sum(self._marginalized)  # sum over marginalized fields
+            pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
+            return [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
+
+        else:
+            # find compound maximum
+
+            # compute pseudo-density at all gaussian means to find maximum
+            p = self._p * self._detS
+
+            # sum over marginalized fields
+            p = p.sum(self._marginalized)
+
+            # get view on maximum (coordinates remain)
+            pmax = p.where(p == p.max(), drop=True)
+
+            # now figure out the coordinates
+            cat_argmax = [idx[0] for idx in pmax.indexes.values()]  # extract categorical coordinates from indexes
+            num_argmax = self._mu.loc[tuple(cat_argmax)]  # extract numerical coordinates as mean
+
+            # return compound coordinates
+            return cat_argmax + list(num_argmax.values)
+
+    # mostly like cg wm
     def copy(self, name=None):
-        pass
+        mycopy = self._defaultcopy(name)
+        mycopy._mu = self._mu.copy()
+        mycopy._S = self._S.copy()
+        mycopy._p = self._p.copy()
+        mycopy._categoricals = self._categoricals.copy()
+        mycopy._numericals = self._numericals.copy()
+        mycopy._marginalized = self._marginalized.copy()
+        mycopy._update()
+        return mycopy
 
 

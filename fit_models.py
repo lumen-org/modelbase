@@ -32,6 +32,7 @@ from gaussians import MultiVariateGaussianModel
 from categoricals import CategoricalModel
 from mixture_gaussians import MixtureOfGaussiansModel
 from mixture_gaussians import MoGModelWithK
+from mixable_cond_gaussian import MixableCondGaussianModel
 
 known_models = {
     # dict of what to fit how:
@@ -75,7 +76,11 @@ known_models = {
     # mixture of gaussians models
     'mo4g_crabs': lambda: (MoGModelWithK('mo4g_crabs', 4), crabs.continuous('data/crabs/australian-crabs.csv')),
     'mo10g_crabs': lambda: (MoGModelWithK('mo10g_crabs', 10), crabs.continuous('data/crabs/australian-crabs.csv')),
-    'mo3g_iris': lambda: (MoGModelWithK('mo3g_iris', 3), sns.load_dataset('iris').iloc[:, 0:-1])
+    'mo3g_iris': lambda: (MoGModelWithK('mo3g_iris', 3), sns.load_dataset('iris').iloc[:, 0:-1]),
+
+    # mixable cg models
+    'mcg_crabs': lambda: (MixableCondGaussianModel('mcg_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
+    'mcg_mpg': lambda: (MixableCondGaussianModel('mcg_mpg'), mpg.cg())
 }
 
 
@@ -148,6 +153,7 @@ Examples:
         args.directory = 'data_models'
 
     # for debugging:
+    # args.include = ['mcg_crabs']
     # args.include = ['cg_olive_oils']
     # args.include = ['cg_glass']
     # args.include = ['starcraft']
