@@ -117,32 +117,6 @@ class CgWmModel(md.Model):
         self._set_data_mixed(df, drop_silently)
         return ()
 
-    def _fit2(self):
-        """ Internal: estimates the set of mean parameters that fit best to the data given in the
-        dataframe df.
-        """
-        assert(self.mode != 'none')
-        df = self.data
-        dc = len(self._categoricals)
-        self._p, mu, S_single = cg.ConditionallyGaussianModel._fitFullLikelihood(df, self.fields, dc)
-
-        # replicate S_single to a individual S for each cg
-        # setup coords as dict of dim names to extents
-        dims = self._p.dims
-        coords = dict(self._p.coords)
-        coords['S1'] = self._numericals  # extent is the list of numerical variables
-        coords['S2'] = self._numericals
-        sizes = [len(coords[dim]) for dim in dims]  # generate blow-up sizes
-
-        S = np.outer(np.ones(tuple(sizes)), S_single.values)  # replicate S as many times as needed
-        dims += ('S1', 'S2')  # add missing dimensions for Sigma
-        shape = tuple(sizes + [len(self._numericals)]*2)  # update shape
-        S = S.reshape(shape)  # reshape to match dimension requirements
-
-        self._S = xr.DataArray(data=S, coords=coords, dims=dims)
-        self._mu = mu
-        return self._unbound_updater,
-
     def _fit(self):
         assert (self.mode != 'none')
         self._p, self._mu, self._S = fitConditionalGaussian(self.data, self.fields, self._categoricals, self._numericals)
@@ -315,7 +289,7 @@ class CgWmModel(md.Model):
         # works because gaussian variables are - by design of this class - after categoricals.
         # Therefore the only not specified dimension is the last one, i.e. the one that holds the mean!
         mu = self._mu.loc[cat].values
-        S = self._S.loc[cat].values
+        #S = self._S.loc[cat].values
         detS = self._detS.loc[cat].values
         invS = self._SInv.loc[cat].values
         xmu = num - mu
