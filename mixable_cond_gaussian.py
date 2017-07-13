@@ -37,4 +37,28 @@ class MixableCondGaussianModel(md.Model):
             'average': self._maximum
         }
 
+    def _set_data(self, df, drop_silently):
+        # like cond_gaussian_wm.py
+        self._set_data_mixed(df, drop_silently)
+        return ()
+
+    def _fit(self):
+        # like cond_gaussian_wm.py
+        pass
+
+    def _marginalizeout(self, keep, remove):
+        pass
+
+    def _conditionout(self, keep, remove):
+        pass
+
+    def _density(self, x):
+        pass
+
+    def _sample(self):
+        pass
+
+    def copy(self, name=None):
+        pass
+
 

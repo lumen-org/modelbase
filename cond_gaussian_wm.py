@@ -13,6 +13,34 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
+def fitConditionalGaussian(data, fields, categoricals, numericals):
+    """Fits a conditional gaussian model to given data and returns the fitting parameters as a 3-tuple(p, mu, S, mu):
+
+        p, mu and S are just like the CgWmModel expects them (see class documentation there)
+
+    Note, however that this returns the same covariance for each conditional gaussian. This will be changed in the
+    future.
+    """
+
+    dc = len(categoricals)
+    p, mu, S_single = cg.ConditionallyGaussianModel._fitFullLikelihood(data, fields, dc)
+
+    # replicate S_single to a individual S for each cg
+    # setup coords as dict of dim names to extents
+    dims = p.dims
+    coords = dict(p.coords)
+    coords['S1'] = numericals  # extent is the list of numerical variables
+    coords['S2'] = numericals
+    sizes = [len(coords[dim]) for dim in dims]  # generate blow-up sizes
+
+    S = np.outer(np.ones(tuple(sizes)), S_single.values)  # replicate S as many times as needed
+    dims += ('S1', 'S2')  # add missing dimensions for Sigma
+    shape = tuple(sizes + [len(numericals)] * 2)  # update shape
+    S = S.reshape(shape)  # reshape to match dimension requirements
+
+    return p, mu, xr.DataArray(data=S, coords=coords, dims=dims)
+
+
 class CgWmModel(md.Model):
     """A conditional gaussian model and methods to derive submodels from it
     or query density and other aggregations of it.
@@ -89,7 +117,7 @@ class CgWmModel(md.Model):
         self._set_data_mixed(df, drop_silently)
         return ()
 
-    def _fit(self):
+    def _fit2(self):
         """ Internal: estimates the set of mean parameters that fit best to the data given in the
         dataframe df.
         """
@@ -113,6 +141,11 @@ class CgWmModel(md.Model):
 
         self._S = xr.DataArray(data=S, coords=coords, dims=dims)
         self._mu = mu
+        return self._unbound_updater,
+
+    def _fit(self):
+        assert (self.mode != 'none')
+        self._p, self._mu, self._S = fitConditionalGaussian(self.data, self.fields, self._categoricals, self._numericals)
         return self._unbound_updater,
 
     def _update(self):
