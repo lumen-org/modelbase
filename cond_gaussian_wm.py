@@ -41,6 +41,53 @@ def fitConditionalGaussian(data, fields, categoricals, numericals):
     return p, mu, xr.DataArray(data=S, coords=coords, dims=dims)
 
 
+def _maximum_cgwm_heuristic1(cat_, num, mu, p, detS):
+    """Returns an approximation to point of the maximum density of the implicitely given cg distribution.
+    Essentially its the coordinates of the most likeliest mean of all gaussians in the cg distribution.
+
+     observation 1: for a given x in Omega_X the maximum is taken at the corresponding cg's mu, lets call it argmu(
+     x). hence, in order to determine the maximum, we scan over all x of Omega_x and calculate the density over p(x,
+     argmu(x))
+
+     observation 2: the density of a gaussian at its mean is quite simple since the (x-mu) terms evaluate to 0.
+
+     observation 3: we are only interested in where the maximum is taken, not its actual value. Hence we can remove
+     any values that are equal for all. Hence, the following simplifies:
+
+         (2*pi)^(-n/2) * det(Sigma)^-0.5 * exp( -0.5 * (x-mu)^T * Sigma^-1 * (x-mu) )
+
+     to:
+
+         det(Sigma)^-0.5
+
+     observation 4: luckily, we already have that precalculated!
+     """
+    cat_len = len(cat_)
+    num_len = len(num)
+
+    if cat_len == 0:
+        # then there is only a single gaussian left and the maximum is its mean value, i.e. the value of _mu
+        return list(mu.values)
+
+    if num_len == 0:
+        # find maximum in p and return its coordinates
+        pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
+        return [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
+
+    else:
+        # find compound maximum
+        # compute pseudo-density at all gaussian means to find maximum
+        pd = p * detS
+        pdmax = pd.where(pd == pd.max(), drop=True)  # get view on maximum (coordinates remain)
+
+        # now figure out the coordinates
+        cat_argmax = [idx[0] for idx in pdmax.indexes.values()]  # extract categorical coordinates from indexes
+        num_argmax = mu.loc[tuple(cat_argmax)]  # extract numerical coordinates as mean
+
+        # return compound coordinates
+        return cat_argmax + list(num_argmax.values)
+
+
 class CgWmModel(md.Model):
     """A conditional gaussian model and methods to derive submodels from it
     or query density and other aggregations of it.
@@ -316,7 +363,8 @@ class CgWmModel(md.Model):
         # observation 3: we are only interested in where the maximum is taken, not its actual value. Hence we can remove
         #  any values that are equal for all. Hence, the following simplifies:
         #     (2*pi)^(-n/2) * det(Sigma)^-0.5 * exp( -0.5 * (x-mu)^T * Sigma^-1 * (x-mu) )
-        # to: det(Sigma)^-0.5
+        # to:
+        #     det(Sigma)^-0.5
         # observation 4: luckily, we already have that precalculated!
 
         if num_len == 0:

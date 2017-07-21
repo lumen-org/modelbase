@@ -12,6 +12,7 @@ Such tests must be model specific and are hence found in the corresponding model
 
 """
 import unittest
+import logging
 
 import random
 
@@ -25,21 +26,25 @@ from gaussians import MultiVariateGaussianModel as GaussianModel
 from mixture_gaussians import MixtureOfGaussiansModel
 from cond_gaussians import ConditionallyGaussianModel as CGModel
 from cond_gaussian_wm import CgWmModel as CGWMModel
+from mixable_cond_gaussian import MixableCondGaussianModel as MCGModel
 
 import data.crabs.crabs as crabs
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 # REGISTER ALL YOUR MODEL SUBCLASSES TO TEST HERE
 # model classes
-# models = {
-#     'discrete': [],
-#     'continuous': [MixtureOfGaussiansModel],
-#     'mixed': []
-# }
 models = {
-    'discrete': [MockUpModel, CategoricalModel],
-    'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
-    'mixed': [MockUpModel, CGModel, CGWMModel]
+    'discrete': [],
+    'continuous': [],
+    'mixed': [MCGModel]
 }
+# models = {
+#     'discrete': [MockUpModel, CategoricalModel],
+#     'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
+#     'mixed': [MockUpModel, CGModel, CGWMModel, MCGModel]
+# }
 
 model_setup = {
     ('continuous', MixtureOfGaussiansModel): lambda x: x.set_k(4)
@@ -78,6 +83,8 @@ def _test_density(model):
      """
     values = _values_of_extents(model.extents)
     for value in values:
+        #print("value:" + str(value))
+        logger.debug("value:" + str(value))
         model.density(value)
 
 
@@ -88,9 +95,9 @@ def _test_marginalization_mixed(model):
 
     # run marginalize queries
     # loop over number of fields to remove at once: 1 to model.dim-1 many
-    for n in range(1, model.dim - 1):
+    for n in range(1, model.dim):
         # loop over how many of the fields to remove are categorical
-        for cat_n in range(1, n-1):
+        for cat_n in range(1, n):
             num_n = n - cat_n
 
             # create copy
@@ -115,7 +122,7 @@ def _test_marginalization_mixed(model):
 def _test_marginalization_discrete(model):
     # run marginalize queries
     # loop over number of fields to remove at once: 1 to model.dim-1 many
-    for n in range(1, model.dim - 1):
+    for n in range(1, model.dim):
         # create copy
         m = model.copy()
 
@@ -149,9 +156,9 @@ def _test_conditioning_mixed(model):
 
     # run condition queries
     # loop over number of fields to condition out at once: 1 to model.dim-1 many
-    for n in range(1, model.dim - 1):
+    for n in range(1, model.dim):
         # loop over how many of the fields to condition out are categorical
-        for cat_n in range(1, n - 1):
+        for cat_n in range(1, n):
             num_n = n - cat_n
 
             # conditions
@@ -175,7 +182,7 @@ def _test_conditioning_mixed(model):
 
 
 def _test_conditioning_discrete(model):
-    for n in range(1, model.dim - 1):
+    for n in range(1, model.dim):
         # conditions
         names_to_condition_out = model.names[:n]
         extents_to_condition_out = [model.extents[idx] for idx in model.asindex(names_to_condition_out)]

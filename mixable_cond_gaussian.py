@@ -7,7 +7,7 @@ from numpy.linalg import inv, det
 import xarray as xr
 
 import models as md
-import cond_gaussian_wm as cg
+import cond_gaussian_wm as cgwm
 
 # setup logger
 logger = logging.getLogger(__name__)
@@ -17,11 +17,14 @@ logger.setLevel(logging.WARNING)
 class MixableCondGaussianModel(md.Model):
     """This is Conditional Gaussian (CG) model that supports true marginals and conditional.
 
-     An advantage is, that this model stays more accurate when marginal and or conditional models are derived, compared to CG model with weak marginals (WM). See cond_gaussian_wm.py for more.
+     An advantage is, that this model stays more accurate when marginal and or conditional models are derived,
+     compared to CG model with weak marginals (WM). See cond_gaussian_wm.py for more.
 
-    A disadvantage is that is is much more computationally expensive to answer queries against this type of model. The reason is:
-     (1) that marginals of mixable CG models are mixtures of CG models, and the query has to be answered for each component of the mixture.
-     (2) the number of components grows exponentially with the number of discrete random variables (RV) marginalized.
+    A disadvantage is that is is much more computationally expensive to answer queries against this type of model.
+    The reason is:
+    (1) that marginals of mixable CG models are mixtures of CG models, and the query has to be answered for each
+    component of the mixture.
+    (2) the number of components grows exponentially with the number of discrete random variables (RV) marginalized.
 
     It seems like this should be relatively straight forward. See the notes on paper.
     In essence we never throw parameters when marginalizing discrete RV, but just mark them as 'marginalized'.
@@ -59,8 +62,8 @@ class MixableCondGaussianModel(md.Model):
 
     def _fit(self):
         assert (self.mode != 'none')
-        self._p, self._mu, self._S = cg.fitConditionalGaussian(self.data, self.fields, self._categoricals,
-                                                            self._numericals)
+        self._p, self._mu, self._S = cgwm.fitConditionalGaussian(self.data, self.fields, self._categoricals,
+                                                                 self._numericals)
         return self._unbound_updater,
 
     def _update(self):   # exactly like CG WM!!
@@ -147,7 +150,7 @@ class MixableCondGaussianModel(md.Model):
         # update fields and dependent variables
         self._categoricals = [name for name in self._categoricals if name in keep]
         self._numericals = num_keep
-        self._marginalized += cat_remove   # mark categorial fields to marginalize as such
+        self._marginalized += cat_remove   # mark categorical fields to marginalize as such
         return self._unbound_updater,
 
     def _conditionout(self, keep, remove):   # exactly like CG WM!!
@@ -232,8 +235,8 @@ class MixableCondGaussianModel(md.Model):
         * all shadowed fields are categorical
         * categorical fields are needed to retrieve the correct mu and sigma to then query the density for that gaussian
         * instead of one gaussian, we have to compute the density at x for all implicit gaussians (by shadowed categorical
-         fields)
-        * then, the densities have to summed over
+         fields) and multiply it with the respective probability of occurrence (self._p)
+        * then, these weighted densities have to be summed
 
         * question is: how can I do this in parallel, without explicitly iterating through all value combinations of
           the shadowed fields?
@@ -246,6 +249,7 @@ class MixableCondGaussianModel(md.Model):
               - compute density for gaussian
               - add to sum
            - return that sum
+           * this is a bad idea, because we cross join is already there - I simply need to iterate over it -> see alternative 2
 
         * alternative 2:
            - filter mu and sigma by the given categorical values in x,
@@ -255,50 +259,109 @@ class MixableCondGaussianModel(md.Model):
         """
         cat_len = len(self._categoricals)
         num_len = len(self._numericals)
-        #cat = tuple(x[:cat_len])  # need it as a tuple for indexing below
         num = np.array(x[cat_len:])  # need as np array for dot product
+        cat = tuple(x[:cat_len])   # need it as a tuple for indexing
 
-        # dictionary of "categorical-field-name : value" for all given categorical values
-        cat_dict = dict(zip(self._categoricals, x[:cat_len]))
+        if num_len == 0:
+            if len(self._marginalized) == 0:
+                p = self._p
+            else:
+                p = self._p.sum(self._marginalized)   # sum over marginalized/shadowed fields
+            return p.loc[cat].values
 
-        # filter mu and sigma by the given categorical values in x
-        mu_shadowed = self._mu.loc[cat_dict]
-        invS_shadowed = self._SInv.loc[cat_dict]
-        detS_shadowed = self._detS.loc[cat_dict]
-
-        ## alternative 2 (see above)
-        # stack over shadowed dimensions
-        mu_stacked = mu_shadowed.stack(pl_stack=self._marginalized)
-        invS_stacked = invS_shadowed.stack(pl_stack=self._marginalized)
-        detS_stacked = detS_shadowed.stack(pl_stack=self._marginalized)
-        psum = 0
-        for mu_coord, SInv_coord, detS_coord in zip(mu_stacked.pl_stack, invS_stacked.pl_stack, detS_stacked.pl_stack):
-            mu_indexer = dict(pl_stack=mu_coord)
-            SInv_indexer = dict(pl_stack=SInv_coord)
-            detS_indexer = dict(pl_stack=detS_coord)
-
-            mu = mu_stacked.loc[mu_indexer]
-            invS = invS_stacked.loc[SInv_indexer]
-            detS = detS_stacked.loc[detS_indexer]
-
+        # we get here only if there is continuous fields left
+        if len(self._marginalized) == 0:
+            # no shadowed/marginalized fields. hence we cannot stack over them and the density query works as "normal"
+            # the following is copy and pasted from cond_gaussian_wm.py -> _density
+            mu = self._mu.loc[cat].values
+            detS = self._detS.loc[cat].values
+            invS = self._SInv.loc[cat].values
             xmu = num - mu
-            p = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
+            gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
 
-            psum += p
+            if cat_len == 0:
+                return gauss
+            else:
+                p = self._p.loc[cat].values
+                return p * gauss
+        else:
+            # dictionary of "categorical-field-name : value" for all given categorical values
+            cat_dict = dict(zip(self._categoricals, cat))
 
-        return psum
+            # filter mu and sigma by the given categorical values in x, i.e. a view on these xarrays
+            mu_shadowed = self._mu.loc[cat_dict]
+            invS_shadowed = self._SInv.loc[cat_dict]
+            detS_shadowed = self._detS.loc[cat_dict]
+            p_shadowed = self._p.loc[cat_dict]
 
-        ## vectorized version (instead of alternative 2 code)
-        # I simply don't know the syntax for what i want...
-        # np.dot(xmu, np.dot(invS, xmu))
-        #.sum()*(2 * pi) ** (-num_len / 2)
+            ## alternative 2 (see above)
+            # stack over shadowed dimensions
+            mu_stacked = mu_shadowed.stack(pl_stack=self._marginalized)
+            invS_stacked = invS_shadowed.stack(pl_stack=self._marginalized)
+            detS_stacked = detS_shadowed.stack(pl_stack=self._marginalized)
+            p_stacked = p_shadowed.stack(pl_stack=self._marginalized)
+            gauss_sum = 0
+            for mu_coord, invS_coord, detS_coord, p_coord in zip(mu_stacked.pl_stack, invS_stacked.pl_stack, detS_stacked.pl_stack, p_stacked.pl_stacked):
+                mu_indexer = dict(pl_stack=mu_coord)
+                invS_indexer = dict(pl_stack=invS_coord)
+                detS_indexer = dict(pl_stack=detS_coord)
+                p_indexer = dict(pl_stack=p_coord)
+
+                mu = mu_stacked.loc[mu_indexer].values
+                invS = invS_stacked.loc[invS_indexer].values
+                detS = detS_stacked.loc[detS_indexer].values
+                p = p_stacked.loc[p_indexer].values
+
+                xmu = num - mu
+                gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
+
+                gauss_sum += p * gauss
+
+            return gauss_sum
+
+            ## vectorized version (instead of alternative 2 code)
+            # I simply don't know the syntax for what i want...
+            # maybe it is not possible?
+            # np.dot(xmu, np.dot(invS, xmu))
+            #.sum()*(2 * pi) ** (-num_len / 2)
 
 
 #    def _sample(self):
 #        pass
 
+    def _argmax(p):
+        return p.where(p == p.max(), drop=True)
+
+    def _maximum_mixable_cg_heuristic1(self):
+        coords = cond
+
+
     def _maximum(self):
-        # mostly like cg wm ...
+        """ some ideas for heuristics:
+
+         (a) highest single gaussian: return the density at the mean of the individually most probably gaussian (
+         including shadowed ones). "individually" means that only the density of each individual mean of a gaussian
+         is of interest, not the the actual, summed density at its mean (summed over shadowed gaussians)
+          * this should be the simplest to implement
+          * in fact, this is cond_gaussian_wm._maximum_cgwm_heuristic1, but with the shadowed coordinates cut off
+
+         (b) highest accumulated gaussian:
+           1. calculate cumulated density at each gaussian (including shadowed ones)
+           2. take the maximum of these, but cut off shadowed coordinates
+           * this is probably the best performing one of (a),(b) and (c), but also the slowest
+           this means:
+                for each remaining cg (not shadowed):
+                   for each mean of shadowed cg:
+                      calculate (cumulated) density at that mean and store its coordinates if its the max so far
+                return coordinates of max
+
+         (c) highest non-shadowed gaussian:
+           1. calc the probability of the mean of each unshadowed gaussian, and select the most likeliest
+           2. then "split" again by the shadowed fields and of these gaussian means, select the most probable
+           * this is a simplification of (b), but should be a bit faster
+        """
+
+
 
         # simple heuristic: do like cg wm, but then sum over shadowed (marginalized) fields
         cat_len = len(self._categoricals)
@@ -347,3 +410,16 @@ class MixableCondGaussianModel(md.Model):
         return mycopy
 
 
+if __name__ == '__main__':
+    # load data
+
+    # fit model
+
+    # run query: marginalization of discrete
+
+    # run query: marginalization of continuous
+
+    # run query: density
+
+    # run query: aggregation over
+    pass
