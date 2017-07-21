@@ -35,7 +35,6 @@ https://github.com/rasbt/pattern_classification/blob/master/resources/python_dat
     model.
 """
 
-# GENERIC / ABSTRACT MODELS and other base classes
 AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'yields', 'args'])
 SplitTuple = namedtuple('SplitTuple', ['name', 'method', 'args'])
 ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
@@ -63,6 +62,8 @@ ARGS_IDX = 2
 def Field(name, domain, extent, dtype='numerical'):
     if not extent.isbounded():
         raise ValueError("extents must not be unbounded")
+    if dtype not in ['numerical','string']:
+        raise ValueError("dtype must be 'string' or 'numerical'")
     return {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
 """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
     as passed in:
@@ -79,6 +80,8 @@ def _Modeldata_field():
     return Field('model vs data', dm.DiscreteDomain(), dm.DiscreteDomain(['model', 'data']), dtype='string')
 
 
+""" Utility functions for converting models and parts / components of models to strings. """
+
 def field_tojson(field):
     """Returns an adapted version of a field that in any case is JSON serializable. A fields domain may contain the
     value Infinity, which JSON serialized don't handle correctly.
@@ -90,12 +93,35 @@ def field_tojson(field):
     return copy
 
 
+def field_to_str(field):
+    return ('#' if field['dtype'] == 'string' else '±') + field['name']
+
+
+def model_to_str(model, max_fields=5):
+    field_strs = [field_to_str(field) for field in model.fields[:max_fields]]
+    return model.name + "(" + ",".join(field_strs) + ")"
+
+
+def condition_to_str(model, condition):
+    """Returns a """
+    field_str = field_to_str(model.byname(condition.name))
+    op_str = condition.operator
+    value_str = str(condition.value)
+    return field_str + op_str + value_str
+
+
+def conditions_to_str(model, conditions):
+    cond_strs = [condition_to_str(model, condition) for condition in conditions]
+    return "(" + ",".join(cond_strs) + ")"
+
+
 def _tuple2str(tuple_):
     """Returns a string that summarizes the given splittuple or aggregation tuple"""
     is_aggr_tuple = len(tuple_) == 4 and not tuple_[METHOD_IDX] == 'density'
     prefix = (str(tuple_[YIELDS_IDX]) + '@') if is_aggr_tuple else ""
     return prefix + str(tuple_[METHOD_IDX]) + '(' + str(tuple_[NAME_IDX]) + ')'
 
+""" Utility functions for data import. """
 
 def clean_dataframe(df):
     # check that there are no NaNs or Nones
@@ -202,6 +228,11 @@ class Model:
                 # "names: " + str([self.names]) + "\n" +
                 # "fields: " + str([str(field) for field in self.fields]))
 
+    def __short_str__(self, max_fields=5):
+        fields = self.fields[:max_fields]
+        field_strs = [('#' if field.dtype == 'string' else '±') + field.name for field in fields]
+        return self.name + "(" + ",".join(field_strs) + ")"
+
     def asindex(self, names):
         """Given a single name or a list of names of random variables, returns
         the indexes of these in the .field attribute of the model.
@@ -269,6 +300,7 @@ class Model:
         self.mode = "empty"
         self._modeldata_field = _Modeldata_field()
 
+
     def _setempty(self):
         self._update_remove_fields()
         return self
@@ -314,6 +346,8 @@ class Model:
         self._update_all_field_derivatives()
         for callback in callbacks:
             callback()
+
+        logger.debug('')
         return self
 
     def _set_data(self, df, silently_drop):
@@ -658,7 +692,7 @@ class Model:
         else:
             # 2. marginalize singular fields out
             # TODO: use internal, faster version of marginalize / marginalizeout?
-            submodel = self.copy().marginalize(remove=singular_names)
+            submodel = self if len(singular_names) == 0 else self.copy().marginalize(remove=singular_names)
 
             # 3. calculate 'unrestricted' aggregation on the remaining model
             try:

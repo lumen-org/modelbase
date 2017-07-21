@@ -10,6 +10,25 @@ such and it is not intended for that.
 
 Such tests must be model specific and are hence found in the corresponding model specific test scripts.
 
+Thinking about useful console output for this test module:
+
+  * output should help to identify where and when an uncaught exception was raised
+  * most important information regarding this is:
+    * what operation did you try to do?
+    * what operation did you try tot do?
+  * also useful as context information:
+    * if operation was successful: what it its result?
+
+appropriate logging messages:
+  * modelling:
+     <name>(#sex, ±age) - {#sex} =  <name>(±age)
+     <name>(#sex, ±age) - {±age = 30} = <name>(#sex)
+
+  * density:
+      <name>(#sex=Male, ±age=30) = (0.35)
+
+  * aggregation:
+      arg-<method>(<name>(#sex,±age)) = (Male,25)
 """
 import unittest
 import logging
@@ -71,7 +90,13 @@ def _values_of_extents(extents):
 def _test_aggregations(model):
     """Computes all available aggregations on the given model."""
     for aggr_method in model._aggrMethods:
-        model.aggregate(aggr_method)
+        log_str = "arg-" + aggr_method + "(" + md.model_to_str(model) + ")"
+        try:
+            aggr = model.aggregate(aggr_method)
+            logger.debug(log_str + " = " + str(aggr))
+        except:
+            logger.error(log_str + "failed!!")
+            raise
 
 
 def _test_density(model):
@@ -83,9 +108,14 @@ def _test_density(model):
      """
     values = _values_of_extents(model.extents)
     for value in values:
-        #print("value:" + str(value))
-        logger.debug("value:" + str(value))
-        model.density(value)
+
+        log_str = md.model_to_str(model) + str(value)
+        try:
+            p = model.density(value)
+            logger.debug(log_str, " = ", str(p))
+        except:
+            logger.error(log_str, "failed!!")
+            raise
 
 
 def _test_marginalization_mixed(model):
@@ -111,7 +141,15 @@ def _test_marginalization_mixed(model):
             random.shuffle(names_to_keep)
 
             # derive marginal model
+            #  <name>(#sex, ±age) - {#sex} =  <name>(±age)
+            #log_str = md.model_to_str(model) + " - " + "{" \
+            #          + ",".join([md.field_to_str(model.byname(name))  for name in names_to_marginalize]) + "}"
+            #try:
             m = m.model(names_to_keep)
+            #    logger.debug(log_str + " = " + md.model_to_str(m))
+            #except:
+            #    logger.error(log_str + "failed!!")
+            #    raise
 
             # try aggregations and density
             _test_aggregations(m)
@@ -244,4 +282,7 @@ class TestGeneric(unittest.TestCase):
         test_all()
 
 if __name__ == '__main__':
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    logger.addHandler(ch)
     unittest.main()
