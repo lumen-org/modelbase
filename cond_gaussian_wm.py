@@ -41,7 +41,7 @@ def fitConditionalGaussian(data, fields, categoricals, numericals):
     return p, mu, xr.DataArray(data=S, coords=coords, dims=dims)
 
 
-def _maximum_cgwm_heuristic1(cat_, num, mu, p, detS):
+def _maximum_cgwm_heuristic1(cat_len, num_len, mu, p, detS):
     """Returns an approximation to point of the maximum density of the implicitely given cg distribution.
     Essentially its the coordinates of the most likeliest mean of all gaussians in the cg distribution.
 
@@ -62,9 +62,6 @@ def _maximum_cgwm_heuristic1(cat_, num, mu, p, detS):
 
      observation 4: luckily, we already have that precalculated!
      """
-    cat_len = len(cat_)
-    num_len = len(num)
-
     if cat_len == 0:
         # then there is only a single gaussian left and the maximum is its mean value, i.e. the value of _mu
         return list(mu.values)

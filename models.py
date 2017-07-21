@@ -317,8 +317,12 @@ class Model:
         return self
 
     def _set_data(self, df, silently_drop):
-        """
-        See Model.set_data.
+        """ This method sets the data for this model instance using the data frame df. After completion of this method
+        the following attributes are set:
+         * self.data
+         * self.fields
+         * self.mode
+        See also model.set_data.
 
         This method must be implemented by all actual model classes. You might just want to use one of the following:
          * Model._set_data_mixed: for continuous and categorical data

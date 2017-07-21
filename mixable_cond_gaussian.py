@@ -14,6 +14,36 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
+def _masked(vec, mask):
+    """Returns a vector of those entries vec[i] where mask[i] is True. Order of elements is invariant."""
+    return [vec[i] for i in range(len(vec)) if mask[i]]
+
+
+def _not_masked(vec, mask):
+    """Returns a vector of those entries vec[i] where mask[i] is False. Order of elements is invariant."""
+    return [vec[i] for i in range(len(vec)) if not mask[i]]
+
+
+def _maximum_mixable_cg_heuristic1(cat_len, marg_len, num_len, marginalized_mask, mu, p, detS):
+    """ Returns an approximation to the point of maximum density.
+
+    Heuristic (a) "highest single gaussian": return the density at the mean of the individually most probably gaussian (
+     including shadowed ones). "individually" means that only the density of each individual mean of a gaussian
+     is of interest, not the the actual, summed density at its mean (summed over shadowed gaussians)
+
+    * this should be the simplest to implement, but also the worst performing?
+    * in fact, this is cond_gaussian_wm._maximum_cgwm_heuristic1, but with the shadowed coordinates cut off
+    """
+
+    # get coordinates of maximum over all cgs including shadowed ones
+    coord = cgwm._maximum_cgwm_heuristic1(cat_len + marg_len, num_len, mu, p, detS)
+    # all_cat_len = len(self._categoricals) + len(self._marginalized)
+    # num_len = len(self._numericals)
+
+    # cut out shadowed fields
+    return _not_masked(coord, marginalized_mask)
+
+
 class MixableCondGaussianModel(md.Model):
     """This is Conditional Gaussian (CG) model that supports true marginals and conditional.
 
@@ -45,9 +75,11 @@ class MixableCondGaussianModel(md.Model):
             'maximum': self._maximum,
             'average': self._maximum
         }
-        self._marginalized = []  # list of marginalized, discrete fields
         self._categoricals = []
         self._numericals = []
+        self._marginalized = []  # list of marginalized, discrete fields, NOT in same order like occurring in parameters
+        # boolean mask for all fields (incl marginalized ones), where True indicates a marginalized field
+        self._marginalized_mask = []
         self._p = xr.DataArray([])
         self._mu = xr.DataArray([])
         self._S = xr.DataArray([])
@@ -56,8 +88,9 @@ class MixableCondGaussianModel(md.Model):
         # creates an self contained update function. we use it as a callback function later
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
-    def _set_data(self, df, drop_silently):    # exactly like CG WM!!
+    def _set_data(self, df, drop_silently):
         self._set_data_mixed(df, drop_silently)
+        self._marginalized_mask = [False]*len(self.fields)
         return ()
 
     def _fit(self):
@@ -85,7 +118,7 @@ class MixableCondGaussianModel(md.Model):
             else:
                 self._detS = xr.DataArray(data=detS, coords=self._p.coords, dims=self._p.dims)   # reuse coords from p
 
-        if len(self._categoricals) == 0:
+        if len(self._categoricals) == 0 and len(self._marginalized) == 0:
             self._p = xr.DataArray([])
 
         return self
@@ -150,7 +183,13 @@ class MixableCondGaussianModel(md.Model):
         # update fields and dependent variables
         self._categoricals = [name for name in self._categoricals if name in keep]
         self._numericals = num_keep
-        self._marginalized += cat_remove   # mark categorical fields to marginalize as such
+
+        # mark newly marginalized categorical fields as such
+        self._marginalized += cat_remove
+        for idx in self.asindex(cat_remove):
+            assert(not self._marginalized_mask[idx])
+            self._marginalized_mask[idx]= True
+
         return self._unbound_updater,
 
     def _conditionout(self, keep, remove):   # exactly like CG WM!!
@@ -225,6 +264,11 @@ class MixableCondGaussianModel(md.Model):
         # remove fields as needed
         self._categoricals = [name for name in self._categoricals if name not in remove]
         self._numericals = [name for name in self._numericals if name not in remove]
+
+        # update marginalized mask
+        for idx in reversed(self.asindex(cat_remove)):  # important: delete elements from end to start
+            del self._marginalized_mask[idx]
+
         return self._unbound_updater,
 
     def _density(self, x):
@@ -332,38 +376,69 @@ class MixableCondGaussianModel(md.Model):
     def _argmax(p):
         return p.where(p == p.max(), drop=True)
 
-    def _maximum_mixable_cg_heuristic1(self):
-        coords = cond
+    def _maximum_mixable_cg_heuristic2(self):
+        # def _maximum_mixable_cg_heuristic2(marg, cat, mu, density):
+        """ Returns an approximation to the point of maximum density.
 
+        Heuristic (c) "highest accumulated gaussian":
+         1. calculate cumulated density at each gaussian (including shadowed ones)
+         2. take the maximum of these, but cut off shadowed coordinates
+        This is probably the best performing one the maximum heuristics for this model type.
+        """
 
-    def _maximum(self):
-        """ some ideas for heuristics:
+        # stack over all means (including the shadowed ones) in self_mu and keep coordinates of maximum cumulated density
+        stack_over = self._marginalized + self._categoricals
+        mu_stacked = self._mu.stack(pl_stack=stack_over)
+        p_max = 0
+        coord_max = None
+        for mu_coord in mu_stacked.pl_stack:
+            # assemble coordinates for density query
+            mu_indexer = dict(pl_stack=mu_coord)
+            num_coord = mu_stacked.loc[mu_indexer].values
+            cat_coord = _not_masked(mu_coord, self._marginalized_mask)  # remove coordinates of marginalized fields
+            coord = cat_coord + num_coord
 
-         (a) highest single gaussian: return the density at the mean of the individually most probably gaussian (
-         including shadowed ones). "individually" means that only the density of each individual mean of a gaussian
-         is of interest, not the the actual, summed density at its mean (summed over shadowed gaussians)
-          * this should be the simplest to implement
-          * in fact, this is cond_gaussian_wm._maximum_cgwm_heuristic1, but with the shadowed coordinates cut off
+            # query density and compare to so-far maximum
+            # TODO: can I use pseudo-density like in cond_gaussian_wm._maximum_cgwm_heuristic1?
+            p = self._density(coord)
+            if p > p_max:
+                p_max = p
+                coord_max = coord
 
-         (b) highest accumulated gaussian:
-           1. calculate cumulated density at each gaussian (including shadowed ones)
-           2. take the maximum of these, but cut off shadowed coordinates
-           * this is probably the best performing one of (a),(b) and (c), but also the slowest
-           this means:
-                for each remaining cg (not shadowed):
-                   for each mean of shadowed cg:
-                      calculate (cumulated) density at that mean and store its coordinates if its the max so far
-                return coordinates of max
+        return coord_max
 
-         (c) highest non-shadowed gaussian:
+    def _maximum_mixable_cg_heuristics_c(self):
+        """ heuristic (c) "highest non-shadowed gaussian"
            1. calc the probability of the mean of each unshadowed gaussian, and select the most likeliest
            2. then "split" again by the shadowed fields and of these gaussian means, select the most probable
            * this is a simplification of (b), but should be a bit faster
         """
 
+        # stage 1: stack over unshadowed gaussian and find mean of gaussian with maximum density
+        # uh...? this aint a single gaussian ...
+        mu_stacked = self._mu.stack(pl_stack=self._categoricals)
+        p_max = 0
+        coord_max = None
+        for mu_coord in mu_stacked.pl_stack:
+            # assemble coordinates for density query
+            mu_indexer = dict(pl_stack=mu_coord)
+            num_coord = mu_stacked.loc[mu_indexer].values
+            cat_coord = _not_masked(mu_coord, self._marginalized_mask)  # remove coordinates of marginalized fields
+            coord = cat_coord + num_coord
 
+            # query density
+            p = self._density(coord)
+            if p > p_max:
+                p_max = p
+                coord_max = coord
 
-        # simple heuristic: do like cg wm, but then sum over shadowed (marginalized) fields
+                # stage 2: split on the shadowed fields for the found maximum only
+
+        #TODO: not done/buggy
+        raise NotImplemented
+
+    def _maximum(self):
+        # old stuff:
         cat_len = len(self._categoricals)
         num_len = len(self._numericals)
         mrg_len = len(self._marginalized)
