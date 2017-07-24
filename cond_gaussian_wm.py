@@ -374,7 +374,7 @@ class CgWmModel(md.Model):
             # find compound maximum
 
             # compute pseudo-density at all gaussian means to find maximum
-            p = self._p * self._detS
+            p = self._p * self._detS  # note: _detS == abs(det(S.values)) ** -0.5
             pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
 
             # now figure out the coordinates

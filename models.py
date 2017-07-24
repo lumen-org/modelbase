@@ -37,11 +37,13 @@ https://github.com/rasbt/pattern_classification/blob/master/resources/python_dat
 
 AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'yields', 'args'])
 SplitTuple = namedtuple('SplitTuple', ['name', 'method', 'args'])
-ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
 NAME_IDX = 0
 METHOD_IDX = 1
 YIELDS_IDX = 2
 ARGS_IDX = 2
+ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
+OP_IDX = 1
+VALUE_IDX = 2
 
 """ A condition tuple describes the details of how a field of model is
     conditioned.
@@ -112,16 +114,16 @@ def field_to_str(fields):
         return "(" + ",".join(lst) + ")"
 
 
-def model_to_str(model, max_fields=5):
-    field_strs = [field_to_str(field) for field in model.fields[:max_fields]]
+def model_to_str(model):
+    field_strs = [field_to_str(field) for field in model.fields]
     return model.name + "(" + ",".join(field_strs) + ")"
 
 
 def condition_to_str(model, condition):
     """Returns a """
-    field_str = field_to_str(model.byname(condition.name))
-    op_str = condition.operator
-    value_str = str(condition.value)
+    field_str = field_to_str(model.byname(condition[NAME_IDX]))
+    op_str = condition[OP_IDX]
+    value_str = str(condition[VALUE_IDX])
     return field_str + op_str + value_str
 
 
@@ -711,9 +713,10 @@ class Model:
 
             # 3. calculate 'unrestricted' aggregation on the remaining model
             try:
-                other_res = submodel._aggrMethods[method]()
+                aggr_function = submodel._aggrMethods[method]
             except KeyError:
                 raise ValueError("Your model does not provide the requested aggregation: '" + method + "'")
+            other_res = aggr_function()
 
             # 4. clamp to values within domain
             # TODO bug/mistake: should we really clamp?

@@ -55,16 +55,16 @@ logger.setLevel(logging.DEBUG)
 
 # REGISTER ALL YOUR MODEL SUBCLASSES TO TEST HERE
 # model classes
-models = {
-    'discrete': [],
-    'continuous': [],
-    'mixed': [MCGModel]
-}
 # models = {
-#     'discrete': [MockUpModel, CategoricalModel],
-#     'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
-#     'mixed': [MockUpModel, CGModel, CGWMModel, MCGModel]
+#     'discrete': [],
+#     'continuous': [],
+#     'mixed': [MCGModel]
 # }
+models = {
+    'discrete': [MockUpModel, CategoricalModel],
+    'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
+    'mixed': [MockUpModel, CGModel, CGWMModel, MCGModel]
+}
 
 model_setup = {
     ('continuous', MixtureOfGaussiansModel): lambda x: x.set_k(4)
@@ -92,7 +92,6 @@ def _test_aggregations(model):
     """Computes all available aggregations on the given model."""
     for aggr_method in model._aggrMethods:
         model.aggregate(aggr_method)
-        # model.aggregate_debug(aggr_method)
 
 
 def _test_density(model):
@@ -105,7 +104,6 @@ def _test_density(model):
     values = _values_of_extents(model.extents)
     for value in values:
         p = model.density(value)
-        # p = model.density_debug(value)
 
 
 def _test_marginalization_mixed(model):
@@ -132,7 +130,6 @@ def _test_marginalization_mixed(model):
 
             # derive marginal model
             m = m.model(names_to_keep)
-            # m = m.model_debug(names_to_keep)
 
             # try aggregations and density
             _test_aggregations(m)
@@ -156,7 +153,6 @@ def _test_marginalization_discrete(model):
 
         # derive marginal model
         m = m.model(names_to_keep)
-        # m = m.model_debug(names_to_keep)
 
         # try aggregations and density
         _test_aggregations(m)
@@ -197,7 +193,6 @@ def _test_conditioning_mixed(model):
 
                 # derive marginal model on copy
                 m = model.copy().model(model=names_to_keep, where=conditions)
-                #m = model.copy().model_debug(model=names_to_keep, where=conditions)
 
                 # try aggregations and density
                 _test_aggregations(m)

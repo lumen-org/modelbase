@@ -103,12 +103,12 @@ class MixableCondGaussianModel(md.Model):
                                                                  self._numericals)
         return self._unbound_updater,
 
-    def _update(self):   # exactly like CG WM!!
+    def _update(self):   # mostly like CG WM, but different update for _detS
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
         if len(self._numericals) == 0:
-            self._detS = xr.DataArray([])
-            self._SInv = xr.DataArray([])
             self._S = xr.DataArray([])
+            self._SInv = xr.DataArray([])
+            self._detS = xr.DataArray([])
             self._mu = xr.DataArray([])
         else:
             S = self._S
@@ -117,8 +117,8 @@ class MixableCondGaussianModel(md.Model):
             self._SInv = xr.DataArray(data=invS, coords=S.coords, dims=S.dims)  # reuse coords from Sigma
 
             detS = abs(det(S.values)) ** -0.5
-            if len(self._categoricals) == 0:
-                self._detS = xr.DataArray(data=detS)  # no coordinates left to use...
+            if len(self._categoricals) == 0 and len(self._marginalized) == 0:
+                self._detS = xr.DataArray(data=detS)  # no coordinates left to use... none needed, its a scalar now!
             else:
                 self._detS = xr.DataArray(data=detS, coords=self._p.coords, dims=self._p.dims)   # reuse coords from p
 
@@ -275,11 +275,11 @@ class MixableCondGaussianModel(md.Model):
             else:
                 p = self._p.sum(self._marginalized)   # sum over marginalized/shadowed fields
             return p.loc[cat].values
-
         # we get here only if there is any continuous fields left
+
         if len(self._marginalized) == 0:
             # no shadowed/marginalized fields. hence we cannot stack over them and the density query works as "normal"
-            # the following is copy and pasted from cond_gaussian_wm.py -> _density
+            # the following is copy-and-pasted from cond_gaussian_wm.py -> _density
             mu = self._mu.loc[cat].values
             detS = self._detS.loc[cat].values
             invS = self._SInv.loc[cat].values
@@ -293,6 +293,8 @@ class MixableCondGaussianModel(md.Model):
                 return p * gauss
         else:
             # dictionary of "categorical-field-name : value" for all given categorical values
+
+            # note: even if cat_len == 0, i.e. the following selections have 'empty cat_dict', it works
             cat_dict = dict(zip(self._categoricals, cat))
 
             # filter mu and sigma by the given categorical values in x, i.e. a view on these xarrays
@@ -347,16 +349,17 @@ class MixableCondGaussianModel(md.Model):
 
         # stack over all means (including the shadowed ones) in self_mu and keep coordinates of maximum cumulated density
         stack_over = self._marginalized + self._categoricals
+        len_so = len(stack_over)
         mu_stacked = self._mu.stack(pl_stack=stack_over)
         p_max = 0
         coord_max = None
         for mu_coord in mu_stacked.pl_stack:
             # assemble coordinates for density query
-            mu_coord = mu_coord.values.item()  # retrieve actual coordinates (puh... it's so ugly...)
+            mu_coord = mu_coord.item()
             mu_indexer = dict(pl_stack=mu_coord)
             num_coord = mu_stacked.loc[mu_indexer].values.tolist()
+            mu_coord = (mu_coord,) if len_so == 1 else mu_coord  # make sure it's a tuple (needed for _not_masked())
             cat_coord = _not_masked(mu_coord, self._marginalized_mask)  # remove coordinates of marginalized fields
-            #coord = cat_coord.extend(num_coord)
             coord = cat_coord + num_coord
 
             # query density and compare to so-far maximum
@@ -418,24 +421,6 @@ class MixableCondGaussianModel(md.Model):
             # return _maximum_mixable_cg_heuristic_a(
             #     cat_len, mrg_len, num_len, self._marginalized_mask, self._mu, self._p, self._detS)
             return self._maximum_mixable_cg_heuristic_b()
-
-            # # find compound maximum
-            #
-            # # compute pseudo-density at all gaussian means to find maximum
-            # p = self._p * self._detS
-            #
-            # # sum over marginalized fields
-            # p = p.sum(self._marginalized)
-            #
-            # # get view on maximum (coordinates remain)
-            # pmax = p.where(p == p.max(), drop=True)
-            #
-            # # now figure out the coordinates
-            # cat_argmax = [idx[0] for idx in pmax.indexes.values()]  # extract categorical coordinates from indexes
-            # num_argmax = self._mu.loc[tuple(cat_argmax)]  # extract numerical coordinates as mean
-            #
-            # # return compound coordinates
-            # return cat_argmax + list(num_argmax.values)
 
     # mostly like cg wm
     def copy(self, name=None):
