@@ -39,6 +39,7 @@ import pandas as pd
 
 import domains as dm
 import models as md
+import models_debug  # causes a lot of debug messages
 from mockup_model import MockUpModel
 from categoricals import CategoricalModel
 from gaussians import MultiVariateGaussianModel as GaussianModel
@@ -90,13 +91,8 @@ def _values_of_extents(extents):
 def _test_aggregations(model):
     """Computes all available aggregations on the given model."""
     for aggr_method in model._aggrMethods:
-        log_str = "arg-" + aggr_method + "(" + md.model_to_str(model) + ")"
-        try:
-            aggr = model.aggregate(aggr_method)
-            logger.debug(log_str + " = " + str(aggr))
-        except:
-            logger.error(log_str + "failed!!")
-            raise
+        model.aggregate(aggr_method)
+        # model.aggregate_debug(aggr_method)
 
 
 def _test_density(model):
@@ -108,14 +104,8 @@ def _test_density(model):
      """
     values = _values_of_extents(model.extents)
     for value in values:
-
-        log_str = md.model_to_str(model) + str(value)
-        try:
-            p = model.density(value)
-            logger.debug(log_str, " = ", str(p))
-        except:
-            logger.error(log_str, "failed!!")
-            raise
+        p = model.density(value)
+        # p = model.density_debug(value)
 
 
 def _test_marginalization_mixed(model):
@@ -141,15 +131,8 @@ def _test_marginalization_mixed(model):
             random.shuffle(names_to_keep)
 
             # derive marginal model
-            #  <name>(#sex, ±age) - {#sex} =  <name>(±age)
-            #log_str = md.model_to_str(model) + " - " + "{" \
-            #          + ",".join([md.field_to_str(model.byname(name))  for name in names_to_marginalize]) + "}"
-            #try:
             m = m.model(names_to_keep)
-            #    logger.debug(log_str + " = " + md.model_to_str(m))
-            #except:
-            #    logger.error(log_str + "failed!!")
-            #    raise
+            # m = m.model_debug(names_to_keep)
 
             # try aggregations and density
             _test_aggregations(m)
@@ -173,6 +156,7 @@ def _test_marginalization_discrete(model):
 
         # derive marginal model
         m = m.model(names_to_keep)
+        # m = m.model_debug(names_to_keep)
 
         # try aggregations and density
         _test_aggregations(m)
@@ -213,6 +197,7 @@ def _test_conditioning_mixed(model):
 
                 # derive marginal model on copy
                 m = model.copy().model(model=names_to_keep, where=conditions)
+                #m = model.copy().model_debug(model=names_to_keep, where=conditions)
 
                 # try aggregations and density
                 _test_aggregations(m)
@@ -235,6 +220,7 @@ def _test_conditioning_discrete(model):
 
             # derive marginal model on copy
             m = model.copy().model(model=names_to_keep, where=conditions)
+            # m = model.copy().model_debug(model=names_to_keep, where=conditions)
 
             # try aggregations and density
             _test_aggregations(m)
@@ -271,9 +257,13 @@ def test_all():
             model.fit(df=data[mode])
 
             # test model
+            logger.debug("## Testing aggregations of " + model.name)
             _test_aggregations(model)
+            logger.debug("## Testing density of " + model.name)
             _test_density(model)
+            logger.debug("## Testing marginalization of " + model.name)
             _test_marginalization[mode](model)
+            logger.debug("## Testing conditioning of " + model.name)
             _test_conditioning[mode](model)
 
 
@@ -282,7 +272,11 @@ class TestGeneric(unittest.TestCase):
         test_all()
 
 if __name__ == '__main__':
+
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     logger.addHandler(ch)
+
+    logging.root.setLevel(logging.DEBUG)
+
     unittest.main()
