@@ -37,7 +37,6 @@ def model_debug(self, model='*', where=[], as_=None):
 
     try:
         m = _original_model(self, model, where, as_)
-        # m = self.model(model, where, as_)
     except:
         logger.error(log_str + "failed!!")
         raise
@@ -49,7 +48,6 @@ def aggregate_debug(self, method, opts=None):
     log_str = "arg-" + str(method) + "(" + md.model_to_str(self) + ")"
     try:
         aggr = _original_aggregate(self, method, opts)
-        # aggr = self.aggregate(method, opts)
     except:
         logger.error(log_str + "failed!!")
         raise
@@ -60,7 +58,7 @@ def aggregate_debug(self, method, opts=None):
 def density_debug(self, names, values=None):
     if values is None:
         # in that case the only argument holds the (correctly sorted) values
-        name_strings =  [md.field_to_str(field) for field in self.fields]
+        name_strings = [md.field_to_str(field) for field in self.fields]
         values_ = names
     else:
         # name value pairs are given

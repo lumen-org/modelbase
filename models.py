@@ -116,7 +116,8 @@ def field_to_str(fields):
 
 def model_to_str(model):
     field_strs = [field_to_str(field) for field in model.fields]
-    return model.name + "(" + ",".join(field_strs) + ")"
+    prefix = "" if model.mode == "both" else (model.mode + "@")
+    return prefix + model.name + "(" + ",".join(field_strs) + ")"
 
 
 def condition_to_str(model, condition):
@@ -235,8 +236,6 @@ class Model:
         .marginalize, .condition, .predict-methods.
     """
 
-    # TODO: performance: introduce field lookup by name, i.e. _name2field
-
     def __str__(self):
         # TODO: add some more useful print out functions / info to that function
         return (self.__class__.__name__ + " " + self.name + "':\n" +
@@ -262,19 +261,31 @@ class Model:
     def byname(self, names):
         """Given a list of names of random variables, returns the corresponding
         fields of this model.
+
+        Note that this function correctly resolve the special field name 'model vs data'.
         """
+        def _byname(name):
+            try:
+                return self.fields[self._name2idx[names]]
+            except KeyError as ke:
+                if ke.args[0] == 'model vs data':
+                    return self._modeldata_field
+                raise
+
         if isinstance(names, str):
-            return self.fields[self._name2idx[names]]
+            return _byname(names)
         else:
-            return [self.fields[self._name2idx[name]] for name in names]
+            #return [self.fields[self._name2idx[name]] for name in names]
+            return [_byname for name in names]
 
     def isfieldname(self, names):
         """Returns true iff the single string or list of strings given as variables names are (all) names of random
         variables of this model.
         """
         if isinstance(names, str):
-            names = [names]
-        return all([name in self._name2idx for name in names])
+            return names in self._name2idx
+        else:
+            return all([name in self._name2idx for name in names])
 
     def inverse_names(self, names, sorted_=False):
         """Given a sequence of names of random variables (or a single name), returns a sorted list of all names
@@ -665,26 +676,8 @@ class Model:
         else:
             raise ValueError("invalid value for method: " + str(method))
 
-    def aggregate(self, method, opts=None):
-        """Aggregates this model using the given method and returns the
-        aggregation as a list. The order of elements in the list matches the
-        order of random variables in fields attribute of the model.
-
-        Returns:
-            The aggregation of the model. It always returns a list, even if it contains only a single value.
-        """
-
-        if self._isempty():
-            raise ValueError('Cannot query aggregation of 0-dimensional model')
-
-        # the data part can be aggregated without any model specific code and merged into the model results at the end
-        # see my notes for how to calculate a single aggregation
-        mode = self.mode
-        if mode == "data" or mode == "both":
-            data_res = self.aggregate_data(method, opts)
-            if mode == "data":
-                return data_res
-
+    def aggregate_model(self, method, opts=None):
+        """Aggregate the model according to given method and options and return the aggregation value."""
         # need index to merge results later
         other_idx = []
         singular_idx = []
@@ -725,13 +718,28 @@ class Model:
 
             # 5. merge with singular results
             model_res = utils.mergebyidx(singular_res, other_res, singular_idx, other_idx)
+        return model_res
 
+    def aggregate(self, method, opts=None):
+        """Aggregates this model using the given method and returns the
+        aggregation as a list. The order of elements in the list matches the
+        order of random variables in fields attribute of the model.
+
+        Returns:
+            The aggregation of the model. It always returns a list, even if it contains only a single value.
+        """
+        if self._isempty():
+            raise ValueError('Cannot aggregate a 0-dimensional model')
+        # the data part can be aggregated without any model specific code and merged into the model results at the end
+        # see my notes for how to calculate a single aggregation
+        mode = self.mode
+        if mode == "both":
+            return self.aggregate_model(method, opts), self.aggregate_data(method, opts)
         if mode == "model":
-            return model_res
-        elif mode == "both":
-            return model_res, data_res
-        else:
-            raise ValueError("invalid value for mode : ", str(mode))
+            return self.aggregate_model(method, opts)
+        if mode == "data":
+            return self.aggregate_data(method, opts)
+        raise ValueError("invalid value for mode : ", str(mode))
 
     def density(self, names, values=None):
         """Returns the density at given point. You may either pass both, names
@@ -754,6 +762,7 @@ class Model:
         # TODO: design: the way of handling the 'model vs data' field sucks ... how to do it better?
         # TODO: also, this is a lot of code for just querying density!? we need a _fast_ way to do that,
         # i.e. an interface that is used internally needs little preprocessing
+        # TODO/idea: different way of passing it in: as a dict of name-of-field : value ?
 
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
@@ -821,6 +830,9 @@ class Model:
                 except (TypeError, IndexError):
                     v.append(value)
             return v
+
+        # put debug / log code here
+        # TODO ??
 
         if mode == "both" or mode == "data":
             cnt = len(filter_(self.data, zip(self.names, values)))
