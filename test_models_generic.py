@@ -54,16 +54,16 @@ logger.setLevel(logging.INFO)
 
 # REGISTER ALL YOUR MODEL SUBCLASSES TO TEST HERE
 # model classes
-# models = {
-#     'discrete': [],
-#     'continuous': [],
-#     'mixed': [MCGModel]
-# }
 models = {
-    'discrete': [MockUpModel, CategoricalModel],
-    'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
-    'mixed': [MockUpModel, CGModel, CGWMModel, MCGModel]
+    'discrete': [],
+    'continuous': [],
+    'mixed': [MCGModel]
 }
+# models = {
+#     'discrete': [MockUpModel, CategoricalModel],
+#     'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
+#     'mixed': [CGModel, CGWMModel, MCGModel]
+# }
 
 model_setup = {
     ('continuous', MixtureOfGaussiansModel): lambda x: x.set_k(4)

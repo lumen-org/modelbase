@@ -99,18 +99,18 @@ def name_to_str(model, names):
     """Given a single name or a list of names of random variables, returns
     a concise string representation of these.
     """
-    if isinstance(names, str):
-        return field_to_str(model.byname(names))
-    else:
-        lst = [field_to_str(model.byname(name)) for name in names]
-        return "(" + ",".join(lst) + ")"
+    return field_to_str(model.byname(names))
 
 
 def field_to_str(fields):
+    def _field_to_str(field):
+        return ('#' if field['dtype'] == 'string' else '±') + field['name'] \
+               + ("*" if field['domain'].isbounded() else "")   # * marks fields with bounded domains
+
     if isinstance(fields, dict):
-        return ('#' if fields['dtype'] == 'string' else '±') + fields['name']
+        return _field_to_str(fields)
     else:
-        lst = [('#' if field['dtype'] == 'string' else '±') + field['name'] for field in fields]
+        lst = [_field_to_str(field) for field in fields]
         return "(" + ",".join(lst) + ")"
 
 
@@ -266,7 +266,7 @@ class Model:
         """
         def _byname(name):
             try:
-                return self.fields[self._name2idx[names]]
+                return self.fields[self._name2idx[name]]
             except KeyError as ke:
                 if ke.args[0] == 'model vs data':
                     return self._modeldata_field
@@ -275,8 +275,7 @@ class Model:
         if isinstance(names, str):
             return _byname(names)
         else:
-            #return [self.fields[self._name2idx[name]] for name in names]
-            return [_byname for name in names]
+            return [_byname(name) for name in names]
 
     def isfieldname(self, names):
         """Returns true iff the single string or list of strings given as variables names are (all) names of random
