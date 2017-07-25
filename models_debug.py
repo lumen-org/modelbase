@@ -33,6 +33,8 @@ _fail_str = " FAILED! see below"
 
 
 def model_debug(self, model='*', where=[], as_=None):
+    if isinstance(where, zip):
+        where = list(where)
     name_string = "" if as_ is None else (" as " + as_)
     logger.debug("model " + md.model_to_str(self) + name_string + " as follows: ... ")
     m = _original_model(self, model, where, as_)
@@ -41,6 +43,8 @@ def model_debug(self, model='*', where=[], as_=None):
 
 
 def condition_debug(self, conditions=[], is_pure=False):
+    if isinstance(conditions, zip):
+        conditions = list(conditions)
     model_str = "condition " + md.model_to_str(self)
     where_str = " such that " + md.conditions_to_str(self, conditions)
     log_str = model_str + where_str

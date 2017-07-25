@@ -534,7 +534,7 @@ class Model:
         """
         if remove is None:
             remove = self.inverse_names(keep, sorted_=True)
-        elif keep is None:
+        if keep is None:
             keep = self.inverse_names(remove, sorted_=True)
         # else:
         #     raise ValueError("specify at least one of 'keep' and 'remove'!")
@@ -1096,7 +1096,7 @@ class Model:
         if 'model vs data' not in split_names \
                 and 'model vs data' not in filter_names\
                 and self.mode == 'both':
-            where.append(('model vs data', 'equals', 'model'))
+            where.append(('model vs data', '==', 'model'))
             filter_names.append('model vs data')
             splitby.append(('model vs data', 'identity', []))
             split_names.append('model vs data')

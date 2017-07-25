@@ -10,6 +10,15 @@ such and it is not intended for that.
 
 Such tests must be model specific and are hence found in the corresponding model specific test scripts.
 
+What queries are generated?
+
+ * 0th order aggregations and density queries (a&d queries): executed against the full model
+ * 1st order a&d queries: executed against many(*) marginal models based on the full model
+ * 1st order a&d queries: executed against many(**) conditional models based on the full model
+ * 2nd order a&d queries: executed against many(*) marginal models based on the above 1st order models
+ * 2nd order a&d queries: executed against many(*) conditional models based on the above 1st order models
+ * 3rd order: continues like this
+
 Thinking about useful console output for this test module:
 
   * output should help to identify where and when an uncaught exception was raised
@@ -19,16 +28,6 @@ Thinking about useful console output for this test module:
   * also useful as context information:
     * if operation was successful: what it its result?
 
-appropriate logging messages:
-  * modelling:
-     <name>(#sex, ±age) - {#sex} =  <name>(±age)
-     <name>(#sex, ±age) - {±age = 30} = <name>(#sex)
-
-  * density:
-      <name>(#sex=Male, ±age=30) = (0.35)
-
-  * aggregation:
-      arg-<method>(<name>(#sex,±age)) = (Male,25)
 """
 import unittest
 import logging
@@ -51,7 +50,7 @@ from mixable_cond_gaussian import MixableCondGaussianModel as MCGModel
 import data.crabs.crabs as crabs
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 # REGISTER ALL YOUR MODEL SUBCLASSES TO TEST HERE
 # model classes
@@ -88,25 +87,30 @@ def _values_of_extents(extents):
             [middle(extent) for extent in extents]]
 
 
-def _test_aggregations(model):
+def _test_aggregations(model, info):
     """Computes all available aggregations on the given model."""
+    logger.debug("(" + str(info) + ") Testing aggregations of " + model.name)
     for aggr_method in model._aggrMethods:
-        model.aggregate(aggr_method)
+        a = model.aggregate(aggr_method)
 
 
-def _test_density(model):
+def _test_density(model, info):
     """Computes densities on the current model.
     It runs three density queries:
      * at the 'lowest/first' value of each field's extent
      * at the 'highest/last' value of each field's extent
      * at the 'middle/average' value of each field's extent
      """
+    logger.debug("(" + str(info) + ") Testing density of " + model.name)
     values = _values_of_extents(model.extents)
     for value in values:
         p = model.density(value)
 
 
-def _test_marginalization_mixed(model):
+def _test_marginalization_mixed(model, depth, info):
+    logger.debug("# (" + str(info) + ") Testing marginalization of " + model.name)
+    depth -= 1
+    info += "m"
     # categorical and continuous names
     cat = model._categoricals
     num = model._numericals
@@ -132,12 +136,19 @@ def _test_marginalization_mixed(model):
             m = m.model(names_to_keep)
 
             # try aggregations and density
-            _test_aggregations(m)
-            _test_density(m)
-    pass
+            _test_aggregations(m, info)
+            _test_density(m, info)
+
+            # recurse down?
+            if depth > 0:
+                _test_marginalization_mixed(m, 1, info)
+                _test_conditioning_mixed(m, depth, info)
 
 
-def _test_marginalization_discrete(model):
+def _test_marginalization_discrete(model, depth, info):
+    logger.info("# (" + str(info) + ") Testing marginalization of " + model.name)
+    depth -= 1
+    info += "m"
     # run marginalize queries
     # loop over number of fields to remove at once: 1 to model.dim-1 many
     for n in range(1, model.dim):
@@ -155,8 +166,13 @@ def _test_marginalization_discrete(model):
         m = m.model(names_to_keep)
 
         # try aggregations and density
-        _test_aggregations(m)
-        _test_density(m)
+        _test_aggregations(m, info)
+        _test_density(m, info)
+
+        # recurse down?
+        if depth > 0:
+            _test_marginalization_discrete(m, 1, info)
+            _test_conditioning_discrete(m, depth, info)
 
 _test_marginalization_continuous = _test_marginalization_discrete  # it really is the same
 
@@ -167,8 +183,13 @@ _test_marginalization = {
 }
 
 
-def _test_conditioning_mixed(model):
+def _test_conditioning_mixed(model, depth, info):
+    logger.info("# (" + str(info) + ") Testing conditioning of " + model.name)
+    depth -= 1
+    info += "c"
+
     # categorical and continuous names
+    # Note: this assumes, that all mixed models have these protected attributes!
     cat = model._categoricals
     num = model._numericals
 
@@ -195,11 +216,19 @@ def _test_conditioning_mixed(model):
                 m = model.copy().model(model=names_to_keep, where=conditions)
 
                 # try aggregations and density
-                _test_aggregations(m)
-                _test_density(m)
+                _test_aggregations(m, info)
+                _test_density(m, info)
+
+                # recurse down?
+                if depth > 0:
+                    _test_conditioning_mixed(m, 1, info)
+                    _test_marginalization_mixed(m, depth, info)
 
 
-def _test_conditioning_discrete(model):
+def _test_conditioning_discrete(model, depth, info):
+    logger.info("# (" + str(info) + ") Testing conditioning of " + model.name)
+    depth -= 1
+    info += "c"
     for n in range(1, model.dim):
         # conditions
         names_to_condition_out = model.names[:n]
@@ -215,11 +244,15 @@ def _test_conditioning_discrete(model):
 
             # derive marginal model on copy
             m = model.copy().model(model=names_to_keep, where=conditions)
-            # m = model.copy().model_debug(model=names_to_keep, where=conditions)
 
             # try aggregations and density
-            _test_aggregations(m)
-            _test_density(m)
+            _test_aggregations(m, info)
+            _test_density(m, info)
+
+            # recurse down?
+            if depth > 0:
+                _test_marginalization_discrete(m, depth, info)
+                _test_conditioning_discrete(m, 1, info)
             
 _test_conditioning_continuous = _test_conditioning_discrete  # it really is the same
 
@@ -240,6 +273,9 @@ def test_all():
         'mixed': df
     }
 
+    # set recursive depth
+    depth = 3
+
     for mode in ['discrete', 'continuous', 'mixed']:
         for model_class in models[mode]:
             # create and fit model
@@ -252,14 +288,10 @@ def test_all():
             model.fit(df=data[mode])
 
             # test model
-            logger.debug("## Testing aggregations of " + model.name)
-            _test_aggregations(model)
-            logger.debug("## Testing density of " + model.name)
-            _test_density(model)
-            logger.debug("## Testing marginalization of " + model.name)
-            _test_marginalization[mode](model)
-            logger.debug("## Testing conditioning of " + model.name)
-            _test_conditioning[mode](model)
+            _test_aggregations(model, "")
+            _test_density(model, "")
+            _test_marginalization[mode](model, depth, "")
+            _test_conditioning[mode](model, depth, "")
 
 
 class TestGeneric(unittest.TestCase):
