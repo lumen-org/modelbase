@@ -97,12 +97,22 @@ def field_tojson(field):
 
 def name_to_str(model, names):
     """Given a single name or a list of names of random variables, returns
-    a concise string representation of these.
+    a concise string representation of these. See field_to_str()
     """
     return field_to_str(model.byname(names))
 
 
 def field_to_str(fields):
+    """Given a single field or a list of fields, returns a concise string representation of these. As EBNF:
+
+        (#|±)<name>[*]
+
+    where
+        # denotes a categorical field
+        ± denotes a numerical field
+        <name> is the fields name
+        * denotes a field with bound domain (i.e. it is already conditioned on it)
+    """
     def _field_to_str(field):
         return ('#' if field['dtype'] == 'string' else '±') + field['name'] \
                + ("*" if field['domain'].isbounded() else "")   # * marks fields with bounded domains
@@ -121,7 +131,6 @@ def model_to_str(model):
 
 
 def condition_to_str(model, condition):
-    """Returns a """
     field_str = field_to_str(model.byname(condition[NAME_IDX]))
     op_str = condition[OP_IDX]
     value_str = str(condition[VALUE_IDX])
@@ -531,6 +540,7 @@ class Model:
             You have to specify at least one of keep and remove.
             Neither keep nor remove may contain the field 'model vs data'.
         """
+        assert(keep is not None or remove is not None)
         if remove is None:
             remove = self.inverse_names(keep, sorted_=True)
         if keep is None:
@@ -552,11 +562,11 @@ class Model:
             self._update_remove_fields(cond_out)
             for callback in callbacks:
                 callback()
+            remove = self.inverse_names(keep, sorted_=True)  # do it again, because fields may have changed ??
 
         if len(keep) == self.dim or self._isempty():
             return self
 
-        remove = self.inverse_names(keep, sorted_=True)  # do it again, because fields may have changed ??
         callbacks = self._marginalizeout(keep, remove)
         self._update_remove_fields(remove)
         for callback in callbacks:

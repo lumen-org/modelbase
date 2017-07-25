@@ -9,6 +9,8 @@ import xarray as xr
 import models as md
 import cond_gaussian_wm as cgwm
 
+import data.crabs.crabs as crabs
+
 # setup logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -70,7 +72,6 @@ class MixableCondGaussianModel(md.Model):
       * can I reuse code from cond_gaussian_wm.py? I sure can, but I would love to avoid code duplication...
 
     """
-    pass
 
     def __init__(self, name):
         super().__init__(name)
@@ -103,6 +104,35 @@ class MixableCondGaussianModel(md.Model):
                                                                  self._numericals)
         return self._unbound_updater,
 
+    def _assert_invariants(self):
+        """Check for some invariants and raise AssertionError if violated, since this represents a severe bug."""
+        marg_set = set(self._marginalized)
+        cat_set =  set(self._categoricals)
+        p_set = set(self._p.dims)
+        s_set = set(self._S.dims)
+        invs_set = set(self._SInv.dims)
+        dets_set = set(self._detS.dims)
+        mu_set = set(self._mu.dims)
+
+        # (1) non of the shadowed fields may still be in _categorical, i.e. the intersection is empty
+        assert(len(marg_set & cat_set) == 0)
+        # (2) all of the shadowed fields must exist in _p.dims
+        assert(p_set.issuperset(marg_set))
+        # (3) the union of shadowed field names and remaining categorical field names must be identical to _p.dims
+        assert(marg_set | cat_set == p_set)
+        # (4) dimensions of _S, _invS must be identical
+        assert(s_set == invs_set)
+        # (5) dimensions of _S[:-2] and _mu[:-1] and _p and dets_set must be identical
+        if len(self._numericals) > 0:
+            mu_set.remove("mean")
+            s_set.remove("S1")
+            s_set.remove("S2")
+            assert(p_set == s_set == mu_set == dets_set)
+        # (6) matching "True"s
+        assert sum(self._marginalized_mask) == len(marg_set)
+        # (7) marginalized mask must have proper length
+        assert len(self._marginalized_mask) >= len(p_set)
+
     def _update(self):   # mostly like CG WM, but different update for _detS
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
         if len(self._numericals) == 0:
@@ -124,6 +154,8 @@ class MixableCondGaussianModel(md.Model):
 
         if len(self._categoricals) == 0 and len(self._marginalized) == 0:
             self._p = xr.DataArray([])
+
+        self._assert_invariants()
 
         return self
 
@@ -149,14 +181,19 @@ class MixableCondGaussianModel(md.Model):
 
         # mark newly marginalized categorical fields as such
         self._marginalized += cat_remove
-        for idx in self.asindex(cat_remove):
-            assert(not self._marginalized_mask[idx])
-            self._marginalized_mask[idx]= True
+        cat_names = self._p.dims
+        for name in cat_remove:
+            # find index. we must find the index of that field in all the remaining categorical fields, shadowed or not
+            idx = cat_names.index(name)
+            assert (not self._marginalized_mask[idx])
+            self._marginalized_mask[idx] = True
 
         return self._unbound_updater,
 
     def _conditionout(self, keep, remove):   # exactly like CG WM!!
         remove = set(remove)
+
+        cat_dims = self._p.dims  # safe current categorical dims for later reuse
 
         # condition on categorical fields
         cat_remove = [name for name in self._categoricals if name in remove]
@@ -229,8 +266,14 @@ class MixableCondGaussianModel(md.Model):
         self._numericals = [name for name in self._numericals if name not in remove]
 
         # update marginalized mask
-        for idx in reversed(self.asindex(cat_remove)):  # important: delete elements from end to start
-            del self._marginalized_mask[idx]
+        # TODO: use some acceleration data structure?
+        # (i) get indexes of the conditioned-out categorical fields in self._marginalized_mask
+        # (we now reuse the saved cat_dims from the beginning of the function)
+        cat_remove_idxs = set(cat_dims.index(name) for name in cat_remove)
+        # (ii) throw mask entries
+        self._marginalized_mask = [v for idx, v in enumerate(self._marginalized_mask) if idx not in cat_remove_idxs]
+        assert sum(self._marginalized_mask) == len(self._marginalized)
+        assert len(self._marginalized_mask) >= len(self._p.dims)
 
         return self._unbound_updater,
 
@@ -321,7 +364,12 @@ class MixableCondGaussianModel(md.Model):
                 detS = detS_stacked.loc[detS_indexer].values
                 p = p_stacked.loc[p_indexer].values
 
-                xmu = num - mu
+                try:
+                    xmu = num - mu
+                except TypeError:
+                    print("here")
+                    raise
+
                 gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
 
                 gauss_sum += p * gauss
@@ -437,15 +485,17 @@ class MixableCondGaussianModel(md.Model):
 
 
 if __name__ == '__main__':
+
     # load data
+    data = crabs.mixed('data/crabs/australian-crabs.csv')
 
     # fit model
+    m = MixableCondGaussianModel(name="foo_model")
+    m.fit(df=data)
 
-    # run query: marginalization of discrete
+    orig = m.copy()
 
-    # run query: marginalization of continuous
+    m = m.model(model=["RW"])
+    aggr = m.aggregate("maximum")
 
-    # run query: density
-
-    # run query: aggregation over
-    pass
+    print(aggr)

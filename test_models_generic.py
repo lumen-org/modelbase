@@ -50,7 +50,8 @@ from mixable_cond_gaussian import MixableCondGaussianModel as MCGModel
 import data.crabs.crabs as crabs
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+# logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 # REGISTER ALL YOUR MODEL SUBCLASSES TO TEST HERE
 # model classes
@@ -89,6 +90,10 @@ def _values_of_extents(extents):
 
 def _test_aggregations(model, info):
     """Computes all available aggregations on the given model."""
+
+    if info == "mc" and model.dim == 2 and len(model._categoricals) == 0:
+        info += ""  # just to set breakpoints
+
     logger.debug("(" + str(info) + ") Testing aggregations of " + model.name)
     for aggr_method in model._aggrMethods:
         a = model.aggregate(aggr_method)
@@ -119,7 +124,7 @@ def _test_marginalization_mixed(model, depth, info):
     # loop over number of fields to remove at once: 1 to model.dim-1 many
     for n in range(1, model.dim):
         # loop over how many of the fields to remove are categorical
-        for cat_n in range(1, n):
+        for cat_n in range(0, n):
             num_n = n - cat_n
 
             # create copy
@@ -197,7 +202,7 @@ def _test_conditioning_mixed(model, depth, info):
     # loop over number of fields to condition out at once: 1 to model.dim-1 many
     for n in range(1, model.dim):
         # loop over how many of the fields to condition out are categorical
-        for cat_n in range(1, n):
+        for cat_n in range(0, n):
             num_n = n - cat_n
 
             # conditions
@@ -274,7 +279,7 @@ def test_all():
     }
 
     # set recursive depth
-    depth = 3
+    depth = 2
 
     for mode in ['discrete', 'continuous', 'mixed']:
         for model_class in models[mode]:
@@ -306,4 +311,7 @@ if __name__ == '__main__':
 
     logging.root.setLevel(logging.DEBUG)
 
-    unittest.main()
+    test_all()
+
+   # unittest.main()
+
