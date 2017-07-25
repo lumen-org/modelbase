@@ -108,7 +108,7 @@ class MixableCondGaussianModel(md.Model):
         """Check for some invariants and raise AssertionError if violated, since this represents a severe bug."""
         marg_set = set(self._marginalized)
         cat_set =  set(self._categoricals)
-        p_set = set(self._p.dims)
+        p_set = set(self._p.dims) if len(self._p) > 0 else set()
         s_set = set(self._S.dims)
         invs_set = set(self._SInv.dims)
         dets_set = set(self._detS.dims)

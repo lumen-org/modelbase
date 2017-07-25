@@ -29,7 +29,7 @@ Thinking about useful console output for this test module:
     * if operation was successful: what it its result?
 
 """
-import unittest
+#import unittest
 import logging
 
 import random
@@ -38,7 +38,7 @@ import pandas as pd
 
 import domains as dm
 import models as md
-import models_debug  # causes a lot of debug messages
+#import models_debug  # causes a lot of debug messages
 from mockup_model import MockUpModel
 from categoricals import CategoricalModel
 from gaussians import MultiVariateGaussianModel as GaussianModel
@@ -50,8 +50,9 @@ from mixable_cond_gaussian import MixableCondGaussianModel as MCGModel
 import data.crabs.crabs as crabs
 
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.INFO)
-logger.setLevel(logging.DEBUG)
+#logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
+#logger.setLevel(logging.DEBUG)
 
 # REGISTER ALL YOUR MODEL SUBCLASSES TO TEST HERE
 # model classes
@@ -60,11 +61,11 @@ models = {
     'continuous': [],
     'mixed': [MCGModel]
 }
-# models = {
-#     'discrete': [MockUpModel, CategoricalModel],
-#     'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
-#     'mixed': [CGModel, CGWMModel, MCGModel]
-# }
+models = {
+    'discrete': [MockUpModel, CategoricalModel],
+    'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
+    'mixed': [CGModel, CGWMModel, MCGModel]
+}
 
 model_setup = {
     ('continuous', MixtureOfGaussiansModel): lambda x: x.set_k(4)
@@ -91,8 +92,8 @@ def _values_of_extents(extents):
 def _test_aggregations(model, info):
     """Computes all available aggregations on the given model."""
 
-    if info == "mc" and model.dim == 2 and len(model._categoricals) == 0:
-        info += ""  # just to set breakpoints
+    #if info == "mc" and model.dim == 2 and len(model._categoricals) == 0:
+    #    info += ""  # just to set breakpoints
 
     logger.debug("(" + str(info) + ") Testing aggregations of " + model.name)
     for aggr_method in model._aggrMethods:
@@ -279,7 +280,7 @@ def test_all():
     }
 
     # set recursive depth
-    depth = 2
+    depth = 3
 
     for mode in ['discrete', 'continuous', 'mixed']:
         for model_class in models[mode]:
@@ -292,6 +293,9 @@ def test_all():
 
             model.fit(df=data[mode])
 
+            # only model requests
+            model.mode = "model"
+
             # test model
             _test_aggregations(model, "")
             _test_density(model, "")
@@ -299,9 +303,9 @@ def test_all():
             _test_conditioning[mode](model, depth, "")
 
 
-class TestGeneric(unittest.TestCase):
-    def test_first(self):
-        test_all()
+# class TestGeneric(unittest.TestCase):
+#     def test_first(self):
+#         test_all()
 
 if __name__ == '__main__':
 
@@ -309,7 +313,7 @@ if __name__ == '__main__':
     ch.setLevel(logging.DEBUG)
     logger.addHandler(ch)
 
-    logging.root.setLevel(logging.DEBUG)
+    logging.root.setLevel(logger.level)
 
     test_all()
 
