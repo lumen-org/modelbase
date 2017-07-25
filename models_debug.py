@@ -16,29 +16,54 @@ import logging
 import models as md
 
 logger = logging.getLogger(__name__)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-logger.addHandler(ch)
+#ch = logging.StreamHandler()
+#ch.setLevel(logging.DEBUG)
+#logger.addHandler(ch)
 logger.setLevel(logging.DEBUG)
 
 
 # safe original references. They are reused in the debugging versions of the functions below.
 _original_model = md.Model.model
+_original_condition = md.Model.condition
+_original_marginalize = md.Model._marginalize
 _original_aggregate = md.Model.aggregate
 _original_density = md.Model.density
 
+_fail_str = " FAILED! see below"
+
 
 def model_debug(self, model='*', where=[], as_=None):
-    model_str = "model " + md.model_to_str(self)
-    remove_names = self.inverse_names(self.names if model == "*" else model)
-    removing_str = "" if len(remove_names) == 0 else " by removing " + md.name_to_str(self, remove_names)
-    where_str = "" if len(where) == 0 else " where " + md.conditions_to_str(self, where)
-    log_str = model_str + removing_str + where_str
+    name_string = "" if as_ is None else (" as " + as_)
+    logger.debug("model " + md.model_to_str(self) + name_string + " as follows: ... ")
+    m = _original_model(self, model, where, as_)
+    logger.debug(".. modelling successful.")
+    return m
+
+
+def condition_debug(self, conditions=[], is_pure=False):
+    model_str = "condition " + md.model_to_str(self)
+    where_str = " such that " + md.conditions_to_str(self, conditions)
+    log_str = model_str + where_str
+    try:
+        m = _original_condition(self, conditions, is_pure)
+    except:
+        logger.error(log_str + _fail_str)
+        raise
+    logger.debug(log_str + " ==> " + md.model_to_str(m))
+    return m
+
+
+def marginalize_debug(self, keep=None, remove=None):
+    model_str = "marginalize " + md.model_to_str(self)
+    if remove is None:
+        remove = self.inverse_names(keep, sorted_=True)
+    removing_str = " <nothing> " if len(remove) == 0 else " by removing " + md.name_to_str(self, remove)
+    log_str = model_str + removing_str
 
     try:
-        m = _original_model(self, model, where, as_)
+        m = _original_marginalize(self, keep, remove)
     except:
-        logger.error(log_str + "failed!!")
+        logger.error(log_str + _fail_str)
         raise
     logger.debug(log_str + " ==> " + md.model_to_str(m))
     return m
@@ -49,7 +74,7 @@ def aggregate_debug(self, method, opts=None):
     try:
         aggr = _original_aggregate(self, method, opts)
     except:
-        logger.error(log_str + "failed!!")
+        logger.error(log_str + _fail_str)
         raise
     logger.debug(log_str + " = " + str(aggr))
     return aggr
@@ -70,7 +95,7 @@ def density_debug(self, names, values=None):
         p = _original_density(self, names, values)
         # p = self.density(names, values)
     except:
-        logger.error(log_str, "failed!!")
+        logger.error(log_str + _fail_str)
         raise
     logger.debug(log_str + " = " + str(p))
     return p
@@ -80,6 +105,5 @@ def density_debug(self, names, values=None):
 md.Model.model = model_debug
 md.Model.aggregate = aggregate_debug
 md.Model.density = density_debug
-# md.Model.model_debug = model_debug
-# md.Model.aggregate_debug = aggregate_debug
-# md.Model.density_debug = density_debug
+md.Model.condition = condition_debug
+md.Model._marginalize = marginalize_debug  # override internal version!

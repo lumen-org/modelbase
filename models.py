@@ -517,7 +517,27 @@ class Model:
             return self._setempty()
 
         keep = self.sorted_names(keep)
-        remove = self.inverse_names(keep, sorted_=True)
+        return self._marginalize(keep)
+
+    def _marginalize(self, keep=None, remove=None):
+        """Marginalize the fields given in remove, keeping those in keep.
+
+        This is the internal version of the public method marginalize. You probably want to call that one.
+
+        Args:
+            keep: the names of the fields to keep, in the same order than in self.fields.
+            remove: the names of the fields to remove, in the same order than in self.fields.
+
+        Notes:
+            You have to specify at least one of keep and remove.
+            Neither keep nor remove may contain the field 'model vs data'.
+        """
+        if remove is None:
+            remove = self.inverse_names(keep, sorted_=True)
+        elif keep is None:
+            keep = self.inverse_names(remove, sorted_=True)
+        # else:
+        #     raise ValueError("specify at least one of 'keep' and 'remove'!")
         cond_out = [name for name in remove if self.byname(name)['domain'].isbounded()]
 
         # Data marginalization
@@ -537,7 +557,7 @@ class Model:
         if len(keep) == self.dim or self._isempty():
             return self
 
-        remove = self.inverse_names(keep, sorted_=True)
+        remove = self.inverse_names(keep, sorted_=True)  # do it again, because fields may have changed ??
         callbacks = self._marginalizeout(keep, remove)
         self._update_remove_fields(remove)
         for callback in callbacks:
@@ -604,6 +624,8 @@ class Model:
         # can't do that because I want to allow a zip object as conditions...
         # if len(conditions) == 0:
         #     return self
+
+        # treat model vs data field correctly. It must be applied first.
         names = []
         if is_pure:
             pure_conditions = conditions
@@ -614,12 +636,13 @@ class Model:
             for condition in conditions:
                 (name, operator, values) = condition
                 if name == 'model vs data':
-                    field = self._modeldata_field
-                    domain = field['domain']
-                    if operator == 'in' or operator == 'equals' or operator == '==':
-                        domain.intersect(values)
-                    else:
-                        raise ValueError('invalid operator for condition: ' + str(operator))
+                    domain = self._modeldata_field['domain']
+                    domain.apply(operator, values)
+                    # REMOVE SOON:
+                    # if operator == 'in' or operator == 'equals' or operator == '==':
+                    #     domain.intersect(values)
+                    # else:
+                    #     raise ValueError('invalid operator for condition: ' + str(operator))
                     # set internal mode accordingly to both, data or model
                     value = domain.value()
                     self.mode = value if value == 'model' or value == 'data' else 'both'
@@ -702,7 +725,7 @@ class Model:
         else:
             # 2. marginalize singular fields out
             # TODO: use internal, faster version of marginalize / marginalizeout?
-            submodel = self if len(singular_names) == 0 else self.copy().marginalize(remove=singular_names)
+            submodel = self if len(singular_names) == 0 else self.copy()._marginalize(remove=singular_names)
 
             # 3. calculate 'unrestricted' aggregation on the remaining model
             try:
@@ -1000,7 +1023,6 @@ class Model:
         self.extents = [field['domain'].bounded(field['extent']) for field in self.fields]
         return self
 
-    # def model(self, model, where=[], as_=None, mode="both"):
     def model(self, model='*', where=[], as_=None):
         """Returns a model with name 'as_' that models the random variables in 'model'
         respecting conditions in 'where'.
