@@ -170,12 +170,12 @@ def average(df):
 
 
 if __name__ == '__main__':
-    import seaborn.apionly as sns
     import numpy as np
     import pandas as pd
     import data.crabs.crabs as crabs
+    import data.iris.iris as iris_
 
-    iris = sns.load_dataset('iris')
+    iris = iris_.mixed('data/iris/iris.csv')
     crabs = crabs.mixed('data/crabs/australian-crabs.csv')
 
     print('average iris cont: ')

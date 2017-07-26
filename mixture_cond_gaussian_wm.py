@@ -4,7 +4,6 @@ import logging
 
 from fixed_mixture_model import FixedMixtureModel
 from cond_gaussian_wm import CgWmModel
-import seaborn.apionly as sns
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -58,10 +57,10 @@ def MoCGModelWithK(name, k):
 
 
 if __name__ == "__main__":
-    iris = sns.load_dataset('iris')
+    import data.iris.iris as iris
+    data = iris.mixed('data/iris/iris.csv')
     model = MixtureOfCgWmModel("my mixture model")
     model.set_k(2)
-    model.fit(iris)
+    model.fit(data)
     model.mode = "model"
     print(str(model.density([1, 2, 3, 4])))
-    pass

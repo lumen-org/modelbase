@@ -170,7 +170,6 @@ dependencies:
   - jupyter-console==4.1.1
   - jupyter-core==4.1.0
   - rope-py3k==0.9.4.post1
-  - seaborn==0.7.1
   - sphinx-rtd-theme==0.1.9
   - tables==3.2.2
   - transcrypt==3.5.156

@@ -2,17 +2,15 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 @author: Philipp Lucas
-
-More useful data sets possibly here:
- https://github.com/mwaskom/seaborn-data
 """
 
 import pandas as pd
 
-import seaborn.apionly as sns
 import data.adult.adult as adult
 import data.heart_disease.heart as heart
 import data.crabs.crabs as crabs
+import data.car_crashes as car_crashes
+import data.iris.iris as iris
 import data.olive_oils.olive_oils as olive_oils
 import data.yeast.yeast as yeast
 import data.starcraft.starcraft as starcraft
@@ -45,8 +43,8 @@ known_models = {
     'adult': lambda: (CategoricalModel('adult'), adult.categorical('data/adult/adult.full.cleansed')),
 
     # multivariate gaussian models
-    'iris': lambda: (MultiVariateGaussianModel('iris'), sns.load_dataset('iris').iloc[:, 0:-1]),
-    'car_crashes': lambda: (MultiVariateGaussianModel('car_crashes'), sns.load_dataset('car_crashes').iloc[:, 0:-1]),
+    'iris': lambda: (MultiVariateGaussianModel('iris'), iris.continuous()),
+    'car_crashes': lambda: (MultiVariateGaussianModel('car_crashes'), car_crashes.continuous()),
     'mvg_dummy_2d': lambda: (MultiVariateGaussianModel.dummy2d_model('mvg_dummy_2d'), None),
 
     # mixtures of multivariate gaussians
@@ -58,7 +56,7 @@ known_models = {
     'cg_olive_oils': lambda: (ConditionallyGaussianModel('cg_olive_oils'),
                               olive_oils.mixed('data/olive_oils/olive.csv')),
     'cg_yeast': lambda: (ConditionallyGaussianModel('cg_yeast'), yeast.mixed('data/yeast/yeast.csv')),
-    'cg_iris': lambda: (ConditionallyGaussianModel('cg_iris'), sns.load_dataset('iris')),
+    'cg_iris': lambda: (ConditionallyGaussianModel('cg_iris'), iris.mixed()),
     'starcraft': lambda: (ConditionallyGaussianModel('starcraft'), starcraft.cg()),
     'glass': lambda: (ConditionallyGaussianModel('glass'), glass.mixed('data/glass/glass.data.csv')),
     'abalone': lambda: (ConditionallyGaussianModel('abalone'), abalone.cg()),
@@ -69,18 +67,19 @@ known_models = {
     'cg_banknotes': lambda: (ConditionallyGaussianModel('cg_banknotes'), banknotes.mixed('data/banknotes/banknotes.csv')),
 
     # conditionally gaussian models with weak marginals
-    'cgw_iris': lambda: (CgWmModel('cgw_iris'), sns.load_dataset('iris')),
+    'cgw_iris': lambda: (CgWmModel('cgw_iris'), iris.mixed()),
     'cgw_crabs': lambda: (CgWmModel('cgw_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
     'cgw_diamonds': lambda: (CgWmModel('cgw_diamonds'), diamonds.mixed('data/diamonds/diamonds.csv')),
 
     # mixture of gaussians models
     'mo4g_crabs': lambda: (MoGModelWithK('mo4g_crabs', 4), crabs.continuous('data/crabs/australian-crabs.csv')),
     'mo10g_crabs': lambda: (MoGModelWithK('mo10g_crabs', 10), crabs.continuous('data/crabs/australian-crabs.csv')),
-    'mo3g_iris': lambda: (MoGModelWithK('mo3g_iris', 3), sns.load_dataset('iris').iloc[:, 0:-1]),
+    'mo3g_iris': lambda: (MoGModelWithK('mo3g_iris', 3), iris.continuous()),
 
     # mixable cg models
     'mcg_crabs': lambda: (MixableCondGaussianModel('mcg_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
-    'mcg_mpg': lambda: (MixableCondGaussianModel('mcg_mpg'), mpg.cg())
+    'mcg_mpg': lambda: (MixableCondGaussianModel('mcg_mpg'), mpg.cg()),
+    'mcg_iris': lambda: (MixableCondGaussianModel('mcg_iris'), iris.mixed())
 }
 
 

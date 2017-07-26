@@ -1439,14 +1439,14 @@ class Model:
 
 
 if __name__ == '__main__':
-    import seaborn.apionly as sns
     import numpy as np
     import pandas as pd
     import data.crabs.crabs as crabs
+    import data.iris.iris as iris
 
     import cond_gaussians as cg
 
-    irisdata = sns.load_dataset('iris')
+    irisdata = iris.mixed('data/iris/iris.csv')
     crabsdata = crabs.mixed('data/crabs/australian-crabs.csv')
 
     iris = cg.ConditionallyGaussianModel("iris").fit(irisdata)

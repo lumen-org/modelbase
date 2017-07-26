@@ -4,7 +4,6 @@ import logging
 
 from fixed_mixture_model import FixedMixtureModel
 from gaussians import MultiVariateGaussianModel
-#import seaborn.apionly as sns
 
 from sklearn import mixture
 from numpy import matrix
@@ -59,7 +58,8 @@ def MoGModelWithK(name, k):
 
 
 if __name__ == "__main__":
-#    iris = sns.load_dataset('iris').iloc[:, 0:-1]
+#    import data.iris.iris as iris
+#    iris = iris.mixed('data/iris/iris.csv')
 #    model = MixtureOfGaussiansModel("my mixture model")
 #    model.set_k(3)
 #    model.fit(iris)
