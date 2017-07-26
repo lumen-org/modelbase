@@ -16,7 +16,7 @@ import models as gm
 #import models_debug
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class QuerySyntaxError(Exception):
@@ -138,7 +138,12 @@ class ModelBase:
 
         # load some initial models to play with
         if load_all:
-            self.load_all_models()
+            loaded_models = self.load_all_models()
+            if len(loaded_models) == 0:
+                logger.warning("I did not load ANY model. Make sure the provided model directory is correct! "
+                               "I continue anyway.")
+            else:
+                logger.info("Successfully loaded " + str(len(loaded_models)) + " models into the modelbase.")
 
     def __str__(self):
         return " -- Model Base > " + self.name + " < -- \n" + \
@@ -154,21 +159,30 @@ class ModelBase:
          Args:
              directory: directory to store the models in. Defaults to the set directory of the model base.
              ext: file extension to use when loading models.
+
+         Returns:
+             A list containing pairs of <name-of-loaded-model, file-name>
          """
         if directory is None:
             directory = self.model_dir
 
         # iterate over matching files in directory (including any subdirectories)
+        loaded_models = []
         filenames = Path(directory).glob('**/' + '*' + ext)
         for file in filenames:
+            logger.debug("loading model from file: " + str(file))
             # try loading the model
             try:
                 model = gm.Model.load(str(file))
-                self.add(model)
             except TypeError as err:
                 print(str(err))
                 logger.warning('file "' + str(file) +
-                               '" matches the naming pattern but does not contain a model instance')
+                               '" matches the naming pattern but does not contain a model instance. '
+                               'I ignored that file')
+            else:
+                self.add(model)
+                loaded_models.append((model.name, str(file)))
+        return loaded_models
 
     def save_all_models(self, directory=None, ext='.mdl'):
         """Saves all models currently in the model base in given directory using the naming convention:

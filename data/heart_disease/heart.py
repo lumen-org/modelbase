@@ -1,7 +1,5 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 import pandas as pd
-import matplotlib.pyplot as plt
-from functools import reduce
 
 from ..cleansing import printDataAndParameterQuantity
 
@@ -85,6 +83,7 @@ def categorical(datafilepath, verbose=False):
 
     # print histogram for each category
     if verbose:
+        import matplotlib.pyplot as plt
         for col in dfcat.columns:
             fig = plt.figure()
             ax1 = fig.add_subplot(111)
@@ -107,6 +106,6 @@ def continuous(verbose=False):
     df = _loadfromfile(verbose=verbose)
 
     # print histograms on continuous columns
-    df.hist()
+    #df.hist()
 
     raise "not implemented"

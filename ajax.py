@@ -112,14 +112,16 @@ Usage:
     # setup root logger and local logger
     logging.basicConfig(
         level=args.loglevel,
-        format='%(asctime)s %(levelname)s %(filename)s %(message)s')
+        format='%(asctime)s.%(msecs)03d %(levelname)s %(filename)s :: %(message)s',
+        datefmt='%H:%M:%S'
+    )
     logger = logging.getLogger(__name__)
 
-    print("starting modelbase ... ", end="")
+    logger.info("starting modelbase ... ")
     mb = mbase.ModelBase(name=args.name, model_dir=args.storage)
-    print("done.")
+    logger.info("... done (starting modelbase).")
 
-    print("web server running...")
+    logger.info("web server running...")
     app.run()
 
     #pdb.run('app.run()')

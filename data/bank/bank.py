@@ -6,8 +6,6 @@ Data Preprocessing and cleansing for the bank data set.
 """
 
 import pandas as pd
-import matplotlib.pyplot as plt
-from functools import reduce
 
 def mixed(datafilepath='data/bank/bank-full.csv'):
     """Loads the set from a csv file, does some useful preprocessing and returns the

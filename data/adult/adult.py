@@ -1,7 +1,5 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 import pandas as pd
-import matplotlib.pyplot as plt
-from functools import reduce
 from ..cleansing import printDataAndParameterQuantity
 
 def _loadfromfile(datafilepath='adult.full.cleansed', verbose=False):
@@ -34,6 +32,7 @@ def categorical(datafilepath, verbose=False):
 
     # print histogram for each category
     if verbose:
+        import matplotlib.pyplot as plt
         for col in dfcat.columns:
             fig = plt.figure()
             ax1 = fig.add_subplot(111)

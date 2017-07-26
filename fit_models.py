@@ -9,7 +9,7 @@ import pandas as pd
 import data.adult.adult as adult
 import data.heart_disease.heart as heart
 import data.crabs.crabs as crabs
-import data.car_crashes as car_crashes
+import data.car_crashes.car_crashes as car_crashes
 import data.iris.iris as iris
 import data.olive_oils.olive_oils as olive_oils
 import data.yeast.yeast as yeast
@@ -89,9 +89,9 @@ def refit_all_models(verbose=False, include=None, exclude=None):
     if include is None:
         include = known_models.keys()
     if exclude is None:
-        exclude = []
-
-    # TODO: refactor below to detect if user specified models to include that don't exist
+        exclude = set()
+    include = set(include)
+    fitted = set()  # set of names of models that we've fitted
 
     # fit it!
     models = []
@@ -105,8 +105,15 @@ def refit_all_models(verbose=False, include=None, exclude=None):
                 model_.fit(df)
             models.append(model_)
             if verbose:
-                print("...done.")
+                print("... done.")
+            fitted.add(id_)
 
+    # check if all the models in include were found and fitted
+    print("Fitted " + str(len(fitted)) + " models in total.")
+    if include != fitted:
+        print("ERROR: Not all models that you '--include'd were found in the known_models. The missing models are:\n " + str(include - fitted))
+        print("I continue with the models I fitted: \n"
+              + "<none>" if len(fitted) == 0 else str(fitted))
     return models
 
 
@@ -158,7 +165,6 @@ Examples:
     # args.include = ['starcraft']
     # args.include = ['cgw_iris']
     # args.include = ['mvg_dummy_2d']
-
 
     modelbase = mb.ModelBase("refitter", load_all=False, model_dir=args.directory)
     models = refit_all_models(verbose=True, include=args.include, exclude=args.exclude)
