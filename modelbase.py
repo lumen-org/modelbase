@@ -143,7 +143,8 @@ class ModelBase:
                 logger.warning("I did not load ANY model. Make sure the provided model directory is correct! "
                                "I continue anyway.")
             else:
-                logger.info("Successfully loaded " + str(len(loaded_models)) + " models into the modelbase.")
+                logger.info("Successfully loaded " + str(len(loaded_models)) + " models into the modelbase: ")
+                logger.info(str([model[0] for model in loaded_models]))
 
     def __str__(self):
         return " -- Model Base > " + self.name + " < -- \n" + \

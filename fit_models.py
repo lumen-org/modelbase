@@ -79,6 +79,7 @@ known_models = {
     # mixable cg models
     'mcg_crabs': lambda: (MixableCondGaussianModel('mcg_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
     'mcg_mpg': lambda: (MixableCondGaussianModel('mcg_mpg'), mpg.cg()),
+    'mcg_mpg2': lambda: (MixableCondGaussianModel('mcg_mpg2'), mpg.cg2()),
     'mcg_iris': lambda: (MixableCondGaussianModel('mcg_iris'), iris.mixed())
 }
 
