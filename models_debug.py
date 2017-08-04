@@ -16,14 +16,15 @@ import logging
 import models as md
 
 logger = logging.getLogger(__name__)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-logger.addHandler(ch)
+#ch = logging.StreamHandler()
+#ch.setLevel(logging.DEBUG)
+#logger.addHandler(ch)
 logger.setLevel(logging.DEBUG)
 
 
 # safe original references. They are reused in the debugging versions of the functions below.
 _original_model = md.Model.model
+_original_copy = md.Model._defaultcopy
 _original_condition = md.Model.condition
 _original_marginalize = md.Model._marginalize
 _original_aggregate = md.Model.aggregate
@@ -40,6 +41,13 @@ def model_debug(self, model='*', where=[], as_=None):
     m = _original_model(self, model, where, as_)
     logger.debug(".. modelling successful.")
     return m
+
+
+def copy_debug(self, name=None):
+    copy_str = "copy " + md.model_to_str(self) + " as " + (self.name if name is None else name)
+    logger.debug(copy_str)
+    model_copy = _original_copy(self, name)
+    return model_copy
 
 
 def condition_debug(self, conditions=[], is_pure=False):
@@ -111,3 +119,4 @@ md.Model.aggregate = aggregate_debug
 md.Model.density = density_debug
 md.Model.condition = condition_debug
 md.Model._marginalize = marginalize_debug  # override internal version!
+md.Model._defaultcopy = copy_debug

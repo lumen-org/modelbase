@@ -129,6 +129,14 @@ class NumericDomain(Domain):
         self._validate()
         return self
 
+    def mid(self):
+        """Returns the mid element of the domain."""
+        if not self.isbounded():
+            raise ValueError("cannot compute mid of not bounded domain!")
+        issingular = self.issingular()
+        values = self.values()
+        return values[0] if issingular else ((values[1] + values[0]) / 2)
+
 
 class DiscreteDomain(Domain):
     """An (ordered) discrete domain that can be represented by a list of values [val1, val2, ... ]."""
@@ -216,3 +224,10 @@ class DiscreteDomain(Domain):
 
     def setupperbound(self, value):
         raise NotImplementedError
+
+    def mid(self):
+        """Returns the mid element of the domain."""
+        if not self.isbounded():
+            raise ValueError("cannot compute mid of not bounded domain!")
+        values = self.values()
+        return values[0]

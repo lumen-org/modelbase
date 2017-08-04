@@ -22,7 +22,8 @@ import utils as utils
 import data_aggregation as data_aggr
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
+#logger.setLevel(logging.WARNING)
+logger.setLevel(logging.DEBUG)
 
 """ Development Notes (Philipp)
 # interesting links
@@ -383,7 +384,6 @@ class Model:
         for callback in callbacks:
             callback()
 
-        logger.debug('')
         return self
 
     def _set_data(self, df, silently_drop):
@@ -500,7 +500,7 @@ class Model:
         Returns:
             The modified model.
         """
-        logger.debug('marginalizing: ' + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
+        #logger.debug('marginalizing: ' + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
 
         if keep is not None and remove is not None:
             raise ValueError("You may only specify either 'keep' or 'remove', but non both.")
@@ -541,11 +541,13 @@ class Model:
             You have to specify at least one of keep and remove.
             Neither keep nor remove may contain the field 'model vs data'.
         """
-        assert(keep is not None or remove is not None)
-        if remove is None:
-            remove = self.inverse_names(keep, sorted_=True)
-        if keep is None:
-            keep = self.inverse_names(remove, sorted_=True)
+        if keep is not None and remove is not None:
+            assert(set(keep) | set(remove) == set(self.names))
+        else:
+            if remove is None:
+                remove = self.inverse_names(keep, sorted_=True)
+            if keep is None:
+                keep = self.inverse_names(remove, sorted_=True)
         # else:
         #     raise ValueError("specify at least one of 'keep' and 'remove'!")
         cond_out = [name for name in remove if self.byname(name)['domain'].isbounded()]
@@ -711,22 +713,41 @@ class Model:
 
     def aggregate_model(self, method, opts=None):
         """Aggregate the model according to given method and options and return the aggregation value."""
+
         # need index to merge results later
         other_idx = []
+        other_names = []
         singular_idx = []
         singular_names = []
         singular_res = []
 
         # 1. find singular fields (fields with singular domain)
         # any aggregation on such fields must yield the singular value of the domain
-        # TODO: performance: cache these at model level ?!
-        for (idx, field) in enumerate(self.fields):
+
+        # need to copy model because we change the domain for the above heuristic... that seems ugly, but it's not too
+        # bad because we would anyway need to copy the model before conditioning out singular fields
+        model = self.copy()
+
+        for (idx, field) in enumerate(model.fields):
             domain = field['domain']
-            if domain.issingular():
+            issingular = domain.issingular()
+            isbounded = domain.isbounded()
+
+            # Problem: how to marginalize if it is bounded but not singular?
+            # Solution: apply heuristic to reduce any bounded domain to singular domain
+            # see also: http://wiki.inf-i2.uni-jena.de/doku.php?id=emv:models:restrictions&#marginalization_of_interval-conditioned_fields
+            if not issingular and isbounded:
+                extent = field['extent']
+                condition_scalar = domain.intersect(extent).mid()  # compute value to condition on
+                domain.intersect(condition_scalar)  # condition, i.e. restrict domain to scalar
+                issingular = True
+
+            if issingular:
                 singular_idx.append(idx)
                 singular_names.append(field['name'])
                 singular_res.append(domain.value())
             else:
+                other_names.append(field['name'])
                 other_idx.append(idx)
 
         # quit early if possible
@@ -735,18 +756,19 @@ class Model:
         else:
             # 2. marginalize singular fields out
             # TODO: use internal, faster version of marginalize / marginalizeout?
-            submodel = self if len(singular_names) == 0 else self.copy()._marginalize(remove=singular_names)
+            #submodel = self if len(singular_names) == 0 else self.copy()._marginalize(remove=singular_names)
+            model = model if len(singular_names) == 0 else model._marginalize(keep=other_names, remove=singular_names)
 
             # 3. calculate 'unrestricted' aggregation on the remaining model
             try:
-                aggr_function = submodel._aggrMethods[method]
+                aggr_function = model._aggrMethods[method]
             except KeyError:
                 raise ValueError("Your model does not provide the requested aggregation: '" + method + "'")
             other_res = aggr_function()
 
             # 4. clamp to values within domain
             # TODO bug/mistake: should we really clamp?
-            for (idx, field) in enumerate(submodel.fields):
+            for (idx, field) in enumerate(model.fields):
                 other_res[idx] = field['domain'].clamp(other_res[idx])
 
             # 5. merge with singular results
@@ -919,7 +941,7 @@ class Model:
 
         This method must be implemented by any actual model that derives from the abstract Model class.
 
-        Note: you may use Model._defaultcopy() to get a copy of the 'abstract part' of an model
+        Note: you must use Model._defaultcopy() to get a copy of the 'abstract part' of an model
         instance and then only add your custom copy code.
         """
         raise NotImplementedError()
@@ -1145,7 +1167,7 @@ class Model:
                 predict_ids.append(id_)
                 basenames.update(t[NAME_IDX])
 
-        basemodel = self.copy().model(basenames, where, '__' + self.name + '_base')
+        basemodel = self.copy().model(basenames, where, self.name + '_base')
 
         # (2) derive a sub-model for each requested aggregation
         splitnames_unique = set(split_names)
@@ -1156,12 +1178,14 @@ class Model:
         # for the current aggregation
 
         def _derive_aggregation_model(aggr):
-            aggr_model = basemodel.copy()
+            #aggr_model = basemodel.copy()
+            aggr_model = basemodel.copy(name=next(aggr_model_id_gen))
             if aggr[METHOD_IDX] == 'density':
                 return aggr_model.model(model=aggr[NAME_IDX])
             else:
                 return aggr_model.model(model=list(splitnames_unique | set(aggr[NAME_IDX])))
 
+        aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
         aggr_models = [_derive_aggregation_model(aggr) for aggr in aggrs]
 
         # (3) generate input for model aggregations,
@@ -1274,10 +1298,12 @@ class Model:
                     i = singlemodel.asindex(aggr[YIELDS_IDX])
                     aggr_results.append(res[i])
                 else:
-                    for _, row in input_frame.iterrows():
+                    row_id_gen = utils.linear_id_generator(prefix="_row")
+                    for row in input_frame.itertuples(index=False, name=None):
                         pairs = zip(split_names, operator_list, row)
                         # derive model for these specific conditions
-                        rowmodel = aggr_model.copy().condition(pairs).marginalize(keep=aggr[NAME_IDX])
+                        rowmodel_name = aggr_model.name + next(row_id_gen)
+                        rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
                         res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX+1])
                         # reduce to requested dimension
                         i = rowmodel.asindex(aggr[YIELDS_IDX])
