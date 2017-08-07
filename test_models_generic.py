@@ -37,7 +37,7 @@ import pandas as pd
 
 import domains as dm
 import models as md
-import models_debug  # causes a lot of debug messages
+#import models_debug  # causes a lot of debug messages
 from mockup_model import MockUpModel
 from categoricals import CategoricalModel
 from gaussians import MultiVariateGaussianModel as GaussianModel
