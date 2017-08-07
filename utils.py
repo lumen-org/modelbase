@@ -8,6 +8,7 @@ Various utility functions
 import string
 import random
 from functools import wraps
+from numpy import matrix, ix_
 
 
 
@@ -214,6 +215,18 @@ def log_it(before, after):
             print(after)
         return wrapper
     return real_decorator
+
+
+def schur_complement(M, idx):
+    """Returns the upper Schur complement of array_like M with the 'upper block'
+    indexed by idx.
+    """
+    M = matrix(M, copy=False)  # matrix view on M
+    # derive index lists
+    i = idx
+    j = invert_indexes(i, M.shape[0])
+    # that's the definition of the upper Schur complement
+    return M[ix_(i, i)] - M[ix_(i, j)] * M[ix_(j, j)].I * M[ix_(j, i)]
 
 
 if __name__ == '__main__':

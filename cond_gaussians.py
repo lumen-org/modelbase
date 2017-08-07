@@ -165,6 +165,76 @@ class ConditionallyGaussianModel(md.Model):
             self._p = xr.DataArray([])
         return self
 
+    def _conditionout_continuous(self, num_remove):
+        """ For update formulas of parameters: see Franks pdf. """
+        if len(num_remove) == 0:
+            return
+
+        # TODO: use einsum to compute new _p
+        #diff_y_mu_J = condvalues - mu_old.values
+        #self._p *= (detScond / self._detS) ** 0.5 * exp(-0.5 * dot(diff_y_mu_J.T, dot(Sjj_inv, diff_y_mu_J)))
+
+        # collect singular values to condition out
+        condvalues = self._condition_values(num_remove)
+
+        # calculate updated mu, sigma, and p for conditional distribution, according to GM script and Franks notes
+        j = num_remove  # remove
+        i = [name for name in self._numericals if name not in num_remove]  # keep
+        cat_keep = self._p.dims
+        S = self._S  # old Sigma
+        Sjj_inv = inv(S.loc[j, j])  # reused below multiple times
+        sigma_expr = np.dot(S.loc[i, j], Sjj_inv)
+
+        if len(num_remove) == len(self._numericals):
+            # all gaussian variables are removed -> cannot update mu/Sigma but set it to zeros
+            # this is the same code like below, but without the mu updates
+            # TODO: speed up code. we compute det(S_x|y) now, but don't keep it and compute it again in update
+            detScond = 1  # TODO: uh.. is that right?
+            detQuotient = (detScond / self._detS) ** 0.5
+            # iterate over all mu and p and update them
+            # this is a view on mu! it stacks up all categorical dimensions and thus allows to iterate on them
+            mu_stacked = self._mu.stack(pl_stack=cat_keep)
+            p_stacked = self._p.stack(pl_stack=cat_keep)
+            for coord in mu_stacked.pl_stack:
+                indexer = dict(pl_stack=coord)
+                mu = mu_stacked.loc[indexer]
+                # some values for multiple reuse
+                diff_y_mu_J = condvalues - mu.loc[j]
+                # update p
+                p_stacked.loc[indexer] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
+            self._S = xr.DataArray([])
+            self._mu = xr.DataArray([])
+        else:
+            # update Sigma
+            self._S = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
+            # TODO: speed up code. we compute det(S_x|y) now, but don't keep it and compute it again in update
+            detScond = abs(det(self._S))  # this is det(Sigma(x|y_J)), i.e. the 'new' det(Sigma), needed for p upd.
+            detQuotient = (detScond / self._detS) ** 0.5
+            if len(cat_keep) != 0:
+                # iterate over all mu and p and update them
+                # this is a view on mu! it stacks up all categorical dimensions and thus allows to iterate on them
+                mu_stacked = self._mu.stack(pl_stack=cat_keep)
+                p_stacked = self._p.stack(pl_stack=cat_keep)
+                for coord in mu_stacked.pl_stack:
+                    indexer = dict(pl_stack=coord)
+                    mu = mu_stacked.loc[indexer]
+                    # some values for multiple reuse
+                    diff_y_mu_J = condvalues - mu.loc[j]
+                    p = p_stacked.loc[indexer]
+                    # update p
+                    p *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
+                    # update mu
+                    # extent indexer to subselect only the part of mu that is updated. the rest is removed later.
+                    # problem is: we cannot assign a shorter vector to stacked.loc[indexer]
+                    indexer['mean'] = i
+                    mu_stacked.loc[indexer] = mu.loc[i] + dot(sigma_expr, diff_y_mu_J)
+                # above we partially updated only the relevant part of mu. the remaining part is now removed:
+                self._mu = self._mu.loc[dict(mean=i)]
+            else:
+                # special case: no categorical fields left. hence we cannot stack over then, and a single mu is left
+                # and we only need to update that
+                self._mu = self._mu.loc[i] + dot(sigma_expr, condvalues - self._mu.loc[j])
+
     def _conditionout(self, keep, remove):
         remove = set(remove)
 
@@ -186,38 +256,7 @@ class ConditionallyGaussianModel(md.Model):
 
         # condition on continuous fields
         num_remove = [name for name in self._numericals if name in remove]
-        if len(num_remove) == len(self._numericals):
-            # all gaussians are removed
-            self._S = xr.DataArray([])
-            self._mu = xr.DataArray([])
-        elif len(num_remove) != 0:
-            # collect singular values to condition out
-            condvalues = self._condition_values(num_remove)
-
-            # calculate updated mu and sigma for conditional distribution, according to GM script
-            j = num_remove  # remove
-            i = [name for name in self._numericals if name not in num_remove]  # keep
-            S = self._S
-            sigma_expr = np.dot(S.loc[i, j], inv(S.loc[j, j]))  # reused below multiple times
-            self._S = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
-            cat_keep = self._mu.dims[:-1]
-            if len(cat_keep) != 0:
-                # iterate over all mu and update them
-                # this is a view on mu! it stacks up all categorical dimensions and thus allows us to iterate on them
-                stacked = self._mu.stack(pl_stack=cat_keep)
-                for coord in stacked.pl_stack:
-                    indexer = dict(pl_stack=coord)
-                    mu = stacked.loc[indexer]
-                    # extent indexer to subselect only the part of mu that is updated. the rest is removed later.
-                    # problem is: we cannot assign a shorter vector to stacked.loc[indexer]
-                    indexer['mean'] = i
-                    stacked.loc[indexer] = mu.loc[i] + dot(sigma_expr, condvalues - mu.loc[j])
-                # above we partially updated only the relevant part of mu. the remaining part is now removed:
-                self._mu = self._mu.loc[dict(mean=i)]
-            else:
-                # special case: no categorical fields left. hence we cannot stack over then, it is only a single mu left
-                # and we only need to update that
-                self._mu = self._mu.loc[i] + dot(sigma_expr, condvalues - self._mu.loc[j])
+        self._conditionout_continuous(num_remove)
 
         # remove fields as needed
         self._categoricals = [name for name in self._categoricals if name not in remove]

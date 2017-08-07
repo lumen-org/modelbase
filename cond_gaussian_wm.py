@@ -203,7 +203,7 @@ class CgWmModel(md.Model):
             p = self._p.loc[pairs]
             self._p = p / p.sum()
 
-            # _mu is trimmed: keep the slice that we condition on, i.e. reuse the 'pairs' access-structure
+            # _mu and _S is trimmed: keep the slice that we condition on, i.e. reuse the 'pairs' access-structure
             # note: if we condition on all categoricals this also works: it simply remains the single 'selected' mu...
             if len(self._numericals) != 0:
                 self._mu = self._mu.loc[pairs]
@@ -211,11 +211,12 @@ class CgWmModel(md.Model):
 
         # condition on continuous fields
         num_remove = [name for name in self._numericals if name in remove]
-        if len(num_remove) == len(self._numericals):
-            # all gaussians are removed
-            self._S = xr.DataArray([])
-            self._mu = xr.DataArray([])
-        elif len(num_remove) != 0:
+        #if len(num_remove) == len(self._numericals):
+        #    # all gaussians are removed
+        #    self._S = xr.DataArray([])
+        #    self._mu = xr.DataArray([])
+        #elif len(num_remove) != 0:
+        if len(num_remove) != 0:
             # collect singular values to condition out
             condvalues = self._condition_values(num_remove)
 

@@ -88,7 +88,7 @@ class MultiVariateGaussianModel(md.Model):
         i = utils.invert_indexes(j, self.dim)
         S = self._S
         mu = self._mu
-        self._S = MultiVariateGaussianModel._schurcompl_upper(S, i)
+        self._S = utils.schur_complement(S, i)
         self._mu = mu[i] + S[ix_(i, j)] * S[ix_(j, j)].I * (condvalues - mu[j])
 
         return self._unbound_updater,
@@ -163,18 +163,6 @@ class MultiVariateGaussianModel(md.Model):
         else:
             raise ValueError('invalid mode: ' + str(mode))
 
-
-    @staticmethod
-    def _schurcompl_upper(M, idx):
-        """Returns the upper Schur complement of array_like M with the 'upper block'
-        indexed by idx.
-        """
-        M = matrix(M, copy=False)  # matrix view on M
-        # derive index lists
-        i = idx
-        j = utils.invert_indexes(i, M.shape[0])
-        # that's the definition of the upper Schur complement
-        return M[ix_(i, i)] - M[ix_(i, j)] * M[ix_(j, j)].I * M[ix_(j, i)]
 
     @staticmethod
     def dummy2d_model(name='test'):

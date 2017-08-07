@@ -29,7 +29,6 @@ Thinking about useful console output for this test module:
     * if operation was successful: what it its result?
 
 """
-#import unittest
 import logging
 
 import random
@@ -38,7 +37,7 @@ import pandas as pd
 
 import domains as dm
 import models as md
-#import models_debug  # causes a lot of debug messages
+import models_debug  # causes a lot of debug messages
 from mockup_model import MockUpModel
 from categoricals import CategoricalModel
 from gaussians import MultiVariateGaussianModel as GaussianModel
@@ -59,13 +58,14 @@ logger.setLevel(logging.INFO)
 models = {
     'discrete': [],
     'continuous': [],
-    'mixed': [MCGModel]
+    'mixed': [CGModel]
 }
-models = {
-    'discrete': [MockUpModel, CategoricalModel],
-    'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
-    'mixed': [CGModel, CGWMModel, MCGModel]
-}
+# models = {
+#     'discrete': [MockUpModel, CategoricalModel],
+#     'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
+#     'mixed': [CGModel, CGWMModel, MCGModel]
+#     'mixed': [CGModel, CGWMModel, MCGModel]
+# }
 
 model_setup = {
     ('continuous', MixtureOfGaussiansModel): lambda x: x.set_k(4)
