@@ -229,5 +229,16 @@ def schur_complement(M, idx):
     return M[ix_(i, i)] - M[ix_(i, j)] * M[ix_(j, j)].I * M[ix_(j, i)]
 
 
+def is_running_in_debug_mode():
+    import sys
+    gettrace = getattr(sys, 'gettrace', None)
+    if gettrace is None:
+        return False
+    elif gettrace():
+        return True
+    else:
+        return False
+
+
 if __name__ == '__main__':
     import numpy as np

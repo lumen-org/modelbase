@@ -10,9 +10,11 @@ import logging
 import json
 import traceback
 
-
 import modelbase as mbase
-import models_debug
+
+from utils import is_running_in_debug_mode
+if is_running_in_debug_mode():
+    import models_debug
 
 app = Flask(__name__, static_url_path='/static/')
 logger = None  # create module variable

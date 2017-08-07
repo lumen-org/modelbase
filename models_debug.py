@@ -16,9 +16,6 @@ import logging
 import models as md
 
 logger = logging.getLogger(__name__)
-#ch = logging.StreamHandler()
-#ch.setLevel(logging.DEBUG)
-#logger.addHandler(ch)
 logger.setLevel(logging.DEBUG)
 
 

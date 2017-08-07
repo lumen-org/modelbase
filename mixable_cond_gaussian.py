@@ -353,16 +353,17 @@ class MixableCondGaussianModel(md.Model):
             detS_stacked = detS_shadowed.stack(pl_stack=self._marginalized)
             p_stacked = p_shadowed.stack(pl_stack=self._marginalized)
             gauss_sum = 0
-            for mu_coord, invS_coord, detS_coord, p_coord in zip(mu_stacked.pl_stack, invS_stacked.pl_stack, detS_stacked.pl_stack, p_stacked.pl_stack):
-                mu_indexer = dict(pl_stack=mu_coord)
-                invS_indexer = dict(pl_stack=invS_coord)
-                detS_indexer = dict(pl_stack=detS_coord)
-                p_indexer = dict(pl_stack=p_coord)
+            for coord in mu_stacked.pl_stack:
+            # for mu_coord, invS_coord, detS_coord, p_coord in zip(mu_stacked.pl_stack, invS_stacked.pl_stack, detS_stacked.pl_stack, p_stacked.pl_stack):
+                indexer = dict(pl_stack=coord)
+                # invS_indexer = dict(pl_stack=invS_coord)
+                # detS_indexer = dict(pl_stack=detS_coord)
+                # p_indexer = dict(pl_stack=p_coord)
 
-                mu = mu_stacked.loc[mu_indexer].values
-                invS = invS_stacked.loc[invS_indexer].values
-                detS = detS_stacked.loc[detS_indexer].values
-                p = p_stacked.loc[p_indexer].values
+                mu = mu_stacked.loc[indexer].values
+                invS = invS_stacked.loc[indexer].values
+                detS = detS_stacked.loc[indexer].values
+                p = p_stacked.loc[indexer].values
 
                 try:
                     xmu = num - mu

@@ -48,6 +48,10 @@ from mixable_cond_gaussian import MixableCondGaussianModel as MCGModel
 
 import data.crabs.crabs as crabs
 
+from utils import is_running_in_debug_mode
+if is_running_in_debug_mode():
+    import models_debug
+
 logger = logging.getLogger(__name__)
 #logger.setLevel(logging.WARNING)
 logger.setLevel(logging.INFO)
@@ -58,7 +62,7 @@ logger.setLevel(logging.INFO)
 models = {
     'discrete': [],
     'continuous': [],
-    'mixed': [CGModel]
+    'mixed': [MCGModel]
 }
 # models = {
 #     'discrete': [MockUpModel, CategoricalModel],
@@ -90,11 +94,8 @@ def _values_of_extents(extents):
 
 
 def _test_aggregations(model, info):
-    """Computes all available aggregations on the given model."""
-
-    #if info == "mc" and model.dim == 2 and len(model._categoricals) == 0:
-    #    info += ""  # just to set breakpoints
-
+    """Computes all available aggregations on the given model.
+    """
     logger.debug("(" + str(info) + ") Testing aggregations of " + model.name)
     for aggr_method in model._aggrMethods:
         a = model.aggregate(aggr_method)
@@ -303,10 +304,6 @@ def test_all():
             _test_conditioning[mode](model, depth, "")
 
 
-# class TestGeneric(unittest.TestCase):
-#     def test_first(self):
-#         test_all()
-
 if __name__ == '__main__':
 
     ch = logging.StreamHandler()
@@ -316,6 +313,3 @@ if __name__ == '__main__':
     logging.root.setLevel(logger.level)
 
     test_all()
-
-   # unittest.main()
-
