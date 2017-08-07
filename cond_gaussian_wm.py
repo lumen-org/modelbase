@@ -191,11 +191,6 @@ class CgWmModel(md.Model):
         return self
 
     def _conditionout_continuous(self, num_remove):
-        # if len(num_remove) == len(self._numericals):
-        #    # all gaussians are removed
-        #    self._S = xr.DataArray([])
-        #    self._mu = xr.DataArray([])
-        # elif len(num_remove) != 0:
         if len(num_remove) == 0:
             return
 
@@ -258,12 +253,12 @@ class CgWmModel(md.Model):
                 p_stacked.loc[indexer] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
 
             # rescale to one
-            # TODO: is this wrong or just because we have one sigma for all conditional gaussians
+            # TODO: is this wrong? why do we not automatically get a normalized model?
             psum = self._p.sum()
             if psum != 0:
                 self._p /= psum
             else:
-                logger.warning("creating a conditional model with extremely low probability and very low predictive "
+                logger.warning("creating a conditional model with extremely low probability and alike low predictive "
                                "power")
                 self._p.values = np.full_like(self._p.values, 1 / self._p.size)
 

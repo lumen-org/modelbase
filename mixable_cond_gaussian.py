@@ -190,7 +190,12 @@ class MixableCondGaussianModel(md.Model):
 
         return self._unbound_updater,
 
-    def _conditionout(self, keep, remove):   # exactly like CG WM!!
+    _conditionout_continuous = cgwm.CgWmModel._conditionout_continuous
+
+    def _conditionout(self, keep, remove):
+        # TODO: this is, apart from the additional update of the marginalized mask, exactly like CG WM!!
+        # TODO: link to that function. Same for conditionout_continuous
+        # TODO: factor our the conditioning on categorical fields and reuse it as well
         remove = set(remove)
 
         cat_dims = self._p.dims  # safe current categorical dims for later reuse
@@ -211,59 +216,14 @@ class MixableCondGaussianModel(md.Model):
                 self._mu = self._mu.loc[pairs]
                 self._S = self._S.loc[pairs]
 
+            self._categoricals = [name for name in self._categoricals if name not in remove]
+            self._update()
+
         # condition on continuous fields
         num_remove = [name for name in self._numericals if name in remove]
-        if len(num_remove) == len(self._numericals):
-            # all gaussians are removed
-            self._S = xr.DataArray([])
-            self._mu = xr.DataArray([])
-        elif len(num_remove) != 0:
-            # collect singular values to condition out
-            condvalues = self._condition_values(num_remove)
-
-            # calculate updated mu and sigma for conditional distribution, according to GM script
-            j = num_remove  # remove
-            i = [name for name in self._numericals if name not in num_remove]  # keep
-
-            cat_keep = self._mu.dims[:-1]
-            if len(cat_keep) != 0:
-                # iterate the mu and sigma of each cg and update them
-                #  for that create stacked _views_ on mu and sigma! it stacks up all categorical dimensions and thus
-                #  allows us to iterate on them
-                # TODO: can I use the same access structure or do i need seperate ones for mu and S?
-                mu_stacked = self._mu.stack(pl_stack=cat_keep)
-                S_stacked = self._S.stack(pl_stack=cat_keep)
-                for mu_coord, S_coord in zip(mu_stacked.pl_stack, S_stacked.pl_stack):
-                    mu_indexer = dict(pl_stack=mu_coord)
-                    S_indexer = dict(pl_stack=S_coord)
-
-                    mu = mu_stacked.loc[mu_indexer]
-                    S = S_stacked.loc[S_indexer]
-
-                    # extent indexer to subselect only the part of mu and S that is updated. the rest is removed later.
-                    #  problem is: we cannot assign a shorter vector to stacked.loc[indexer]
-                    mu_indexer['mean'] = i
-                    S_indexer['S1'] = i
-                    S_indexer['S2'] = i
-
-                    # update Sigma and mu
-                    sigma_expr = np.dot(S.loc[i, j], inv(S.loc[j, j]))   # reused below multiple times
-                    S_stacked.loc[S_indexer] = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
-                    mu_stacked.loc[mu_indexer] = mu.loc[i] + dot(sigma_expr, condvalues - mu.loc[j])
-
-                # above we partially updated only the relevant part of mu and Sigma. the remaining part is now removed:
-                self._mu = self._mu.loc[dict(mean=i)]
-                self._S = self._S.loc[dict(S1=i,S2=i)]
-            else:
-                # special case: no categorical fields left. hence we cannot stack over them, it is only a single mu left
-                # and we only need to update that
-                sigma_expr = np.dot(self._S.loc[i, j], inv(self._S.loc[j, j]))  # reused below
-                self._S = self._S.loc[i, i] - dot(sigma_expr, self._S.loc[j, i])  # upper Schur complement
-                self._mu = self._mu.loc[i] + dot(sigma_expr, condvalues - self._mu.loc[j])
-
-        # remove fields as needed
-        self._categoricals = [name for name in self._categoricals if name not in remove]
-        self._numericals = [name for name in self._numericals if name not in remove]
+        if len(num_remove) != 0:
+            self._conditionout_continuous(num_remove)
+            self._numericals = [name for name in self._numericals if name not in remove]
 
         # update marginalized mask
         # TODO: use some acceleration data structure?
@@ -427,6 +387,8 @@ class MixableCondGaussianModel(md.Model):
            * this is a simplification of (b), but should be a bit faster
         """
 
+        # TODO: not done/buggy
+
         # stage 1: stack over unshadowed gaussian and find mean of gaussian with maximum density
         # uh...? this aint a single gaussian ...
         mu_stacked = self._mu.stack(pl_stack=self._categoricals)
@@ -446,7 +408,6 @@ class MixableCondGaussianModel(md.Model):
                 coord_max = coord
 
         # stage 2: split on the shadowed fields for the found maximum only
-        # TODO: not done/buggy
         raise NotImplemented
 
     def _maximum(self):
