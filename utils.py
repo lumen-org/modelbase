@@ -189,7 +189,7 @@ def invert_indexes(idx, len_):
 
 
 def invert_sequence(seq, base):
-    """utility function that returns an inverted sequence given a base sequence and  sorted
+    """utility function that returns an inverted sequence given a base sequence and sorted
     sequence of objects (with respect to base).
     """
     it = iter(seq)
@@ -241,4 +241,4 @@ def is_running_in_debug_mode():
 
 
 if __name__ == '__main__':
-    import numpy as np
+    pass

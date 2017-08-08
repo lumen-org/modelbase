@@ -270,34 +270,41 @@ class CgWmModel(md.Model):
                 self._mu = self._mu.loc[dict(mean=i)]
                 self._S = self._S.loc[dict(S1=i, S2=i)]
 
+        self._numericals = [name for name in self._numericals if name not in num_remove]
+
+    def _conditionout_categorical(self, cat_remove):
+        if len(cat_remove) == 0:
+            return
+
+        pairs = dict(self._condition_values(cat_remove, True))
+
+        # _p changes like in the categoricals.py case
+        # trim the probability look-up table to the appropriate subrange and normalize it
+        p = self._p.loc[pairs]
+        self._p = p / p.sum()
+
+        # _mu and _S is trimmed: keep the slice that we condition on, i.e. reuse the 'pairs' access-structure
+        # note: if we condition on all categoricals this also works: it simply remains the single 'selected' mu...
+        if len(self._numericals) != 0:
+            self._mu = self._mu.loc[pairs]
+            self._S = self._S.loc[pairs]
+
+        # update internals
+        self._categoricals = [name for name in self._categoricals if name not in cat_remove]
+
+
     def _conditionout(self, keep, remove):
         remove = set(remove)
 
         # condition on categorical fields
         cat_remove = [name for name in self._categoricals if name in remove]
-        if len(cat_remove) != 0:
-            pairs = dict(self._condition_values(cat_remove, True))
-
-            # _p changes like in the categoricals.py case
-            # trim the probability look-up table to the appropriate subrange and normalize it
-            p = self._p.loc[pairs]
-            self._p = p / p.sum()
-
-            # _mu and _S is trimmed: keep the slice that we condition on, i.e. reuse the 'pairs' access-structure
-            # note: if we condition on all categoricals this also works: it simply remains the single 'selected' mu...
-            if len(self._numericals) != 0:
-                self._mu = self._mu.loc[pairs]
-                self._S = self._S.loc[pairs]
-
-            # update internals
-            self._categoricals = [name for name in self._categoricals if name not in remove]
+        if len(cat_remove) > 0:
+            self._conditionout_categorical(cat_remove)
             self._update()
 
         # condition on continuous fields
         num_remove = [name for name in self._numericals if name in remove]
-        if len(num_remove) != 0:
-            self._conditionout_continuous(num_remove)
-            self._numericals = [name for name in self._numericals if name not in remove]
+        self._conditionout_continuous(num_remove)
 
         return self._unbound_updater,
 
@@ -370,7 +377,6 @@ class CgWmModel(md.Model):
         # works because gaussian variables are - by design of this class - after categoricals.
         # Therefore the only not specified dimension is the last one, i.e. the one that holds the mean!
         mu = self._mu.loc[cat].values
-        #S = self._S.loc[cat].values
         detS = self._detS.loc[cat].values
         invS = self._SInv.loc[cat].values
         xmu = num - mu

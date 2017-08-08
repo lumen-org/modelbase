@@ -8,6 +8,7 @@ import xarray as xr
 
 import models as md
 import cond_gaussian_wm as cgwm
+import utils
 
 import data.crabs.crabs as crabs
 
@@ -75,19 +76,21 @@ class MixableCondGaussianModel(md.Model):
 
     def __init__(self, name):
         super().__init__(name)
-
         self._aggrMethods = {
             'maximum': self._maximum,
             'average': self._maximum
         }
-        self._categoricals = []
+        self._categoricals = []  # list of categorical field names, which are not marginalized/conditioned out
         self._numericals = []
-        self._marginalized = []  # list of marginalized, discrete fields, NOT in same order like occurring in parameters
-        # boolean mask for all fields (incl marginalized ones), where True indicates a marginalized field
-        self._marginalized_mask = []
+        # variables to deal with marginalization
+        self._marginalized = []  # list of marginalized, discrete field names, NOT in same order like occurring in parameters
+        self._marginalized_mask = xr.DataArray([])  # boolean xarray for all cat. fields (incl marginalized ones), where True indicates a marginalized field. coords are names of fields.
+        self._all_categoricals = []  # list of both categorical field names: those remaining in the model and those marginalized out
+        # parameters of the model
         self._p = xr.DataArray([])
         self._mu = xr.DataArray([])
         self._S = xr.DataArray([])
+        # precomputed values to speed up model queries
         self._SInv = xr.DataArray([])
         self._detS = xr.DataArray([])
         # creates an self contained update function. we use it as a callback function later
@@ -95,7 +98,7 @@ class MixableCondGaussianModel(md.Model):
 
     def _set_data(self, df, drop_silently):
         self._set_data_mixed(df, drop_silently)
-        self._marginalized_mask = [False]*len(self.fields)
+        self._marginalized_mask = xr.DataArray(data=[False]*len(self._categoricals), dims='name', coords=[self._categoricals])
         return ()
 
     def _fit(self):
@@ -159,6 +162,24 @@ class MixableCondGaussianModel(md.Model):
 
         return self
 
+    def _update_marginalized(self, cat_marginalized=None, cat_conditioned=None):
+        """Updates the marginalized information after some categorical dimensions have been conditioned out.
+        Args:
+            Specify either the categoricals kept in the model, or those removed.
+        """
+        mask = self._marginalized_mask
+
+        if cat_marginalized is not None:
+            self._marginalized += cat_marginalized
+            for name in cat_marginalized:
+                assert (not mask.loc[name])
+                mask.loc[name] = True
+
+        if cat_conditioned is not None:
+            cat_keep = utils.invert_sequence(cat_conditioned, mask.coords['name'])
+            self._marginalized_mask = mask.loc[cat_keep]
+            assert sum(self._marginalized_mask) == len(self._marginalized)
+
     def _marginalizeout(self, keep, remove):
         # we use exact marginals, which lead to a kind of mixtures of cg. Alternatively speaking: we simply keep the
         # full parameters but shadow the existence of the marginalized field to the outside.
@@ -180,60 +201,28 @@ class MixableCondGaussianModel(md.Model):
         self._numericals = num_keep
 
         # mark newly marginalized categorical fields as such
-        self._marginalized += cat_remove
-        cat_names = self._p.dims
-        for name in cat_remove:
-            # find index. we must find the index of that field in all the remaining categorical fields, shadowed or not
-            idx = cat_names.index(name)
-            assert (not self._marginalized_mask[idx])
-            self._marginalized_mask[idx] = True
+        self._update_marginalized(cat_marginalized=cat_remove)
 
         return self._unbound_updater,
 
     _conditionout_continuous = cgwm.CgWmModel._conditionout_continuous
+    _conditionout_categorical = cgwm.CgWmModel._conditionout_categorical
 
     def _conditionout(self, keep, remove):
-        # TODO: this is, apart from the additional update of the marginalized mask, exactly like CG WM!!
-        # TODO: link to that function. Same for conditionout_continuous
-        # TODO: factor our the conditioning on categorical fields and reuse it as well
         remove = set(remove)
-
-        cat_dims = self._p.dims  # safe current categorical dims for later reuse
 
         # condition on categorical fields
         cat_remove = [name for name in self._categoricals if name in remove]
-        if len(cat_remove) != 0:
-            pairs = dict(self._condition_values(cat_remove, True))
-
-            # _p changes like in the categoricals.py case
-            # trim the probability look-up table to the appropriate subrange and normalize it
-            p = self._p.loc[pairs]
-            self._p = p / p.sum()
-
-            # _mu is trimmed: keep the slice that we condition on, i.e. reuse the 'pairs' access-structure
-            # note: if we condition on all categoricals this also works: it simply remains the single 'selected' mu...
-            if len(self._numericals) != 0:
-                self._mu = self._mu.loc[pairs]
-                self._S = self._S.loc[pairs]
-
-            self._categoricals = [name for name in self._categoricals if name not in remove]
+        if len(cat_remove) > 0:
+            self._conditionout_categorical(cat_remove)
             self._update()
 
         # condition on continuous fields
         num_remove = [name for name in self._numericals if name in remove]
-        if len(num_remove) != 0:
-            self._conditionout_continuous(num_remove)
-            self._numericals = [name for name in self._numericals if name not in remove]
+        self._conditionout_continuous(num_remove)
 
         # update marginalized mask
-        # TODO: use some acceleration data structure?
-        # (i) get indexes of the conditioned-out categorical fields in self._marginalized_mask
-        # (we now reuse the saved cat_dims from the beginning of the function)
-        cat_remove_idxs = set(cat_dims.index(name) for name in cat_remove)
-        # (ii) throw mask entries
-        self._marginalized_mask = [v for idx, v in enumerate(self._marginalized_mask) if idx not in cat_remove_idxs]
-        assert sum(self._marginalized_mask) == len(self._marginalized)
-        assert len(self._marginalized_mask) >= len(self._p.dims)
+        self._update_marginalized(cat_conditioned=cat_remove)
 
         return self._unbound_updater,
 
@@ -314,25 +303,14 @@ class MixableCondGaussianModel(md.Model):
             p_stacked = p_shadowed.stack(pl_stack=self._marginalized)
             gauss_sum = 0
             for coord in mu_stacked.pl_stack:
-            # for mu_coord, invS_coord, detS_coord, p_coord in zip(mu_stacked.pl_stack, invS_stacked.pl_stack, detS_stacked.pl_stack, p_stacked.pl_stack):
                 indexer = dict(pl_stack=coord)
-                # invS_indexer = dict(pl_stack=invS_coord)
-                # detS_indexer = dict(pl_stack=detS_coord)
-                # p_indexer = dict(pl_stack=p_coord)
-
                 mu = mu_stacked.loc[indexer].values
                 invS = invS_stacked.loc[indexer].values
                 detS = detS_stacked.loc[indexer].values
                 p = p_stacked.loc[indexer].values
 
-                try:
-                    xmu = num - mu
-                except TypeError:
-                    print("here")
-                    raise
-
+                xmu = num - mu
                 gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
-
                 gauss_sum += p * gauss
 
             return gauss_sum
@@ -423,13 +401,12 @@ class MixableCondGaussianModel(md.Model):
         if num_len == 0:
             # find maximum in p and return its coordinates
             p = self._p.sum(self._marginalized)  # sum over marginalized fields
-            pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
+            pmax = _argmax(p)  # get view on maximum (coordinates remain)
             return [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
 
         else:
-            # this is difficult case, and we don't have a perfect solution yet, just a couple of heuristics...
-            # return _maximum_mixable_cg_heuristic_a(
-            #     cat_len, mrg_len, num_len, self._marginalized_mask, self._mu, self._p, self._detS)
+            # this is the difficult case, and we don't have a perfect solution yet, just a couple of heuristics...
+            # return _maximum_mixable_cg_heuristic_a( cat_len, mrg_len, num_len, self._marginalized_mask, self._mu, self._p, self._detS)
             return self._maximum_mixable_cg_heuristic_b()
 
     # mostly like cg wm
