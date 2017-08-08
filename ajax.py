@@ -10,6 +10,7 @@ import logging
 import json
 import traceback
 
+import utils
 import modelbase as mbase
 
 from utils import is_running_in_debug_mode
@@ -18,7 +19,6 @@ if is_running_in_debug_mode():
 
 app = Flask(__name__, static_url_path='/static/')
 logger = None  # create module variable
-
 
 # the (static) start page
 @app.route('/')
@@ -41,7 +41,7 @@ def service():
             logger.info('received query:' + str(query))
             # process query
             result = mb.execute(query)
-            logger.info('result of query:' + str(result))
+            logger.info('result of query:' + utils.truncate_string(str(result)))
             # return answer
             return result
         except Exception as inst:

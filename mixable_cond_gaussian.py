@@ -215,14 +215,12 @@ class MixableCondGaussianModel(md.Model):
         cat_remove = [name for name in self._categoricals if name in remove]
         if len(cat_remove) > 0:
             self._conditionout_categorical(cat_remove)
+            self._update_marginalized(cat_conditioned=cat_remove)
             self._update()
 
         # condition on continuous fields
         num_remove = [name for name in self._numericals if name in remove]
         self._conditionout_continuous(num_remove)
-
-        # update marginalized mask
-        self._update_marginalized(cat_conditioned=cat_remove)
 
         return self._unbound_updater,
 
@@ -325,6 +323,7 @@ class MixableCondGaussianModel(md.Model):
 #    def _sample(self):
 #        pass
 
+    @profile
     def _maximum_mixable_cg_heuristic_b(self):
         """ Returns an approximation to the point of maximum density.
 

@@ -240,5 +240,12 @@ def is_running_in_debug_mode():
         return False
 
 
+def truncate_string(str_, trim_length=500):
+    if trim_length == 0:
+        return str
+    else:
+        return (str_[:trim_length] + ' ...') if len(str_) > trim_length else str_
+
+
 if __name__ == '__main__':
     pass
