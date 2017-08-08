@@ -190,12 +190,87 @@ class CgWmModel(md.Model):
 
         return self
 
+    def _conditionout_continuous_internal_slow(self, cond_values, i, j, cat_keep, all_num_removing):
+        if all_num_removing:
+            detS_cond = 1  # TODO: uh.. is that right?
+        # iterate the mu and sigma and p of each cg and update them
+        #  for that create stacked _views_ on mu and sigma! it stacks up all categorical dimensions and thus
+        #  allows us to iterate on them
+        mu_stacked = self._mu.stack(pl_stack=cat_keep)
+        S_stacked = self._S.stack(pl_stack=cat_keep)
+        p_stacked = self._p.stack(pl_stack=cat_keep)
+        detS_stacked = self._detS.stack(pl_stack=cat_keep)
+        for coord in mu_stacked.pl_stack:
+            indexer = dict(pl_stack=coord)
+            mu = mu_stacked.loc[indexer]
+            S = S_stacked.loc[indexer]
+            detS = detS_stacked.loc[indexer]  # note: detS == abs(det(self._S))**-0.5 !!
+
+            diff_y_mu_J = cond_values - mu.loc[j]  # reused
+            Sjj_inv = inv(S.loc[j, j])  # reused
+
+            # if all_num_removed:
+            #    # detScond = 1  # this is set once above
+            if not all_num_removing:
+                # extent indexer to subselect only the part of mu and S that is updated. the rest is removed later.
+                #  problem is: we cannot assign a shorter vector to stacked.loc[indexer]
+                mu_indexer = dict(pl_stack=coord, mean=i)
+                S_indexer = dict(pl_stack=coord, S1=i, S2=i)
+
+                # update Sigma and mu
+                sigma_expr = np.dot(S.loc[i, j], Sjj_inv)  # reused below multiple times
+                S_stacked.loc[S_indexer] = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
+                mu_stacked.loc[mu_indexer] = mu.loc[i] + dot(sigma_expr, diff_y_mu_J)
+
+                # for p update. Otherwise it is constant and calculated before the stacking loop
+                detS_cond = abs(det(S_stacked.loc[S_indexer]))
+
+            # update p
+            detQuotient = (detS_cond ** 0.5) * detS
+            p_stacked.loc[indexer] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
+
+    def _conditionout_continuous_internal_fast(self, p_, mu_, detS_, S_, cond_values, i, j, all_num_removing):
+        if all_num_removing:
+            detS_cond = 1  # TODO: uh.. is that right?
+        # iterate the mu and sigma and p of each cg and update them
+        #  for that create stacked _views_ on mu and sigma! it stacks up all categorical dimensions and thus
+        #  allows us to iterate on them
+        for (idx, (p, mu, detS, S)) in enumerate(zip(p_.values, mu_.values, detS_.values, S_.values)):
+            diff_y_mu_J = cond_values - mu.loc[j]  # reused
+            Sjj_inv = inv(S.loc[j, j])  # reused
+
+            # if all_num_removed:
+            #    # detScond = 1  # this is set once above
+            if not all_num_removing:
+                # extent indexer to subselect only the part of mu and S that is updated. the rest is removed later.
+                #  problem is: we cannot assign a shorter vector to stacked.loc[indexer]
+                # mu_indexer = dict(pl_stack=coord, mean=i)
+                # S_indexer = dict(pl_stack=coord, S1=i, S2=i)
+
+                # update Sigma and mu
+                sigma_expr = np.dot(S.loc[i, j], Sjj_inv)  # reused below multiple times
+
+                #S_stacked.loc[S_indexer] = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
+                self._S[idx] = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
+
+                #mu_stacked.loc[mu_indexer] = mu.loc[i] + dot(sigma_expr, diff_y_mu_J)
+                self._mu[idx] = mu.loc[i] + dot(sigma_expr, diff_y_mu_J)
+
+                # for p update. Otherwise it is constant and calculated before the stacking loop
+                # detS_cond = abs(det(S_stacked.loc[S_indexer]))
+                detS_cond = abs(det(S))  # TODO: I think its very likely that this translation of the line above is wrong...
+
+            # update p
+            detQuotient = (detS_cond ** 0.5) * detS
+            #p_stacked.loc[indexer] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
+            self._p[idx] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
+
     def _conditionout_continuous(self, num_remove):
         if len(num_remove) == 0:
             return
 
         # collect singular values to condition out
-        condvalues = self._condition_values(num_remove)
+        cond_values = self._condition_values(num_remove)
 
         # calculate updated mu and sigma for conditional distribution, according to GM script
         j = num_remove  # remove
@@ -205,52 +280,18 @@ class CgWmModel(md.Model):
         all_num_removing = len(num_remove) == len(self._numericals)
         all_cat_removed = len(cat_keep) == 0
 
-        if all_num_removing:
-            detS_cond = 1  # TODO: uh.. is that right?
-
         if all_cat_removed:
             # special case: no categorical fields left. hence we cannot stack over them, it is only a single mu left
             # and we only need to update that
             sigma_expr = np.dot(self._S.loc[i, j], inv(self._S.loc[j, j]))  # reused below
             self._S = self._S.loc[i, i] - dot(sigma_expr, self._S.loc[j, i])  # upper Schur complement
-            self._mu = self._mu.loc[i] + dot(sigma_expr, condvalues - self._mu.loc[j])
+            self._mu = self._mu.loc[i] + dot(sigma_expr, cond_values - self._mu.loc[j])
             # update p: there is nothing to update. p is empty
         else:
-            # iterate the mu and sigma and p of each cg and update them
-            #  for that create stacked _views_ on mu and sigma! it stacks up all categorical dimensions and thus
-            #  allows us to iterate on them
-            mu_stacked = self._mu.stack(pl_stack=cat_keep)
-            S_stacked = self._S.stack(pl_stack=cat_keep)
-            p_stacked = self._p.stack(pl_stack=cat_keep)
-            detS_stacked = self._detS.stack(pl_stack=cat_keep)
-            for coord in mu_stacked.pl_stack:
-                indexer = dict(pl_stack=coord)
-                mu = mu_stacked.loc[indexer]
-                S = S_stacked.loc[indexer]
-                detS = detS_stacked.loc[indexer]  # note: detS == abs(det(self._S))**-0.5 !!
 
-                diff_y_mu_J = condvalues - mu.loc[j]  # reused
-                Sjj_inv = inv(S.loc[j, j])  # reused
-
-                #if all_num_removed:
-                #    # detScond = 1  # this is set once above
-                if not all_num_removing:
-                    # extent indexer to subselect only the part of mu and S that is updated. the rest is removed later.
-                    #  problem is: we cannot assign a shorter vector to stacked.loc[indexer]
-                    mu_indexer = dict(pl_stack=coord, mean=i)
-                    S_indexer = dict(pl_stack=coord, S1=i, S2=i)
-
-                    # update Sigma and mu
-                    sigma_expr = np.dot(S.loc[i, j], Sjj_inv)  # reused below multiple times
-                    S_stacked.loc[S_indexer] = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
-                    mu_stacked.loc[mu_indexer] = mu.loc[i] + dot(sigma_expr, diff_y_mu_J)
-
-                    # for p update. Otherwise it is constant and calculated before the stacking loop
-                    detS_cond = abs(det(S_stacked.loc[S_indexer]))
-
-                # update p
-                detQuotient = (detS_cond ** 0.5) * detS
-                p_stacked.loc[indexer] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
+            self._conditionout_continuous_internal_slow(cond_values, i, j, cat_keep, all_num_removing)
+            # TODO: CONTINUE HERE
+            #self._conditionout_continuous_internal_fast(self, self._p, self._mu, self._detS, self._S, cond_values, i, j, all_num_removing)
 
             # rescale to one
             # TODO: is this wrong? why do we not automatically get a normalized model?

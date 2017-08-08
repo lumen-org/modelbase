@@ -224,6 +224,39 @@ class MixableCondGaussianModel(md.Model):
 
         return self._unbound_updater,
 
+    def _density_internal_stacked(self, num, mu_shadowed, invS_shadowed, detS_shadowed, p_shadowed):
+        ## alternative 2 (see above)
+        # stack over shadowed dimensions
+
+        num_len = len(self._numericals)
+        mu_stacked = mu_shadowed.stack(pl_stack=self._marginalized)
+        invS_stacked = invS_shadowed.stack(pl_stack=self._marginalized)
+        detS_stacked = detS_shadowed.stack(pl_stack=self._marginalized)
+        p_stacked = p_shadowed.stack(pl_stack=self._marginalized)
+        gauss_sum = 0
+        for coord in mu_stacked.pl_stack:
+            indexer = dict(pl_stack=coord)
+            mu = mu_stacked.loc[indexer].values
+            invS = invS_stacked.loc[indexer].values
+            detS = detS_stacked.loc[indexer].values
+            p = p_stacked.loc[indexer].values
+            xmu = num - mu
+            gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
+            gauss_sum += p * gauss
+
+        return gauss_sum
+
+    def _density_internal_fast(self, num, mu_, invS_, detS_, p_):
+        num_len = len(self._numericals)
+        gauss_sum = 0
+        # iterate over all at the same time
+        for p, mu, invS, detS in zip(p_.values, mu_.values, invS_.values, detS_.values):
+            xmu = num - mu
+            gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
+            gauss_sum += p * gauss
+        return gauss_sum
+
+    # @profile
     def _density(self, x):
         """Returns the density of the model at x.
 
@@ -293,25 +326,8 @@ class MixableCondGaussianModel(md.Model):
             detS_shadowed = self._detS.loc[cat_dict]
             p_shadowed = self._p.loc[cat_dict]
 
-            ## alternative 2 (see above)
-            # stack over shadowed dimensions
-            mu_stacked = mu_shadowed.stack(pl_stack=self._marginalized)
-            invS_stacked = invS_shadowed.stack(pl_stack=self._marginalized)
-            detS_stacked = detS_shadowed.stack(pl_stack=self._marginalized)
-            p_stacked = p_shadowed.stack(pl_stack=self._marginalized)
-            gauss_sum = 0
-            for coord in mu_stacked.pl_stack:
-                indexer = dict(pl_stack=coord)
-                mu = mu_stacked.loc[indexer].values
-                invS = invS_stacked.loc[indexer].values
-                detS = detS_stacked.loc[indexer].values
-                p = p_stacked.loc[indexer].values
-
-                xmu = num - mu
-                gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
-                gauss_sum += p * gauss
-
-            return gauss_sum
+            return self._density_internal_fast(num, mu_shadowed, invS_shadowed, detS_shadowed, p_shadowed)
+            #return self._density_internal_stacked(num, mu_shadowed, invS_shadowed, detS_shadowed, p_shadowed)
 
             ## vectorized version (instead of alternative 2 code)
             # I simply don't know the syntax for what i want...
@@ -323,7 +339,6 @@ class MixableCondGaussianModel(md.Model):
 #    def _sample(self):
 #        pass
 
-    @profile
     def _maximum_mixable_cg_heuristic_b(self):
         """ Returns an approximation to the point of maximum density.
 

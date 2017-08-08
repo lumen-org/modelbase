@@ -23,8 +23,12 @@ import time
 import modelbase as mb
 import models as md
 
+from utils import is_running_in_debug_mode
+if is_running_in_debug_mode():
+    import models_debug
+
 ######### CONFIGURE HERE ###
-do_what = 'aggregation'
+do_what = 'density'
 mode = 'model'  # model, data or both
 ############################
 
@@ -52,7 +56,8 @@ if do_what == 'dummy':
 
 elif do_what == 'density':
     # run some longer density query
-    query = {'SPLIT BY': [{'args': [20], 'split': 'equiinterval', 'name': 'hwy'}, {'args': [20], 'split': 'equiinterval', 'name': 'displ'}],
+    split_cnt = 20
+    query = {'SPLIT BY': [{'args': [split_cnt], 'split': 'equiinterval', 'name': 'hwy'}, {'args': [split_cnt], 'split': 'equiinterval', 'name': 'displ'}],
              'WHERE': [],
              'PREDICT': ['hwy', 'displ', {'aggregation': 'density', 'name': ['hwy', 'displ']}],
              'FROM': 'mcg_mpg'}
