@@ -28,8 +28,9 @@ if is_running_in_debug_mode():
     import models_debug
 
 ######### CONFIGURE HERE ###
-do_what = 'density'
+do_what = 'aggregation cgw'  # aggregation or density
 mode = 'model'  # model, data or both
+model_type = 'cgw'  # cgw or mcg
 ############################
 
 if mode == 'both':
@@ -60,22 +61,34 @@ elif do_what == 'density':
     query = {'SPLIT BY': [{'args': [split_cnt], 'split': 'equiinterval', 'name': 'hwy'}, {'args': [split_cnt], 'split': 'equiinterval', 'name': 'displ'}],
              'WHERE': [],
              'PREDICT': ['hwy', 'displ', {'aggregation': 'density', 'name': ['hwy', 'displ']}],
-             'FROM': 'mcg_mpg'}
+             'FROM': model_type+'_mpg'}
     query['WHERE'].extend(where)
     res = mbase.execute(query=query)
     print(str(res))
 
 elif do_what == 'aggregation':
     # run some longer density query
-    split_cnt = 5
+    split_cnt = 20
     query = {'SPLIT BY': [{'args': [split_cnt], 'split': 'equiinterval', 'name': 'hwy'},
                           {'args': [split_cnt], 'split': 'equiinterval', 'name': 'displ'}],
              'WHERE': [],
-             'PREDICT': ['hwy', 'displ', {'name': ['cyl'], 'yields': 'cyl', 'args': [], 'aggregation': 'maximum'}],
-             'FROM': 'mcg_mpg'}
+             'PREDICT': ['hwy', 'displ', {'name': ['cyl','class','cty'], 'yields': 'class', 'args': [], 'aggregation': 'maximum'}],
+             'FROM': model_type+'_mpg'}
     query['WHERE'].extend(where)
     res = mbase.execute(query=query)
     print(str(res))
+
+elif do_what == 'aggregation cgw':
+    # run some longer density query
+    split_cnt = 50
+    query = {'SPLIT BY': [{'args': [split_cnt], 'split': 'equiinterval', 'name': 'hwy'}],
+             'WHERE': [],
+             'PREDICT': [{'name': ['cyl','class','cty'], 'yields': 'cty', 'args': [], 'aggregation': 'maximum'}],
+             'FROM': model_type+'_mpg'}
+    query['WHERE'].extend(where)
+    res = mbase.execute(query=query)
+    print(str(res))
+
 else:
     print("did nothing!")
 

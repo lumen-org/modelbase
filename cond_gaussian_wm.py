@@ -2,7 +2,7 @@
 import functools
 import logging
 import numpy as np
-from numpy import nan, pi, exp, dot, abs
+from numpy import nan, pi, exp, dot, abs, ix_
 from numpy.linalg import inv, det
 import xarray as xr
 
@@ -190,6 +190,7 @@ class CgWmModel(md.Model):
 
         return self
 
+    #@profile
     def _conditionout_continuous_internal_slow(self, cond_values, i, j, cat_keep, all_num_removing):
         if all_num_removing:
             detS_cond = 1  # TODO: uh.. is that right?
@@ -229,41 +230,42 @@ class CgWmModel(md.Model):
             detQuotient = (detS_cond ** 0.5) * detS
             p_stacked.loc[indexer] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
 
-    def _conditionout_continuous_internal_fast(self, p_, mu_, detS_, S_, cond_values, i, j, all_num_removing):
+    # @profile
+    def _conditionout_continuous_internal_fast(self, p_, mu_, detS_, S_, cond_values, i_names, j_names, all_num_removing):
         if all_num_removing:
-            detS_cond = 1  # TODO: uh.. is that right?
-        # iterate the mu and sigma and p of each cg and update them
-        #  for that create stacked _views_ on mu and sigma! it stacks up all categorical dimensions and thus
-        #  allows us to iterate on them
-        for (idx, (p, mu, detS, S)) in enumerate(zip(p_.values, mu_.values, detS_.values, S_.values)):
-            diff_y_mu_J = cond_values - mu.loc[j]  # reused
-            Sjj_inv = inv(S.loc[j, j])  # reused
+            detS_cond = 1
 
-            # if all_num_removed:
-            #    # detScond = 1  # this is set once above
+        # get numerical index for mu, sigma
+        # this is ugly, but I can't use self.asindex because it is not necessarily up-to-date in case there were categorical variables marginalized out. This is because the abstract-model-level-update is called _after_the  whole condition-out operation.
+        num_names = self._mu.coords['mean'].values.tolist()
+        # TODO this can be done in linear time, not quadratic as now, but it is anyway ugly
+        i = [num_names.index(v) for v in i_names]
+        j = [num_names.index(v) for v in j_names]
+
+        n = p_.size  # number of single gaussians in the cg
+        m = len(self._numericals)  # gaussian dimension
+
+        # extract numpy arrays and reshape to suitable form. This allows to iterate over the single parameters for S, mu, p by means of a standard python iterators
+        p_np = p_.values.reshape(n)
+        mu_np = mu_.values.reshape(n, m)
+        detS_np = detS_.values.reshape(n)
+        S_np = S_.values.reshape(n, m, m)
+
+        for (idx, (p, mu, detS, S)) in enumerate(zip(p_np, mu_np, detS_np, S_np)):
+            diff_y_mu_J = cond_values - mu[j]
+            Sjj_inv = inv(S[ix_(j, j)])
+
             if not all_num_removing:
-                # extent indexer to subselect only the part of mu and S that is updated. the rest is removed later.
-                #  problem is: we cannot assign a shorter vector to stacked.loc[indexer]
-                # mu_indexer = dict(pl_stack=coord, mean=i)
-                # S_indexer = dict(pl_stack=coord, S1=i, S2=i)
-
                 # update Sigma and mu
-                sigma_expr = np.dot(S.loc[i, j], Sjj_inv)  # reused below multiple times
-
-                #S_stacked.loc[S_indexer] = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
-                self._S[idx] = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
-
-                #mu_stacked.loc[mu_indexer] = mu.loc[i] + dot(sigma_expr, diff_y_mu_J)
-                self._mu[idx] = mu.loc[i] + dot(sigma_expr, diff_y_mu_J)
-
-                # for p update. Otherwise it is constant and calculated before the stacking loop
-                # detS_cond = abs(det(S_stacked.loc[S_indexer]))
-                detS_cond = abs(det(S))  # TODO: I think its very likely that this translation of the line above is wrong...
+                sigma_expr = np.dot(S[ix_(i, j)], Sjj_inv)  # reused below multiple times
+                S_np[idx][ix_(i, i)] -= dot(sigma_expr, S[ix_(j, i)])  # upper Schur complement
+                mu_np[idx][i] += dot(sigma_expr, diff_y_mu_J)
+                # this is for p update. Otherwise it is constant and calculated before the stacking loop
+                detS_cond = abs(det(S_np[idx][ix_(i, i)]))
 
             # update p
             detQuotient = (detS_cond ** 0.5) * detS
-            #p_stacked.loc[indexer] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
-            self._p[idx] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
+            p_np[idx] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
 
     def _conditionout_continuous(self, num_remove):
         if len(num_remove) == 0:
@@ -288,10 +290,9 @@ class CgWmModel(md.Model):
             self._mu = self._mu.loc[i] + dot(sigma_expr, cond_values - self._mu.loc[j])
             # update p: there is nothing to update. p is empty
         else:
-
-            self._conditionout_continuous_internal_slow(cond_values, i, j, cat_keep, all_num_removing)
-            # TODO: CONTINUE HERE
-            #self._conditionout_continuous_internal_fast(self, self._p, self._mu, self._detS, self._S, cond_values, i, j, all_num_removing)
+            # this is the actual difficult case
+            #self._conditionout_continuous_internal_slow(cond_values, i, j, cat_keep, all_num_removing)
+            self._conditionout_continuous_internal_fast(self._p, self._mu, self._detS, self._S, cond_values, i, j, all_num_removing)
 
             # rescale to one
             # TODO: is this wrong? why do we not automatically get a normalized model?
@@ -303,7 +304,8 @@ class CgWmModel(md.Model):
                                "power")
                 self._p.values = np.full_like(self._p.values, 1 / self._p.size)
 
-            # above we partially updated only the relevant part of mu and Sigma. the remaining part is now removed:
+            # in the conditionout_continuous_internal_* we partially updated only the relevant part of mu and Sigma
+            # the remaining part is now removed, i.e. sliced out
             if all_num_removing:
                 self._mu = xr.DataArray([])
                 self._S = xr.DataArray([])
@@ -332,7 +334,6 @@ class CgWmModel(md.Model):
 
         # update internals
         self._categoricals = [name for name in self._categoricals if name not in cat_remove]
-
 
     def _conditionout(self, keep, remove):
         remove = set(remove)

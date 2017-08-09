@@ -62,7 +62,7 @@ logger.setLevel(logging.INFO)
 models = {
     'discrete': [],
     'continuous': [],
-    'mixed': [MCGModel]
+    'mixed': [CGWMModel]
 }
 # models = {
 #     'discrete': [MockUpModel, CategoricalModel],
