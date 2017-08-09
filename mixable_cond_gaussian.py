@@ -176,7 +176,7 @@ class MixableCondGaussianModel(md.Model):
                 mask.loc[name] = True
 
         if cat_conditioned is not None:
-            cat_keep = utils.invert_sequence(cat_conditioned, mask.coords['name'])
+            cat_keep = utils.invert_sequence(cat_conditioned, mask.coords['name'].values.tolist())
             self._marginalized_mask = mask.loc[cat_keep]
             assert sum(self._marginalized_mask) == len(self._marginalized)
 
@@ -207,6 +207,8 @@ class MixableCondGaussianModel(md.Model):
 
     _conditionout_continuous = cgwm.CgWmModel._conditionout_continuous
     _conditionout_categorical = cgwm.CgWmModel._conditionout_categorical
+    _conditionout_continuous_internal_fast = cgwm.CgWmModel._conditionout_continuous_internal_fast  # TODO: not clean
+    _conditionout_continuous_internal_slow = cgwm.CgWmModel._conditionout_continuous_internal_slow  # TODO: not clean
 
     def _conditionout(self, keep, remove):
         remove = set(remove)
@@ -249,8 +251,14 @@ class MixableCondGaussianModel(md.Model):
     def _density_internal_fast(self, num, mu_, invS_, detS_, p_):
         num_len = len(self._numericals)
         gauss_sum = 0
-        # iterate over all at the same time
-        for p, mu, invS, detS in zip(p_.values, mu_.values, invS_.values, detS_.values):
+
+        # we get here only if there is any continuous fields left
+
+        n = p_.size  # number of single gaussians in the cg
+        m = len(self._numericals)  # gaussian dimension
+
+        # iterate over all at the same time. The reshape is necessary, for use of the default iterator
+        for p, mu, invS, detS in zip(p_.values.reshape(n), mu_.values.reshape(n, m), invS_.values.reshape(n, m, m), detS_.values.reshape(n)):
             xmu = num - mu
             gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
             gauss_sum += p * gauss
@@ -298,7 +306,6 @@ class MixableCondGaussianModel(md.Model):
             else:
                 p = self._p.sum(self._marginalized)   # sum over marginalized/shadowed fields
             return p.loc[cat].values
-        # we get here only if there is any continuous fields left
 
         if len(self._marginalized) == 0:
             # no shadowed/marginalized fields. hence we cannot stack over them and the density query works as "normal"
