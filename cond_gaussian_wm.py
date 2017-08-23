@@ -42,7 +42,7 @@ def fitConditionalGaussian(data, fields, categoricals, numericals):
 
 
 def _maximum_cgwm_heuristic1(cat_len, num_len, mu, p, detS):
-    """Returns an approximation to point of the maximum density of the implicitely given cg distribution.
+    """Returns an approximation to point of the maximum density of the given cg distribution.
     Essentially its the coordinates of the most likeliest mean of all gaussians in the cg distribution.
 
      observation 1: for a given x in Omega_X the maximum is taken at the corresponding cg's mu, lets call it argmu(
@@ -190,45 +190,45 @@ class CgWmModel(md.Model):
 
         return self
 
-    #@profile
-    def _conditionout_continuous_internal_slow(self, cond_values, i, j, cat_keep, all_num_removing):
-        if all_num_removing:
-            detS_cond = 1  # TODO: uh.. is that right?
-        # iterate the mu and sigma and p of each cg and update them
-        #  for that create stacked _views_ on mu and sigma! it stacks up all categorical dimensions and thus
-        #  allows us to iterate on them
-        mu_stacked = self._mu.stack(pl_stack=cat_keep)
-        S_stacked = self._S.stack(pl_stack=cat_keep)
-        p_stacked = self._p.stack(pl_stack=cat_keep)
-        detS_stacked = self._detS.stack(pl_stack=cat_keep)
-        for coord in mu_stacked.pl_stack:
-            indexer = dict(pl_stack=coord)
-            mu = mu_stacked.loc[indexer]
-            S = S_stacked.loc[indexer]
-            detS = detS_stacked.loc[indexer]  # note: detS == abs(det(self._S))**-0.5 !!
-
-            diff_y_mu_J = cond_values - mu.loc[j]  # reused
-            Sjj_inv = inv(S.loc[j, j])  # reused
-
-            # if all_num_removed:
-            #    # detScond = 1  # this is set once above
-            if not all_num_removing:
-                # extent indexer to subselect only the part of mu and S that is updated. the rest is removed later.
-                #  problem is: we cannot assign a shorter vector to stacked.loc[indexer]
-                mu_indexer = dict(pl_stack=coord, mean=i)
-                S_indexer = dict(pl_stack=coord, S1=i, S2=i)
-
-                # update Sigma and mu
-                sigma_expr = np.dot(S.loc[i, j], Sjj_inv)  # reused below multiple times
-                S_stacked.loc[S_indexer] = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
-                mu_stacked.loc[mu_indexer] = mu.loc[i] + dot(sigma_expr, diff_y_mu_J)
-
-                # for p update. Otherwise it is constant and calculated before the stacking loop
-                detS_cond = abs(det(S_stacked.loc[S_indexer]))
-
-            # update p
-            detQuotient = (detS_cond ** 0.5) * detS
-            p_stacked.loc[indexer] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
+    # #@profile
+    # def _conditionout_continuous_internal_slow(self, cond_values, i, j, cat_keep, all_num_removing):
+    #     if all_num_removing:
+    #         detS_cond = 1  # TODO: uh.. is that right?
+    #     # iterate the mu and sigma and p of each cg and update them
+    #     #  for that create stacked _views_ on mu and sigma! it stacks up all categorical dimensions and thus
+    #     #  allows us to iterate on them
+    #     mu_stacked = self._mu.stack(pl_stack=cat_keep)
+    #     S_stacked = self._S.stack(pl_stack=cat_keep)
+    #     p_stacked = self._p.stack(pl_stack=cat_keep)
+    #     detS_stacked = self._detS.stack(pl_stack=cat_keep)
+    #     for coord in mu_stacked.pl_stack:
+    #         indexer = dict(pl_stack=coord)
+    #         mu = mu_stacked.loc[indexer]
+    #         S = S_stacked.loc[indexer]
+    #         detS = detS_stacked.loc[indexer]  # note: detS == abs(det(self._S))**-0.5 !!
+    #
+    #         diff_y_mu_J = cond_values - mu.loc[j]  # reused
+    #         Sjj_inv = inv(S.loc[j, j])  # reused
+    #
+    #         # if all_num_removed:
+    #         #    # detScond = 1  # this is set once above
+    #         if not all_num_removing:
+    #             # extent indexer to subselect only the part of mu and S that is updated. the rest is removed later.
+    #             #  problem is: we cannot assign a shorter vector to stacked.loc[indexer]
+    #             mu_indexer = dict(pl_stack=coord, mean=i)
+    #             S_indexer = dict(pl_stack=coord, S1=i, S2=i)
+    #
+    #             # update Sigma and mu
+    #             sigma_expr = np.dot(S.loc[i, j], Sjj_inv)  # reused below multiple times
+    #             S_stacked.loc[S_indexer] = S.loc[i, i] - dot(sigma_expr, S.loc[j, i])  # upper Schur complement
+    #             mu_stacked.loc[mu_indexer] = mu.loc[i] + dot(sigma_expr, diff_y_mu_J)
+    #
+    #             # for p update. Otherwise it is constant and calculated before the stacking loop
+    #             detS_cond = abs(det(S_stacked.loc[S_indexer]))
+    #
+    #         # update p
+    #         detQuotient = (detS_cond ** 0.5) * detS
+    #         p_stacked.loc[indexer] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
 
     # @profile
     def _conditionout_continuous_internal_fast(self, p_, mu_, detS_, S_, cond_values, i_names, j_names, all_num_removing):
@@ -434,40 +434,7 @@ class CgWmModel(md.Model):
         cat_len = len(self._categoricals)
         num_len = len(self._numericals)
 
-        if cat_len == 0:
-            # then there is only a single gaussian left and the maximum is its mean value, i.e. the value of _mu
-            return list(self._mu.values)
-
-        # observation 1: for a given x in Omega_X the maximum is taken at the corresponding cg's mu, lets call it
-        #  argmu(x). hence, in order to determine the maximum, we scan over all x of Omega_x and
-        #  calculate the density over p(x, argmu(x))
-        # observation 2: the density of a gaussian at its mean is quite simple since the (x-mu) terms evaluate to 0.
-        # observation 3: we are only interested in where the maximum is taken, not its actual value. Hence we can remove
-        #  any values that are equal for all. Hence, the following simplifies:
-        #     (2*pi)^(-n/2) * det(Sigma)^-0.5 * exp( -0.5 * (x-mu)^T * Sigma^-1 * (x-mu) )
-        # to:
-        #     det(Sigma)^-0.5
-        # observation 4: luckily, we already have that precalculated!
-
-        if num_len == 0:
-            # find maximum in p and return its coordinates
-            p = self._p
-            pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
-            return [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
-
-        else:
-            # find compound maximum
-
-            # compute pseudo-density at all gaussian means to find maximum
-            p = self._p * self._detS  # note: _detS == abs(det(S.values)) ** -0.5
-            pmax = p.where(p == p.max(), drop=True)  # get view on maximum (coordinates remain)
-
-            # now figure out the coordinates
-            cat_argmax = [idx[0] for idx in pmax.indexes.values()]  # extract categorical coordinates from indexes
-            num_argmax = self._mu.loc[tuple(cat_argmax)]  # extract numerical coordinates as mean
-
-            # return compound coordinates
-            return cat_argmax + list(num_argmax.values)
+        return _maximum_cgwm_heuristic1(cat_len, num_len, self._mu, self._p, self._detS)
 
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)

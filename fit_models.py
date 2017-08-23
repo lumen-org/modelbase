@@ -28,8 +28,9 @@ from cond_gaussians import ConditionallyGaussianModel
 from cond_gaussian_wm import CgWmModel
 from gaussians import MultiVariateGaussianModel
 from categoricals import CategoricalModel
-from mixture_gaussians import MixtureOfGaussiansModel
+#from mixture_gaussians import MixtureOfGaussiansModel
 from mixture_gaussians import MoGModelWithK
+from mixture_cond_gaussian_wm import MoCGModelWithK
 from mixable_cond_gaussian import MixableCondGaussianModel
 
 known_models = {
@@ -76,6 +77,10 @@ known_models = {
     'mo4g_crabs': lambda: (MoGModelWithK('mo4g_crabs', 4), crabs.continuous('data/crabs/australian-crabs.csv')),
     'mo10g_crabs': lambda: (MoGModelWithK('mo10g_crabs', 10), crabs.continuous('data/crabs/australian-crabs.csv')),
     'mo3g_iris': lambda: (MoGModelWithK('mo3g_iris', 3), iris.continuous()),
+
+    # mixture of conditional gaussian models
+    # TODO: _fit missing in that model
+    #'mo3cg_iris': lambda: (MoCGModelWithK('mo3g_iris', 3), iris.mixed()),
 
     # mixable cg models
     'mcg_crabs': lambda: (MixableCondGaussianModel('mcg_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),

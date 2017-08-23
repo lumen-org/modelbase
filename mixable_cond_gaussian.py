@@ -205,10 +205,11 @@ class MixableCondGaussianModel(md.Model):
 
         return self._unbound_updater,
 
+    # reuse methods of non-mixed cgs
     _conditionout_continuous = cgwm.CgWmModel._conditionout_continuous
     _conditionout_categorical = cgwm.CgWmModel._conditionout_categorical
-    _conditionout_continuous_internal_fast = cgwm.CgWmModel._conditionout_continuous_internal_fast  # TODO: not clean
-    _conditionout_continuous_internal_slow = cgwm.CgWmModel._conditionout_continuous_internal_slow  # TODO: not clean
+    _conditionout_continuous_internal_fast = cgwm.CgWmModel._conditionout_continuous_internal_fast
+    _conditionout_continuous_internal_slow = cgwm.CgWmModel._conditionout_continuous_internal_slow
 
     def _conditionout(self, keep, remove):
         remove = set(remove)
