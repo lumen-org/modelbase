@@ -209,7 +209,7 @@ class MixableCondGaussianModel(md.Model):
     _conditionout_continuous = cgwm.CgWmModel._conditionout_continuous
     _conditionout_categorical = cgwm.CgWmModel._conditionout_categorical
     _conditionout_continuous_internal_fast = cgwm.CgWmModel._conditionout_continuous_internal_fast
-    _conditionout_continuous_internal_slow = cgwm.CgWmModel._conditionout_continuous_internal_slow
+    #_conditionout_continuous_internal_slow = cgwm.CgWmModel._conditionout_continuous_internal_slow
 
     def _conditionout(self, keep, remove):
         remove = set(remove)
