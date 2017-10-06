@@ -9,6 +9,7 @@ import utils
 import models as md
 from models import AggregationTuple, SplitTuple, ConditionTuple
 import domains as dm
+from scipy.optimize import minimize
 
 # setup logger
 logger = logging.getLogger(__name__)
@@ -86,7 +87,7 @@ class MultiVariateGaussianModel(md.Model):
         # calculate updated mu and sigma for conditional distribution, according to GM script
         j = self.asindex(remove)
         i = utils.invert_indexes(j, self.dim)
-        S = self._S
+        S = self._SInv
         mu = self._mu
         self._S = utils.schur_complement(S, i)
         self._mu = mu[i] + S[ix_(i, j)] * S[ix_(j, j)].I * (condvalues - mu[j])

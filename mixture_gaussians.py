@@ -47,7 +47,10 @@ class MixtureOfGaussiansModel(FixedMixtureModel):
             model._update()  # stupid me!!
         return self._unbound_component_updater,
 
-    _maximum = FixedMixtureModel._maximum_naive_heuristic
+    #_maximum = FixedMixtureModel._maximum_naive_heuristic
+    _maximum = FixedMixtureModel._maximum_better_heuristic
+
+
 
 
 def MoGModelWithK(name, k):

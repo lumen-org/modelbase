@@ -2,6 +2,7 @@
 import functools
 import logging
 import math
+from scipy.optimize import minimize
 
 import models as md
 
@@ -181,7 +182,32 @@ class FixedMixtureModel(md.Model):
                 maximum = cur_maximum
                 maximum_density = cur_density
 
+        #print("FUNVAL: ", maximum_density)
+
         return maximum
+
+    def _maximum_better_heuristic(self):
+        # this is another heuristic using the function minimize from scipy.optimize 
+        maximum = None
+        maximum_density = math.inf
+
+        def neg_density(x):
+            return -self._density(x)
+
+        for weight, model in zip(self.weights, self):
+            cur_value = model._maximum()
+            cur_density = minimize(neg_density, cur_value, method='Nelder-Mead', tol=1e-6)
+            cur_value = cur_density.x
+            cur_density = cur_density.fun
+            if cur_density < maximum_density:
+                maximum = cur_value
+                maximum_density = cur_density
+
+        maximum_density = -maximum_density
+        #print("FUNVAL: ", maximum_density)
+
+        return maximum
+
 
     def _set_data_4mixture(self):
         raise NotImplementedError("Implement this method in your subclass")
