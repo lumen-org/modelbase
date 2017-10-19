@@ -143,6 +143,9 @@ class FixedMixtureModel(md.Model):
     def _density(self, x):
         return sum(model._density(x) * weight for weight, model in zip(self.weights, self))
 
+    def _gradient(self, x):
+        return sum(model._gradient(x) * weight for weight, model in zip(self.weights, self))
+
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)
         mycopy.weights = self.weights[:]
@@ -181,30 +184,6 @@ class FixedMixtureModel(md.Model):
             if cur_density > maximum_density:
                 maximum = cur_maximum
                 maximum_density = cur_density
-
-        #print("FUNVAL: ", maximum_density)
-
-        return maximum
-
-    def _maximum_better_heuristic(self):
-        # this is another heuristic using the function minimize from scipy.optimize 
-        maximum = None
-        maximum_density = math.inf
-
-        def neg_density(x):
-            return -self._density(x)
-
-        for weight, model in zip(self.weights, self):
-            cur_value = model._maximum()
-            cur_density = minimize(neg_density, cur_value, method='Nelder-Mead', tol=1e-6)
-            cur_value = cur_density.x
-            cur_density = cur_density.fun
-            if cur_density < maximum_density:
-                maximum = cur_value
-                maximum_density = cur_density
-
-        maximum_density = -maximum_density
-        #print("FUNVAL: ", maximum_density)
 
         return maximum
 

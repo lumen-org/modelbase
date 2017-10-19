@@ -106,6 +106,12 @@ class MultiVariateGaussianModel(md.Model):
         xmu = x - self._mu
         return ((2 * pi) ** (-self.dim / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item()
 
+    def _gradient(self, x):
+        x = matrix(x).T 
+        xmu = x - self._mu
+        result = ((2 * pi) ** (-self.dim / 2) * (self._detS ** -.5) * exp(-.5 * xmu.T * self._SInv * xmu)).item() * (-.5 * self._SInv * xmu)
+        return np.array(result).T[0]
+
     def _maximum(self):
         """Returns the point of the maximum density in this model"""
         # _mu is a np matrix, but we want to return a list
