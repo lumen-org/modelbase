@@ -42,17 +42,19 @@ def fitConditionalGaussian(data, fields, categoricals, numericals):
 
 
 def _maximum_cgwm_heuristic1(cat_len, num_len, mu, p, detS):
-    """Returns an approximation to point of the maximum density of the given cg distribution.
+    """Returns an approximation to point of the maximum density of a given cg distribution.
     Essentially its the coordinates of the most likeliest mean of all gaussians in the cg distribution.
 
-     observation 1: for a given x in Omega_X the maximum is taken at the corresponding cg's mu, lets call it argmu(
-     x). hence, in order to determine the maximum, we scan over all x of Omega_x and calculate the density over p(x,
-     argmu(x))
+     observation 1: for a given x in Omega_X the maximum is taken at the corresponding cg's mu, lets call it
+     argmu(x). Hence, in order to determine the maximum, we scan over all x of Omega_x and calculate the density
+    over p(x,argmu(x))
 
      observation 2: the density of a gaussian at its mean is quite simple since the (x-mu) terms evaluate to 0.
 
      observation 3: we are only interested in where the maximum is taken, not its actual value. Hence we can remove
-     any values that are equal for all. Hence, the following simplifies:
+     any values that are equal for all, i.e. normalization terms.
+
+     Using observation 2 and 3, the following simplifies:
 
          (2*pi)^(-n/2) * det(Sigma)^-0.5 * exp( -0.5 * (x-mu)^T * Sigma^-1 * (x-mu) )
 
@@ -86,15 +88,15 @@ def _maximum_cgwm_heuristic1(cat_len, num_len, mu, p, detS):
 
 
 class CgWmModel(md.Model):
-    """A conditional gaussian model and methods to derive submodels from it
-    or query density and other aggregations of it.
+    """A conditional gaussian model and methods to derive submodels from it or query density and other aggregations of
+     it.
 
     In this model each conditional Gaussian uses its own covariance matrix and mean vector. This is
-    the most important difference to the ConditionallyGaussianModel-class.
+    the most important difference to the ConditionallyGaussianModel class.
 
     Internal:
         Assume a CG-model on m categorical random variables and n continuous random variables.
-        The model is parametrized using the mean parameters as follows:
+        The model is parametrized using mean parameters as follows:
             _p:
                 meaning: probability look-up table for the categorical part of the model.
                 data structure used: xarray DataArray. The labels of the dimensions and the coordinates of each
