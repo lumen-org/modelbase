@@ -2,6 +2,7 @@
 import functools
 import logging
 import math
+from scipy.optimize import minimize
 
 import models as md
 
@@ -142,6 +143,9 @@ class FixedMixtureModel(md.Model):
     def _density(self, x):
         return sum(model._density(x) * weight for weight, model in zip(self.weights, self))
 
+    def _gradient(self, x):
+        return sum(model._gradient(x) * weight for weight, model in zip(self.weights, self))
+
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)
         mycopy.weights = self.weights[:]
@@ -182,6 +186,7 @@ class FixedMixtureModel(md.Model):
                 maximum_density = cur_density
 
         return maximum
+
 
     def _set_data_4mixture(self):
         raise NotImplementedError("Implement this method in your subclass")

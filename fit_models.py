@@ -28,7 +28,7 @@ from cond_gaussians import ConditionallyGaussianModel
 from cond_gaussian_wm import CgWmModel
 from gaussians import MultiVariateGaussianModel
 from categoricals import CategoricalModel
-#from mixture_gaussians import MixtureOfGaussiansModel
+from mixture_gaussians import MixtureOfGaussiansModel
 from mixture_gaussians import MoGModelWithK
 from mixture_cond_gaussian_wm import MoCGModelWithK
 from mixable_cond_gaussian import MixableCondGaussianModel

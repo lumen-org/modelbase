@@ -1,12 +1,14 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 
 import logging
+import math
 
 from fixed_mixture_model import FixedMixtureModel
 from gaussians import MultiVariateGaussianModel
 
 from sklearn import mixture
 from numpy import matrix
+from scipy.optimize import minimize
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -47,7 +49,32 @@ class MixtureOfGaussiansModel(FixedMixtureModel):
             model._update()  # stupid me!!
         return self._unbound_component_updater,
 
-    _maximum = FixedMixtureModel._maximum_naive_heuristic
+    # _maximum = FixedMixtureModel._maximum_naive_heuristic
+
+    def _maximum(self):
+        # this is another heuristic using the function minimize with Newton-CG from scipy.optimize 
+        maximum = None
+        maximum_density = math.inf
+
+        def neg_density(x):
+            return -self._density(x)
+
+        def neg_gradient(x):
+            return -self._gradient(x)
+
+        for weight, model in zip(self.weights, self):
+            cur_value = model._maximum()
+            cur_density = minimize(neg_density, cur_value, method='Newton-CG', jac=neg_gradient, tol=1e-6)
+            cur_value = cur_density.x
+            cur_density = cur_density.fun
+            if cur_density < maximum_density:
+                maximum = cur_value
+                maximum_density = cur_density
+
+        maximum_density = -maximum_density
+
+        return maximum
+
 
 
 def MoGModelWithK(name, k):
