@@ -19,7 +19,6 @@ def mixed(filepath='australian-crabs.csv'):
 
     return df
 
-
 def continuous(filepath='australian-crabs.csv'):
     df = mixed(filepath)
     del df['sex']

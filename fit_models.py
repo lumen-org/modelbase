@@ -47,6 +47,7 @@ known_models = {
     'iris': lambda: (MultiVariateGaussianModel('iris'), iris.continuous()),
     'car_crashes': lambda: (MultiVariateGaussianModel('car_crashes'), car_crashes.continuous()),
     'mvg_dummy_2d': lambda: (MultiVariateGaussianModel.dummy2d_model('mvg_dummy_2d'), None),
+    'mvg_crabs': lambda: (MultiVariateGaussianModel('mvg_crabs'), crabs.continuous('data/crabs/australian-crabs.csv')),
 
     # mixtures of multivariate gaussians
     # 'faithful': lambda: (MMVG('faithful'), df.read_csv('data/faithful/faithful.csv')),
