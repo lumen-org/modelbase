@@ -15,7 +15,7 @@ def cg(file=_filepath):
     cols = ['year', 'class', 'cyl', 'displ', 'cty', 'hwy']
     mpgdf = mpgdf.loc[:, cols]
     mpgdf.drop(mpgdf.columns[[0]], axis=1, inplace=True)
-    mpgdf.dropna(axis=0, inplace=True)
+    mpgdf.dropna(axis=0, inplace=True, how="any")
     return mpgdf
 
 def cg2(file=_filepath):

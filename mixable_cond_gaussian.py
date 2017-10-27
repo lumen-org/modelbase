@@ -63,6 +63,9 @@ class MixableCondGaussianModel(md.Model):
     component of the mixture.
     (2) the number of components grows exponentially with the number of discrete random variables (RV) marginalized.
 
+    On the upside, however, the model complexity never becomes larger. In fact, it simply doesn't decrease if discrete
+    RV are maginalized.
+
     It seems like this should be relatively straight forward. See the notes on paper.
     In essence we never throw parameters when marginalizing discrete RV, but just mark them as 'marginalized'.
 
@@ -103,8 +106,8 @@ class MixableCondGaussianModel(md.Model):
 
     def _fit(self):
         assert (self.mode != 'none')
-        self._p, self._mu, self._S = cgwm.fitConditionalGaussian(self.data, self.fields, self._categoricals,
-                                                                 self._numericals)
+        #self._p, self._mu, self._S = cgwm.fitConditionalGaussian(self.data, self.fields, self._categoricals, self._numericals)
+        self._p, self._mu, self._S = cgwm.fit_CLZ(self.data, self._categoricals, self._numericals)
         return self._unbound_updater,
 
     def _assert_invariants(self):

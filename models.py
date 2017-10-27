@@ -151,6 +151,24 @@ def _tuple2str(tuple_):
 
 """ Utility functions for data import. """
 
+
+def normalize_dataframe(df):
+    """Normalizes all columns in data frame df. It uses z-score normalization and applies it per column. Returns the normalization parameters as a tuple of (means, sigma). Normalization is done inplace and it expects only numercial columns in given dataframe.
+
+    Args:
+        df: dataframe to normalize.
+    """
+
+    (n, dg) = df.shape
+    means = df.sum(axis=0) / n
+    sigmas = np.sqrt((df ** 2).sum(axis=0) / n - means ** 2)
+
+    df = (df - means) / sigmas
+
+    #    return {col: {'mean:' means[idx], 'sigma': sigmas[idx]}for idx, col in enumerate(df.columns)}
+    return (df, means, sigmas)
+
+
 def clean_dataframe(df):
     # check that there are no NaNs or Nones
     if df.isnull().any().any():
@@ -353,12 +371,12 @@ class Model:
 
     def set_data(self, df, silently_drop=False):
         """Derives suitable, cleansed (and copied) data from df for a particular model, sets this as the models data
-         and also sets up auxiliary data structures or such if necessary. This is however, only concerned with the data
-         part of the model and does not do any fitting or such.
+         and also sets up auxiliary data structures if necessary. This is however, only concerned with the data
+         part of the model and does not do any fitting of the model.
 
         This method has the following effects:
          - the models mode is set to 'data'
-         - the models data is set to some model specific cleaned version of the data.
+         - the models data is set to some model-specific cleaned version of the data.
          - the models fields attribute is derived accordingly
          - possibly existing data of the model are overwritten
          - possibly fitted model parameters are lost
@@ -412,11 +430,19 @@ class Model:
 
         # set data for model as needed
         #  reorder data frame such that categorical columns are first
-        self.data = pd.DataFrame(df, columns=self._categoricals + self._numericals)
+        df = df[self._categoricals + self._numericals]
+
+        # normalize numerical part of data frame
+        (df.loc[:, self._numericals], self._datameans, self._datasigma) = normalize_dataframe(df.loc[:, self._numericals])
+
+        # shuffle data frame
+        df = df.sample(frac=1).reset_index(drop=True)
 
         # derive and set fields
-        self.fields = get_discrete_fields(self.data, self._categoricals) + \
-                 get_numerical_fields(self.data, self._numericals)
+        self.fields = get_discrete_fields(df, self._categoricals) + \
+                 get_numerical_fields(df, self._numericals)
+
+        self.data = df
 
         return self
 
@@ -962,6 +988,7 @@ class Model:
 
     def _condition_values(self, remove, pairflag=False):
         """Returns the list of values to condition on given a sequence of random variable names to condition on.
+        Essentially, this is a look up in the domain restrictions of the fields to be conditioned on.
 
         Args:
             remove: sequence of random variable names

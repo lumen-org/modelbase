@@ -79,8 +79,8 @@ class ConditionallyGaussianModel(md.Model):
 
     @staticmethod
     def _fitFullLikelihood(data, fields, dc):
-        """fit full likelihood for CG model. the data frame data consists of dc many categorical columns and the rest are
-        numerical columns. all categorical columns occur before the numerical ones.
+        """Fit full likelihood for CG model. The data frame data consists of dc many categorical columns and the rest are
+        numerical columns. All categorical columns occur before the numerical ones.
 
         Note that this method fits a single covariance matrix for all conditional guassians, but individual mean
         vectors for each conditional gaussian.

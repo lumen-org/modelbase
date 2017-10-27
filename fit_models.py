@@ -87,7 +87,8 @@ known_models = {
     'mcg_crabs': lambda: (MixableCondGaussianModel('mcg_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
     'mcg_mpg': lambda: (MixableCondGaussianModel('mcg_mpg'), mpg.cg()),
     'mcg_mpg2': lambda: (MixableCondGaussianModel('mcg_mpg2'), mpg.cg2()),  # larger model than mcg_mpg
-    'mcg_iris': lambda: (MixableCondGaussianModel('mcg_iris'), iris.mixed())
+    'mcg_iris': lambda: (MixableCondGaussianModel('mcg_iris'), iris.mixed()),
+    'mpg_starcraft': lambda: (MixableCondGaussianModel('mpg_starcraft'), starcraft.cg()),
 }
 
 
@@ -166,11 +167,11 @@ Examples:
         args.directory = 'data_models'
 
     # for debugging:
-    # args.include = ['mcg_crabs']
+    args.include = ['mcg_crabs']
     # args.include = ['cg_olive_oils']
     # args.include = ['cg_glass']
     # args.include = ['starcraft']
-    # args.include = ['cgw_iris']
+    # args.include = ['cg_iris']
     # args.include = ['mvg_dummy_2d']
 
     modelbase = mb.ModelBase("refitter", load_all=False, model_dir=args.directory)

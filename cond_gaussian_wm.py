@@ -7,23 +7,36 @@ from numpy.linalg import inv, det
 import xarray as xr
 
 import models as md
+import cond_gaussian_fitting as cgf
 import cond_gaussians as cg
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
-def fitConditionalGaussian(data, fields, categoricals, numericals):
-    """Fits a conditional gaussian model to given data and returns the fitting parameters as a 3-tuple(p, mu, S, mu):
-
-        p, mu and S are just like the CgWmModel expects them (see class documentation there)
-
-    Note, however that this returns the same covariance for each conditional gaussian. This will be changed in the
-    future.
+def _numpy_to_xarray_params(p, mu, Sigma, levels, cat, num):
+    """Translates numpy based parameters into suitably labelled xarray DataArrays and returns them.
     """
+    p = xr.DataArray(data=p, coords=levels, dims=cat)
 
-    dc = len(categoricals)
-    p, mu, S_single = cg.ConditionallyGaussianModel._fitFullLikelihood(data, fields, dc)
+    coords = levels + [num]
+    dims = cat + ['mean']
+    mu.shape = [len(e) for e in coords]
+    mu = xr.DataArray(data=mu, coords=coords, dims=dims)
+
+    coords = levels + [num] + [num]
+    dims = cat + ['S1', 'S2']
+    Sigma.shape = [len(e) for e in coords]
+    Sigma = xr.DataArray(data=Sigma, coords=coords, dims=dims)
+    return p, mu, Sigma
+
+
+def common_sigma_to_full_sigma(p, mu, Sigma, numericals):
+    """Transforms a set of mean parameters with common sigma (as generated for class cond_gaussian) to the equivalent
+     general mean parameters in xarray representation.
+
+     p, mu and Sigma are xarray DataArrays with correct dimensions and coordinates.
+     """
 
     # replicate S_single to a individual S for each cg
     # setup coords as dict of dim names to extents
@@ -33,12 +46,35 @@ def fitConditionalGaussian(data, fields, categoricals, numericals):
     coords['S2'] = numericals
     sizes = [len(coords[dim]) for dim in dims]  # generate blow-up sizes
 
-    S = np.outer(np.ones(tuple(sizes)), S_single.values)  # replicate S as many times as needed
+    S = np.outer(np.ones(tuple(sizes)), Sigma.values)  # replicate S as many times as needed
     dims += ('S1', 'S2')  # add missing dimensions for Sigma
     shape = tuple(sizes + [len(numericals)] * 2)  # update shape
     S = S.reshape(shape)  # reshape to match dimension requirements
 
     return p, mu, xr.DataArray(data=S, coords=coords, dims=dims)
+
+
+def fit_full(data, fields, categoricals, numericals):
+    """Fits a conditional gaussian model to given data and returns the fitting parameters as a 3-tuple(p, mu, S, mu):
+
+        p, mu and S are just like the CgWmModel expects them (see class documentation there)
+
+    Note, however that this returns the same covariance for each conditional gaussian.
+    This will be changed in the future!
+    """
+    dc = len(categoricals)
+    p, mu, Sigma = cg.ConditionallyGaussianModel._fitFullLikelihood(data, fields, dc)
+    return common_sigma_to_full_sigma(p, mu, Sigma, numericals)
+
+
+def fit_CLZ(df, categoricals, numericals):
+    """Fits a conditional gaussian model to given data and returns the fitting parameters as a 3-tuple(p, mu, S, mu):
+        p, mu and S are just like the CgWmModel expects them (see class documentation there)
+
+    Note that this actually is a CLZ triple interaction model.
+    """
+    (p, mu, Sigma, meta) = cgf.fit_clz_mean(df)
+    return _numpy_to_xarray_params(p, mu, Sigma, list(meta['levels'].values()), categoricals, numericals)
 
 
 def _maximum_cgwm_heuristic1(cat_len, num_len, mu, p, detS):
@@ -165,7 +201,7 @@ class CgWmModel(md.Model):
 
     def _fit(self):
         assert (self.mode != 'none')
-        self._p, self._mu, self._S = fitConditionalGaussian(self.data, self.fields, self._categoricals, self._numericals)
+        self._p, self._mu, self._S = fit_full(self.data, self.fields, self._categoricals, self._numericals)
         return self._unbound_updater,
 
     def _update(self):
