@@ -57,7 +57,7 @@ known_models = {
     'cg_crabs': lambda: (ConditionallyGaussianModel('cg_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
     'cg_olive_oils': lambda: (ConditionallyGaussianModel('cg_olive_oils'),
                               olive_oils.mixed('data/olive_oils/olive.csv')),
-    'cg_yeast': lambda: (ConditionallyGaussianModel('cg_yeast'), yeast.mixed('data/yeast/yeast.csv')),
+    #'cg_yeast': lambda: (ConditionallyGaussianModel('cg_yeast'), yeast.mixed('data/yeast/yeast.csv')),
     'cg_iris': lambda: (ConditionallyGaussianModel('cg_iris'), iris.mixed()),
     'starcraft': lambda: (ConditionallyGaussianModel('starcraft'), starcraft.cg()),
     'glass': lambda: (ConditionallyGaussianModel('glass'), glass.mixed('data/glass/glass.data.csv')),
@@ -167,7 +167,7 @@ Examples:
         args.directory = 'data_models'
 
     # for debugging:
-    args.include = ['mcg_crabs']
+    # args.include = ['mcg_iris']
     # args.include = ['cg_olive_oils']
     # args.include = ['cg_glass']
     # args.include = ['starcraft']

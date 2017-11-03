@@ -61,13 +61,14 @@ logger.setLevel(logging.INFO)
 models = {
     'discrete': [],
     'continuous': [],
-    'mixed': [CGWMModel]
+    'mixed': [MCGModel]
 }
 # models = {
-#     'discrete': [MockUpModel, CategoricalModel],
-#     'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
-#     'mixed': [CGModel, CGWMModel, MCGModel]
-#     'mixed': [CGModel, CGWMModel, MCGModel]
+    #'discrete': [MockUpModel, CategoricalModel],
+    # 'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
+    #'continuous': [MockUpModel, GaussianModel],
+    #'mixed': [CGModel, CGWMModel]
+    # 'mixed': [CGModel, CGWMModel, MCGModel]
 # }
 
 model_setup = {

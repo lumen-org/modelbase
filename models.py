@@ -152,21 +152,24 @@ def _tuple2str(tuple_):
 """ Utility functions for data import. """
 
 
-def normalize_dataframe(df):
-    """Normalizes all columns in data frame df. It uses z-score normalization and applies it per column. Returns the normalization parameters as a tuple of (means, sigma). Normalization is done inplace and it expects only numercial columns in given dataframe.
+def normalize_dataframe(df, numericals):
+    """Normalizes all columns in data frame df. It uses z-score normalization and applies it per column. Returns the normalization parameters and the normalized dataframe,  as a tuple of (df, means, sigma). It expects only numercial columns in given dataframe.
 
     Args:
         df: dataframe to normalize.
+    Returns:
+        (df, means, sigmas): the normalized data frame, and the mean and sigma as np.ndarray
     """
+    df = df.copy()
+    numdf = df.loc[:, numericals]
 
-    (n, dg) = df.shape
-    means = df.sum(axis=0) / n
-    sigmas = np.sqrt((df ** 2).sum(axis=0) / n - means ** 2)
+    (n, dg) = numdf.shape
+    means = numdf.sum(axis=0) / n
+    sigmas = np.sqrt((numdf ** 2).sum(axis=0) / n - means ** 2)
 
-    df = (df - means) / sigmas
+    df.loc[:, numericals] = (numdf - means) / sigmas
 
-    #    return {col: {'mean:' means[idx], 'sigma': sigmas[idx]}for idx, col in enumerate(df.columns)}
-    return (df, means, sigmas)
+    return df, means.values, sigmas.values
 
 
 def clean_dataframe(df):
@@ -432,9 +435,6 @@ class Model:
         #  reorder data frame such that categorical columns are first
         df = df[self._categoricals + self._numericals]
 
-        # normalize numerical part of data frame
-        (df.loc[:, self._numericals], self._datameans, self._datasigma) = normalize_dataframe(df.loc[:, self._numericals])
-
         # shuffle data frame
         df = df.sample(frac=1).reset_index(drop=True)
 
@@ -443,6 +443,11 @@ class Model:
                  get_numerical_fields(df, self._numericals)
 
         self.data = df
+
+        # normalize numerical part of data frame. For better numerical performance.
+        #if normalize:
+        #        ) = normalize_dataframe(df.loc[:, self._numericals])
+        #        self.data_norm =
 
         return self
 

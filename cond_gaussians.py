@@ -153,8 +153,8 @@ class ConditionallyGaussianModel(md.Model):
     def _update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
         if len(self._numericals) == 0:
-            self._detS = nan
-            self._SInv = nan
+            self._detS = xr.DataArray([])
+            self._SInv = xr.DataArray([])
             self._S = xr.DataArray([])
             self._mu = xr.DataArray([])
         else:
@@ -163,7 +163,14 @@ class ConditionallyGaussianModel(md.Model):
 
         if len(self._categoricals) == 0:
             self._p = xr.DataArray([])
+
+        self._assert_invariants()
+
         return self
+
+    def _assert_invariants(self):
+        for o in [self._detS, self._SInv, self._S, self._mu, self._p]:
+            assert(not np.isnan(o).any())
 
     def _conditionout_continuous(self, num_remove):
         """ For update formulas of parameters: see Franks pdf. """

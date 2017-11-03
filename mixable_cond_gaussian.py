@@ -17,6 +17,12 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
+def normalized(func):
+    @functools.wraps(func)
+    def wrapper(self, x):
+        return self.denormalize(func(self.normalize(x)))
+    return wrapper
+
 def _argmax(p):
     return p.where(p == p.max(), drop=True)
 
@@ -49,6 +55,73 @@ def _maximum_mixable_cg_heuristic_a(cat_len, marg_len, num_len, marginalized_mas
 
     # cut out shadowed fields
     return _not_masked(coord, marginalized_mask)
+
+
+class Normalizer():
+    def __init__(self, model, mean, stddev):
+        self._model = model
+        self._mean = np.array(mean, copy=True)
+        self._stddev = np.array(stddev, copy=True)
+
+    def update(self, num_keep=None): #, num_remove=None):
+        """Updates the normalization information if fields are removed from the model. Give either the fields to keep or those to remove. num_remove has priority over num_keep.
+                Args:
+                    num_keep: list of names of fields to keep.
+                    num_remove: list of names of fields to remove.
+                    Returns: self
+                """
+        #if num_remove is not None:
+        #    num_keep = utils.invert_sequence(num_remove, self._model._numericals)
+
+        if len(num_keep) == 0:
+            self._stddev = self._mean = np.array([])
+        else:
+            cats = self._model._categoricals
+            idxs = np.array(self._model.asindex(num_keep)) - len(cats)
+            self._stddev = self._stddev[idxs]
+            self._mean = self._mean[idxs]
+        return self
+
+    def norm(self, x, mode='all nums in order', names=None):
+        if mode == 'all nums in order':
+            return (x - self._mean) / self._stddev
+        cat_len = len(self._model._categoricals)
+        if mode == 'all in order':
+            x[cat_len:] = (x[cat_len:] - self._mean) / self._stddev
+            return x
+        elif mode == 'all nums by name':
+            idxs = np.array(self._model.asindex(names)) - cat_len
+            return (x - self._mean[idxs]) / self._stddev[idxs]
+        else:
+            raise ValueError("invalid mode")
+
+    def normalize_name (self, x, names):
+        cat_len = len(self._model._categoricals)
+        idxs = np.array(self._model.asindex(names)) - cat_len
+        return (x - self._mean[idxs]) / self._stddev[idxs]
+
+    def normalize (self, x, num_only=False):
+        """Normalizes a data vector x, where x has length self.dim and x has a scalar for each field of the model in the same order as in self.fields."""
+        assert(len(x) == len(self._model._numericals))
+        if not num_only:
+            cat_len = len(self._model._categoricals)
+            x[cat_len:] = (x[cat_len:] - self._mean) / self._stddev
+            return x
+        else:
+            return (x - self._mean) / self._stddev
+
+    def denormalize (self, x, num_only=False):
+        if not num_only:
+            cat_len = len(self._model._categoricals)
+            x[cat_len:] = x[cat_len:] * self._stddev + self._mean
+            return x
+        else:
+            assert (len(x) == len(self._model._numericals))
+            return x * self._stddev + self._mean
+
+    def copy(self, model=None):
+        model = self._model if model is None else model
+        return Normalizer(model, self._mean, self._stddev)
 
 
 class MixableCondGaussianModel(md.Model):
@@ -99,6 +172,9 @@ class MixableCondGaussianModel(md.Model):
         # creates an self contained update function. we use it as a callback function later
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
+        self._normalized = False  # option if mode is normalized or not
+        self._normalizer = None
+
     def _set_data(self, df, drop_silently):
         self._set_data_mixed(df, drop_silently)
         self._marginalized_mask = xr.DataArray(data=[False]*len(self._categoricals), dims='name', coords=[self._categoricals])
@@ -106,8 +182,15 @@ class MixableCondGaussianModel(md.Model):
 
     def _fit(self):
         assert (self.mode != 'none')
-        #self._p, self._mu, self._S = cgwm.fitConditionalGaussian(self.data, self.fields, self._categoricals, self._numericals)
-        self._p, self._mu, self._S = cgwm.fit_CLZ(self.data, self._categoricals, self._numericals)
+
+        if self._normalized:
+            df_norm, data_mean, data_stddev = md.normalize_dataframe(self.data, self._numericals)
+            self._normalizer = Normalizer(self, data_mean, data_stddev)
+        else:
+            df_norm = self.data
+
+        self._p, self._mu, self._S = cgwm.fit_full(df_norm, self.fields, self._categoricals, self._numericals)
+        #self._p, self._mu, self._S = cgwm.fit_CLZ(df_norm, self._categoricals, self._numericals)
         return self._unbound_updater,
 
     def _assert_invariants(self):
@@ -138,6 +221,10 @@ class MixableCondGaussianModel(md.Model):
         assert sum(self._marginalized_mask) == len(marg_set)
         # (7) marginalized mask must have proper length
         assert len(self._marginalized_mask) >= len(p_set)
+        # (8) normalization mask must have proper length
+        if self._normalized:
+            assert len(self._normalizer._mean) == len(self._numericals)
+
 
     def _update(self):   # mostly like CG WM, but different update for _detS
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
@@ -190,14 +277,16 @@ class MixableCondGaussianModel(md.Model):
         num_keep = [name for name in self._numericals if name in keep]  # note: this is guaranteed to be sorted
         cat_remove = [name for name in self._categoricals if name not in keep]
 
-        # we never actually marginalize out categorical fields. we simply shadow them, but keep the parameters
-        # internally
+        # we never actually marginalize out categorical fields. we simply shadow them, but keep parameters internally
 
         # marginalized mu and Sigma (taken from the script)
         if len(num_keep) != 0:
             # marginalize numerical fields: slice out the gaussian part to keep
             self._mu = self._mu.loc[dict(mean=num_keep)]
             self._S = self._S.loc[dict(S1=num_keep, S2=num_keep)]
+
+        if self._normalized:
+            self._normalizer.update(num_keep=num_keep)
 
         # update fields and dependent variables
         self._categoricals = [name for name in self._categoricals if name in keep]
@@ -226,6 +315,7 @@ class MixableCondGaussianModel(md.Model):
 
         # condition on continuous fields
         num_remove = [name for name in self._numericals if name in remove]
+
         self._conditionout_continuous(num_remove)
 
         return self._unbound_updater,
@@ -269,6 +359,7 @@ class MixableCondGaussianModel(md.Model):
         return gauss_sum
 
     # @profile
+    #@normalized
     def _density(self, x):
         """Returns the density of the model at x.
 
@@ -304,6 +395,9 @@ class MixableCondGaussianModel(md.Model):
         num = np.array(x[cat_len:])  # need as np array for dot product
         cat = tuple(x[:cat_len])   # need it as a tuple for indexing
 
+        if self._normalized:
+            num = self._normalizer.normalize(num, num_only=True)
+
         if num_len == 0:
             if len(self._marginalized) == 0:
                 p = self._p
@@ -321,10 +415,10 @@ class MixableCondGaussianModel(md.Model):
             gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
 
             if cat_len == 0:
-                return gauss
+                result = gauss
             else:
                 p = self._p.loc[cat].values
-                return p * gauss
+                result = p * gauss
         else:
             # dictionary of "categorical-field-name : value" for all given categorical values
 
@@ -337,15 +431,16 @@ class MixableCondGaussianModel(md.Model):
             detS_shadowed = self._detS.loc[cat_dict]
             p_shadowed = self._p.loc[cat_dict]
 
-            return self._density_internal_fast(num, mu_shadowed, invS_shadowed, detS_shadowed, p_shadowed)
+            result = self._density_internal_fast(num, mu_shadowed, invS_shadowed, detS_shadowed, p_shadowed)
             #return self._density_internal_stacked(num, mu_shadowed, invS_shadowed, detS_shadowed, p_shadowed)
 
             ## vectorized version (instead of alternative 2 code)
             # I simply don't know the syntax for what i want...
             # maybe it is not possible?
             # np.dot(xmu, np.dot(invS, xmu))
-            #.sum()*(2 * pi) ** (-num_len / 2)
+            # .sum()*(2 * pi) ** (-num_len / 2)
 
+        return result
 
 #    def _sample(self):
 #        pass
@@ -363,7 +458,7 @@ class MixableCondGaussianModel(md.Model):
         stack_over = self._marginalized + self._categoricals
         len_so = len(stack_over)
         mu_stacked = self._mu.stack(pl_stack=stack_over)
-        p_max = 0
+        p_max = -np.inf
         coord_max = None
         for mu_coord in mu_stacked.pl_stack:
             # assemble coordinates for density query
@@ -381,6 +476,7 @@ class MixableCondGaussianModel(md.Model):
                 p_max = p
                 coord_max = coord
 
+        assert(coord_max is not None)
         return coord_max
 
     def _maximum_mixable_cg_heuristics_c(self):
@@ -421,9 +517,9 @@ class MixableCondGaussianModel(md.Model):
 
         if cat_len == 0 and mrg_len == 0:
             # then there is only a single gaussian left and the maximum is its mean value, i.e. the value of _mu
-            return list(self._mu.values)
+            result = list(self._mu.values)
 
-        if num_len == 0:
+        elif num_len == 0:
             # find maximum in p and return its coordinates
             p = self._p.sum(self._marginalized)  # sum over marginalized fields
             pmax = _argmax(p)  # get view on maximum (coordinates remain)
@@ -432,7 +528,10 @@ class MixableCondGaussianModel(md.Model):
         else:
             # this is the difficult case, and we don't have a perfect solution yet, just a couple of heuristics...
             # return _maximum_mixable_cg_heuristic_a( cat_len, mrg_len, num_len, self._marginalized_mask, self._mu, self._p, self._detS)
-            return self._maximum_mixable_cg_heuristic_b()
+            result = self._maximum_mixable_cg_heuristic_b()
+
+        assert(result is not None)
+        return self._normalizer.denormalize(result) if self._normalized else result
 
     # mostly like cg wm
     def copy(self, name=None):
@@ -444,6 +543,9 @@ class MixableCondGaussianModel(md.Model):
         mycopy._numericals = self._numericals.copy()
         mycopy._marginalized = self._marginalized.copy()
         mycopy._marginalized_mask = self._marginalized_mask.copy()
+        mycopy._normalized = self._normalized
+        if mycopy._normalized:
+            mycopy._normalizer = self._normalizer.copy(mycopy)
         mycopy._update()
         return mycopy
 
