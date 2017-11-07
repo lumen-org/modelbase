@@ -58,6 +58,13 @@ def _maximum_mixable_cg_heuristic_a(cat_len, marg_len, num_len, marginalized_mas
 
 
 class Normalizer():
+    """A normalizer provides methods to (de-) normalize a data vector according to a provided set of zscore normalization parameters.
+
+    It is meant to be used as a plug-in component to a mixable conditional gaussian model, in the case that model has been learned on normalized data but is intended to be used as a model of the unnormalized data. Note that usually zscore normalization is applied in order to avoid numerical issues, and not for semantical reasons.
+
+    See also the 'normalized_models.ipynb' in the notebook documentation directory.
+    """
+
     def __init__(self, model, mean, stddev):
         self._model = model
         self._mean = np.array(mean, copy=True)
@@ -84,31 +91,34 @@ class Normalizer():
 
     def norm(self, x, mode='all nums in order', names=None):
         if mode == 'all nums in order':
+            assert (len(x) == len(self._model._numericals))
             return (x - self._mean) / self._stddev
         cat_len = len(self._model._categoricals)
         if mode == 'all in order':
+            assert (len(x) == self.dim)
             x[cat_len:] = (x[cat_len:] - self._mean) / self._stddev
             return x
-        elif mode == 'all nums by name':
-            idxs = np.array(self._model.asindex(names)) - cat_len
+        elif mode == 'by name':
+            assert (len(x) <= len(self._model._numericals))
+            idxs = np.array(self._model.asindex(names)) - cat_len  # TODO: hier ist das Problem: ich kann mich nicht auf asindex verlassen, da das in bestimmten Fällen erst mit Abschluss der darunterliegenden marginalisierung geupdated wird.
             return (x - self._mean[idxs]) / self._stddev[idxs]
         else:
             raise ValueError("invalid mode")
 
-    def normalize_name (self, x, names):
-        cat_len = len(self._model._categoricals)
-        idxs = np.array(self._model.asindex(names)) - cat_len
-        return (x - self._mean[idxs]) / self._stddev[idxs]
-
-    def normalize (self, x, num_only=False):
-        """Normalizes a data vector x, where x has length self.dim and x has a scalar for each field of the model in the same order as in self.fields."""
-        assert(len(x) == len(self._model._numericals))
-        if not num_only:
-            cat_len = len(self._model._categoricals)
-            x[cat_len:] = (x[cat_len:] - self._mean) / self._stddev
-            return x
-        else:
-            return (x - self._mean) / self._stddev
+    # def normalize_name (self, x, names):
+    #     cat_len = len(self._model._categoricals)
+    #     idxs = np.array(self._model.asindex(names)) - cat_len
+    #     return (x - self._mean[idxs]) / self._stddev[idxs]
+    #
+    # def normalize (self, x, num_only=False):
+    #     """Normalizes a data vector x, where x has length self.dim and x has a scalar for each field of the model in the same order as in self.fields."""
+    #
+    #     if not num_only:
+    #         cat_len = len(self._model._categoricals)
+    #         x[cat_len:] = (x[cat_len:] - self._mean) / self._stddev
+    #         return x
+    #     else:
+    #         return (x - self._mean) / self._stddev
 
     def denormalize (self, x, num_only=False):
         if not num_only:
@@ -172,7 +182,7 @@ class MixableCondGaussianModel(md.Model):
         # creates an self contained update function. we use it as a callback function later
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
-        self._normalized = False  # option if mode is normalized or not
+        self._normalized = True  # option if mode is normalized or not
         self._normalizer = None
 
     def _set_data(self, df, drop_silently):
@@ -396,7 +406,7 @@ class MixableCondGaussianModel(md.Model):
         cat = tuple(x[:cat_len])   # need it as a tuple for indexing
 
         if self._normalized:
-            num = self._normalizer.normalize(num, num_only=True)
+            num = self._normalizer.norm(num)
 
         if num_len == 0:
             if len(self._marginalized) == 0:

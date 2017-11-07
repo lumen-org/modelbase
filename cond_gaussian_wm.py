@@ -314,7 +314,8 @@ class CgWmModel(md.Model):
 
         # TODO: this is ugly. We should incoorperate _numericals, _categoricals in the base model already, then we could put the normalization there as well
         if hasattr(self, '_normalized') and self._normalized:
-            cond_values = self._normalizer.normalize_name(cond_values, num_remove)
+            # cond_values = self._normalizer.normalize_name(cond_values, num_remove)
+            cond_values = self._normalizer.norm(cond_values, mode="by name", names=num_remove)
             self._normalizer.update(num_keep=[name for name in self._numericals if name not in num_remove])
 
         # calculate updated mu and sigma for conditional distribution, according to GM script
