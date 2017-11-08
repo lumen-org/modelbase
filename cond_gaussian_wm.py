@@ -268,17 +268,34 @@ class CgWmModel(md.Model):
     #         detQuotient = (detS_cond ** 0.5) * detS
     #         p_stacked.loc[indexer] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
 
+    def _name_idx_map (self, mode='num'):
+        """Builds and returns a map of field names to their index within the order of fields of this mode.
+        A normal user of this library never needs this function, as self.asindex provides the same functionality and should be preferred. However, internally in certain circumstances self.asindex cannot be used:
+
+        (i) asindex is necessarily up-to-date in case there were both categorical and continuous variables marginalized out. It is only updated after marginalization of both, but not after the first one. This is because the abstract-model-level-update is called _after_the  whole condition-out operation.
+
+        Args:
+            mode: the mode. Currently only supports 'num'. A index map of all numerical fields will be returned.
+
+        Internal:
+            It relies on the correct coordinates of the 'mean' axis of self._mu.
+        """
+        if mode == 'num':
+            # TODO: this it ugly. it relies on something too deep
+            num_names = self._mu.coords['mean'].values.tolist()
+            return {name: idx for idx, name in enumerate(num_names)}
+        else:
+            raise ValueError("invalid mode : ", str(mode))
+
     # @profile
     def _conditionout_continuous_internal_fast(self, p_, mu_, detS_, S_, cond_values, i_names, j_names, all_num_removing):
         if all_num_removing:
             detS_cond = 1
 
         # get numerical index for mu, sigma
-        # this is ugly, but I can't use self.asindex because it is not necessarily up-to-date in case there were categorical variables marginalized out. This is because the abstract-model-level-update is called _after_the  whole condition-out operation.
-        num_names = self._mu.coords['mean'].values.tolist()
-        # TODO this can be done in linear time, not quadratic as now, but it is anyway ugly
-        i = [num_names.index(v) for v in i_names]
-        j = [num_names.index(v) for v in j_names]
+        num_map = self._name_idx_map(mode='num')
+        i = [num_map[v] for v in i_names]
+        j = [num_map[v] for v in j_names]
 
         n = p_.size  # number of single gaussians in the cg
         m = len(self._numericals)  # gaussian dimension
@@ -314,9 +331,8 @@ class CgWmModel(md.Model):
 
         # TODO: this is ugly. We should incoorperate _numericals, _categoricals in the base model already, then we could put the normalization there as well
         if hasattr(self, '_normalized') and self._normalized:
-            # cond_values = self._normalizer.normalize_name(cond_values, num_remove)
             cond_values = self._normalizer.norm(cond_values, mode="by name", names=num_remove)
-            self._normalizer.update(num_keep=[name for name in self._numericals if name not in num_remove])
+            self._normalizer.update(num_remove=num_remove)
 
         # calculate updated mu and sigma for conditional distribution, according to GM script
         j = num_remove  # remove

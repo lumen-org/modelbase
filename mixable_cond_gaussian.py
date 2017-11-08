@@ -70,55 +70,48 @@ class Normalizer():
         self._mean = np.array(mean, copy=True)
         self._stddev = np.array(stddev, copy=True)
 
-    def update(self, num_keep=None): #, num_remove=None):
-        """Updates the normalization information if fields are removed from the model. Give either the fields to keep or those to remove. num_remove has priority over num_keep.
-                Args:
-                    num_keep: list of names of fields to keep.
-                    num_remove: list of names of fields to remove.
-                    Returns: self
-                """
-        #if num_remove is not None:
-        #    num_keep = utils.invert_sequence(num_remove, self._model._numericals)
+        # index lookup within numericals only
+        cat_len = len(model._categoricals)
+        self._numname2idx = {name: model.asindex(name) - cat_len for name in model._numericals}
 
+    def _nums(self):
+        """Returs an iterable of the names of numericals fields. In correct order."""
+        return self._numname2idx.keys()
+
+    def update(self, num_keep=None, num_remove=None):
+        """Updates the normalization information if fields are removed from the model. Give either the fields to keep
+        or fields to keep."""
+        if num_keep is not None and num_remove is not None:
+            raise ValueError("You may not set both arguments, num_keep and num_remove!")
+        if num_remove is not None:
+            num_keep = utils.invert_sequence(num_remove, self._nums())
         if len(num_keep) == 0:
             self._stddev = self._mean = np.array([])
         else:
             cats = self._model._categoricals
-            idxs = np.array(self._model.asindex(num_keep)) - len(cats)
+            idxs = [self._numname2idx[n] for n in num_keep]
             self._stddev = self._stddev[idxs]
             self._mean = self._mean[idxs]
         return self
 
-    def norm(self, x, mode='all nums in order', names=None):
+    def norm(self, x, mode='all nums in order', **kwargs):
         if mode == 'all nums in order':
-            assert (len(x) == len(self._model._numericals))
+            assert (len(x) == len(self._nums()))
             return (x - self._mean) / self._stddev
-        cat_len = len(self._model._categoricals)
         if mode == 'all in order':
-            assert (len(x) == self.dim)
+            raise NotImplemented("I am not sure if this works: can I rely on self._model._categoricals?")
+            assert (len(x) == self._model.dim)
+            cat_len = len(self._model._categoricals)
             x[cat_len:] = (x[cat_len:] - self._mean) / self._stddev
             return x
         elif mode == 'by name':
-            assert (len(x) <= len(self._model._numericals))
-            idxs = np.array(self._model.asindex(names)) - cat_len  # TODO: hier ist das Problem: ich kann mich nicht auf asindex verlassen, da das in bestimmten Fällen erst mit Abschluss der darunterliegenden marginalisierung geupdated wird.
+            names = kwargs['names']
+            assert (len(x) == len(names))
+            assert (len(x) <= len(self._nums()))
+            idxs = [self._numname2idx[n] for n in names]
             return (x - self._mean[idxs]) / self._stddev[idxs]
         else:
             raise ValueError("invalid mode")
-
-    # def normalize_name (self, x, names):
-    #     cat_len = len(self._model._categoricals)
-    #     idxs = np.array(self._model.asindex(names)) - cat_len
-    #     return (x - self._mean[idxs]) / self._stddev[idxs]
-    #
-    # def normalize (self, x, num_only=False):
-    #     """Normalizes a data vector x, where x has length self.dim and x has a scalar for each field of the model in the same order as in self.fields."""
-    #
-    #     if not num_only:
-    #         cat_len = len(self._model._categoricals)
-    #         x[cat_len:] = (x[cat_len:] - self._mean) / self._stddev
-    #         return x
-    #     else:
-    #         return (x - self._mean) / self._stddev
 
     def denormalize (self, x, num_only=False):
         if not num_only:
@@ -312,6 +305,9 @@ class MixableCondGaussianModel(md.Model):
     _conditionout_categorical = cgwm.CgWmModel._conditionout_categorical
     _conditionout_continuous_internal_fast = cgwm.CgWmModel._conditionout_continuous_internal_fast
     #_conditionout_continuous_internal_slow = cgwm.CgWmModel._conditionout_continuous_internal_slow
+
+    # reuse of internal utility methods
+    _name_idx_map = cgwm.CgWmModel._name_idx_map # used in _conditionout_continuous_internal_fast
 
     def _conditionout(self, keep, remove):
         remove = set(remove)
