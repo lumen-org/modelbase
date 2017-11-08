@@ -72,11 +72,9 @@ class Normalizer():
 
         # index lookup within numericals only
         cat_len = len(model._categoricals)
-        self._numname2idx = {name: model.asindex(name) - cat_len for name in model._numericals}
-
-    def _nums(self):
-        """Returs an iterable of the names of numericals fields. In correct order."""
-        return self._numname2idx.keys()
+        nums = model._numericals
+        self._numname2idx = {name: model.asindex(name) - cat_len for name in nums}
+        self._nums = list(nums)
 
     def update(self, num_keep=None, num_remove=None):
         """Updates the normalization information if fields are removed from the model. Give either the fields to keep
@@ -84,19 +82,26 @@ class Normalizer():
         if num_keep is not None and num_remove is not None:
             raise ValueError("You may not set both arguments, num_keep and num_remove!")
         if num_remove is not None:
-            num_keep = utils.invert_sequence(num_remove, self._nums())
+            num_keep = utils.invert_sequence(num_remove, self._nums)
+
         if len(num_keep) == 0:
             self._stddev = self._mean = np.array([])
+            self._numname2idx = {}
+            self._nums = []
         else:
-            cats = self._model._categoricals
-            idxs = [self._numname2idx[n] for n in num_keep]
+            num_keep = utils.sort_filter_list(num_keep, self._nums)  # bring num_keep in correct order
+            n2i = self._numname2idx
+            idxs = [n2i[n] for n in num_keep]
             self._stddev = self._stddev[idxs]
             self._mean = self._mean[idxs]
+
+            self._numname2idx = {name: n2i[name] for name in num_keep}  # rebuild with remaining numerical field names
+            self._nums = num_keep
         return self
 
     def norm(self, x, mode='all nums in order', **kwargs):
         if mode == 'all nums in order':
-            assert (len(x) == len(self._nums()))
+            assert (len(x) == len(self._nums))
             return (x - self._mean) / self._stddev
         if mode == 'all in order':
             raise NotImplemented("I am not sure if this works: can I rely on self._model._categoricals?")
@@ -107,7 +112,7 @@ class Normalizer():
         elif mode == 'by name':
             names = kwargs['names']
             assert (len(x) == len(names))
-            assert (len(x) <= len(self._nums()))
+            assert (len(x) <= len(self._nums))
             idxs = [self._numname2idx[n] for n in names]
             return (x - self._mean[idxs]) / self._stddev[idxs]
         else:
@@ -226,8 +231,8 @@ class MixableCondGaussianModel(md.Model):
         assert len(self._marginalized_mask) >= len(p_set)
         # (8) normalization mask must have proper length
         if self._normalized:
-            assert len(self._normalizer._mean) == len(self._numericals)
-
+            assert len(self._normalizer._nums) == len(self._numericals)
+            assert list(self._normalizer._nums) == self._numericals
 
     def _update(self):   # mostly like CG WM, but different update for _detS
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
