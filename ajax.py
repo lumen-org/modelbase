@@ -108,8 +108,8 @@ Usage:
     parser.add_argument("-s", "--storage", help="storage directory of models to be loaded initially. Defaults to "
                                                 "'data_models'", type=str, default='data_models')
     parser.add_argument("-l", "--loglevel", help="loglevel for command line output. You can set it to: CRITICAL, "
-                                                 "ERROR, WARNING, INFO or DEBUG. Defaults to WARNING",
-                        type=str, default='DEBUG')
+                                                 "ERROR, WARNING, INFO or DEBUG. Defaults to INFO",
+                        type=str, default='INFO')
     args = parser.parse_args()
 
     # setup root logger and local logger

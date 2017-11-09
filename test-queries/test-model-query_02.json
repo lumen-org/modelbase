@@ -1,7 +1,0 @@
-{  "MODEL": [
-    "total", 
-    "alcohol"
-  ],
-  "AS": "my-sub-model",
-  "FROM": "car_crashes"
-}

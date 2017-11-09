@@ -58,57 +58,65 @@ def _maximum_mixable_cg_heuristic_a(cat_len, marg_len, num_len, marginalized_mas
 
 
 class Normalizer():
+    """A normalizer provides methods to (de-) normalize a data vector according to a provided set of zscore normalization parameters.
+
+    It is meant to be used as a plug-in component to a mixable conditional gaussian model, in the case that model has been learned on normalized data but is intended to be used as a model of the unnormalized data. Note that usually zscore normalization is applied in order to avoid numerical issues, and not for semantical reasons.
+
+    See also the 'normalized_models.ipynb' in the notebook documentation directory.
+    """
+
     def __init__(self, model, mean, stddev):
         self._model = model
         self._mean = np.array(mean, copy=True)
         self._stddev = np.array(stddev, copy=True)
 
-    def update(self, num_keep=None): #, num_remove=None):
-        """Updates the normalization information if fields are removed from the model. Give either the fields to keep or those to remove. num_remove has priority over num_keep.
-                Args:
-                    num_keep: list of names of fields to keep.
-                    num_remove: list of names of fields to remove.
-                    Returns: self
-                """
-        #if num_remove is not None:
-        #    num_keep = utils.invert_sequence(num_remove, self._model._numericals)
+        # index lookup within numericals only
+        cat_len = len(model._categoricals)
+        nums = model._numericals
+        self._numname2idx = {name: model.asindex(name) - cat_len for name in nums}
+        self._nums = list(nums)
+
+    def update(self, num_keep=None, num_remove=None):
+        """Updates the normalization information if fields are removed from the model. Give either the fields to keep
+        or fields to keep."""
+        if num_keep is not None and num_remove is not None:
+            raise ValueError("You may not set both arguments, num_keep and num_remove!")
+        if num_remove is not None:
+            num_keep = utils.invert_sequence(num_remove, self._nums)
 
         if len(num_keep) == 0:
             self._stddev = self._mean = np.array([])
+            self._numname2idx = {}
+            self._nums = []
         else:
-            cats = self._model._categoricals
-            idxs = np.array(self._model.asindex(num_keep)) - len(cats)
+            num_keep = utils.sort_filter_list(num_keep, self._nums)  # bring num_keep in correct order
+            n2i = self._numname2idx
+            idxs = [n2i[n] for n in num_keep]
             self._stddev = self._stddev[idxs]
             self._mean = self._mean[idxs]
+
+            self._numname2idx = {name: n2i[name] for name in num_keep}  # rebuild with remaining numerical field names
+            self._nums = num_keep
         return self
 
-    def norm(self, x, mode='all nums in order', names=None):
+    def norm(self, x, mode='all nums in order', **kwargs):
         if mode == 'all nums in order':
+            assert (len(x) == len(self._nums))
             return (x - self._mean) / self._stddev
-        cat_len = len(self._model._categoricals)
         if mode == 'all in order':
-            x[cat_len:] = (x[cat_len:] - self._mean) / self._stddev
-            return x
-        elif mode == 'all nums by name':
-            idxs = np.array(self._model.asindex(names)) - cat_len
-            return (x - self._mean[idxs]) / self._stddev[idxs]
-        else:
-            raise ValueError("invalid mode")
-
-    def normalize_name (self, x, names):
-        cat_len = len(self._model._categoricals)
-        idxs = np.array(self._model.asindex(names)) - cat_len
-        return (x - self._mean[idxs]) / self._stddev[idxs]
-
-    def normalize (self, x, num_only=False):
-        """Normalizes a data vector x, where x has length self.dim and x has a scalar for each field of the model in the same order as in self.fields."""
-        assert(len(x) == len(self._model._numericals))
-        if not num_only:
+            raise NotImplemented("I am not sure if this works: can I rely on self._model._categoricals?")
+            assert (len(x) == self._model.dim)
             cat_len = len(self._model._categoricals)
             x[cat_len:] = (x[cat_len:] - self._mean) / self._stddev
             return x
+        elif mode == 'by name':
+            names = kwargs['names']
+            assert (len(x) == len(names))
+            assert (len(x) <= len(self._nums))
+            idxs = [self._numname2idx[n] for n in names]
+            return (x - self._mean[idxs]) / self._stddev[idxs]
         else:
-            return (x - self._mean) / self._stddev
+            raise ValueError("invalid mode")
 
     def denormalize (self, x, num_only=False):
         if not num_only:
@@ -150,6 +158,11 @@ class MixableCondGaussianModel(md.Model):
 
     """
 
+    _fit_opts_allowed = {
+        'fit_algo': set(['clz', 'full']),
+        'normalized': set([True, False]),
+    }
+
     def __init__(self, name):
         super().__init__(name)
         self._aggrMethods = {
@@ -172,7 +185,11 @@ class MixableCondGaussianModel(md.Model):
         # creates an self contained update function. we use it as a callback function later
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
-        self._normalized = False  # option if mode is normalized or not
+        # options for this model
+        self.opts = {
+            'fit_algo': 'full',
+            'normalized': True,
+        }
         self._normalizer = None
 
     def _set_data(self, df, drop_silently):
@@ -180,17 +197,26 @@ class MixableCondGaussianModel(md.Model):
         self._marginalized_mask = xr.DataArray(data=[False]*len(self._categoricals), dims='name', coords=[self._categoricals])
         return ()
 
-    def _fit(self):
+    def _fit(self, **kwargs):
         assert (self.mode != 'none')
+        utils.validate_opts(kwargs, __class__._fit_opts_allowed)
+        self.opts.update(kwargs)
 
-        if self._normalized:
+        if self.opts['normalized']:
             df_norm, data_mean, data_stddev = md.normalize_dataframe(self.data, self._numericals)
             self._normalizer = Normalizer(self, data_mean, data_stddev)
         else:
             df_norm = self.data
 
-        self._p, self._mu, self._S = cgwm.fit_full(df_norm, self.fields, self._categoricals, self._numericals)
-        #self._p, self._mu, self._S = cgwm.fit_CLZ(df_norm, self._categoricals, self._numericals)
+        # choose fitting algo
+        fit_algo = self.opts['fit_algo']
+        if fit_algo == 'full':
+            self._p, self._mu, self._S = cgwm.fit_full(df_norm, self.fields, self._categoricals, self._numericals)
+        elif fit_algo == 'clz':
+            self._p, self._mu, self._S = cgwm.fit_CLZ(df_norm, self._categoricals, self._numericals)
+        else:
+            raise ValueError("invalid value for fit_algo: ", str(fit_algo))
+
         return self._unbound_updater,
 
     def _assert_invariants(self):
@@ -222,9 +248,9 @@ class MixableCondGaussianModel(md.Model):
         # (7) marginalized mask must have proper length
         assert len(self._marginalized_mask) >= len(p_set)
         # (8) normalization mask must have proper length
-        if self._normalized:
-            assert len(self._normalizer._mean) == len(self._numericals)
-
+        if self.opts['normalized']:
+            assert len(self._normalizer._nums) == len(self._numericals)
+            assert list(self._normalizer._nums) == self._numericals
 
     def _update(self):   # mostly like CG WM, but different update for _detS
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
@@ -285,7 +311,7 @@ class MixableCondGaussianModel(md.Model):
             self._mu = self._mu.loc[dict(mean=num_keep)]
             self._S = self._S.loc[dict(S1=num_keep, S2=num_keep)]
 
-        if self._normalized:
+        if self.opts['normalized']:
             self._normalizer.update(num_keep=num_keep)
 
         # update fields and dependent variables
@@ -302,6 +328,9 @@ class MixableCondGaussianModel(md.Model):
     _conditionout_categorical = cgwm.CgWmModel._conditionout_categorical
     _conditionout_continuous_internal_fast = cgwm.CgWmModel._conditionout_continuous_internal_fast
     #_conditionout_continuous_internal_slow = cgwm.CgWmModel._conditionout_continuous_internal_slow
+
+    # reuse of internal utility methods
+    _name_idx_map = cgwm.CgWmModel._name_idx_map # used in _conditionout_continuous_internal_fast
 
     def _conditionout(self, keep, remove):
         remove = set(remove)
@@ -395,8 +424,8 @@ class MixableCondGaussianModel(md.Model):
         num = np.array(x[cat_len:])  # need as np array for dot product
         cat = tuple(x[:cat_len])   # need it as a tuple for indexing
 
-        if self._normalized:
-            num = self._normalizer.normalize(num, num_only=True)
+        if self.opts['normalized']:
+            num = self._normalizer.norm(num)
 
         if num_len == 0:
             if len(self._marginalized) == 0:
@@ -531,7 +560,7 @@ class MixableCondGaussianModel(md.Model):
             result = self._maximum_mixable_cg_heuristic_b()
 
         assert(result is not None)
-        return self._normalizer.denormalize(result) if self._normalized else result
+        return self._normalizer.denormalize(result) if self.opts['normalized'] else result
 
     # mostly like cg wm
     def copy(self, name=None):
@@ -543,8 +572,8 @@ class MixableCondGaussianModel(md.Model):
         mycopy._numericals = self._numericals.copy()
         mycopy._marginalized = self._marginalized.copy()
         mycopy._marginalized_mask = self._marginalized_mask.copy()
-        mycopy._normalized = self._normalized
-        if mycopy._normalized:
+        mycopy.opts = self.opts.copy()
+        if self.opts['normalized']:
             mycopy._normalizer = self._normalizer.copy(mycopy)
         mycopy._update()
         return mycopy

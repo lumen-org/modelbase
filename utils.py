@@ -11,6 +11,21 @@ from functools import wraps
 from numpy import matrix, ix_
 
 
+def validate_opts(opts, allowed):
+    """Validates a dictionary of categorical options with respect to provided dictionary of allowed options and their values.
+    Raises a ValueError if anything is wrong."""
+    cpy = opts.copy()
+    for opt_name, allowed_vals in allowed.items():
+        if opt_name in cpy:
+            val = cpy[opt_name]
+            if val not in allowed_vals:
+                raise ValueError(
+                    'invalid value "{1!s}" for argument {0}. Allowed is {2!s}'.format(opt_name, val, allowed_vals))
+            del cpy[opt_name]
+
+    # there should nothing be left
+    if len(cpy) > 0:
+        raise ValueError('unrecognized argument names: {0!s}'.format(list(cpy.keys())))
 
 
 def mergebyidx2(zips):

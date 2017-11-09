@@ -52,8 +52,8 @@ if is_running_in_debug_mode():
     import models_debug
 
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.WARNING)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
+#logger.setLevel(logging.INFO)
 #logger.setLevel(logging.DEBUG)
 
 # REGISTER ALL YOUR MODEL SUBCLASSES TO TEST HERE

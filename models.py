@@ -283,6 +283,8 @@ class Model:
     def asindex(self, names):
         """Given a single name or a list of names of random variables, returns
         the indexes of these in the .field attribute of the model.
+
+        Note that this function cannot resolve the special field name 'model vs data', as that field has no internal index.
         """
         if isinstance(names, str):
             return self._name2idx[names]
@@ -311,10 +313,14 @@ class Model:
     def isfieldname(self, names):
         """Returns true iff the single string or list of strings given as variables names are (all) names of random
         variables of this model.
+
+        Note that this function correctly handles the special field name 'model vs data'.
         """
         if isinstance(names, str):
             return names in self._name2idx
         else:
+            # TODO try:
+            # return all([name in self._name2idx or name == 'model vs data' for name in names])
             return all([name in self._name2idx for name in names])
 
     def inverse_names(self, names, sorted_=False):
@@ -340,8 +346,9 @@ class Model:
     def sorted_names(self, names):
         """Given a set, sequence or list of random variables of this model, returns a list of the
         same names but in the same order as the random variables in the model.
-        It silently ignores any name that is not a name of a field in this model.
+        old: It silently ignores any name that is not a name of a field in this model.
         """
+        assert(len(names) <= len(self.names))
         return utils.sort_filter_list(names, self.names)
 
     def __init__(self, name):
@@ -367,6 +374,7 @@ class Model:
         return self.dim == 0
 
     def json_fields(self, include_modeldata_field=False):
+        """Returns a json-like representation of the fields of this model."""
         json_ = list(map(field_tojson, self.fields))
         if include_modeldata_field:
             json_.append(field_tojson(self._modeldata_field))
@@ -389,8 +397,7 @@ class Model:
 
         Args:
             df: a pandas data frame
-            silently_drop: If set to True any column of df that is suitable for the model to be learned will silently
-                be dropped. Otherwise this will raise a TypeError.
+            silently_drop: If set to True any column of df that is not suitable for the model to be learned will silently be dropped. Otherwise this will raise a TypeError.
 
         Returns:
             self
@@ -445,6 +452,7 @@ class Model:
         self.data = df
 
         # normalize numerical part of data frame. For better numerical performance.
+        # this is done at model level
         #if normalize:
         #        ) = normalize_dataframe(df.loc[:, self._numericals])
         #        self.data_norm =
@@ -486,7 +494,7 @@ class Model:
         self.fields = get_discrete_fields(self.data, categoricals)
         return self
 
-    def fit(self, df=None):
+    def fit(self, df=None, **kwargs):
         """Fits the model to a models data or an optionally passed DataFrame
 
         Note that on return of this method the attribute .data must be filled with the appropriate data that
@@ -501,13 +509,13 @@ class Model:
         """
 
         if df is not None:
-            return self.set_data(df).fit()
+            return self.set_data(df).fit(**kwargs)
 
         if df is None and self.mode != 'data':
-            raise ValueError('No data frame to fit to present: pass it as an argument or set it using set_data(df)')
+            raise ValueError('No data frame to fit to present: pass it as an argument or set it before using set_data(df)')
 
         try:
-            callbacks = self._fit()
+            callbacks = self._fit(**kwargs)
             for callback in callbacks:
                 callback()
         except NameError:
@@ -527,6 +535,7 @@ class Model:
             keep: A list of names of random variables of this model to keep. All other random variables
                 are marginalized out.
             remove: A list of names of random variables  of this model to marginalize out.
+            is_pure: An performance optimization parameter. Set to True if you can guarantee that keep and remove do not contain the special value "model vs data".
 
         Returns:
             The modified model.
@@ -1437,7 +1446,7 @@ class Model:
         if mvd_filter is None and 'model vs data' not in what:
             mvd_filter = ConditionTuple('model vs data', "==", "data")
 
-        # !!!!!!!! !!!!!!!!! !!!!!!!!!!!! !!!!!!!!!!!!! #
+        # TODO: !!!!!!!! !!!!!!!!! !!!!!!!!!!!! !!!!!!!!!!!!! #
         # DEBUG/DEVELOP: always set it to data only
         mvd_filter = ConditionTuple('model vs data', "==", "data")
 
