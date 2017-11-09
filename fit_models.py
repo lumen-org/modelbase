@@ -34,10 +34,18 @@ from mixture_cond_gaussian_wm import MoCGModelWithK
 from mixable_cond_gaussian import MixableCondGaussianModel
 
 known_models = {
-    # dict of what to fit how:
-    # {'id': <function with no arguments that returns the pair: (<model-instance>, <data-frame-to-fit-to>)> }
-    # the encapsulation in a function prevents that on every execution of the script ALL data is loaded
+""" 
+dict of what to fit how:
+    {'id': <function with no arguments (a lambda) that returns a <configuration dict>}
 
+<configuration dict>:
+    'class': Usually <class-object of model> but can be any function that returns a model when called.
+    'data': Optional. The data frame of data to use for fitting. If not spefified the 'class' is expected to return a fitted model.
+    'classopts': Optional. A dict passed as keyword-arguments to 'class'.    
+    'fitopts': Optional. A dict passed as keyword-arguments to the .fit method of the created model instance.
+    
+Idea: the encapsulation in a function prevents that on every execution of the script ALL data is loaded
+"""
     # categorical models
     'categorical_dummy': lambda: ({'class': CategoricalModel, 'data': pd.read_csv('data/categorical_dummy.csv')}),
     'heart': lambda: ({'class': CategoricalModel, 'data': heart.categorical('data/heart_disease/cleaned.cleveland.data')}),
@@ -84,6 +92,8 @@ known_models = {
 
     # mixable cg models
     'mcg_crabs': lambda: ({'class': MixableCondGaussianModel, 'data': crabs.mixed('data/crabs/australian-crabs.csv')}),
+    'mcg_crabs_norm': lambda: ({'class': MixableCondGaussianModel, 'data': crabs.mixed('data/crabs/australian-crabs.csv'),
+                                'fitopts': {'normalized': True}}),
     'mcg_crabs_clz': lambda: ({'class': MixableCondGaussianModel,
                            'data': crabs.mixed('data/crabs/australian-crabs.csv'),
                            'fitopts': {'fit_algo': 'clz', 'normalized': True}}),

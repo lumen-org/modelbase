@@ -1,5 +1,0 @@
-{
-  "FROM": "car_crashes",
-  "MODEL": "*",
-  "AS": "car_crashes_cp"
-}
