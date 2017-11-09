@@ -158,6 +158,11 @@ class MixableCondGaussianModel(md.Model):
 
     """
 
+    _fit_opts_allowed = {
+        'fit_algo': set(['clz', 'full']),
+        'normalized': set([True, False]),
+    }
+
     def __init__(self, name):
         super().__init__(name)
         self._aggrMethods = {
@@ -194,8 +199,8 @@ class MixableCondGaussianModel(md.Model):
 
     def _fit(self, **kwargs):
         assert (self.mode != 'none')
+        utils.validate_opts(kwargs, __class__._fit_opts_allowed)
         self.opts.update(kwargs)
-        # TODO self.validate_opts()
 
         if self.opts['normalized']:
             df_norm, data_mean, data_stddev = md.normalize_dataframe(self.data, self._numericals)
