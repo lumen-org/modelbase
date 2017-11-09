@@ -7,7 +7,7 @@ setup(name='modelbase',
       author='Philip Lucas',
       author_email='philipp.lucas@uni-jena.de',
       license='Public',
-      packages=['.'],
+      packages=['modelbase'],
       install_requires=[
           'xarray',
           'numpy',

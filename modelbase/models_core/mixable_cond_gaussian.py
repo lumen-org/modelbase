@@ -6,9 +6,9 @@ from numpy import nan, pi, exp, dot, abs
 from numpy.linalg import inv, det
 import xarray as xr
 
-import models as md
-import cond_gaussian_wm as cgwm
-import utils
+from modelbase.models_core import models as md
+from modelbase.models_core import cond_gaussian_wm as cgwm
+from modelbase.utils import utils
 
 import data.crabs.crabs as crabs
 

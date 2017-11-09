@@ -6,9 +6,9 @@ from numpy import nan, pi, exp, dot, abs, ix_
 from numpy.linalg import inv, det
 import xarray as xr
 
-import models as md
-import cond_gaussian_fitting as cgf
-import cond_gaussians as cg
+from modelbase.models_core import models as md
+from modelbase.models_core import cond_gaussian_fitting as cgf
+from modelbase.models_core import cond_gaussians as cg
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)

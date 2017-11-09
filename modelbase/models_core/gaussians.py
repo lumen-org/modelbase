@@ -4,12 +4,12 @@ import logging
 import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
 from sklearn import mixture
-
-import utils
-import models as md
-from models import AggregationTuple, SplitTuple, ConditionTuple
-import domains as dm
 from scipy.optimize import minimize
+
+from modelbase.utils import utils
+from modelbase.models_core import models as md
+from modelbase.models_core.models import AggregationTuple, SplitTuple, ConditionTuple
+from modelbase.models_core import domains as dm
 
 # setup logger
 logger = logging.getLogger(__name__)

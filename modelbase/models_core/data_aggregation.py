@@ -5,7 +5,7 @@ and returns a particular type of aggregation as a pandas series"""
 import numpy as np
 import pandas as pd
 
-import utils
+from modelbase.utils import utils
 
 DEFAULT_BIN_NUMBER = 10
 
