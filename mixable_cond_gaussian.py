@@ -180,7 +180,11 @@ class MixableCondGaussianModel(md.Model):
         # creates an self contained update function. we use it as a callback function later
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
-        self._normalized = True  # option if mode is normalized or not
+        # options for this model
+        self.opts = {
+            'fit_algo': 'full',
+            'normalized': True,
+        }
         self._normalizer = None
 
     def _set_data(self, df, drop_silently):
@@ -188,17 +192,26 @@ class MixableCondGaussianModel(md.Model):
         self._marginalized_mask = xr.DataArray(data=[False]*len(self._categoricals), dims='name', coords=[self._categoricals])
         return ()
 
-    def _fit(self):
+    def _fit(self, **kwargs):
         assert (self.mode != 'none')
+        self.opts.update(kwargs)
+        # TODO self.validate_opts()
 
-        if self._normalized:
+        if self.opts['normalized']:
             df_norm, data_mean, data_stddev = md.normalize_dataframe(self.data, self._numericals)
             self._normalizer = Normalizer(self, data_mean, data_stddev)
         else:
             df_norm = self.data
 
-        self._p, self._mu, self._S = cgwm.fit_full(df_norm, self.fields, self._categoricals, self._numericals)
-        #self._p, self._mu, self._S = cgwm.fit_CLZ(df_norm, self._categoricals, self._numericals)
+        # choose fitting algo
+        fit_algo = self.opts['fit_algo']
+        if fit_algo == 'full':
+            self._p, self._mu, self._S = cgwm.fit_full(df_norm, self.fields, self._categoricals, self._numericals)
+        elif fit_algo == 'clz':
+            self._p, self._mu, self._S = cgwm.fit_CLZ(df_norm, self._categoricals, self._numericals)
+        else:
+            raise ValueError("invalid value for fit_algo: ", str(fit_algo))
+
         return self._unbound_updater,
 
     def _assert_invariants(self):
@@ -230,7 +243,7 @@ class MixableCondGaussianModel(md.Model):
         # (7) marginalized mask must have proper length
         assert len(self._marginalized_mask) >= len(p_set)
         # (8) normalization mask must have proper length
-        if self._normalized:
+        if self.opts['normalized']:
             assert len(self._normalizer._nums) == len(self._numericals)
             assert list(self._normalizer._nums) == self._numericals
 
@@ -293,7 +306,7 @@ class MixableCondGaussianModel(md.Model):
             self._mu = self._mu.loc[dict(mean=num_keep)]
             self._S = self._S.loc[dict(S1=num_keep, S2=num_keep)]
 
-        if self._normalized:
+        if self.opts['normalized']:
             self._normalizer.update(num_keep=num_keep)
 
         # update fields and dependent variables
@@ -406,7 +419,7 @@ class MixableCondGaussianModel(md.Model):
         num = np.array(x[cat_len:])  # need as np array for dot product
         cat = tuple(x[:cat_len])   # need it as a tuple for indexing
 
-        if self._normalized:
+        if self.opts['normalized']:
             num = self._normalizer.norm(num)
 
         if num_len == 0:
@@ -542,7 +555,7 @@ class MixableCondGaussianModel(md.Model):
             result = self._maximum_mixable_cg_heuristic_b()
 
         assert(result is not None)
-        return self._normalizer.denormalize(result) if self._normalized else result
+        return self._normalizer.denormalize(result) if self.opts['normalized'] else result
 
     # mostly like cg wm
     def copy(self, name=None):
@@ -554,8 +567,8 @@ class MixableCondGaussianModel(md.Model):
         mycopy._numericals = self._numericals.copy()
         mycopy._marginalized = self._marginalized.copy()
         mycopy._marginalized_mask = self._marginalized_mask.copy()
-        mycopy._normalized = self._normalized
-        if mycopy._normalized:
+        mycopy.opts = self.opts.copy()
+        if self.opts['normalized']:
             mycopy._normalizer = self._normalizer.copy(mycopy)
         mycopy._update()
         return mycopy

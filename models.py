@@ -494,7 +494,7 @@ class Model:
         self.fields = get_discrete_fields(self.data, categoricals)
         return self
 
-    def fit(self, df=None):
+    def fit(self, df=None, **kwargs):
         """Fits the model to a models data or an optionally passed DataFrame
 
         Note that on return of this method the attribute .data must be filled with the appropriate data that
@@ -509,13 +509,13 @@ class Model:
         """
 
         if df is not None:
-            return self.set_data(df).fit()
+            return self.set_data(df).fit(**kwargs)
 
         if df is None and self.mode != 'data':
             raise ValueError('No data frame to fit to present: pass it as an argument or set it before using set_data(df)')
 
         try:
-            callbacks = self._fit()
+            callbacks = self._fit(**kwargs)
             for callback in callbacks:
                 callback()
         except NameError:

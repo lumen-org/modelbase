@@ -39,56 +39,62 @@ known_models = {
     # the encapsulation in a function prevents that on every execution of the script ALL data is loaded
 
     # categorical models
-    'categorical_dummy': lambda: (CategoricalModel('categorical_dummy'), pd.read_csv('data/categorical_dummy.csv')),
-    'heart': lambda: (CategoricalModel('heart'), heart.categorical('data/heart_disease/cleaned.cleveland.data')),
-    'adult': lambda: (CategoricalModel('adult'), adult.categorical('data/adult/adult.full.cleansed')),
+    'categorical_dummy': lambda: ({'class': CategoricalModel, 'data': pd.read_csv('data/categorical_dummy.csv')}),
+    'heart': lambda: ({'class': CategoricalModel, 'data': heart.categorical('data/heart_disease/cleaned.cleveland.data')}),
+    'adult': lambda: ({'class': CategoricalModel, 'data': adult.categorical('data/adult/adult.full.cleansed')}),
 
     # multivariate gaussian models
-    'iris': lambda: (MultiVariateGaussianModel('iris'), iris.continuous()),
-    'car_crashes': lambda: (MultiVariateGaussianModel('car_crashes'), car_crashes.continuous()),
-    'mvg_dummy_2d': lambda: (MultiVariateGaussianModel.dummy2d_model('mvg_dummy_2d'), None),
-    'mvg_crabs': lambda: (MultiVariateGaussianModel('mvg_crabs'), crabs.continuous('data/crabs/australian-crabs.csv')),
+    'iris': lambda: ({'class': MultiVariateGaussianModel, 'data': iris.continuous()}),
+    'car_crashes': lambda: ({'class': MultiVariateGaussianModel, 'data': car_crashes.continuous()}),
+    'mvg_dummy_2d': lambda: ({'class': MultiVariateGaussianModel.dummy2d_model}),
+    'mvg_crabs': lambda: ({'class': MultiVariateGaussianModel, 'data': crabs.continuous('data/crabs/australian-crabs.csv')}),
 
     # mixtures of multivariate gaussians
-    # 'faithful': lambda: (MMVG('faithful'), df.read_csv('data/faithful/faithful.csv')),
+    # 'faithful': lambda: ({'class': MMVG('faithful'), 'data': df.read_csv('data/faithful/faithful.csv')}),
 
     # conditionally gaussian models
-    # 'cg_dummy': lambda: (ConditionallyGaussianModel('cg_dummy'), ConditionallyGaussianModel.cg_dummy()),
-    'cg_crabs': lambda: (ConditionallyGaussianModel('cg_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
-    'cg_olive_oils': lambda: (ConditionallyGaussianModel('cg_olive_oils'),
-                              olive_oils.mixed('data/olive_oils/olive.csv')),
-    #'cg_yeast': lambda: (ConditionallyGaussianModel('cg_yeast'), yeast.mixed('data/yeast/yeast.csv')),
-    'cg_iris': lambda: (ConditionallyGaussianModel('cg_iris'), iris.mixed()),
-    'starcraft': lambda: (ConditionallyGaussianModel('starcraft'), starcraft.cg()),
-    'glass': lambda: (ConditionallyGaussianModel('glass'), glass.mixed('data/glass/glass.data.csv')),
-    'abalone': lambda: (ConditionallyGaussianModel('abalone'), abalone.cg()),
-    'flea': lambda: (ConditionallyGaussianModel('flea'), flea.mixed()),
-    'music': lambda: (ConditionallyGaussianModel('music'), music.mixed()),
-    'mpg': lambda: (ConditionallyGaussianModel('mpg'), mpg.cg()),
-    'census': lambda: (ConditionallyGaussianModel('census'), zensus.mixed()),
-    'cg_banknotes': lambda: (ConditionallyGaussianModel('cg_banknotes'), banknotes.mixed('data/banknotes/banknotes.csv')),
+    # 'cg_dummy': lambda: ({'class': ConditionallyGaussianModel, 'data': ConditionallyGaussianModel.cg_dummy()}),
+    'cg_crabs': lambda: ({'class': ConditionallyGaussianModel, 'data': crabs.mixed('data/crabs/australian-crabs.csv')}),
+    'cg_olive_oils': lambda: ({'class': ConditionallyGaussianModel, 'data': olive_oils.mixed('data/olive_oils/olive.csv')}),
+    #'cg_yeast': lambda: ({'class': ConditionallyGaussianModel, 'data': yeast.mixed('data/yeast/yeast.csv')}),
+    'cg_iris': lambda: ({'class': ConditionallyGaussianModel, 'data': iris.mixed()}),
+    'starcraft': lambda: ({'class': ConditionallyGaussianModel, 'data': starcraft.cg()}),
+    'glass': lambda: ({'class': ConditionallyGaussianModel, 'data': glass.mixed('data/glass/glass.data.csv')}),
+    'abalone': lambda: ({'class': ConditionallyGaussianModel, 'data': abalone.cg()}),
+    'flea': lambda: ({'class': ConditionallyGaussianModel, 'data': flea.mixed()}),
+    'music': lambda: ({'class': ConditionallyGaussianModel, 'data': music.mixed()}),
+    'mpg': lambda: ({'class': ConditionallyGaussianModel, 'data': mpg.cg()}),
+    'census': lambda: ({'class': ConditionallyGaussianModel, 'data': zensus.mixed()}),
+    'cg_banknotes': lambda: ({'class': ConditionallyGaussianModel, 'data': banknotes.mixed('data/banknotes/banknotes.csv')}),
 
     # conditionally gaussian models with weak marginals
-    'cgw_iris': lambda: (CgWmModel('cgw_iris'), iris.mixed()),
-    'cgw_crabs': lambda: (CgWmModel('cgw_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
-    'cgw_diamonds': lambda: (CgWmModel('cgw_diamonds'), diamonds.mixed('data/diamonds/diamonds.csv')),
-    'cgw_mpg': lambda: (ConditionallyGaussianModel('cgw_mpg'), mpg.cg()),
+    'cgw_iris': lambda: ({'class': CgWmModel, 'data': iris.mixed()}),
+    'cgw_crabs': lambda: ({'class': CgWmModel, 'data': crabs.mixed('data/crabs/australian-crabs.csv')}),
+    'cgw_diamonds': lambda: ({'class': CgWmModel, 'data': diamonds.mixed('data/diamonds/diamonds.csv')}),
+    'cgw_mpg': lambda: ({'class': ConditionallyGaussianModel, 'data': mpg.cg()}),
 
     # mixture of gaussians models
-    'mo4g_crabs': lambda: (MoGModelWithK('mo4g_crabs', 4), crabs.continuous('data/crabs/australian-crabs.csv')),
-    'mo10g_crabs': lambda: (MoGModelWithK('mo10g_crabs', 10), crabs.continuous('data/crabs/australian-crabs.csv')),
-    'mo3g_iris': lambda: (MoGModelWithK('mo3g_iris', 3), iris.continuous()),
+    'mo4g_crabs': lambda: ({'class': MoGModelWithK('mo4g_crabs'), 'classopts': {'k': 4}, 'data': crabs.continuous('data/crabs/australian-crabs.csv')}),
+    'mo10g_crabs': lambda: ({'class': MoGModelWithK('mo10g_crabs'), 'classopts': {'k': 10}, 'data': crabs.continuous('data/crabs/australian-crabs.csv')}),
+    'mo3g_iris': lambda: ({'class': MoGModelWithK('mo3g_iris'), 'classopts': {'k': 3}, 'data': iris.continuous()}),
 
     # mixture of conditional gaussian models
     # TODO: _fit missing in that model
-    #'mo3cg_iris': lambda: (MoCGModelWithK('mo3g_iris', 3), iris.mixed()),
+    #'mo3cg_iris': lambda: ({'class': MoCGModelWithK('mo3g_iris'), 'classopts': {'k': 3} iris.mixed()}),
 
     # mixable cg models
-    'mcg_crabs': lambda: (MixableCondGaussianModel('mcg_crabs'), crabs.mixed('data/crabs/australian-crabs.csv')),
-    'mcg_mpg': lambda: (MixableCondGaussianModel('mcg_mpg'), mpg.cg()),
-    'mcg_mpg2': lambda: (MixableCondGaussianModel('mcg_mpg2'), mpg.cg2()),  # larger model than mcg_mpg
-    'mcg_iris': lambda: (MixableCondGaussianModel('mcg_iris'), iris.mixed()),
-    'mpg_starcraft': lambda: (MixableCondGaussianModel('mpg_starcraft'), starcraft.cg()),
+    'mcg_crabs': lambda: ({'class': MixableCondGaussianModel, 'data': crabs.mixed('data/crabs/australian-crabs.csv')}),
+    'mcg_crabs_clz': lambda: ({'class': MixableCondGaussianModel,
+                           'data': crabs.mixed('data/crabs/australian-crabs.csv'),
+                           'fitopts': {'fit_algo': 'clz', 'normalized': True}}),
+
+
+    'mcg_mpg': lambda: ({'class': MixableCondGaussianModel, 'data': mpg.cg()}),
+    'mcg_mpg2': lambda: ({'class': MixableCondGaussianModel, 'data': mpg.cg2()}),  # larger model than mcg_mpg
+    'mcg_iris': lambda: ({'class': MixableCondGaussianModel, 'data': iris.mixed()}),
+    'mpg_starcraft': lambda: ({'class': MixableCondGaussianModel, 'data': starcraft.cg()}),
+    'mcg_mpg3': lambda: ({'class': MixableCondGaussianModel, 'data': mpg.cg_generic()}),  # larger model than mcg_mpg
+    'mcg_mpg_sm': lambda: ({'class': MixableCondGaussianModel, 'data': mpg.cg_generic(cols=['displ', 'cyl', 'cty','drv'])}),  # small
 }
 
 
@@ -106,13 +112,17 @@ def refit_all_models(verbose=False, include=None, exclude=None):
     models = []
     for (id_, getter) in known_models.items():
         if id_ in include and id_ not in exclude:
-            (model_, df) = getter()
+            config = {'classopts': {}, 'fitopts': {}, 'data': None}
+            config.update(getter())  # getter() returns the dict that is setup above in known models
+            Modelclass = config['class']
+            df = config['data']
             if verbose:
                 print("Fitting model for data set '" + str(id_) + "' ...")
+            model = Modelclass(id_, **config['classopts'])
             if df is not None:
                 # only fit if data available. otherwise we expect that the model has been fitted elsewhere
-                model_.fit(df)
-            models.append(model_)
+                model.fit(df, **config['fitopts'])
+            models.append(model)
             if verbose:
                 print("... done.")
             fitted.add(id_)
@@ -170,7 +180,7 @@ Examples:
     # args.include = ['mcg_iris']
     # args.include = ['cg_olive_oils']
     # args.include = ['cg_glass']
-    # args.include = ['starcraft']
+    # args.include = ['mcg_crabs_clz']
     # args.include = ['cg_iris']
     # args.include = ['mvg_dummy_2d']
 
