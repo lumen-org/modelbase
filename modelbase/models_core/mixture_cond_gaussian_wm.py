@@ -2,8 +2,8 @@
 
 import logging
 
-from modelbase.models_core.fixed_mixture_model import FixedMixtureModel
-from modelbase.models_core.cond_gaussian_wm import CgWmModel
+from .fixed_mixture_model import FixedMixtureModel
+from .cond_gaussian_wm import CgWmModel
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
