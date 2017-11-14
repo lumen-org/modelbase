@@ -6,10 +6,10 @@ from numpy import pi, exp, matrix, ix_, nan
 from sklearn import mixture
 from scipy.optimize import minimize
 
-from ..utils import utils
-from . import models as md
-from .models import AggregationTuple, SplitTuple, ConditionTuple
-from . import domains as dm
+from modelbase.utils import utils
+from modelbase.models_core import models as md
+from modelbase.models_core.models import AggregationTuple, SplitTuple, ConditionTuple
+from modelbase.models_core import domains as dm
 
 # setup logger
 logger = logging.getLogger(__name__)
