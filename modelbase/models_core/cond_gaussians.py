@@ -7,7 +7,7 @@ from numpy import nan, pi, exp, dot, abs
 from numpy.linalg import inv, det
 import xarray as xr
 
-from . import models as md
+from modelbase.models_core import models as md
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
