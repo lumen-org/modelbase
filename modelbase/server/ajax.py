@@ -10,10 +10,10 @@ import logging
 import json
 import traceback
 
-from ..utils import utils
-from . import modelbase as mbase
+import utils
+import modelbase as mbase
 
-from ..utils.utils import is_running_in_debug_mode
+from utils import is_running_in_debug_mode
 if is_running_in_debug_mode():
     import models_debug
 

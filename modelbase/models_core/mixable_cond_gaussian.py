@@ -6,11 +6,11 @@ from numpy import nan, pi, exp, dot, abs
 from numpy.linalg import inv, det
 import xarray as xr
 
-from . import models as md
-from . import cond_gaussian_wm as cgwm
-from ..utils import utils
+from modelbase.models_core import models as md
+from modelbase.models_core import cond_gaussian_wm as cgwm
+from modelbase.utils import utils
 
-#import data.crabs.crabs as crabs
+import data.crabs.crabs as crabs
 
 # setup logger
 logger = logging.getLogger(__name__)
