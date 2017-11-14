@@ -10,7 +10,7 @@ from modelbase.models_core import models as md
 from modelbase.models_core import cond_gaussian_wm as cgwm
 from modelbase.utils import utils
 
-import data.crabs.crabs as crabs
+#import data.crabs.crabs as crabs
 
 # setup logger
 logger = logging.getLogger(__name__)

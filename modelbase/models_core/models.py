@@ -16,6 +16,8 @@ import numpy as np
 import pandas as pd
 import logging
 
+print(__file__)
+
 from modelbase.models_core import domains as dm
 from modelbase.models_core import splitter as sp
 from modelbase.utils import utils as utils
