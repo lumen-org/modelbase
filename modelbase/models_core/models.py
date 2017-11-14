@@ -16,10 +16,10 @@ import numpy as np
 import pandas as pd
 import logging
 
-from modelbase.models_core import domains as dm
-from modelbase.models_core import splitter as sp
-from modelbase.utils import utils as utils
-from modelbase.models_core import data_aggregation as data_aggr
+from . import domains as dm
+from . import splitter as sp
+from ..utils import utils as utils
+from . import data_aggregation as data_aggr
 
 logger = logging.getLogger(__name__)
 #logger.setLevel(logging.WARNING)

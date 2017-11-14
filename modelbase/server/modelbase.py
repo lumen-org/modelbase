@@ -12,7 +12,7 @@ from pathlib import Path
 import os
 import numpy
 
-import models as gm
+from ..models_core import models as gm
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
