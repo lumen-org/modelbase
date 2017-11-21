@@ -6,32 +6,34 @@
 
 import pandas as pd
 
-import data.adult.adult as adult
-import data.heart_disease.heart as heart
-import data.crabs.crabs as crabs
-import data.car_crashes.car_crashes as car_crashes
-import data.iris.iris as iris
-import data.olive_oils.olive_oils as olive_oils
-import data.yeast.yeast as yeast
-import data.starcraft.starcraft as starcraft
-import data.glass.glass as glass
-import data.abalone.abalone as abalone
-import data.flea.flea as flea
-import data.music.music as music
-import data.mpg.mpg as mpg
-import data.census.zensus as zensus
-import data.bank.bank as bank
-import data.banknotes.banknotes as banknotes
-import data.diamonds.diamonds as diamonds
+import mb_data.adult as adult
+import mb_data.heart as heart
+import mb_data.crabs as crabs
+import mb_data.car_crashes as car_crashes
+import mb_data.iris as iris
+import mb_data.olive_oils as olive_oils
+import mb_data.yeast as yeast
+import mb_data.starcraft as starcraft
+import mb_data.glass as glass
+import mb_data.abalone as abalone
+import mb_data.flea as flea
+import mb_data.music as music
+import mb_data.mpg as mpg
+import mb_data.zensus as zensus
+import mb_data.bank as bank
+import mb_data.banknotes as banknotes
+import mb_data.diamonds as diamonds
 
-from cond_gaussians import ConditionallyGaussianModel
-from cond_gaussian_wm import CgWmModel
-from gaussians import MultiVariateGaussianModel
-from categoricals import CategoricalModel
-from mixture_gaussians import MixtureOfGaussiansModel
-from mixture_gaussians import MoGModelWithK
-from mixture_cond_gaussian_wm import MoCGModelWithK
-from mixable_cond_gaussian import MixableCondGaussianModel
+from modelbase.models_core.cond_gaussians import ConditionallyGaussianModel
+from modelbase.models_core.cond_gaussian_wm import CgWmModel
+from modelbase.models_core.gaussians import MultiVariateGaussianModel
+from modelbase.models_core.categoricals import CategoricalModel
+from modelbase.models_core.mixture_gaussians import MixtureOfGaussiansModel
+from modelbase.models_core.mixture_gaussians import MoGModelWithK
+from modelbase.models_core.mixture_cond_gaussian_wm import MoCGModelWithK
+from modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
+
+abspath = '/home/chris/GeMod/mb_data/mb_data'
 
 known_models = {
 """ 
@@ -47,43 +49,43 @@ dict of what to fit how:
 Idea: the encapsulation in a function prevents that on every execution of the script ALL data is loaded
 """
     # categorical models
-    'categorical_dummy': lambda: ({'class': CategoricalModel, 'data': pd.read_csv('data/categorical_dummy.csv')}),
-    'heart': lambda: ({'class': CategoricalModel, 'data': heart.categorical('data/heart_disease/cleaned.cleveland.data')}),
-    'adult': lambda: ({'class': CategoricalModel, 'data': adult.categorical('data/adult/adult.full.cleansed')}),
+    'categorical_dummy': lambda: ({'class': CategoricalModel, 'data': pd.read_csv(abspath + '/categorical_dummy.csv')}),
+    'heart': lambda: ({'class': CategoricalModel, 'data': heart.categorical(abspath + '/heart/cleaned.cleveland.data')}),
+    'adult': lambda: ({'class': CategoricalModel, 'data': adult.categorical(abspath + '/adult/adult.full.cleansed')}),
 
     # multivariate gaussian models
-    'iris': lambda: ({'class': MultiVariateGaussianModel, 'data': iris.continuous()}),
+    'iris': lambda: ({'class': MultiVariateGaussianModel, 'data': iris.continuous(abspath + '/iris/iris.csv')}),
     'car_crashes': lambda: ({'class': MultiVariateGaussianModel, 'data': car_crashes.continuous()}),
     'mvg_dummy_2d': lambda: ({'class': MultiVariateGaussianModel.dummy2d_model}),
-    'mvg_crabs': lambda: ({'class': MultiVariateGaussianModel, 'data': crabs.continuous('data/crabs/australian-crabs.csv')}),
+    'mvg_crabs': lambda: ({'class': MultiVariateGaussianModel, 'data': crabs.continuous(abspath + '/crabs/australian-crabs.csv')}),
 
     # mixtures of multivariate gaussians
     # 'faithful': lambda: ({'class': MMVG('faithful'), 'data': df.read_csv('data/faithful/faithful.csv')}),
 
     # conditionally gaussian models
     # 'cg_dummy': lambda: ({'class': ConditionallyGaussianModel, 'data': ConditionallyGaussianModel.cg_dummy()}),
-    'cg_crabs': lambda: ({'class': ConditionallyGaussianModel, 'data': crabs.mixed('data/crabs/australian-crabs.csv')}),
-    'cg_olive_oils': lambda: ({'class': ConditionallyGaussianModel, 'data': olive_oils.mixed('data/olive_oils/olive.csv')}),
+    'cg_crabs': lambda: ({'class': ConditionallyGaussianModel, 'data': crabs.mixed(abspath + '/crabs/australian-crabs.csv')}),
+    'cg_olive_oils': lambda: ({'class': ConditionallyGaussianModel, 'data': olive_oils.mixed(abspath + '/olive_oils/olive.csv')}),
     #'cg_yeast': lambda: ({'class': ConditionallyGaussianModel, 'data': yeast.mixed('data/yeast/yeast.csv')}),
     'cg_iris': lambda: ({'class': ConditionallyGaussianModel, 'data': iris.mixed()}),
     'starcraft': lambda: ({'class': ConditionallyGaussianModel, 'data': starcraft.cg()}),
-    'glass': lambda: ({'class': ConditionallyGaussianModel, 'data': glass.mixed('data/glass/glass.data.csv')}),
+    'glass': lambda: ({'class': ConditionallyGaussianModel, 'data': glass.mixed(abspath + '/glass/glass.data.csv')}),
     'abalone': lambda: ({'class': ConditionallyGaussianModel, 'data': abalone.cg()}),
     'flea': lambda: ({'class': ConditionallyGaussianModel, 'data': flea.mixed()}),
     'music': lambda: ({'class': ConditionallyGaussianModel, 'data': music.mixed()}),
     'mpg': lambda: ({'class': ConditionallyGaussianModel, 'data': mpg.cg()}),
     'census': lambda: ({'class': ConditionallyGaussianModel, 'data': zensus.mixed()}),
-    'cg_banknotes': lambda: ({'class': ConditionallyGaussianModel, 'data': banknotes.mixed('data/banknotes/banknotes.csv')}),
+    'cg_banknotes': lambda: ({'class': ConditionallyGaussianModel, 'data': banknotes.mixed(abspath + '/banknotes/banknotes.csv')}),
 
     # conditionally gaussian models with weak marginals
     'cgw_iris': lambda: ({'class': CgWmModel, 'data': iris.mixed()}),
-    'cgw_crabs': lambda: ({'class': CgWmModel, 'data': crabs.mixed('data/crabs/australian-crabs.csv')}),
-    'cgw_diamonds': lambda: ({'class': CgWmModel, 'data': diamonds.mixed('data/diamonds/diamonds.csv')}),
+    'cgw_crabs': lambda: ({'class': CgWmModel, 'data': crabs.mixed(abspath + '/crabs/australian-crabs.csv')}),
+    'cgw_diamonds': lambda: ({'class': CgWmModel, 'data': diamonds.mixed(abspath + '/diamonds/diamonds.csv')}),
     'cgw_mpg': lambda: ({'class': ConditionallyGaussianModel, 'data': mpg.cg()}),
 
     # mixture of gaussians models
-    'mo4g_crabs': lambda: ({'class': MoGModelWithK('mo4g_crabs'), 'classopts': {'k': 4}, 'data': crabs.continuous('data/crabs/australian-crabs.csv')}),
-    'mo10g_crabs': lambda: ({'class': MoGModelWithK('mo10g_crabs'), 'classopts': {'k': 10}, 'data': crabs.continuous('data/crabs/australian-crabs.csv')}),
+    'mo4g_crabs': lambda: ({'class': MoGModelWithK('mo4g_crabs'), 'classopts': {'k': 4}, 'data': crabs.continuous(abspath + '/crabs/australian-crabs.csv')}),
+    'mo10g_crabs': lambda: ({'class': MoGModelWithK('mo10g_crabs'), 'classopts': {'k': 10}, 'data': crabs.continuous(abspath + '/crabs/australian-crabs.csv')}),
     'mo3g_iris': lambda: ({'class': MoGModelWithK('mo3g_iris'), 'classopts': {'k': 3}, 'data': iris.continuous()}),
 
     # mixture of conditional gaussian models
@@ -91,11 +93,11 @@ Idea: the encapsulation in a function prevents that on every execution of the sc
     #'mo3cg_iris': lambda: ({'class': MoCGModelWithK('mo3g_iris'), 'classopts': {'k': 3} iris.mixed()}),
 
     # mixable cg models
-    'mcg_crabs': lambda: ({'class': MixableCondGaussianModel, 'data': crabs.mixed('data/crabs/australian-crabs.csv')}),
-    'mcg_crabs_norm': lambda: ({'class': MixableCondGaussianModel, 'data': crabs.mixed('data/crabs/australian-crabs.csv'),
+    'mcg_crabs': lambda: ({'class': MixableCondGaussianModel, 'data': crabs.mixed(abspath + '/crabs/australian-crabs.csv')}),
+    'mcg_crabs_norm': lambda: ({'class': MixableCondGaussianModel, 'data': crabs.mixed(abspath + '/crabs/australian-crabs.csv'),
                                 'fitopts': {'normalized': True}}),
     'mcg_crabs_clz': lambda: ({'class': MixableCondGaussianModel,
-                           'data': crabs.mixed('data/crabs/australian-crabs.csv'),
+                           'data': crabs.mixed(abspath + '/crabs/australian-crabs.csv'),
                            'fitopts': {'fit_algo': 'clz', 'normalized': True}}),
 
 

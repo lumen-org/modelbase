@@ -8,7 +8,7 @@ Test Suite for cond_gaussians.py
 import unittest
 import numpy as np
 from random import shuffle
-import utils
+from modelbase.utils import utils as utils
 
 
 class TestUtils(unittest.TestCase):

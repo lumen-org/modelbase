@@ -16,8 +16,12 @@ import numpy as np
 import pandas as pd
 import logging
 
-print(__file__)
-
+import sys
+path = '/home/chris/GeMod'
+if path not in sys.path:
+    sys.path.append(path)
+    sys.path.append(path + '/modelbase/modelbase/models_core')
+ 
 from modelbase.models_core import domains as dm
 from modelbase.models_core import splitter as sp
 from modelbase.utils import utils as utils
@@ -1511,13 +1515,13 @@ class Model:
 if __name__ == '__main__':
     import numpy as np
     import pandas as pd
-    import data.crabs.crabs as crabs
-    import data.iris.iris as iris
+    from mb_data.mb_data.crabs import crabs as crabs
+    from mb_data.mb_data.iris import iris as iris
 
-    import cond_gaussians as cg
+    from modelbase.models_core import cond_gaussians as cg
 
-    irisdata = iris.mixed('data/iris/iris.csv')
-    crabsdata = crabs.mixed('data/crabs/australian-crabs.csv')
+    irisdata = iris.mixed('../mb_data/mb_data/iris/iris.csv')
+    crabsdata = crabs.mixed('../mb_data/mb_data/crabs/australian-crabs.csv')
 
     iris = cg.ConditionallyGaussianModel("iris").fit(irisdata)
 

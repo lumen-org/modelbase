@@ -23,7 +23,7 @@ import time
 import modelbase as mb
 import models as md
 
-from utils import is_running_in_debug_mode
+from modelbase.utils.utils import is_running_in_debug_mode
 if is_running_in_debug_mode():
     import models_debug
 
