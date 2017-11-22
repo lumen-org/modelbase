@@ -8,7 +8,6 @@ setup(name='modelbase',
       author='Philip Lucas',
       author_email='philipp.lucas@uni-jena.de',
       license='Public',
-      #packages=['modelbase'],
       packages=find_packages(exclude=['scripts']),
       install_requires=[
           'xarray',
