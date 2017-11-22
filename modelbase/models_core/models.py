@@ -16,11 +16,11 @@ import numpy as np
 import pandas as pd
 import logging
 
-import sys
-path = '/home/chris/GeMod'
-if path not in sys.path:
-    sys.path.append(path)
-    sys.path.append(path + '/modelbase/modelbase/models_core')
+#import sys
+#path = '/home/chris/GeMod'
+#if path not in sys.path:
+#    sys.path.append(path)
+#    sys.path.append(path + '/modelbase/modelbase/models_core')
  
 from modelbase.models_core import domains as dm
 from modelbase.models_core import splitter as sp
