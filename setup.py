@@ -2,7 +2,7 @@ from setuptools import setup
 from setuptools import find_packages
 
 setup(name='modelbase',
-      version='0.1',
+      version='0.2',
       description='Tool for unified model and data visualization',
       url='https://bitbucket.org/phlpp/modelbase',
       author='Philip Lucas',

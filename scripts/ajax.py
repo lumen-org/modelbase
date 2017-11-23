@@ -105,8 +105,8 @@ Usage:
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-n", "--name", help="A name for the modelbase to start. Defaults to 'my_mb'",
                         type=str, default='my_mb')
-    parser.add_argument("-s", "--storage", help="storage directory of models to be loaded initially. Defaults to "
-                                                "'data_models'", type=str, default='data_models')
+    parser.add_argument("-d", "--directory", help="directory that contains the models to be loaded initially. Defaults"
+                                                  " to 'data_models'", type=str, default='data_models')
     parser.add_argument("-l", "--loglevel", help="loglevel for command line output. You can set it to: CRITICAL, "
                                                  "ERROR, WARNING, INFO or DEBUG. Defaults to INFO",
                         type=str, default='INFO')

@@ -12,9 +12,8 @@ Data is generally given as a pandas data frame. Appropiate preperation is expect
 Parameters are generally provided by means of numpy ndarrays. The order of categorical random variables in the given data frame is equivalent to the implicit order of dimensions (representing categorical random variables) in the derived parameters.
 
 """
-#from CGmodelselection.CG_CLZ_util import CG_CLZ_Utils
-#from CGmodelselection.dataops import getMetaData, prepareCGData
-
+from CGmodelselection.CG_CLZ_util import CG_CLZ_Utils
+from CGmodelselection.dataops import getMetaData, prepareCGData
 
 ### model selection methods
 
