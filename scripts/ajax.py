@@ -121,7 +121,7 @@ Usage:
     logger = logging.getLogger(__name__)
 
     logger.info("starting modelbase ... ")
-    mb = mbase.ModelBase(name=args.name, model_dir=args.storage)
+    mb = mbase.ModelBase(name=args.name, model_dir=args.directory)
     logger.info("... done (starting modelbase).")
 
     logger.info("web server running...")

@@ -159,7 +159,7 @@ class MixableCondGaussianModel(md.Model):
     """
 
     _fit_opts_allowed = {
-        'fit_algo': set(['clz', 'full']),
+        'fit_algo': set(['clz', 'map', 'full']),
         'normalized': set([True, False]),
     }
 
@@ -214,6 +214,8 @@ class MixableCondGaussianModel(md.Model):
             self._p, self._mu, self._S = cgwm.fit_full(df_norm, self.fields, self._categoricals, self._numericals)
         elif fit_algo == 'clz':
             self._p, self._mu, self._S = cgwm.fit_CLZ(df_norm, self._categoricals, self._numericals)
+        elif fit_algo == 'map':
+            self._p, self._mu, self._S = cgwm.fit_MAP(df_norm, self._categoricals, self._numericals)
         else:
             raise ValueError("invalid value for fit_algo: ", str(fit_algo))
 

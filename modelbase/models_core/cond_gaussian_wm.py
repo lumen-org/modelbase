@@ -77,6 +77,15 @@ def fit_CLZ(df, categoricals, numericals):
     return _numpy_to_xarray_params(p, mu, Sigma, list(meta['levels'].values()), categoricals, numericals)
 
 
+def fit_MAP(df, categoricals, numericals):
+    """Fits a conditional gaussian model to given data and returns the fitting parameters as a 3-tuple(p, mu, S, mu):
+        p, mu and S are just like the CgWmModel expects them (see class documentation there)
+
+    Note that this actually is a CLZ triple interaction model.
+    """
+    (p, mu, Sigma, meta) = cgf.fit_map_mean(df)
+    return _numpy_to_xarray_params(p, mu, Sigma, list(meta['levels'].values()), categoricals, numericals)
+
 def _maximum_cgwm_heuristic1(cat_len, num_len, mu, p, detS):
     """Returns an approximation to point of the maximum density of a given cg distribution.
     Essentially its the coordinates of the most likeliest mean of all gaussians in the cg distribution.

@@ -13,6 +13,7 @@ Parameters are generally provided by means of numpy ndarrays. The order of categ
 
 """
 from CGmodelselection.CG_CLZ_util import CG_CLZ_Utils
+from CGmodelselection.CG_MAP_estimator import fitCGMeanParams
 from CGmodelselection.dataops import getMetaData, prepareCGData
 
 ### model selection methods
@@ -39,6 +40,21 @@ def fit_clz_mean (df):
     solver.getCanonicalParams(res.x, verb=True)
 
     (p, mus, Sigmas) = solver.getMeanParams(res.x, verb=True)
+    return p, mus, Sigmas, meta
+
+def fit_map_mean (df):
+    """Fits parameters of a CLZ model to given data in pandas.DataFrame df and returns their representation as general mean paramters.
+
+    Args:
+        df: DataFrame of training data.
+    """
+
+    meta = getMetaData(df)
+    D, Y = prepareCGData(df, meta, shuffle=False)  # transform discrete variables to indicator data
+    # TODO: split into training and test data? if so: see Franks code
+    
+
+    (p, mus, Sigmas) = fitCGMeanParams(D, Y, meta, verb = False)
     return p, mus, Sigmas, meta
 
 ### parameter transformation methods
