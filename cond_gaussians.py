@@ -8,6 +8,7 @@ from numpy.linalg import inv, det
 import xarray as xr
 
 import models as md
+from utils import no_nan
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -170,7 +171,7 @@ class ConditionallyGaussianModel(md.Model):
 
     def _assert_invariants(self):
         for o in [self._detS, self._SInv, self._S, self._mu, self._p]:
-            assert(not np.isnan(o).any())
+            assert(no_nan(o))
 
     def _conditionout_continuous(self, num_remove):
         """ For update formulas of parameters: see Franks pdf. """

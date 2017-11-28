@@ -91,20 +91,35 @@ Idea: the encapsulation in a function prevents that on every execution of the sc
     #'mo3cg_iris': lambda: ({'class': MoCGModelWithK('mo3g_iris'), 'classopts': {'k': 3} iris.mixed()}),
 
     # mixable cg models
-    'mcg_crabs': lambda: ({'class': MixableCondGaussianModel, 'data': crabs.mixed('data/crabs/australian-crabs.csv')}),
-    'mcg_crabs_norm': lambda: ({'class': MixableCondGaussianModel, 'data': crabs.mixed('data/crabs/australian-crabs.csv'),
+    'mcg_crabs': lambda: ({'class': MixableCondGaussianModel,
+                           'data': crabs.mixed('data/crabs/australian-crabs.csv')}),
+    'mcg_crabs_sm': lambda: ({'class': MixableCondGaussianModel,
+                                'data': crabs.mixed('data/crabs/australian-crabs.csv', keep=["sex", "CL", "RW"]),
                                 'fitopts': {'normalized': True}}),
     'mcg_crabs_clz': lambda: ({'class': MixableCondGaussianModel,
                            'data': crabs.mixed('data/crabs/australian-crabs.csv'),
                            'fitopts': {'fit_algo': 'clz', 'normalized': True}}),
+    'mcg_crabs_clz_sm': lambda: ({'class': MixableCondGaussianModel,
+                           'data': crabs.mixed('data/crabs/australian-crabs.csv', keep=["sex", "CL", "RW"]),
+                           'fitopts': {'fit_algo': 'clz', 'normalized': True}}),
+
 
 
     'mcg_mpg': lambda: ({'class': MixableCondGaussianModel, 'data': mpg.cg()}),
-    'mcg_mpg2': lambda: ({'class': MixableCondGaussianModel, 'data': mpg.cg2()}),  # larger model than mcg_mpg
-    'mcg_iris': lambda: ({'class': MixableCondGaussianModel, 'data': iris.mixed()}),
+    'mcg_mpg2': lambda: ({'class': MixableCondGaussianModel,
+                          'data': mpg.cg_generic(cols=['trans', 'displ', 'cyl', 'cty', 'hwy', ]),
+                          'fitopts': {'fit_algo': 'full', 'normalized': False}}),  # larger model than mcg_mpg
+    'mcg_iris': lambda: ({'class': MixableCondGaussianModel, 'data': iris.mixed(),
+                          'fitopts': {'fit_algo': 'full', 'normalized': True}}),
     'mpg_starcraft': lambda: ({'class': MixableCondGaussianModel, 'data': starcraft.cg()}),
-    'mcg_mpg3': lambda: ({'class': MixableCondGaussianModel, 'data': mpg.cg_generic()}),  # larger model than mcg_mpg
-    'mcg_mpg_sm': lambda: ({'class': MixableCondGaussianModel, 'data': mpg.cg_generic(cols=['displ', 'cyl', 'cty','drv'])}),  # small
+    'mcg_mpg3': lambda: ({'class': MixableCondGaussianModel,
+                          'data': mpg.cg_generic(),  # larger model than mcg_mpg
+                          'fitopts': {'fit_algo': 'full', 'normalized': True}}),
+    'mcg_mpg_sm': lambda: ({'class': MixableCondGaussianModel,
+                            'data': mpg.cg_generic(cols=['displ', 'cyl', 'cty', 'drv']),
+                            'fitopts': {'fit_algo': 'full', 'normalized': True}}),
+    'mcg_diamonds': lambda: ({'class': MixableCondGaussianModel,
+                              'data': diamonds.mixed('data/diamonds/diamonds.csv')}),
 }
 
 
@@ -190,7 +205,7 @@ Examples:
     # args.include = ['mcg_iris']
     # args.include = ['cg_olive_oils']
     # args.include = ['cg_glass']
-    # args.include = ['mcg_crabs_clz']
+    # args.include = ['mcg_diamonds']
     # args.include = ['cg_iris']
     # args.include = ['mvg_dummy_2d']
 

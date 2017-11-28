@@ -6,6 +6,7 @@ from numpy import nan, pi, exp, dot, abs, ix_
 from numpy.linalg import inv, det
 import xarray as xr
 
+from utils import no_nan
 import models as md
 import cond_gaussian_fitting as cgf
 import cond_gaussians as cg
@@ -202,7 +203,13 @@ class CgWmModel(md.Model):
     def _fit(self):
         assert (self.mode != 'none')
         self._p, self._mu, self._S = fit_full(self.data, self.fields, self._categoricals, self._numericals)
+        for o in [self._p, self._mu, self._S]:
+            assert(no_nan(o))
         return self._unbound_updater,
+
+    def _assert_no_nans(self):
+        for o in [self._detS, self._SInv, self._S, self._mu, self._p]:
+            assert (not np.isnan(o).any())
 
     def _update(self):
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
@@ -225,6 +232,8 @@ class CgWmModel(md.Model):
 
         if len(self._categoricals) == 0:
             self._p = xr.DataArray([])
+
+        self._assert_no_nans()
 
         return self
 
@@ -309,10 +318,12 @@ class CgWmModel(md.Model):
         for (idx, (p, mu, detS, S)) in enumerate(zip(p_np, mu_np, detS_np, S_np)):
             diff_y_mu_J = cond_values - mu[j]
             Sjj_inv = inv(S[ix_(j, j)])
+            assert no_nan(Sjj_inv), "Inversion of Covariance Matrix failed."
 
             if not all_num_removing:
                 # update Sigma and mu
                 sigma_expr = np.dot(S[ix_(i, j)], Sjj_inv)  # reused below multiple times
+                assert no_nan(sigma_expr), "Sigma_expr contains nan"
                 S_np[idx][ix_(i, i)] -= dot(sigma_expr, S[ix_(j, i)])  # upper Schur complement
                 mu_np[idx][i] += dot(sigma_expr, diff_y_mu_J)
                 # this is for p update. Otherwise it is constant and calculated before the stacking loop
@@ -320,7 +331,9 @@ class CgWmModel(md.Model):
 
             # update p
             detQuotient = (detS_cond ** 0.5) * detS
+            assert no_nan(detQuotient)
             p_np[idx] *= detQuotient * exp(-0.5 * dot(diff_y_mu_J, dot(Sjj_inv, diff_y_mu_J)))
+            assert no_nan(p_np[idx])
 
     def _conditionout_continuous(self, num_remove):
         if len(num_remove) == 0:
@@ -347,6 +360,7 @@ class CgWmModel(md.Model):
             # special case: no categorical fields left. hence we cannot stack over them, it is only a single mu left
             # and we only need to update that
             sigma_expr = np.dot(self._S.loc[i, j], inv(self._S.loc[j, j]))  # reused below
+            assert no_nan(sigma_expr), "Sigma_expr contains nan"
             self._S = self._S.loc[i, i] - dot(sigma_expr, self._S.loc[j, i])  # upper Schur complement
             self._mu = self._mu.loc[i] + dot(sigma_expr, cond_values - self._mu.loc[j])
             # update p: there is nothing to update. p is empty
@@ -386,6 +400,7 @@ class CgWmModel(md.Model):
         # trim the probability look-up table to the appropriate subrange and normalize it
         p = self._p.loc[pairs]
         self._p = p / p.sum()
+        assert no_nan(self._p), "Renormalization of p failed."
 
         # _mu and _S is trimmed: keep the slice that we condition on, i.e. reuse the 'pairs' access-structure
         # note: if we condition on all categoricals this also works: it simply remains the single 'selected' mu...
@@ -484,6 +499,7 @@ class CgWmModel(md.Model):
         invS = self._SInv.loc[cat].values
         xmu = num - mu
         gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
+        assert no_nan(gauss), "Density computation failed."
 
         if cat_len == 0:
             return gauss

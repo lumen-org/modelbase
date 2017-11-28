@@ -34,13 +34,13 @@ def cg(file=_filepath):
     mpgdf = pd.read_csv(file)
     cols = ['year', 'class', 'cyl', 'displ', 'cty', 'hwy']
     mpgdf = mpgdf.loc[:, cols]
-    mpgdf.drop(mpgdf.columns[[0]], axis=1, inplace=True)
+    mpgdf.drop(mpgdf.columns[[0]], axis=1, inplace=True)  # drops what ???
     mpgdf.dropna(axis=0, inplace=True, how="any")
     return mpgdf
 
 def cg2(file=_filepath):
     mpgdf = pd.read_csv(file)
-    cols_cat = ['year', 'class', ]
+    cols_cat = ['drv', 'trans', ]
     cols_num = ['displ', 'cyl', 'cty', 'hwy', ]
     cols = cols_cat + cols_num
     mpgdf = mpgdf.loc[:, cols]

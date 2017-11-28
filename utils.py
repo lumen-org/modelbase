@@ -8,7 +8,7 @@ Various utility functions
 import string
 import random
 from functools import wraps
-from numpy import matrix, ix_
+from numpy import matrix, ix_, isfinite
 
 
 def validate_opts(opts, allowed):
@@ -260,6 +260,10 @@ def truncate_string(str_, trim_length=500):
         return str_
     else:
         return (str_[:trim_length] + ' ...') if len(str_) > trim_length else str_
+
+
+def no_nan(nparr):
+    return isfinite(nparr).any()
 
 
 if __name__ == '__main__':

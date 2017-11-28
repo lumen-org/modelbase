@@ -5,10 +5,14 @@
 Data Preprocessing and cleansing for the crabs data set
 """
 
+import logging
 import pandas as pd
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
-def mixed(filepath='australian-crabs.csv'):
+
+def mixed(filepath='australian-crabs.csv', keep=None):
     """Loads the crabs data set from a csv file, removes the index column and returns the
     remaining data as a pandas data frame
     """
@@ -16,6 +20,11 @@ def mixed(filepath='australian-crabs.csv'):
 
     # drop index column
     del df['index']
+
+    #
+    for col in keep:
+        assert(col in df.columns)
+    df = df[keep]
 
     return df
 

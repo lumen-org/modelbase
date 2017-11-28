@@ -4,11 +4,13 @@ import logging
 import numpy as np
 from numpy import nan, pi, exp, dot, abs
 from numpy.linalg import inv, det
+from math import isnan
 import xarray as xr
 
 import models as md
 import cond_gaussian_wm as cgwm
 import utils
+from utils import no_nan, validate_opts
 
 import data.crabs.crabs as crabs
 
@@ -185,12 +187,21 @@ class MixableCondGaussianModel(md.Model):
         # creates an self contained update function. we use it as a callback function later
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
-        # options for this model
+        # default options for this model
         self.opts = {
             'fit_algo': 'full',
             'normalized': True,
         }
         self._normalizer = None
+
+    def params2str(self):
+        return (
+            "p = \n" + str(self._p) + "\n" +
+            "mu = \n" + str(self._mu) + "\n" +
+            "S = \n" + str(self._S))
+
+    def __str__(self):
+        return self.params2str()
 
     def _set_data(self, df, drop_silently):
         self._set_data_mixed(df, drop_silently)
@@ -199,7 +210,7 @@ class MixableCondGaussianModel(md.Model):
 
     def _fit(self, **kwargs):
         assert (self.mode != 'none')
-        utils.validate_opts(kwargs, __class__._fit_opts_allowed)
+        validate_opts(kwargs, __class__._fit_opts_allowed)
         self.opts.update(kwargs)
 
         if self.opts['normalized']:
@@ -251,6 +262,8 @@ class MixableCondGaussianModel(md.Model):
         if self.opts['normalized']:
             assert len(self._normalizer._nums) == len(self._numericals)
             assert list(self._normalizer._nums) == self._numericals
+        # (9) assert there is no nans in parameters
+        self._assert_no_nans()
 
     def _update(self):   # mostly like CG WM, but different update for _detS
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
@@ -330,7 +343,8 @@ class MixableCondGaussianModel(md.Model):
     #_conditionout_continuous_internal_slow = cgwm.CgWmModel._conditionout_continuous_internal_slow
 
     # reuse of internal utility methods
-    _name_idx_map = cgwm.CgWmModel._name_idx_map # used in _conditionout_continuous_internal_fast
+    _assert_no_nans = cgwm.CgWmModel._assert_no_nans  # used in several places
+    _name_idx_map = cgwm.CgWmModel._name_idx_map  # used in _conditionout_continuous_internal_fast
 
     def _conditionout(self, keep, remove):
         remove = set(remove)
@@ -359,6 +373,7 @@ class MixableCondGaussianModel(md.Model):
         detS_stacked = detS_shadowed.stack(pl_stack=self._marginalized)
         p_stacked = p_shadowed.stack(pl_stack=self._marginalized)
         gauss_sum = 0
+        prefactor = (2 * pi) ** (-num_len / 2)  # needed several times below
         for coord in mu_stacked.pl_stack:
             indexer = dict(pl_stack=coord)
             mu = mu_stacked.loc[indexer].values
@@ -366,7 +381,7 @@ class MixableCondGaussianModel(md.Model):
             detS = detS_stacked.loc[indexer].values
             p = p_stacked.loc[indexer].values
             xmu = num - mu
-            gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
+            gauss = prefactor * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
             gauss_sum += p * gauss
 
         return gauss_sum
@@ -380,11 +395,19 @@ class MixableCondGaussianModel(md.Model):
         n = p_.size  # number of single gaussians in the cg
         m = len(self._numericals)  # gaussian dimension
 
+        prefactor = (2 * pi) ** (-num_len / 2)  # needed several times below
+
         # iterate over all at the same time. The reshape is necessary, for use of the default iterator
         for p, mu, invS, detS in zip(p_.values.reshape(n), mu_.values.reshape(n, m), invS_.values.reshape(n, m, m), detS_.values.reshape(n)):
             xmu = num - mu
-            gauss = (2 * pi) ** (-num_len / 2) * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
+            gauss = prefactor * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
+            assert (no_nan(gauss))
             gauss_sum += p * gauss
+
+        # check for nan and set to zero
+        # if gauss_sum == np.nan  or isnan(gauss_sum):
+        #     gauss_sum = 0
+        assert (no_nan(gauss_sum))
         return gauss_sum
 
     # @profile
@@ -501,6 +524,7 @@ class MixableCondGaussianModel(md.Model):
             # query density and compare to so-far maximum
             # TODO: can I use pseudo-density like in cond_gaussian_wm._maximum_cgwm_heuristic1?
             p = self._density(coord)
+            assert (no_nan(p))
             if p > p_max:
                 p_max = p
                 coord_max = coord
