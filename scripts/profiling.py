@@ -20,10 +20,10 @@ how to use it:
 
 import time
 
-import modelbase as mb
-import models as md
+from mb_modelbase.server import modelbase as mb
+from mb_modelbase.models_core import models as md
 
-from modelbase.utils.utils import is_running_in_debug_mode
+from mb_modelbase.utils.utils import is_running_in_debug_mode
 if is_running_in_debug_mode():
     import models_debug
 

@@ -5,9 +5,9 @@ from numpy import nan
 import xarray as xr
 import logging
 
-from modelbase.utils import utils
-from modelbase.models_core import models as md
-from modelbase.models_core import domains as dm
+from mb_modelbase.utils import utils
+from mb_modelbase.models_core import models as md
+from mb_modelbase.models_core import domains as dm
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)

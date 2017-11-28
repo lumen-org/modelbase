@@ -4,7 +4,7 @@ import logging
 import math
 from scipy.optimize import minimize
 
-from modelbase.models_core import models as md
+from mb_modelbase.models_core import models as md
 
 # setup logger
 logger = logging.getLogger(__name__)

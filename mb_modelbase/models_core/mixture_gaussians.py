@@ -6,8 +6,8 @@ from sklearn import mixture
 from numpy import matrix
 from scipy.optimize import minimize
 
-from modelbase.models_core.fixed_mixture_model import FixedMixtureModel
-from modelbase.models_core.gaussians import MultiVariateGaussianModel
+from mb_modelbase.models_core.fixed_mixture_model import FixedMixtureModel
+from mb_modelbase.models_core.gaussians import MultiVariateGaussianModel
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)

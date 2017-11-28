@@ -15,17 +15,11 @@ import pickle as pickle
 import numpy as np
 import pandas as pd
 import logging
-
-#import sys
-#path = '/home/chris/GeMod'
-#if path not in sys.path:
-#    sys.path.append(path)
-#    sys.path.append(path + '/modelbase/modelbase/models_core')
  
-from modelbase.models_core import domains as dm
-from modelbase.models_core import splitter as sp
-from modelbase.utils import utils as utils
-from modelbase.models_core import data_aggregation as data_aggr
+from mb_modelbase.models_core import domains as dm
+from mb_modelbase.models_core import splitter as sp
+from mb_modelbase.utils import utils as utils
+from mb_modelbase.models_core import data_aggregation as data_aggr
 
 logger = logging.getLogger(__name__)
 #logger.setLevel(logging.WARNING)
@@ -1518,7 +1512,7 @@ if __name__ == '__main__':
     from mb_data.mb_data.crabs import crabs as crabs
     from mb_data.mb_data.iris import iris as iris
 
-    from modelbase.models_core import cond_gaussians as cg
+    from mb_modelbase.models_core import cond_gaussians as cg
 
     irisdata = iris.mixed('../mb_data/mb_data/iris/iris.csv')
     crabsdata = crabs.mixed('../mb_data/mb_data/crabs/australian-crabs.csv')

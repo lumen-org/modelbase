@@ -14,7 +14,7 @@ How does it work:
 
 import logging
 
-from modelbase.models_core import models as md
+from mb_modelbase.models_core import models as md
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
