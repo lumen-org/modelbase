@@ -353,7 +353,7 @@ class CgWmModel(md.Model):
 
         # TODO: this is ugly. We should incoorperate _numericals, _categoricals in the base model already, then we could put the normalization there as well
 
-        if hasattr(self, 'opts') and self.opts['normalized']:  # this check for opts is because cond_gaussians_wm don't have it, only mixable cgs and mcg use that function of cg wm
+        if hasattr(self, 'opts') and self.opts['normalized']:  # this check for opts because cond_gaussians_wm don't have it, only mixable cgs and mcg use that function of cg wm
             cond_values = self._normalizer.norm(cond_values, mode="by name", names=num_remove)
             self._normalizer.update(num_remove=num_remove)
 
