@@ -502,7 +502,7 @@ class MixableCondGaussianModel(md.Model):
     def _maximum_mixable_cg_heuristic_b(self):
         """ Returns an approximation to the point of maximum density.
 
-        Heuristic (c) "highest accumulated gaussian":
+        Heuristic "highest accumulated gaussian":
          1. calculate cumulated density at each gaussian (including shadowed ones)
          2. take the maximum of these, but cut off shadowed coordinates
         This is probably the best performing one the maximum heuristics for this model type.

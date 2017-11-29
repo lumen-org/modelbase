@@ -346,9 +346,9 @@ class Model:
     def sorted_names(self, names):
         """Given a set, sequence or list of random variables of this model, returns a list of the
         same names but in the same order as the random variables in the model.
-        old: It silently ignores any name that is not a name of a field in this model.
+        It silently drops any duplicate names.
         """
-        assert(len(names) <= len(self.names))
+        assert(len(set(names)) <= len(self.names))
         return utils.sort_filter_list(names, self.names)
 
     def __init__(self, name):
@@ -859,6 +859,8 @@ class Model:
         # i.e. an interface that is used internally needs little preprocessing
         # TODO/idea: different way of passing it in: as a dict of name-of-field : value ?
 
+        assert(len(set(names)) == len(names))
+
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
 
@@ -883,7 +885,7 @@ class Model:
                             values_.append(value)
                     names = names_
                     values = values_
-            if len(names) > self.dim:
+            if len(set(names)) > self.dim:
                 raise ValueError('Incorrect number names/values provided. Require ' + str(self.dim) +
                                  ' but got ' + str(len(names)) + '.')
 

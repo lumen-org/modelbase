@@ -73,8 +73,8 @@ class ConditionallyGaussianModel(md.Model):
         self._p = xr.DataArray([])
         self._mu = xr.DataArray([])
         self._S = xr.DataArray([])
-        self._SInv = nan
-        self._detS = nan
+        self._SInv = xr.DataArray([])
+        self._detS = xr.DataArray([])
         # creates an self contained update function. we use it as a callback function later
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
