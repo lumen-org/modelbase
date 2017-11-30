@@ -22,8 +22,8 @@ from mb_modelbase.utils import utils as utils
 from mb_modelbase.models_core import data_aggregation as data_aggr
 
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.WARNING)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
+#logger.setLevel(logging.DEBUG)
 
 """ Development Notes (Philipp)
 # interesting links
@@ -379,6 +379,32 @@ class Model:
         if include_modeldata_field:
             json_.append(field_tojson(self._modeldata_field))
         return json_
+
+    def set_model_params(self, **kwargs):
+        """Sets explicitly the parameters of a model.
+
+        This method has the following effects:
+         - the models mode is set to 'model'
+         - the models fields attribute is derived accordingly
+        """
+        if self.mode != 'empty':
+            raise ValueError("cannot set parameters on non-empty model.")
+
+        callbacks = self._set_model_params(**kwargs)
+        self._update_all_field_derivatives()
+        self.mode = "model"
+        for callback in callbacks:
+            callback()
+
+        return self
+
+    def _set_model_params(self, **kwargs):
+        """ Sets the parameters of a model. See also model.set_model_params.
+
+        This method must be implementedby all actual model classes. Make sure it complies to the requirements, see
+        model.set_model_params.
+        """
+        raise NotImplementedError("You have to implement the _set_model_params method in your model!")
 
     def set_data(self, df, silently_drop=False):
         """Derives suitable, cleansed (and copied) data from df for a particular model, sets this as the models data

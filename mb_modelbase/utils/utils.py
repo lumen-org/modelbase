@@ -8,7 +8,47 @@ Various utility functions
 import string
 import random
 from functools import wraps
-from numpy import matrix, ix_, isfinite
+from numpy import matrix, ix_, isfinite, linalg
+from xarray import DataArray
+
+
+def assert_all_psd(S, len_num):
+    for s in S.reshape(-1, len_num, len_num):
+        assert(is_psd(s))
+
+
+def is_psd(a):
+    try:
+        linalg.cholesky(a)
+    except linalg.LinAlgError:
+        return False
+    else:
+        return True
+
+
+def numpy_to_xarray_params(p, mu, Sigma, cat_levels, cat, num):
+    """Translates numpy based parameters into suitably labelled xarray DataArrays and returns them.
+
+    Args:
+        p, mu, Sigma: numpy arrays that contain the mean parameters of a cg-model.
+        cat_levels: sequence of sequences that contain the levels per categoricals dimension
+        cat: labels of categorical dimensions
+        num: labels of numerical dimensions.
+
+    Note: the order of labels, dimensions, ... must all correspond to each other.
+    """
+    p = DataArray(data=p, coords=cat_levels, dims=cat)
+
+    coords = cat_levels + [num]
+    dims = cat + ['mean']
+    mu.shape = [len(e) for e in coords]
+    mu = DataArray(data=mu, coords=coords, dims=dims)
+
+    coords = cat_levels + [num] + [num]
+    dims = cat + ['S1', 'S2']
+    Sigma.shape = [len(e) for e in coords]
+    Sigma = DataArray(data=Sigma, coords=coords, dims=dims)
+    return p, mu, Sigma
 
 
 def validate_opts(opts, allowed):

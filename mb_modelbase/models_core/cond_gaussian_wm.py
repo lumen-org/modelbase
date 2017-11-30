@@ -6,6 +6,7 @@ from numpy import nan, pi, exp, dot, abs, ix_
 from numpy.linalg import inv, det
 import xarray as xr
 
+import mb_modelbase.utils as utils
 from mb_modelbase.utils import no_nan
 from mb_modelbase.models_core import models as md
 from mb_modelbase.models_core import cond_gaussian_fitting as cgf
@@ -15,21 +16,16 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
-def _numpy_to_xarray_params(p, mu, Sigma, levels, cat, num):
-    """Translates numpy based parameters into suitably labelled xarray DataArrays and returns them.
+def numeric_extents_from_params(S, mu, nums, factor=3):
+    """Returns a factor * stddev extent of the conditional gaussian given bay xarray covariance matrix and xarray
+    mean.
     """
-    p = xr.DataArray(data=p, coords=levels, dims=cat)
-
-    coords = levels + [num]
-    dims = cat + ['mean']
-    mu.shape = [len(e) for e in coords]
-    mu = xr.DataArray(data=mu, coords=coords, dims=dims)
-
-    coords = levels + [num] + [num]
-    dims = cat + ['S1', 'S2']
-    Sigma.shape = [len(e) for e in coords]
-    Sigma = xr.DataArray(data=Sigma, coords=coords, dims=dims)
-    return p, mu, Sigma
+    mus = mu.values.reshape(-1, len(nums))
+    Ss = S.values.reshape(-1, len(nums), len(nums))
+    diags = np.sqrt(np.array([np.diag(s) for s in Ss])) * factor
+    mins = (mus - diags).min(axis=0)
+    maxs = (mus + diags).max(axis=0)
+    return list(zip(mins, maxs))
 
 
 def common_sigma_to_full_sigma(p, mu, Sigma, numericals):
@@ -75,7 +71,7 @@ def fit_CLZ(df, categoricals, numericals):
     Note that this actually is a CLZ triple interaction model.
     """
     (p, mu, Sigma, meta) = cgf.fit_clz_mean(df)
-    return _numpy_to_xarray_params(p, mu, Sigma, list(meta['levels'].values()), categoricals, numericals)
+    return utils.numpy_to_xarray_params(p, mu, Sigma, list(meta['levels'].values()), categoricals, numericals)
 
 
 def fit_MAP(df, categoricals, numericals):
@@ -85,7 +81,7 @@ def fit_MAP(df, categoricals, numericals):
     Note that this actually is a CLZ triple interaction model.
     """
     (p, mu, Sigma, meta) = cgf.fit_map_mean(df)
-    return _numpy_to_xarray_params(p, mu, Sigma, list(meta['levels'].values()), categoricals, numericals)
+    return utils.numpy_to_xarray_params(p, mu, Sigma, list(meta['levels'].values()), categoricals, numericals)
 
 def _maximum_cgwm_heuristic1(cat_len, num_len, mu, p, detS):
     """Returns an approximation to point of the maximum density of a given cg distribution.

@@ -9,6 +9,7 @@ import xarray as xr
 
 import mb_modelbase.utils
 
+from mb_modelbase.models_core import domains as dm
 from mb_modelbase.utils import no_nan, validate_opts
 from mb_modelbase.models_core import models as md
 from mb_modelbase.models_core import cond_gaussian_wm as cgwm
@@ -187,7 +188,7 @@ class MixableCondGaussianModel(md.Model):
         # creates an self contained update function. we use it as a callback function later
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
-        # default options for this model
+        # default options for this model. will be overwritten later with actual values.
         self.opts = {
             'fit_algo': 'full',
             'normalized': True,
@@ -202,6 +203,40 @@ class MixableCondGaussianModel(md.Model):
 
     def __str__(self):
         return self.params2str()
+
+    def _set_model_params(self, p, mu, S, cats, nums):
+        """Sets the model parameters to given values. """
+        if self.opts['normalized']:
+            logger.warning("cannot use normalized model with explicit model parameters. I disable the normalization.")
+            self.opts['normalized'] = False
+
+        fields = []
+        # categorical fields can be derived
+        coords = p.coords
+        for cat in cats:
+            extent = coords[cat].values.tolist()
+            field = md.Field(cat, dm.DiscreteDomain(), dm.DiscreteDomain(extent), dtype='string')
+            fields.append(field)
+
+        # set numerical fields of abstract model class
+        num_extents = cgwm.numeric_extents_from_params(S, mu, nums)
+        for extent, num in zip(num_extents, nums):
+            field = md.Field(num, dm.NumericDomain(), dm.NumericDomain(extent), dtype='numerical')
+            fields.append(field)
+
+        self.fields = fields
+
+        # set model params
+        self._p = p
+        self._mu = mu
+        self._S = S
+
+        self._categoricals = cats
+        self._numericals = nums
+
+        self._marginalized_mask = xr.DataArray(data=[False] * len(self._categoricals), dims='name', coords=[self._categoricals])
+
+        return self._unbound_updater,
 
     def _set_data(self, df, drop_silently):
         self._set_data_mixed(df, drop_silently)
