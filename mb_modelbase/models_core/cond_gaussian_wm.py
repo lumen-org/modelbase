@@ -71,7 +71,7 @@ def fit_CLZ(df, categoricals, numericals):
     Note that this actually is a CLZ triple interaction model.
     """
     (p, mu, Sigma, meta) = cgf.fit_clz_mean(df)
-    return utils.numpy_to_xarray_params(p, mu, Sigma, list(meta['levels'].values()), categoricals, numericals)
+    return utils.numpy_to_xarray_params(p, mu, Sigma, [meta['levels'][cat] for cat in categoricals], categoricals, numericals)
 
 
 def fit_MAP(df, categoricals, numericals):
@@ -81,7 +81,7 @@ def fit_MAP(df, categoricals, numericals):
     Note that this actually is a CLZ triple interaction model.
     """
     (p, mu, Sigma, meta) = cgf.fit_map_mean(df)
-    return utils.numpy_to_xarray_params(p, mu, Sigma, list(meta['levels'].values()), categoricals, numericals)
+    return utils.numpy_to_xarray_params(p, mu, Sigma, [meta['levels'][cat] for cat in categoricals], categoricals, numericals)
 
 def _maximum_cgwm_heuristic1(cat_len, num_len, mu, p, detS):
     """Returns an approximation to point of the maximum density of a given cg distribution.

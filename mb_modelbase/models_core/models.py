@@ -1335,8 +1335,10 @@ class Model:
                 except KeyError as err:
                     raise ValueError("missing split-clause for field '" + str(err) + "'.")
                 subframe = input_frame[ids]
+                # TODO: iterrows is slow! better use itertuples!
+                # TODO2: also change interface: either list of values in order, or a dict. also fits better to itertuples
                 for _, row in subframe.iterrows():
-                    res = aggr_model.density(names, row)
+                    res = aggr_model.density(names, list(row))
                     aggr_results.append(res)
 
                 # TODO: the normalization is incorrect: it must not normalize to 1, but to some slice

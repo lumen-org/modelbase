@@ -14,8 +14,9 @@ from mb_modelbase.utils import utils
 from mb_modelbase.server import modelbase as mbase
 
 from mb_modelbase.utils.utils import is_running_in_debug_mode
-if is_running_in_debug_mode():
-    import mb_modelbase.models_core.models_debug
+# if is_running_in_debug_mode():
+#     print("running in debug mode!")
+#     import mb_modelbase.models_core.models_debug
 
 app = Flask(__name__, static_url_path='/static/')
 logger = None  # create module variable

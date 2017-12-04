@@ -31,7 +31,7 @@ def numpy_to_xarray_params(p, mu, Sigma, cat_levels, cat, num):
 
     Args:
         p, mu, Sigma: numpy arrays that contain the mean parameters of a cg-model.
-        cat_levels: sequence of sequences that contain the levels per categoricals dimension
+        cat_levels: dict of sequences that contain the levels per categoricals dimension (indexed by name)
         cat: labels of categorical dimensions
         num: labels of numerical dimensions.
 

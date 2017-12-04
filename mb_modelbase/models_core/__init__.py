@@ -10,7 +10,7 @@ from mb_modelbase.models_core.mixable_cond_gaussian import *
 from mb_modelbase.models_core.mixture_cond_gaussian_wm import *
 from mb_modelbase.models_core.mixture_gaussians import *
 from mb_modelbase.models_core.mockup_model import *
-from mb_modelbase.models_core.models_debug import *
+#from mb_modelbase.models_core.models_debug import *
 from mb_modelbase.models_core.models import *
 from mb_modelbase.models_core.splitter import *
 #from mb_modelbase.models_core.tests import *
