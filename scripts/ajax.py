@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 @author: Philipp Lucas

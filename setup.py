@@ -15,5 +15,7 @@ setup(name='mb_modelbase',
           'pandas',
           'scikit-learn',
           'scipy',
+		  'flask',
+		  'flask-cors',
       ],
       zip_safe=False)
