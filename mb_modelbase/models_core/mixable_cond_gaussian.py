@@ -650,13 +650,13 @@ class MixableCondGaussianModel(md.Model):
 
         if mrg_len == 0:
             # then we do not have a conditional mixture of gaussian distribution, but a normal conditional gaussian dist
-            return cgwm._maximum_cgwm_heuristic1(cat_len, num_len, self._mu, self._p, self._detS)
+            result = cgwm._maximum_cgwm_heuristic1(cat_len, num_len, self._mu, self._p, self._detS)
 
         elif num_len == 0:
             # find maximum in p and return its coordinates
             p = self._p.sum(self._marginalized)  # sum over marginalized fields
             pmax = _argmax(p)  # get view on maximum (coordinates remain)
-            return [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
+            result = [idx[0] for idx in pmax.indexes.values()]  # extract coordinates from indexes
 
         else:
             # this is the difficult case, and we don't have a perfect solution yet, just a couple of heuristics...
