@@ -62,6 +62,71 @@ def _maximum_mixable_cg_heuristic_a(cat_len, marg_len, num_len, marginalized_mas
     return _not_masked(coord, marginalized_mask)
 
 
+def _fix_args(fct, *args):
+    """Fixes all but the first positional parameters and returns a function with these parameters fixed.
+    e.g given fct = function of a, b, c it returns a
+    """
+    return lambda x: fct(x,*args)
+
+
+def _density_mixture_cg(num, mu_, invS_, detS_, p_):
+    """ Returns the density at num of the mixture of gaussian given by numpy arrays (not xarray)."""
+    assert(len(num)>  0)
+    n = p_.size  # number of single gaussians in the cg
+    m = len(num)  # gaussian dimension
+    prefactor = (2 * pi) ** (-m / 2)  # needed several times below
+
+    # iterate over all at the same time. The reshape is necessary for use of the default iterator.
+    gauss_sum = 0
+    for p, mu, invS, detS in zip(p_.reshape(n), mu_.reshape(n, m), invS_.reshape(n, m, m), detS_.reshape(n)):
+        xmu = num - mu
+        gauss = prefactor * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
+        assert (no_nan(gauss))
+        gauss_sum += p * gauss
+
+    assert (no_nan(gauss_sum))
+    return gauss_sum
+
+
+def _gradient_mixture_cg(x, mu_, invS_, detS_, p_):
+    assert (len(x) > 0)
+    n = p_.size  # number of single gaussians in the cg
+    m = len(x)  # gaussian dimension
+    prefactor = (2 * pi) ** (-m / 2)  # needed several times below
+
+    gradient_sum = 0
+    for p, mu, invS, detS in zip(p_.reshape(n), mu_.reshape(n, m), invS_.reshape(n, m, m), detS_.reshape(n)):
+        x = np.matrix(x).T
+        xmu = x - mu
+        result = (prefactor * (detS ** -.5) * exp(-.5 * xmu.T * invS * xmu)).item() * (-.5 * invS * xmu)
+        gradient_sum += p * np.array(result).T[0]
+
+    assert (no_nan(gradient_sum))
+    return gradient_sum
+
+
+def _maximum_cg(mus, Sinvs, Sdets, ps, num_len):
+    """Returns an approximation to the point of maximum of density function and its value as a tuple (argmax, max)."""
+
+    # make functions to calculate density and gradient of mixture
+    p_fct = _fix_args(_density_mixture_cg, mus, Sinvs, Sdets, ps)
+    dp_fct = _fix_args(_gradient_mixture_cg, mus, Sinvs, Sdets, ps)
+
+    # get maximum over conditional
+    mixture_max = None
+    mixture_maxp = math.inf
+    for mu in mus.reshape(-1, num_len):
+        # TODO: implement gradient. then use:
+        cur_density = minimize(lambda x: -p_fct(x), mu, method='Newton-CG', jac=lambda x: -dp_fct(x), tol=1e-6)
+        cur_value = cur_density.x
+        cur_density = cur_density.fun
+        if cur_density < mixture_maxp:
+            mixture_maxp = cur_density
+            mixture_max = cur_value
+
+    return (mixture_max, -mixture_maxp)
+
+
 class Normalizer():
     """A normalizer provides methods to (de-) normalize a data vector according to a provided set of zscore normalization parameters.
 
@@ -425,32 +490,7 @@ class MixableCondGaussianModel(md.Model):
 
         return gauss_sum
 
-    @staticmethod
-    def _density_internal_fast(num, mu_, invS_, detS_, p_):
-        gauss_sum = 0
-
-        # we get here only if there is any continuous fields left
-
-        n = p_.size  # number of single gaussians in the cg
-        m = len(num)  # gaussian dimension
-
-        prefactor = (2 * pi) ** (-m / 2)  # needed several times below
-
-        # iterate over all at the same time. The reshape is necessary, for use of the default iterator
-        for p, mu, invS, detS in zip(p_.values.reshape(n), mu_.values.reshape(n, m), invS_.values.reshape(n, m, m), detS_.values.reshape(n)):
-            xmu = num - mu
-            gauss = prefactor * detS * exp(-.5 * np.dot(xmu, np.dot(invS, xmu)))
-            assert (no_nan(gauss))
-            gauss_sum += p * gauss
-
-        # check for nan and set to zero
-        # if gauss_sum == np.nan  or isnan(gauss_sum):
-        #     gauss_sum = 0
-        assert (no_nan(gauss_sum))
-        return gauss_sum
-
     # @profile
-    #@normalized
     def _density(self, x):
         """Returns the density of the model at x.
 
@@ -522,7 +562,7 @@ class MixableCondGaussianModel(md.Model):
             detS_shadowed = self._detS.loc[cat_dict]
             p_shadowed = self._p.loc[cat_dict]
 
-            result = self._density_internal_fast(num, mu_shadowed, invS_shadowed, detS_shadowed, p_shadowed)
+            result = _density_mixture_cg(num, mu_shadowed.values, invS_shadowed.values, detS_shadowed.values, p_shadowed.values)
             #return self._density_internal_stacked(num, mu_shadowed, invS_shadowed, detS_shadowed, p_shadowed)
 
             ## vectorized version (instead of alternative 2 code)
@@ -532,9 +572,6 @@ class MixableCondGaussianModel(md.Model):
             # .sum()*(2 * pi) ** (-num_len / 2)
 
         return result
-
-#    def _sample(self):
-#        pass
 
     def _maximum_mixable_cg_heuristic_b(self):
         """ Returns an approximation to the point of maximum density.
@@ -572,20 +609,14 @@ class MixableCondGaussianModel(md.Model):
         return coord_max
 
     def _maximum_mixable_cg_heuristic_d(self):
+        num_len = len(self._numericals)
 
-        # TODO: move me
-        def make_density_fct(mus, Sinvs, Sdets, ps):
-            return lambda x : MixableCondGaussianModel._density_internal_fast(x, mus, Sinvs, Sdets, ps)
+        if len(self._categoricals) == 0:
+            # only a single mixture left ... Note: index 0 is for the arg max (and not the max)
+            return _maximum_cg(self._mu.values, self._SInv.values, self._detS.values, self._p.values, num_len)[0]
 
-        # TODO: move me
-        # def make_gradient_fct(self, p, mu, S):
-        #     def gradient_mixture_gaussian(self, x):
-        #         # TODO
-        #         p = 0
-        #         return p
-        #     return gradient_mixture_gaussian
-
-        mixable_maximum = None
+        mixable_maximum_cat = None
+        mixable_maximum_num = None
         mixable_maximum_density = -math.inf
 
         # iterate over conditionals
@@ -602,59 +633,14 @@ class MixableCondGaussianModel(md.Model):
             Sdets = detS_stacked.loc[indexer].values
             ps = p_stacked.loc[indexer].values
 
-            # make function to calculate density of mixture
-            p_fct = make_density_fct(mus, Sinvs, Sdets, ps)
-
-            # get maximum over conditional
-            mixture_max = None
-            mixture_maxp = math.inf
-
-            for mu in mus:
-                # TODO: implement gradient. then use: jac=neg_gradient
-                cur_density = minimize(lambda x: -p_fct(x), mu, method='Newton-CG', tol=1e-6)
-                cur_value = cur_density.x
-                cur_density = cur_density.fun
-                if cur_density < mixture_maxp:
-                    mixture_maxp = cur_density
-                    mixture_max = cur_value
-
-            mixture_maxp = -mixture_maxp
+            mixture_max, mixture_maxp = _maximum_cg(mus, Sinvs, Sdets, ps, num_len)
 
             if mixable_maximum_density < mixture_maxp:
                 mixable_maximum_density = mixture_maxp
-                mixable_maximum = mixture_max
+                mixable_maximum_num = mixture_max
+                mixable_maximum_cat = coord.item()
 
-        return mixable_maximum
-
-    def _maximum_mixable_cg_heuristics_c(self):
-        """ heuristic (c) "highest non-shadowed gaussian"
-           1. calc the probability of the mean of each unshadowed gaussian, and select the most likeliest
-           2. then "split" again by the shadowed fields and of these gaussian means, select the most probable
-           * this is a simplification of (b), but should be a bit faster
-        """
-
-        # TODO: not done/buggy
-
-        # stage 1: stack over unshadowed gaussian and find mean of gaussian with maximum density
-        # uh...? this aint a single gaussian ...
-        mu_stacked = self._mu.stack(pl_stack=self._categoricals)
-        p_max = 0
-        coord_max = None
-        for mu_coord in mu_stacked.pl_stack:
-            # assemble coordinates for density query
-            mu_indexer = dict(pl_stack=mu_coord)
-            num_coord = mu_stacked.loc[mu_indexer].values
-            cat_coord = _not_masked(mu_coord, self._marginalized_mask)  # remove coordinates of marginalized fields
-            coord = cat_coord + num_coord
-
-            # query density
-            p = self._density(coord)
-            if p > p_max:
-                p_max = p
-                coord_max = coord
-
-        # stage 2: split on the shadowed fields for the found maximum only
-        raise NotImplemented
+        return list(mixable_maximum_cat) + mixable_maximum_num.tolist()
 
     def _maximum(self):
 
@@ -662,9 +648,9 @@ class MixableCondGaussianModel(md.Model):
         num_len = len(self._numericals)
         mrg_len = len(self._marginalized)
 
-        if cat_len == 0 and mrg_len == 0:
-            # then there is only a single gaussian left and the maximum is its mean value, i.e. the value of _mu
-            result = list(self._mu.values)
+        if mrg_len == 0:
+            # then we do not have a conditional mixture of gaussian distribution, but a normal conditional gaussian dist
+            return cgwm._maximum_cgwm_heuristic1(cat_len, num_len, self._mu, self._p, self._detS)
 
         elif num_len == 0:
             # find maximum in p and return its coordinates
@@ -675,7 +661,8 @@ class MixableCondGaussianModel(md.Model):
         else:
             # this is the difficult case, and we don't have a perfect solution yet, just a couple of heuristics...
             # return _maximum_mixable_cg_heuristic_a( cat_len, mrg_len, num_len, self._marginalized_mask, self._mu, self._p, self._detS)
-            result = self._maximum_mixable_cg_heuristic_b()
+            #result = self._maximum_mixable_cg_heuristic_b()
+            result = self._maximum_mixable_cg_heuristic_d()
 
         assert(result is not None)
         return self._normalizer.denormalize(result) if self.opts['normalized'] else result
