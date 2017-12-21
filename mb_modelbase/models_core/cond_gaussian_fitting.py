@@ -12,9 +12,9 @@ Data is generally given as a pandas data frame. Appropiate preperation is expect
 Parameters are generally provided by means of numpy ndarrays. The order of categorical random variables in the given data frame is equivalent to the implicit order of dimensions (representing categorical random variables) in the derived parameters.
 
 """
-from CGmodelselection.CG_CLZ_util import CG_CLZ_Utils
-from CGmodelselection.CG_MAP_estimator import fitCGMeanParams
-from CGmodelselection.dataops import getMetaData, prepareCGData
+from CGmodelselection.CG_CLZ_utils import CG_CLZ_Utils
+from CGmodelselection.CG_MAP_utils import CG_MAP_Utils
+from CGmodelselection.dataops import getMetaData, prepareCatData
 
 ### model selection methods
 
@@ -31,16 +31,20 @@ def fit_clz_mean (df):
     """
 
     meta = getMetaData(df)
-    D, Y = prepareCGData(df, meta, shuffle=False)  # transform discrete variables to indicator data
+    Y = df.as_matrix(meta['contnames'])
+#    means, sigmas = standardizeContinuousData(Y) # required to avoid exp overflow
+    D = prepareCatData(df[meta['catnames']], meta, method = 'dummy')  # transform discrete variables to indicator data
     # TODO: split into training and test data? if so: see Franks code
-    solver = CG_CLZ_Utils()  # initialize problem
-    solver.dropdata(D, Y, meta['L'])  # set training data
+    solver = CG_CLZ_Utils(meta)  # initialize problem
+    solver.dropdata(D, Y)  # set training data
     # solve it attribute .x contains the solution parameter vector.
-    res = solver.solveSparse(klbda=3, verb=True, innercallback=solver.nocallback)
+    res = solver.solveSparse(klbda=0.2, verb=True, innercallback=solver.nocallback)
+    #res = solver.solve(verb = 1, callback= solver.slimcallback) # without regularization - means far away
     solver.getCanonicalParams(res.x, verb=True)
 
     (p, mus, Sigmas) = solver.getMeanParams(res.x, verb=True)
     return p, mus, Sigmas, meta
+
 
 def fit_map_mean (df):
     """Fits parameters of a CLZ model to given data in pandas.DataFrame df and returns their representation as general mean paramters.
@@ -50,11 +54,15 @@ def fit_map_mean (df):
     """
 
     meta = getMetaData(df)
-    D, Y = prepareCGData(df, meta, shuffle=False)  # transform discrete variables to indicator data
+    Y = df.as_matrix(meta['contnames'])
+#    means, sigmas = standardizeContinuousData(Y) # required to avoid exp overflow
+    D = prepareCatData(df[meta['catnames']], meta, method = 'flat')  # transform discrete variables to flat indices
     # TODO: split into training and test data? if so: see Franks code
-    
+    solver = CG_MAP_Utils(meta)  # initialize problem
+    solver.dropdata(D, Y)  # set training data
 
-    (p, mus, Sigmas) = fitCGMeanParams(D, Y, meta, verb = False)
+    (p, mus, Sigmas) = solver.fitCG_variableCov(verb = True)
+#    (p, mus, Sigmas) = solver.fitCG_fixedCov(verb = True)
     return p, mus, Sigmas, meta
 
 ### parameter transformation methods
@@ -74,4 +82,3 @@ def mean_to_canonical ():
 def canonical_to_mean ():
     """Transforms a set of general canonical parameters to their equivalent general mean parameter representation."""
     pass
-

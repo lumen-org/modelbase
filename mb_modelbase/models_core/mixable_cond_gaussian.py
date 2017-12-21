@@ -96,9 +96,9 @@ def _gradient_mixture_cg(x, mu_, invS_, detS_, p_):
 
     gradient_sum = 0
     for p, mu, invS, detS in zip(p_.reshape(n), mu_.reshape(n, m), invS_.reshape(n, m, m), detS_.reshape(n)):
-        x = np.matrix(x).T
         xmu = x - mu
-        result = (prefactor * (detS ** -.5) * exp(-.5 * xmu.T * invS * xmu)).item() * (-.5 * invS * xmu)
+        common_sub1 = np.dot(invS, xmu)
+        result = (prefactor * (detS ** -.5) * exp(-.5 * np.dot(xmu, common_sub1))) * (-.5 * common_sub1)
         gradient_sum += p * np.array(result).T[0]
 
     assert (no_nan(gradient_sum))
@@ -115,9 +115,11 @@ def _maximum_cg(mus, Sinvs, Sdets, ps, num_len):
     # get maximum over conditional
     mixture_max = None
     mixture_maxp = math.inf
+
     for mu in mus.reshape(-1, num_len):
-        # TODO: implement gradient. then use:
-        cur_density = minimize(lambda x: -p_fct(x), mu, method='Newton-CG', jac=lambda x: -dp_fct(x), tol=1e-6)
+        # TODO: fix newton cg: problem: doesn't work for non-scalar optimization problems
+        #cur_density = minimize(lambda x: -p_fct(x), mu, method='Newton-CG', jac=lambda x: -dp_fct(x), tol=1e-6)
+        cur_density = minimize(lambda x: -p_fct(x), mu, method='Nelder-Mead', tol=1e-6)
         cur_value = cur_density.x
         cur_density = cur_density.fun
         if cur_density < mixture_maxp:
