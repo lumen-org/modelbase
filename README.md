@@ -6,22 +6,27 @@ Version: 0.2
 
 ### Setup ###
 
-1. Clone this repository into a folder of your choice. Let's call it `root`.
-2. make sure you have a working python 3.5+ on your system
-    * if you don't, you can for example install [anaconda](https://www.continuum.io/downloads) which comes with python
-3. install required packages using pip
-    * Linux: `pip install flask xarray numpy pandas sklearn` on a system shell (*not python shell*)
-    * Windows: `python -m pip install flask xarray numpy pandas sklearn` on a command prompt (*not python shell*)
-    * note: you can use a [virtual Python environment](http://conda.pydata.org/docs/using/envs.html#) in conda or the [virtualenv packages](http://docs.python-guide.org/en/latest/dev/virtualenvs/) to create a so-called virual environment, i.e. a specific python environment that contains only the packages your select. This is, however, *not* strictly necessary
+For normal usage:
 
-If you simply want to run it, you are done. For development, I recommend using PyCharm as an IDE. You can set the environment to use (if any specific) in PyCharm like [this](https://docs.continuum.io/anaconda/ide_integration#pycharm).
+1. Clone this repository into a folder of your choice. Let's call it `<root>`.
+2. Install the `mb_modelbase` package locally, i.e, do `cd <root> && pip install .`
+
+For development:
+
+ - I recommend using PyCharm as an IDE. You can set the environment to use (if any specific) in PyCharm like [this](https://docs.continuum.io/anaconda/ide_integration#pycharm).
+ - I recommend not installing it as a local package, but instead adding root to the path of python. This make the workflow faster, because you do not need to update the local installation when you changed the code in the repository.
 
 ### Running the ModelBase backend ###
 
-Just run the python script `ajax.py`, i.e. execute `python ajax.py` on a systems shell from the repositories root directory. It will start a local Flask Webserver that accepts and answers PQL-queries. See `ajax.py` for more information.
+The repository contains the code for the python package `mb_modelbase` (in the folder with identical name), and this is typically installed to your local python installation.
+It, however, also contains some scripts in the `scripts` directory. There, only `ajax.py` is of interest. 
 
-Note: 
+To actually run the backend, just run the python script `ajax.py`, i.e. execute `ajax.py` on a systems shell. On windows/anaconda you might need to run it from an Anaconda prompt.
+Note that it requires some command line parameters in order to select the models to load. Run  `ajax.py --help` for more information.
 
+`ajax.py` will start a local Flask Webserver that accepts and answers PQL-queries. See `ajax.py` for more information.
+
+Note:
  * once run the server doesn't immediatly necessarly produce any output on the command line. *that is normal*
  * don't forget to activate your custom environment, *if you configured one in the process above*.
 
