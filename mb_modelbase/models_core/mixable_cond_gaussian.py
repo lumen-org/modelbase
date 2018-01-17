@@ -259,7 +259,7 @@ class MixableCondGaussianModel(md.Model):
 
         # default options for this model. will be overwritten later with actual values.
         self.opts = {
-            'fit_algo': 'full',
+            'fit_algo': 'map',
             'normalized': True,
         }
         self._normalizer = None
