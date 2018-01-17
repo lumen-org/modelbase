@@ -40,9 +40,9 @@ def fit_clz_mean (df):
     # solve it attribute .x contains the solution parameter vector.
     res = solver.solveSparse(klbda=0.2, verb=True, innercallback=solver.nocallback)
     #res = solver.solve(verb = 1, callback= solver.slimcallback) # without regularization - means far away
-    solver.getCanonicalParams(res.x, verb=True)
+    clz_model_params = solver.getCanonicalParams(res.x, verb=True)
 
-    (p, mus, Sigmas) = solver.getMeanParams(res.x, verb=True)
+    (p, mus, Sigmas) = clz_model_params.getMeanParams(verb=True)
     return p, mus, Sigmas, meta
 
 
