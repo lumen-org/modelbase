@@ -309,7 +309,8 @@ def truncate_string(str_, trim_length=500):
 
 
 def no_nan(nparr):
-    return isfinite(nparr).any()
+    """Returns true iff nparr has size 0 or all its elements are finite, i.e. isfinite(nparr).any() holds."""
+    return nparr.size == 0 or isfinite(nparr).any()
 
 
 if __name__ == '__main__':
