@@ -95,3 +95,6 @@ ENV/
 
 # project specific excludes
 stuff/
+mb_modelbase/models_core/img/
+
+
