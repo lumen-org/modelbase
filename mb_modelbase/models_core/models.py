@@ -987,19 +987,30 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
-    def probability(self, domains=None, names=None):
         """
-
+        Returns the probability of an event.
+        
+        By default this uses an approximation. To implement it exactly or a different approximation for your model class reimplement the method _probability. 
+        
         Args:
             There are several ways to specify the arguments:
             (1) A list of domains in <domains> and a list of dimensions names in <names>, with corresponding order. They need to be in the same order than the dimensions of this model.
-            (2) A list of domains in <domains> in the same order than the dimensions of this model. sorted_ to True. This is faster than (1). <names> is ignored.
-            (2) A dict of key=name:value=domain in <names>. <domains> is ignored.
+            (2) A list of domains in <domains> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
+            (2) A dict of key=name:value=domain in <domains>. <names> is ignored.
+            
+            
         """
-
-        #
-
-        pass
+    def probability(self, domains=None, names=None):
+        # TODO: model vs data dimension?
+        # normalize parameters to ordered list form
+        if isinstance(domains, dict):  # dict was passed
+            domains = [domains[name] for name in self.names]
+        elif names is not None and domains is not None:  # unordered list was passed in
+            sorted_ = sorted(zip(self.asindex(names), domains), key=lambda pair: pair[0])
+            domains = [pair[1] for pair in sorted_]
+        # else: correctly ordered list was passed in
+        #    pass
+        return self._probability(domains)
 
     def sample(self, n=1):
         """Returns n samples drawn from the model as a dataframe with suitable column names."""
@@ -1283,7 +1294,7 @@ class Model:
                 field = basemodel.byname(split[NAME_IDX])
                 #basemodel._modeldata_field if split[NAME_IDX] == 'model vs data' \
                 #else basemodel.byname(split[NAME_IDX])
-                # TODO: replace with self.extent
+                # TODO: replace with self.extent ??
                 domain = field['domain'].bounded(field['extent'])
                 try:
                     splitfct = sp.splitter[split[METHOD_IDX].lower()]

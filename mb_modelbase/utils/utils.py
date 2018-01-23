@@ -7,7 +7,7 @@ Various utility functions
 
 import string
 import random
-from functools import wraps
+from functools import wraps, reduce
 from numpy import matrix, ix_, isfinite, linalg
 from xarray import DataArray
 
