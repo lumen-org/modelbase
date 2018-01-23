@@ -70,8 +70,15 @@ class SPNModel(Model):
         return np.exp(self._spnmodel.evaluate(None, tmp))[0]
 
     def copy(self, name=None):
-        spncopy = cp.deepcopy(self)
-        return spncopy
+       spncopy = super()._defaultcopy(name)
+      
+       spncopy._spnmodel = cp.deepcopy(self._spnmodel)
+       spncopy.params = cp.deepcopy(self.params)
+       spncopy.variables = self.variables
+       spncopy.numcomp = self.numcomp
+       spncopy.index = self.index.copy()
+       return spncopy
+       
 
 
 if __name__ == "__main__":
