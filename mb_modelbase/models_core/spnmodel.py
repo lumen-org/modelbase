@@ -52,8 +52,9 @@ class SPNModel(Model):
 
     def _conditionout(self, keep, remove):
         tmp = {}
-        remove = self.asindex(remove)
-        for (index, value) in remove:
+        indexes = self.asindex(remove)
+        values = self._condition_values(remove)
+        for (index, value) in zip(indexes, values):
             tmp[index] = value
         self.index.update(tmp)
         return []
@@ -70,7 +71,10 @@ class SPNModel(Model):
         return np.exp(self._spnmodel.evaluate(None, tmp))[0]
 
     def copy(self, name=None):
-        spncopy = cp.deepcopy(self)
+        spncopy = self._defaultcopy(name)
+        spncopy._spnmodel = cp.deepcopy(self._spnmodel)
+        spncopy.index = self.index.copy()
+        spncopy.params = cp.deepcopy(self.params)
         return spncopy
 
 
