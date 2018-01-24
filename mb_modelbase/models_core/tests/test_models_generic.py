@@ -111,7 +111,7 @@ def _test_density(model, info):
     logger.debug("(" + str(info) + ") Testing density of " + model.name)
     values = _values_of_extents(model.extents)
     for value in values:
-        p = model.density(value)
+        p = model.density(values=value)
 
 
 def _test_marginalization_mixed(model, depth, info):

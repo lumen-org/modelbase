@@ -20,6 +20,7 @@ from mb_modelbase.models_core import domains as dm
 from mb_modelbase.models_core import splitter as sp
 from mb_modelbase.utils import utils as utils
 from mb_modelbase.models_core import data_aggregation as data_aggr
+from mb_modelbase.models_core import data_operations as data_ops
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -703,12 +704,12 @@ class Model:
         # if len(conditions) == 0:
         #     return self
 
-        # treat model vs data field correctly. It must be applied first.
+        # treat 'model vs data' field correctly. It must be applied first.
         names = []
         if is_pure:
             pure_conditions = conditions
         else:
-            # allow conditioning on modeldata_field
+            # allow conditioning on 'model vs data' field
             # find 'model vs data' field and apply conditions
             pure_conditions = []
             for condition in conditions:
@@ -716,11 +717,6 @@ class Model:
                 if name == 'model vs data':
                     domain = self._modeldata_field['domain']
                     domain.apply(operator, values)
-                    # REMOVE SOON:
-                    # if operator == 'in' or operator == 'equals' or operator == '==':
-                    #     domain.intersect(values)
-                    # else:
-                    #     raise ValueError('invalid operator for condition: ' + str(operator))
                     # set internal mode accordingly to both, data or model
                     value = domain.value()
                     self.mode = value if value == 'model' or value == 'data' else 'both'
@@ -862,8 +858,23 @@ class Model:
             return self.aggregate_data(method, opts)
         raise ValueError("invalid value for mode : ", str(mode))
 
-    def density(self, names, values=None):
-        """Returns the density at given point. You may either pass both, names
+    def density(self, values=None, names=None):
+        """Returns the density at given point.
+
+         Args:
+            There are several ways to specify the arguments:
+            (1) A list of values in <values> and a list of dimensions names in <names>, with corresponding order. They need to be in the same order than the dimensions of this model.
+            (2) A list of values in <values> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
+            (2) A dict of key=name:value=value in <values>. <names> is ignored.
+
+        Notes if supply the special field 'model vs data'.
+         * the domain must
+         you must
+            * not use option (1) # TODO?
+            * if you use option (2): supply it as the last element of the domain list
+            * if you use option (3): use the key 'model vs data' for its domain
+
+         You may either pass both, names
         and values, or only one list with values. In the latter case values is
         assumed to be in the same order as the random variables of the model.
 
@@ -879,90 +890,72 @@ class Model:
         Args:
             values: may be anything that numpy.array accepts to construct from.
         """
-
-        # TODO: design: the way of handling the 'model vs data' field sucks ... how to do it better?
-        # TODO: also, this is a lot of code for just querying density!? we need a _fast_ way to do that,
-        # i.e. an interface that is used internally needs little preprocessing
-        # TODO/idea: different way of passing it in: as a dict of name-of-field : value ?
-
-        assert(len(set(names)) == len(names))
-
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
 
-        if values is not None and len(names) != len(values):
-            raise ValueError('Length of names and values does not match.')
-
+        # normalize parameters to ordered list form
         mode = self.mode
-        if len(names) != self.dim:
-            # it may be that the 'model vs data' field was passed in
-            if len(names) == self.dim+1:
-                if values is None:
-                    mode = names.pop()
-                else:
-                    names_ = []
-                    values_ = []
-                    # find 'model vs data' and rebuild accordingly shortened arguments
-                    for (name, value) in zip(names, values):
-                        if name == 'model vs data':
-                            mode = value
-                        else:
-                            names_.append(name)
-                            values_.append(value)
-                    names = names_
-                    values = values_
-            if len(set(names)) > self.dim:
-                raise ValueError('Incorrect number names/values provided. Require ' + str(self.dim) +
-                                 ' but got ' + str(len(names)) + '.')
-
-        if values is None:
-            # in that case the only argument holds the (correctly sorted) values
-            values = names
-        else:
-            # names and values need sorting
+        if isinstance(values, dict):
+            # dict was passed
+            if len(values) - ('model vs data' in values) != self.dim:
+                raise ValueError('Incorrect number of values given')
+            values = [values[name] for name in self.names]
+            mode = values.get('model vs data', self.mode)
+        elif names is not None and values is not None:
+            # unordered list was passed in. Not model vs data may be passed
+            if len(values) != len(names):
+                raise ValueError('Length of names and values does not match.')
+            elif len(set(names)) == len(names):
+                raise ValueError('Some name occurs twice.')
             sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
             values = [pair[1] for pair in sorted_]
+        elif len(values) == self.dim + 1:
+            # correctly ordered list was passed in, but with model vs data domain
+            mode = values[-1]
+            values = values[:-1]
+        else:
+            raise ValueError("Invalid number of values passed.")
+        #print("prob mode = ", str(mode))
+
+
+        # mode = self.mode
+        # if len(names) != self.dim:
+        #     # it may be that the 'model vs data' field was passed in
+        #     if len(names) == self.dim+1:
+        #         if values is None:
+        #             mode = names[-1:][0]
+        #             names = names[:-1]
+        #         else:
+        #             names_ = []
+        #             values_ = []
+        #             # find 'model vs data' and rebuild accordingly shortened arguments
+        #             for (name, value) in zip(names, values):
+        #                 if name == 'model vs data':
+        #                     mode = value
+        #                 else:
+        #                     names_.append(name)
+        #                     values_.append(value)
+        #             names = names_
+        #             values = values_
+        #     if len(names) > self.dim:
+        #         raise ValueError('Incorrect number names/values provided. Require ' + str(self.dim) +
+        #                          ' but got ' + str(len(names)) + '.')
+        #
+        # if values is None:
+        #     # in that case the only argument holds the (correctly sorted) values
+        #     values = names
+        # else:
+        #     # names and values need sorting
+        #     sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
+        #     values = [pair[1] for pair in sorted_]
 
         # data frequency
-        def filter_(df, conditions):
-            """ Apply all '==' filters in the sequence of conditions to given dataframe and return it."""
-            # TODO: do I need some general solution for the interval vs scalar problem?
-            for (col_name, value) in conditions:
-                try:
-                    if not isinstance(value, str):  # try to access its elements
-                        # TODO: this really is more difficult. in the future we want to support values like ['A', 'B']
-                        # TODO: I guess I should pass a (list of) Domain to the density-method in the first place
-                        # assuming interval for now
-                        df = df.loc[df[col_name].between(*value, inclusive=True)]
-                    else:
-                        df = df.loc[df[col_name] == value]
-                except TypeError:  # catch when expansion (*value) fails. its a scalar then...
-                    df = df.loc[df[col_name] == value]
-            return df
-
-        def reduce_to_scalars(values):
-            """Reduce all elements of values to scalars. Scalars will be kept. Intervals are reduced to its mean."""
-            v = []
-            for value in values:
-                # all of the todos in filter apply here as well...
-                try:
-                    if not isinstance(value, str):
-                        v.append((value[0]+value[1])/2)
-                    else:
-                        v.append(value)
-                except (TypeError, IndexError):
-                    v.append(value)
-            return v
-
-        # put debug / log code here
-        # TODO ??
-
         if mode == "both" or mode == "data":
-            cnt = len(filter_(self.data, zip(self.names, values)))
+            cnt = len(data_ops.filter_(self.data, zip(self.names, values)))
             if mode == "data":
                 return cnt
 
-        p = self._density(reduce_to_scalars(values))
+        p = self._density(data_ops.reduce_to_scalars(values))
         if mode == "model":
             return p
         elif mode == "both":
@@ -988,9 +981,9 @@ class Model:
         raise NotImplementedError("Implement this method in your model!")
 
         """
-        Returns the probability of an event.
+        Returns the probability of given event.
         
-        By default this uses an approximation. To implement it exactly or a different approximation for your model class reimplement the method _probability. 
+        By default this returns an approximation to the true probability. To implement it exactly or a different approximation for your model class reimplement the method _probability. 
         
         Args:
             There are several ways to specify the arguments:
@@ -998,19 +991,57 @@ class Model:
             (2) A list of domains in <domains> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
             (2) A dict of key=name:value=domain in <domains>. <names> is ignored.
             
+        Notes if supply the special field 'model vs data'.
+         * the domain must 
+         you must 
+            * not use option (1) # TODO?
+            * if you use option (2): supply it as the last element of the domain list
+            * if you use option (3): use the key 'model vs data' for its domain
             
         """
     def probability(self, domains=None, names=None):
-        # TODO: model vs data dimension?
+        if self._isempty():
+            raise ValueError('Cannot query density of 0-dimensional model')
+
         # normalize parameters to ordered list form
-        if isinstance(domains, dict):  # dict was passed
+        mode = self.mode
+        if isinstance(domains, dict):
+            # dict was passed
+            if len(domains) - ('model vs data' in domains) != self.dim:
+                raise ValueError('Incorrect number of values given')
             domains = [domains[name] for name in self.names]
-        elif names is not None and domains is not None:  # unordered list was passed in
+            mode = domains.get('model vs data', self.mode)
+        elif names is not None and domains is not None:
+            if len(domains) != len(names):
+                raise ValueError('Length of names and values does not match.')
+            elif len(set(names)) == len(names):
+                raise ValueError('Some name occurs twice.')
+            # unordered list was passed in. Not model vs data may be passed
             sorted_ = sorted(zip(self.asindex(names), domains), key=lambda pair: pair[0])
             domains = [pair[1] for pair in sorted_]
-        # else: correctly ordered list was passed in
-        #    pass
-        return self._probability(domains)
+        elif len(domains) == self.dim + 1:
+            # correctly ordered list was passed in, but with model vs data domain
+            mode = domains[-1]
+            domains = domains[:-1]
+        else:
+            raise ValueError("Invalid number of values passed.")
+
+        # data probability
+        if mode == "both" or mode == "data":
+            # TODO: apply range filters
+            reduced_df = data_ops.filter_(self.data, zip(self.names, domains))
+            data_prob = len(reduced_df) / len(self.data)
+            if mode == "data":
+                return data_prob
+
+        # model probability
+        model_prob = self._probability(domains)
+        if mode == "model":
+            return model_prob
+        elif mode == "both":
+            return model_prob, data_prob
+        else:
+            raise ValueError("invalid value for mode : ", str(mode))
 
     def sample(self, n=1):
         """Returns n samples drawn from the model as a dataframe with suitable column names."""
@@ -1272,7 +1303,6 @@ class Model:
         # for the current aggregation
 
         def _derive_aggregation_model(aggr):
-            #aggr_model = basemodel.copy()
             aggr_model = basemodel.copy(name=next(aggr_model_id_gen))
             if aggr[METHOD_IDX] == 'density':
                 return aggr_model.model(model=aggr[NAME_IDX])
@@ -1289,11 +1319,7 @@ class Model:
         else:
             def _get_group_frame(split, column_id):
                 # could be 'model vs data'
-                # TODO: does that really work? should I rather 'pimp' the 'byname' function? would that be consistent?
-                # REMOVE COMMENTS SOON
                 field = basemodel.byname(split[NAME_IDX])
-                #basemodel._modeldata_field if split[NAME_IDX] == 'model vs data' \
-                #else basemodel.byname(split[NAME_IDX])
                 # TODO: replace with self.extent ??
                 domain = field['domain'].bounded(field['extent'])
                 try:
@@ -1340,9 +1366,16 @@ class Model:
         for idx, aggr in enumerate(aggrs):
             aggr_results = []
             aggr_model = aggr_models[idx]
+
+            # it depends on the split whether it is suitable to compute the density or the probability over the result of it
+            # i.e.: if we split into intervals, we need probability (which we will do most of the time)
+            # but if we split to points we need density (which would most of the time result in zero density on data)
+            # we need separate internal implementations of density and probability, but I think it would be nice
+            # if to the outside density accepts also intervals/sets and then just calls probability (and returns a probability)
+            # though, it's less clean...
+
             if aggr[METHOD_IDX] == 'density':
-                # TODO (1): this is inefficient because it recalculates the same value many times, when we split on more
-                #  than what the density is calculated on
+                # TODO (1): this is inefficient because it recalculates the same value many times, when we split on more than what the density is calculated on
                 # TODO: to solve it: calculate density only on the required groups and then join into the result table.
                 # TODO (2): .density also returns the frequency of the specified observation. Calculating it like this
                 #  is also super inefficient, since we really just need to group by all of the split-field and count
@@ -1350,39 +1383,38 @@ class Model:
                 #  frame for each call to density
                 # TODO (3) we even need special handling for the model/data field. See the density method.
                 # this is much too complicated. Somehow there must be an easier way to do all of this...
+                # by now I think we need a new 'type' of fields: artificial fields. We will anyway need this for
+                # hyperparameters like fitting params, etc. And we want a clean and eays and generic way to deal with them
                 try:
-                    # select relevant columns and iterate over it
-                    names = aggr[NAME_IDX]
+                    # select relevant columns in correct order and iterate over it
+                    names = self.sorted_names(aggr[NAME_IDX])
                     ids = [split_name2id[name] for name in names]
                     # if we split by 'model vs data' field we have to add this to the list of column ids
                     if 'model vs data' in splitnames_unique:
                         ids.append(split_name2id['model vs data'])
-                        # names = list(aggr[NAME_IDX])
                         names.append('model vs data')
                 except KeyError as err:
                     raise ValueError("missing split-clause for field '" + str(err) + "'.")
                 subframe = input_frame[ids]
 
-                # TODO: change interface: either list of values in order, or a dict.
-                # is it garantueed to be in order?
                 for row in subframe.itertuples(index=False):
-                    res = aggr_model.density(names, row)
+                    res = aggr_model.density(values=row)
                     aggr_results.append(res)
 
-                # TODO: the normalization is incorrect: it must not normalize to 1, but to some slice
-                # normalize data frequency to data probability
+                ## normalize data frequency to data probability
                 # get view on data. there is two distinct cases that we need to worry about
-                aggr_results = pd.Series(aggr_results)
-                if 'model vs data' in splitnames_unique:
-                    # case 1: we split by 'model vs data'. need to select only the 'data' rows
-                    id = split_name2id['model vs data']
-                    mask = input_frame[id] == 'data'
-                    if mask.any():
-                        sum = aggr_results.loc[mask].sum()
-                        aggr_results.loc[mask] /= sum
-                elif basemodel.mode == 'data':
-                    # case 2: we filter 'model vs data' on 'data'
-                    aggr_results = aggr_results / aggr_results.sum()
+                # TODO: the normalization is incorrect: it must not normalize to 1, but to some slice
+                # aggr_results = pd.Series(aggr_results)
+                # if 'model vs data' in splitnames_unique:
+                #     # case 1: we split by 'model vs data'. need to select only the 'data' rows
+                #     id = split_name2id['model vs data']
+                #     mask = input_frame[id] == 'data'
+                #     if mask.any():
+                #         sum = aggr_results.loc[mask].sum()
+                #         aggr_results.loc[mask] /= sum
+                # elif basemodel.mode == 'data':
+                #     # case 2: we filter 'model vs data' on 'data'
+                #     aggr_results = aggr_results / aggr_results.sum()
 
             else:  # it is some aggregation
                 if len(splitby) == 0:
