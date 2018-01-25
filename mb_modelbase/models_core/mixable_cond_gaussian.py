@@ -608,8 +608,7 @@ class MixableCondGaussianModel(md.Model):
         #assert(all(d.issingular() for d in cat_domains))
         # in this special case the cartesian product only has 1 element :)
         assert(all(len(d) == 1 for d in cat_domains))
-        x = [d[0] for d in cat_domains]
-        x = list(cat_domains)
+        x = list([d[0] for d in cat_domains])
         return vol*self._density(x+y)
 
     def _maximum_mixable_cg_heuristic_b(self):

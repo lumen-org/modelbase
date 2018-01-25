@@ -1372,6 +1372,11 @@ class Model:
         for column in column_interval_list:
             input_frame[column] = input_frame[column].apply(mean)
 
+        # QUICK FIX: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
+        column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'elements' or method == 'identity']
+        for column in column_interval_list:
+            input_frame[column] = input_frame[column].apply(lambda entry: entry[0])
+
         # (5) filter on aggregations?
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
 
