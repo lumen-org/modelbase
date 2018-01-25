@@ -553,7 +553,7 @@ class Model:
 
         # derive and set fields
         self.fields = get_discrete_fields(df, self._categoricals) + \
-                                          get_numerical_fields(df, self._numericals)
+                      get_numerical_fields(df, self._numericals)
 
         self.data = df
 
@@ -639,9 +639,8 @@ class Model:
         Otherwise it is 'normally' marginalized out (assuming that the full domain is available).
 
         Arguments:
-            keep: A list of names of random variables of this model to keep. All other random variables
-                are marginalized out.
-            remove: A list of names of random variables  of this model to marginalize out.
+            keep: A sequence or a sequence of names of dimensions or fields of a model. The given dimensions of this model are kept. All other random variables are marginalized out.
+            remove: A sequence or a sequence of names of dimensions or fields of a model. The given dimensions of this model are marginalized out.
             is_pure: An performance optimization parameter. Set to True if you can guarantee that keep and remove do not contain the special value "model vs data".
 
         Returns:
@@ -784,17 +783,11 @@ class Model:
                     names.append(name)
                     pure_conditions.append(condition)
 
-        # continue with rest according to mode
-        if self.mode == 'model':
-            for (name, operator, values) in pure_conditions:
-                self.byname(name)['domain'].apply(operator, values)
-        else:
-            for (name, operator, values) in pure_conditions:
-                # condition model. actually, this only restricts the domain of the fields
-                self.byname(name)['domain'].apply(operator, values)
-            # condition data
+        # condition model. actually, this only restricts the domain of the fields
+        for (name, operator, values) in pure_conditions:
+            self.byname(name)['domain'].apply(operator, values)
+        if self.mode != 'model':
             data_ops.condition_data(self.data, pure_conditions)
-            # self._condition_data(name, operator, values)
         self._update_extents(names)
         return self
 
@@ -902,7 +895,7 @@ class Model:
         order of random variables in fields attribute of the model.
 
         Returns:
-            The aggregation of the model. It always returns a list, even if it contains only a single value.
+            The aggregation of the model as a sequence.
         """
         if self._isempty():
             raise ValueError('Cannot aggregate a 0-dimensional model')
@@ -931,11 +924,10 @@ class Model:
             * if you use option (2): supply it as the last element of the domain list
             * if you use option (3): use the key 'model vs data' for its domain
 
-        Also note that you may pass the special field with name 'model vs data'.
-        If the value is 'data' then it is interpreted as a density query against
-        the data, i.e. frequency of items is returned. If the value is 'model'
-        it is interpreted as a query against the model, i.e. density of input
-        is returned. If value is 'both' a 2-tuple of both is returned..
+        You may pass a special field with name 'model vs data':
+          * If its value is 'data' then it is interpreted as a density query against the data, i.e. frequency of items is returned.
+          * If the value is 'model' it is interpreted as a query against the model, i.e. density of input is returned.
+          * If value is 'both' a 2-tuple of both is returned.
         """
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
@@ -1006,13 +998,13 @@ class Model:
             (2) A list of domains in <domains> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
             (2) A dict of key=name:value=domain in <domains>. <names> is ignored.
 
-        Notes if supply the special field 'model vs data'.
-         * the domain must
-         you must
-            * not use option (1) # TODO?
-            * if you use option (2): supply it as the last element of the domain list
-            * if you use option (3): use the key 'model vs data' for its domain
-
+        You may pass a special field with name 'model vs data':
+          * you cannot use option (1) # TODO?
+          * if you use option (2): supply it as the last element of the domain list
+          * if you use option (3): use the key 'model vs data' for its domain
+          * If its value is 'data' then it is interpreted as a density query against the data, i.e. frequency of items is returned.
+          * If the value is 'model' it is interpreted as a query against the model, i.e. density of input is returned.
+          * If value is 'both' a 2-tuple of both is returned.
         """
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
@@ -1097,29 +1089,32 @@ class Model:
         mycopy._update_all_field_derivatives()
         return mycopy
 
-    def _condition_values(self, names, pairflag=False):
+    def _condition_values(self, names=None, pairflag=False, to_scalar=True):
         """Returns the list of values to condition on given a sequence of random variable names to condition on.
         Essentially, this is a look up in the domain restrictions of the fields to be conditioned on.
 
         Args:
-            names: sequence of random variable names to get the conditioning domain for
+            names: sequence of random variable names to get the conditioning domain for. If not given the condition values for all dimensions are returned.
             pairflag = False: Optional. If set True not a list of values but a zip-object of the names and the
              values to condition on is returned
         """
-        # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
-        cond_values = []
-        for name in names:
-            field = self.byname(name)
-            domain = field['domain']
-            dvalue = domain.value()
-            if not domain.isbounded():
-                raise ValueError("cannot condition random variables with not bounded domain!")
-            if field['dtype'] == 'numerical':
-                cond_values.append(dvalue if domain.issingular() else (dvalue[1] + dvalue[0]) / 2)
-            elif field['dtype'] == 'string':
-                cond_values.append(dvalue if domain.issingular() else dvalue[0])
-            else:
-                raise ValueError('invalid dtype of field: ' + str(field['dtype']))
+        fields = self.fields if names is None else self.byname(names)
+        # It's not obvious but this is aequivalent to the more detailed code below...
+        cond_values = [field['domain'].mid() for field in fields]
+        # cond_values = []
+        # for field in fields:
+        #     domain = field['domain']
+        #     dvalue = domain.value()
+        #     if not domain.isbounded():
+        #         raise ValueError("cannot condition random variables with not bounded domain!")
+        #     if field['dtype'] == 'numerical':
+        #         # TODO: I think this is wrong. I should solve this issue not here, but where the conditioning is actually applied!
+        #         cond_values.append(dvalue if domain.issingular() else (dvalue[1] + dvalue[0]) / 2)
+        #     elif field['dtype'] == 'string':
+        #         # TODO: I actually know how to apply such multi element conditions
+        #         cond_values.append(dvalue if domain.issingular() else dvalue[0])
+        #     else:
+        #         raise ValueError('invalid dtype of field: ' + str(field['dtype']))
 
         return zip(names, cond_values) if pairflag else cond_values
 

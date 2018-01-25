@@ -90,7 +90,7 @@ def PQL_parse_json(query):
         return list(map(_aggrSplit, clause))
 
     def _where(clause):
-        return [gm.ConditionTuple(e["name"], e["operator"], e["value"]) for e in clause]
+        return [gm.Condition(e["name"], e["operator"], e["value"]) for e in clause]
 
     def _splitby(clause):
         def _mapSplit(e):

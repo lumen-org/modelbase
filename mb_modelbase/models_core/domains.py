@@ -232,7 +232,8 @@ class DiscreteDomain(Domain):
         raise NotImplementedError
 
     def mid(self):
-        """Returns the mid element of the domain."""
+        """Returns the mid element of the domain. Since there is no ordering on the elements, there is no mid and
+        a fixed but random element is returned."""
         if not self.isbounded():
             raise ValueError("cannot compute mid of not bounded domain!")
         values = self.values()

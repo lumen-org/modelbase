@@ -34,7 +34,6 @@ class CategoricalModel(md.Model):
         counts = xr.DataArray(data=z, coords=extents, dims=df.columns)
 
         # iterate over table and sum up occurrences
-        # TODO: this is super slow... use group by over the data frame instead
         for row in df.itertuples():
             values = row[1:]  # 1st element is index, which we don't need
             counts.loc[values] += 1
@@ -49,13 +48,6 @@ class CategoricalModel(md.Model):
     def _fit(self):
         self._p = CategoricalModel._maximum_aposteriori(self.data, self.fields)
         return self._unbound_updater,
-
-    # def __str__(self):
-    #     return ("Multivariate Categorical Model '" + self.name + "':\n" +
-    #             "dimension: " + str(self.dim) + "\n" +
-    #             "names: " + str([self.names]) + "\n" +
-    #             "fields: " + str([str(field['name']) + ':' + str(field['domain']) + ':' + str(field['extent'])
-    #                               for field in self.fields]))
 
     def _update(self):
         """updates dependent parameters / precalculated values of the model"""
@@ -84,9 +76,6 @@ class CategoricalModel(md.Model):
     def _marginalizeout(self, keep, remove):
         keepidx = sorted(self.asindex(keep))
         removeidx = utils.invert_indexes(keepidx, self.dim)
-        # TODO: I think it is already sorted and no need to recompute. test it.
-        #keepidx = self.asindex(keep)
-        #removeidx = self.asindex(remove)
         # the marginal probability is the sum along the variable(s) to marginalize out
         self._p = self._p.sum(dim=[self.names[idx] for idx in removeidx])  # TODO: cant I use integer indexing?!
         return self._unbound_updater,
