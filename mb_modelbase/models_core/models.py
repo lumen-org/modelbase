@@ -24,7 +24,6 @@ from mb_modelbase.models_core import data_operations as data_ops
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-#logger.setLevel(logging.DEBUG)
 
 """ Development Notes (Philipp)
 # interesting links
@@ -792,8 +791,6 @@ class Model:
             model_res = singular_res
         else:
             # 2. marginalize singular fields out
-            # TODO: use internal, faster version of marginalize / marginalizeout?
-            #submodel = self if len(singular_names) == 0 else self.copy()._marginalize(remove=singular_names)
             model = model if len(singular_names) == 0 else model._marginalize(keep=other_names, remove=singular_names)
 
             # 3. calculate 'unrestricted' aggregation on the remaining model
@@ -881,7 +878,6 @@ class Model:
 
         # data frequency
         if mode == "both" or mode == "data":
-            #cnt = len(data_ops.point_condition_data(self.data, zip(self.names, values)))
             cnt = len(data_ops.condition_data(self.data, zip(self.names, ['==']*self.dim, values)))
             if mode == "data":
                 return cnt
@@ -1016,18 +1012,18 @@ class Model:
         mycopy._update_all_field_derivatives()
         return mycopy
 
-    def _condition_values(self, remove, pairflag=False):
+    def _condition_values(self, names, pairflag=False):
         """Returns the list of values to condition on given a sequence of random variable names to condition on.
         Essentially, this is a look up in the domain restrictions of the fields to be conditioned on.
 
         Args:
-            remove: sequence of random variable names
+            names: sequence of random variable names to get the conditioning domain for
             pairflag = False: Optional. If set True not a list of values but a zip-object of the names and the
              values to condition on is returned
         """
         # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
         cond_values = []
-        for name in remove:
+        for name in names:
             field = self.byname(name)
             domain = field['domain']
             dvalue = domain.value()
@@ -1040,7 +1036,7 @@ class Model:
             else:
                 raise ValueError('invalid dtype of field: ' + str(field['dtype']))
 
-        return zip(remove, cond_values) if pairflag else cond_values
+        return zip(names, cond_values) if pairflag else cond_values
 
     @staticmethod
     def save(model, filename):
@@ -1092,8 +1088,6 @@ class Model:
         # assert order of indexes
         assert(all(to_remove_idx[i] <= to_remove_idx[i+1] for i in range(len(to_remove_idx)-1)))
 
-        # TODO: I guess it is much faster to recreate that list ...
-        # however in the solution now we never change what object we reference to by self.name, ...
         for idx in reversed(to_remove_idx):
             del self.names[idx]
             del self.extents[idx]
@@ -1372,7 +1366,7 @@ class Model:
         for column in column_interval_list:
             input_frame[column] = input_frame[column].apply(mean)
 
-        # QUICK FIX: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
+        # QUICK FIX2: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
         column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'elements' or method == 'identity']
         for column in column_interval_list:
             input_frame[column] = input_frame[column].apply(lambda entry: entry[0])
