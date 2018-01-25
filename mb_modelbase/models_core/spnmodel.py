@@ -20,6 +20,10 @@ class SPNModel(Model):
                  corrthresh=0.1, equalweight=True, updatestruct=True, \
                  mvmaxscope=0, leaftype="normal", numcomp=2):
         super().__init__(name)
+        self._aggrMethods = {
+            'maximum': self._maximum,
+            'average': self._maximum
+        }
         self.params = SPNParams(batchsize, mergebatch, corrthresh, \
                                 equalweight, updatestruct, \
                                 mvmaxscope, leaftype)
@@ -31,8 +35,7 @@ class SPNModel(Model):
       self.variables = len(self.fields)
       # creates a dict of name : index
       # looks strange but is correct
-      self.nametoindex = dict([(field["name"],i) \
-                               for i,field in zip(range(len(spn.fields)),spn.fields)])
+      self.nametoindex = dict((field["name"], i) for i,field in zip(range(len(self.fields)), self.fields))
       for i in range(self.variables):
          self.index[i] = None
       return []
@@ -74,6 +77,9 @@ class SPNModel(Model):
         if len(x) != j:
             raise Exception("Two many values.")
         return np.exp(self._spnmodel.evaluate(None, tmp))[0]
+
+    def _maximum(self):
+        raise NotImplemented()
 
     def copy(self, name=None):
       spncopy = super()._defaultcopy(name)
