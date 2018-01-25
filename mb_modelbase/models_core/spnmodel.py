@@ -9,10 +9,11 @@ Created on Thu Jan 18 13:49:15 2018
 
 from mb_modelbase.models_core import Model
 from mb_modelbase.models_core.spn.spn import SPNParams, SPN
-import copy as cp
 
+from scipy.optimize import minimize
 import numpy as np
 import pandas as pd
+import copy as cp
 
 
 class SPNModel(Model):
@@ -59,7 +60,6 @@ class SPNModel(Model):
 
     def _conditionout(self, keep, remove):
       tmp = {}
-      print("reached")
       indexes = [self.nametoindex[i] for i in remove]
       values = self._condition_values(remove)
       for (index,value) in zip(indexes, values):
@@ -79,7 +79,11 @@ class SPNModel(Model):
         return np.exp(self._spnmodel.evaluate(None, tmp))[0]
 
     def _maximum(self):
-        raise NotImplemented()
+        fun = lambda x :-1 * self._density(x)
+        xlength = sum(1 for x in self.index.values() if x is None)
+        x0 = np.random.randn(xlength)
+        xmax = minimize(fun, x0, method='Nelder-Mead')
+        return xmax
 
     def copy(self, name=None):
       spncopy = super()._defaultcopy(name)
