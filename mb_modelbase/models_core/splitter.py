@@ -59,11 +59,13 @@ def elements(domain, args):
     """ Splits the given discrete domain into it's single elements and returns these. Thus, it returns a list
     of these elements."""
     if isinstance(domain, str):
-        return [domain]
+        return [[domain]]
         # raise TypeError('domain must be a list of values, not a single value')
     else:
-        return domain
-        #return [[e] fr e in domain]
+        #return domain
+        return [[e] for e in domain]
+
+
 
 """ A map from 'method id' to the actual splitter function. """
 splitter = {

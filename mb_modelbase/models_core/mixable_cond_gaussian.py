@@ -585,7 +585,7 @@ class MixableCondGaussianModel(md.Model):
         """
 
         # normalize to bounded domain values
-        domains = [domain.bounded(field['extent'], value_flag=True) for field, domain in zip(self.fields, domains)]
+        # domains = [domain.bounded(field['extent'], value_flag=True) for field, domain in zip(self.fields, domains)]
 
         cat_len = len(self._categoricals)
         num_domains = domains[cat_len:]
@@ -603,8 +603,11 @@ class MixableCondGaussianModel(md.Model):
         # TODO: generalize
         #assert(all(d.issingular() for d in cat_domains))
         # in this special case the cartesian product only has 1 element :)
-        assert(all(len(d) == 1 for d in cat_domains))
-        x = [d[0] for d in cat_domains]
+        if len(cat_domains) > 0:
+            print("hI")
+        #assert(all(len(d) == 1 for d in cat_domains))
+        #x = [d[0] for d in cat_domains]
+        x = list(cat_domains)
         print(x+y)
         print(vol)
         return vol*self._density(x+y)

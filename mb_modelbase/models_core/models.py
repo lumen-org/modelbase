@@ -660,30 +660,30 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
-    def _condition_data(self, name, operator, values):
-        """Conditions the data of the model according to given parameters. Returns nothing.
-        """
-        df = self.data  # shortcut
-        field = self.byname(name)
-        column = df[name]
-        if operator == 'in':
-            if field['dtype'] == 'numerical':
-                df = df.loc[column.between(*values, inclusive=True)]
-            elif field['dtype'] == 'string':
-                df = df.loc[column.isin(values)]
-            else:
-                raise TypeError("unsupported field type: " + str(field.dtype))
-        else:
-            # values is necessarily a single scalar value, not a list
-            if operator == 'equals' or operator == '==':
-                df = df.loc[column == values]
-            elif operator == 'greater' or operator == '>':
-                df = df.loc[column > values]
-            elif operator == 'less' or operator == '<':
-                df = df.loc[column < values]
-            else:
-                raise ValueError('invalid operator for condition: ' + str(operator))
-        self.data = df
+    # def _condition_data(self, name, operator, values):
+    #     """Conditions the data of the model according to given parameters. Returns nothing.
+    #     """
+    #     df = self.data  # shortcut
+    #     field = self.byname(name)
+    #     column = df[name]
+    #     if operator == 'in':
+    #         if field['dtype'] == 'numerical':
+    #             df = df.loc[column.between(*values, inclusive=True)]
+    #         elif field['dtype'] == 'string':
+    #             df = df.loc[column.isin(values)]
+    #         else:
+    #             raise TypeError("unsupported field type: " + str(field.dtype))
+    #     else:
+    #         # values is necessarily a single scalar value, not a list
+    #         if operator == 'equals' or operator == '==':
+    #             df = df.loc[column == values]
+    #         elif operator == 'greater' or operator == '>':
+    #             df = df.loc[column > values]
+    #         elif operator == 'less' or operator == '<':
+    #             df = df.loc[column < values]
+    #         else:
+    #             raise ValueError('invalid operator for condition: ' + str(operator))
+    #     self.data = df
 
     def condition(self, conditions=[], is_pure=False):
         """Conditions this model according to the list of three-tuples
@@ -732,8 +732,9 @@ class Model:
             for (name, operator, values) in pure_conditions:
                 # condition model. actually, this only restricts the domain of the fields
                 self.byname(name)['domain'].apply(operator, values)
-                # condition data
-                self._condition_data(name, operator, values)
+            # condition data
+            data_ops.condition_data(self.data, pure_conditions)
+            # self._condition_data(name, operator, values)
         self._update_extents(names)
         return self
 
@@ -951,7 +952,8 @@ class Model:
 
         # data frequency
         if mode == "both" or mode == "data":
-            cnt = len(data_ops.filter_(self.data, zip(self.names, values)))
+            #cnt = len(data_ops.point_condition_data(self.data, zip(self.names, values)))
+            cnt = len(data_ops.condition_data(self.data, zip(self.names, ['==']*self.dim, values)))
             if mode == "data":
                 return cnt
 
@@ -1010,7 +1012,7 @@ class Model:
             if len(domains) - ('model vs data' in domains) != self.dim:
                 raise ValueError('Incorrect number of values given')
             domains = [domains[name] for name in self.names]
-            mode = domains.get('model vs data', self.mode)
+            mode = domains.get('model vs data', [self.mode])[0]
         elif names is not None and domains is not None:
             if len(domains) != len(names):
                 raise ValueError('Length of names and values does not match.')
@@ -1021,7 +1023,7 @@ class Model:
             domains = [pair[1] for pair in sorted_]
         elif len(domains) == self.dim + 1:
             # correctly ordered list was passed in, but with model vs data domain
-            mode = domains[-1]
+            mode = domains[-1][0]
             domains = domains[:-1]
         else:
             raise ValueError("Invalid number of values passed.")
@@ -1029,7 +1031,8 @@ class Model:
         # data probability
         if mode == "both" or mode == "data":
             # TODO: apply range filters
-            reduced_df = data_ops.filter_(self.data, zip(self.names, domains))
+            # reduced_df = data_ops.point_condition_data(self.data, zip(self.names, domains))
+            reduced_df = data_ops.condition_data(self.data, zip(self.names, ['in']*self.dim, domains))
             data_prob = len(reduced_df) / len(self.data)
             if mode == "data":
                 return data_prob
@@ -1398,7 +1401,8 @@ class Model:
                 subframe = input_frame[ids]
 
                 for row in subframe.itertuples(index=False):
-                    res = aggr_model.density(values=row)
+                    #res = aggr_model.density(values=row)
+                    res = aggr_model.probability(domains=row)
                     aggr_results.append(res)
 
                 ## normalize data frequency to data probability
@@ -1468,35 +1472,36 @@ class Model:
         return (data_frame, basemodel) if returnbasemodel else data_frame
 
     def select_data(self, what, where=[], opts=None):
-        mask = [True]*len(self.data)
-        # iteratively build boolean selection mask
-        for (name, operator, values) in where:
-            operator = operator.lower()
-            column = self.data[name]
-            if operator == 'in':
-                dtype = self.byname(name)['dtype']
-                if dtype == 'numerical':
-                    # df = df.loc[column.between(*values, inclusive=True)]
-                    mask &= column.between(*values, inclusive=True)
-                elif dtype == 'string':
-                    # df = df.loc[column.isin(values)]
-                    mask &= column.isin(values)
-                else:
-                    raise TypeError("unsupported field type: " + str(dtype))
-            else:
-                # values is necessarily a single scalar value, not a list
-                if operator == 'equals' or operator == '==':
-                    # df = df.loc[column == values]
-                    mask &= column == values
-                elif operator == 'greater' or operator == '>':
-                    # df = df.loc[column > values]
-                    mask &= column > values
-                elif operator == 'less' or operator == '<':
-                    # df = df.loc[column < values]
-                    mask &= column < values
-                else:
-                    raise ValueError('invalid operator for condition: ' + str(operator))
-        return self.data.loc[mask, what]
+        return data_ops.condition_data(self.data, where).loc[:,what]
+        # mask = [True]*len(self.data)
+        # # iteratively build boolean selection mask
+        # for (name, operator, values) in where:
+        #     operator = operator.lower()
+        #     column = self.data[name]
+        #     if operator == 'in':
+        #         dtype = self.byname(name)['dtype']
+        #         if dtype == 'numerical':
+        #             # df = df.loc[column.between(*values, inclusive=True)]
+        #             mask &= column.between(*values, inclusive=True)
+        #         elif dtype == 'string':
+        #             # df = df.loc[column.isin(values)]
+        #             mask &= column.isin(values)
+        #         else:
+        #             raise TypeError("unsupported field type: " + str(dtype))
+        #     else:
+        #         # values is necessarily a single scalar value, not a list
+        #         if operator == 'equals' or operator == '==':
+        #             # df = df.loc[column == values]
+        #             mask &= column == values
+        #         elif operator == 'greater' or operator == '>':
+        #             # df = df.loc[column > values]
+        #             mask &= column > values
+        #         elif operator == 'less' or operator == '<':
+        #             # df = df.loc[column < values]
+        #             mask &= column < values
+        #         else:
+        #             raise ValueError('invalid operator for condition: ' + str(operator))
+        # return self.data.loc[mask, what]
 
     def select(self, what, where=[], opts=None):
         """Returns the selected attributes of all data items that satisfy the conditions as a
