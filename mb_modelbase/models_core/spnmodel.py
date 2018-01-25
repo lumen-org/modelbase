@@ -27,11 +27,15 @@ class SPNModel(Model):
         self.index = {}
 
     def _set_data(self, df, drop_silently=False):
-        self._set_data_continuous(df, drop_silently)
-        self.variables = len(self.fields)
-        for i in range(self.variables):
-            self.index[i] = None
-        return []
+      self._set_data_continuous(df, drop_silently)
+      self.variables = len(self.fields)
+      # creates a dict of name : index
+      # looks strange but is correct
+      self.nametoindex = dict([(field["name"],i) \
+                               for i,field in zip(range(len(spn.fields)),spn.fields)])
+      for i in range(self.variables):
+         self.index[i] = None
+      return []
 
     def _fit(self, iterations=5):
         data = self.data.get_values()
@@ -43,20 +47,22 @@ class SPNModel(Model):
         return []
 
     def _marginalizeout(self, keep, remove):
-        tmp = {}
-        remove = self.asindex(remove)
-        for i in remove:
-            tmp[i] = True
-        self.index.update(tmp)
-        return []
+      tmp = {}
+      indexes = [self.nametoindex[i] for i in remove]
+      for i in indexes:
+         tmp[i] = True
+      self.index.update(tmp)
+      return []
 
     def _conditionout(self, keep, remove):
-        tmp = {}
-        remove = self.asindex(remove)
-        for (index, value) in remove:
-            tmp[index] = value
-        self.index.update(tmp)
-        return []
+      tmp = {}
+      print("reached")
+      indexes = [self.nametoindex[i] for i in remove]
+      values = self._condition_values(remove)
+      for (index,value) in zip(indexes, values):
+         tmp[index] = value
+      self.index.update(tmp)
+      return []
 
     def _density(self, x):
         j = 0
@@ -70,14 +76,15 @@ class SPNModel(Model):
         return np.exp(self._spnmodel.evaluate(None, tmp))[0]
 
     def copy(self, name=None):
-       spncopy = super()._defaultcopy(name)
+      spncopy = super()._defaultcopy(name)
       
-       spncopy._spnmodel = cp.deepcopy(self._spnmodel)
-       spncopy.params = cp.deepcopy(self.params)
-       spncopy.variables = self.variables
-       spncopy.numcomp = self.numcomp
-       spncopy.index = self.index.copy()
-       return spncopy
+      spncopy.model = cp.deepcopy(self.model)
+      spncopy.params = cp.deepcopy(self.params)
+      spncopy.variables = self.variables
+      spncopy.numcomp = self.numcomp
+      spncopy.index = self.index.copy()
+      spncopy.nametoindex = self.nametoindex.copy()
+      return spncopy
        
 
 
