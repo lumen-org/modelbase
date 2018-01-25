@@ -15,7 +15,7 @@ import pickle as pickle
 import numpy as np
 import pandas as pd
 import logging
- 
+
 from mb_modelbase.models_core import domains as dm
 from mb_modelbase.models_core import splitter as sp
 from mb_modelbase.utils import utils as utils
@@ -42,7 +42,7 @@ NAME_IDX = 0
 METHOD_IDX = 1
 YIELDS_IDX = 2
 ARGS_IDX = 2
-ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
+Condition = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
 OP_IDX = 1
 VALUE_IDX = 2
 
@@ -61,13 +61,39 @@ VALUE_IDX = 2
             operator == 'less': a single element that is set to be the new lower bound of the domain.
 """
 
+"""Internal utility functions: For a number of interfaces we want to allow both: single name of fields or single fields, and sequences of these. These function help to get them in a uniform way internally: sequences of names."""
+
+
+def _name_from_field(base):
+    """Base may either be a field name or a Field. It returns the fields name in either cases."""
+    if isinstance(base, str):
+        return base
+    try:
+        return base['name']
+    except KeyError:
+        raise TypeError('Base must be a Field-dict or a name')
+
+
+def _is_single_name_or_field(obj):
+    return isinstance(obj, (str, dict))
+
+
+def _to_sequence(obj):
+    return [obj] if _is_single_name_or_field(obj) else obj
+
+
+def _to_name_sequence(obj):
+    return list(map(_name_from_field, _to_sequence(obj)))
+
 
 def Field(name, domain, extent, dtype='numerical'):
     if not extent.isbounded():
         raise ValueError("extents must not be unbounded")
-    if dtype not in ['numerical','string']:
+    if dtype not in ['numerical', 'string']:
         raise ValueError("dtype must be 'string' or 'numerical'")
     return {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
+
+
 """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
     as passed in:
         'name': the name of the field
@@ -78,12 +104,65 @@ def Field(name, domain, extent, dtype='numerical'):
 """
 
 
+def Aggregation(base, method='maximum', yields=None, args=None):
+    name = _to_name_sequence(base)
+    if yields is None:
+        yields = "" if method == 'density' or method == 'probability' else name[0]
+    if args is None:
+        args = []
+    return AggregationTuple(name, method, yields, args)
+
+
+def Density(base):
+    return Aggregation(base, method='density')
+
+
+def Probability(base):
+    return Aggregation(base, method='probability')
+
+
+def Split(base, method=None, args=None):
+    if isinstance(base, str):
+        name = base
+        if method is None:
+            raise ValueError('Cannot infer suitable split method if only a name (but not a Field) is provided.')
+    else:
+        try:
+            name = base['name']
+        except KeyError:
+            raise TypeError('Base must be a Field-dict or a name')
+        if method is None:
+            if base['dtype'] == 'string':
+                method = 'elements'
+            elif base['dtype'] == 'numerical':
+                method = 'equiinterval'
+            else:
+                raise ValueError('unknown dtype: ' + str(base['dtype']))
+    if args is None:
+        if method == 'equiinterval' or method == 'equidist':
+            args = [25]
+        elif method == 'identity' or method == 'elements':
+            args = []
+        else:
+            raise ValueError('unknown method type: ' + str(method))
+    else:
+        # TODO: this whole way of handling args sucks... I should replace it with a default of None and a dict for actual values...
+        # promote non-iterable to sequences
+        if not isinstance(args, str):
+            try:
+                iter(args)  # if that did fail it's not iterable and we don't need to promote it
+            except TypeError:
+                args = [args]
+    return SplitTuple(name, method, args)
+
+
 def _Modeldata_field():
     """Returns a new field that represents the imaginary dimension of 'model vs data'."""
     return Field('model vs data', dm.DiscreteDomain(), dm.DiscreteDomain(['model', 'data']), dtype='string')
 
 
 """ Utility functions for converting models and parts / components of models to strings. """
+
 
 def field_tojson(field):
     """Returns an adapted version of a field that in any case is JSON serializable. A fields domain may contain the
@@ -114,9 +193,10 @@ def field_to_str(fields):
         <name> is the fields name
         * denotes a field with bound domain (i.e. it is already conditioned on it)
     """
+
     def _field_to_str(field):
         return ('#' if field['dtype'] == 'string' else '±') + field['name'] \
-               + ("*" if field['domain'].isbounded() else "")   # * marks fields with bounded domains
+               + ("*" if field['domain'].isbounded() else "")  # * marks fields with bounded domains
 
     if isinstance(fields, dict):
         return _field_to_str(fields)
@@ -148,6 +228,7 @@ def _tuple2str(tuple_):
     is_aggr_tuple = len(tuple_) == 4 and not tuple_[METHOD_IDX] == 'density'
     prefix = (str(tuple_[YIELDS_IDX]) + '@') if is_aggr_tuple else ""
     return prefix + str(tuple_[METHOD_IDX]) + '(' + str(tuple_[NAME_IDX]) + ')'
+
 
 """ Utility functions for data import. """
 
@@ -272,7 +353,7 @@ class Model:
         return (self.__class__.__name__ + " " + self.name + "':\n" +
                 "dimension: " + str(self.dim) + "\n" +
                 "names: " + str([self.names]) + "\n")
-                # "fields: " + str([str(field) for field in self.fields]))
+        # "fields: " + str([str(field) for field in self.fields]))
 
     def __short_str__(self, max_fields=5):
         fields = self.fields[:max_fields]
@@ -296,6 +377,7 @@ class Model:
 
         Note that this function correctly resolve the special field name 'model vs data'.
         """
+
         def _byname(name):
             try:
                 return self.fields[self._name2idx[name]]
@@ -347,7 +429,7 @@ class Model:
         same names but in the same order as the random variables in the model.
         It silently drops any duplicate names.
         """
-        assert(len(set(names)) <= len(self.names))
+        assert (len(set(names)) <= len(self.names))
         return utils.sort_filter_list(names, self.names)
 
     def __init__(self, name):
@@ -363,7 +445,6 @@ class Model:
         self._aggrMethods = None
         self.mode = "empty"
         self._modeldata_field = _Modeldata_field()
-
 
     def _setempty(self):
         self._update_remove_fields()
@@ -472,13 +553,13 @@ class Model:
 
         # derive and set fields
         self.fields = get_discrete_fields(df, self._categoricals) + \
-                 get_numerical_fields(df, self._numericals)
+                                          get_numerical_fields(df, self._numericals)
 
         self.data = df
 
         # normalize numerical part of data frame. For better numerical performance.
         # this is done at model level
-        #if normalize:
+        # if normalize:
         #        ) = normalize_dataframe(df.loc[:, self._numericals])
         #        self.data_norm =
 
@@ -537,7 +618,8 @@ class Model:
             return self.set_data(df).fit(**kwargs)
 
         if df is None and self.mode != 'data':
-            raise ValueError('No data frame to fit to present: pass it as an argument or set it before using set_data(df)')
+            raise ValueError(
+                'No data frame to fit to present: pass it as an argument or set it before using set_data(df)')
 
         try:
             callbacks = self._fit(**kwargs)
@@ -565,10 +647,14 @@ class Model:
         Returns:
             The modified model.
         """
-        #logger.debug('marginalizing: ' + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
+        # logger.debug('marginalizing: ' + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
 
         if keep is not None and remove is not None:
             raise ValueError("You may only specify either 'keep' or 'remove', but not both.")
+
+        keep = _to_name_sequence(keep)
+        remove = _to_name_sequence(keep)
+
         if keep is not None:
             if keep == '*':
                 keep = self.names
@@ -607,7 +693,7 @@ class Model:
             Neither keep nor remove may contain the field 'model vs data'.
         """
         if keep is not None and remove is not None:
-            assert(set(keep) | set(remove) == set(self.names))
+            assert (set(keep) | set(remove) == set(self.names))
         else:
             if remove is None:
                 remove = self.inverse_names(keep, sorted_=True)
@@ -658,7 +744,7 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
-    def condition(self, conditions=[], is_pure=False):
+    def condition(self, conditions=None, is_pure=False):
         """Conditions this model according to the list of three-tuples
         (<name-of-random-variable>, <operator>, <value(s)>). In particular
         objects of type ConditionTuples are accepted and see there for allowed values.
@@ -670,7 +756,8 @@ class Model:
         Returns:
             The modified model.
         """
-
+        if conditions is None:
+            conditions = []
         # TODO: simplify the interface?
 
         # can't do that because I want to allow a zip object as conditions...
@@ -878,7 +965,7 @@ class Model:
 
         # data frequency
         if mode == "both" or mode == "data":
-            cnt = len(data_ops.condition_data(self.data, zip(self.names, ['==']*self.dim, values)))
+            cnt = len(data_ops.condition_data(self.data, zip(self.names, ['=='] * self.dim, values)))
             if mode == "data":
                 return cnt
 
@@ -955,7 +1042,7 @@ class Model:
 
         # data probability
         if mode == "both" or mode == "data":
-            reduced_df = data_ops.condition_data(self.data, zip(self.names, ['in']*self.dim, domains))
+            reduced_df = data_ops.condition_data(self.data, zip(self.names, ['in'] * self.dim, domains))
             data_prob = len(reduced_df) / len(self.data)
             if mode == "data":
                 return data_prob
@@ -1084,7 +1171,7 @@ class Model:
 
         to_remove_idx = self.asindex(to_remove)
         # assert order of indexes
-        assert(all(to_remove_idx[i] <= to_remove_idx[i+1] for i in range(len(to_remove_idx)-1)))
+        assert (all(to_remove_idx[i] <= to_remove_idx[i + 1] for i in range(len(to_remove_idx) - 1)))
 
         for idx in reversed(to_remove_idx):
             del self.names[idx]
@@ -1105,7 +1192,7 @@ class Model:
         self._update_extents()
         return self
 
-    def model(self, model='*', where=[], as_=None):
+    def model(self, model='*', where=None, as_=None):
         """Returns a model with name 'as_' that models the random variables in 'model'
         respecting conditions in 'where'.
 
@@ -1126,7 +1213,7 @@ class Model:
         self.name = self.name if as_ is None else as_
         return self.condition(where).marginalize(keep=model)
 
-    def predict(self, predict, where=[], splitby=[], returnbasemodel=False):
+    def predict(self, predict, where=None, splitby=None, returnbasemodel=False):
         """Calculates the prediction against the model and returns its result
         by means of a data frame.
 
@@ -1159,7 +1246,12 @@ class Model:
 
         if self._isempty():
             return pd.DataFrame()
-        #    return (pd.DataFrame(), pd.DataFrame()) if mode == 'both' else pd.DataFrame()
+
+        if where is None:
+            where = []
+        if splitby is None:
+            splitby = []
+        # return (pd.DataFrame(), pd.DataFrame()) if mode == 'both' else pd.DataFrame()
         idgen = utils.linear_id_generator()
 
         # How to handle the 'artificial field' 'model vs data':
@@ -1176,7 +1268,7 @@ class Model:
 
         # set default filter and split on 'model vs data' if necessary
         if 'model vs data' not in split_names \
-                and 'model vs data' not in filter_names\
+                and 'model vs data' not in filter_names \
                 and self.mode == 'both':
             where.append(('model vs data', '==', 'model'))
             filter_names.append('model vs data')
@@ -1321,7 +1413,7 @@ class Model:
                 subframe = input_frame[ids]
 
                 for row in subframe.itertuples(index=False):
-                    #res = aggr_model.density(values=row)
+                    # res = aggr_model.density(values=row)
                     res = aggr_model.probability(domains=row)
                     aggr_results.append(res)
 
@@ -1333,7 +1425,7 @@ class Model:
                     if len(aggr[NAME_IDX]) != aggr_model.dim:  # debugging
                         raise ValueError("uh, interesting - check this out, and read the todo above this code line")
                     singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
-                    res = singlemodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX+1])
+                    res = singlemodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
                     # reduce to requested dimension
                     i = singlemodel.asindex(aggr[YIELDS_IDX])
                     aggr_results.append(res[i])
@@ -1344,7 +1436,7 @@ class Model:
                         # derive model for these specific conditions
                         rowmodel_name = aggr_model.name + next(row_id_gen)
                         rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
-                        res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX+1])
+                        res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
                         # reduce to requested dimension
                         i = rowmodel.asindex(aggr[YIELDS_IDX])
                         aggr_results.append(res[i])
@@ -1358,13 +1450,15 @@ class Model:
         # however, I cannot currently handle intervals on the client side easily
         # so we just turn it back into scalars
         def mean(entry):
-            return (entry[0]+entry[1])/2
+            return (entry[0] + entry[1]) / 2
+
         column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'equiinterval']
         for column in column_interval_list:
             input_frame[column] = input_frame[column].apply(mean)
 
         # QUICK FIX2: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
-        column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'elements' or method == 'identity']
+        column_interval_list = [split_name2id[name] for (name, method, __) in splitby if
+                                method == 'elements' or method == 'identity']
         for column in column_interval_list:
             input_frame[column] = input_frame[column].apply(lambda entry: entry[0])
 
@@ -1381,10 +1475,10 @@ class Model:
 
         return (data_frame, basemodel) if returnbasemodel else data_frame
 
-    def select_data(self, what, where=[], opts=None):
-        return data_ops.condition_data(self.data, where).loc[:,what]
+    def select_data(self, what, where=None, opts=None):
+        return data_ops.condition_data(self.data, where).loc[:, what]
 
-    def select(self, what, where=[], opts=None):
+    def select(self, what, where=None, opts=None):
         """Returns the selected attributes of all data items that satisfy the conditions as a
         pandas DataFrame.
         By default it selects data only, i.e. it will not return any samples from the model. It may, however, also
@@ -1395,6 +1489,8 @@ class Model:
         # check for empty queries
         if len(what) == 0:
             return pd.DataFrame()
+        if where is None:
+            where = []
 
         # if 'model vs data' is present as a filter the filter is respected: i.e. either one of them or both data is
         #  generated
@@ -1420,11 +1516,11 @@ class Model:
         # set default filter for 'model vs data'. Do not if 'model vs data' is in what, because that implies the query
         #  wants both
         if mvd_filter is None and 'model vs data' not in what:
-            mvd_filter = ConditionTuple('model vs data', "==", "data")
+            mvd_filter = Condition('model vs data', "==", "data")
 
         # TODO: !!!!!!!! !!!!!!!!! !!!!!!!!!!!! !!!!!!!!!!!!! #
         # DEBUG/DEVELOP: always set it to data only
-        mvd_filter = ConditionTuple('model vs data', "==", "data")
+        mvd_filter = Condition('model vs data', "==", "data")
 
         # now infer mode
         mode = dm.DiscreteDomain(['model', 'data'])
