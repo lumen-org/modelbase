@@ -6,8 +6,8 @@ Test Suite for cond_gaussians_wm.py
 """
 
 import unittest
-from cond_gaussian_wm import CgWmModel
-from cond_gaussian.datasampling import cg_dummy
+from mb_modelbase.models_core.cond_gaussian_wm import CgWmModel
+from mb_modelbase.models_core.cond_gaussian.datasampling import cg_dummy
 
 
 def print_info(model):

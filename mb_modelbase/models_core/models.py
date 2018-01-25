@@ -6,11 +6,12 @@ This module defines:
 
    * Model: an abstract base class for models.
    * Field: a class that represent random variables in a model.
-   * ConditionTuple, SplitTuple, AggregationTuple: convenience tuples for handling such clauses in PQL queries
+   * Condition, Split, Aggregation: convenience constructor functions to easily make suitable clauses for PQL queries
 """
 import copy as cp
 from collections import namedtuple
 from functools import reduce
+from operator import mul
 import pickle as pickle
 import numpy as np
 import pandas as pd
@@ -91,9 +92,8 @@ def Field(name, domain, extent, dtype='numerical'):
         raise ValueError("extents must not be unbounded")
     if dtype not in ['numerical', 'string']:
         raise ValueError("dtype must be 'string' or 'numerical'")
-    return {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
-
-
+    field = {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
+    return field
 """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
     as passed in:
         'name': the name of the field
@@ -317,7 +317,9 @@ def get_numerical_fields(df, colnames):
     fields = []
     for colname in colnames:
         column = df[colname]
-        field = Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+        mi, ma = column.min(), column.max()
+        d = (ma-mi)*0.1
+        field = Field(colname, dm.NumericDomain(), dm.NumericDomain(mi-d, ma+d), 'numerical')
         fields.append(field)
     return fields
 
@@ -432,7 +434,7 @@ class Model:
         assert (len(set(names)) <= len(self.names))
         return utils.sort_filter_list(names, self.names)
 
-    def __init__(self, name):
+    def __init__(self, name="model"):
         self.name = name
         # the following is all done in _fields_set_empty, which is called below
         # self.fields = []
@@ -651,10 +653,8 @@ class Model:
         if keep is not None and remove is not None:
             raise ValueError("You may only specify either 'keep' or 'remove', but not both.")
 
-        keep = _to_name_sequence(keep)
-        remove = _to_name_sequence(keep)
-
         if keep is not None:
+            keep = _to_name_sequence(keep)
             if keep == '*':
                 keep = self.names
             elif not is_pure:
@@ -662,6 +662,7 @@ class Model:
             if not self.isfieldname(keep):
                 raise ValueError("invalid random variables names in argument 'keep': " + str(keep))
         elif remove is not None:
+            remove = _to_name_sequence(remove)
             if not is_pure:
                 remove = [name for name in remove if name != 'model vs data']
             if not self.isfieldname(remove):
@@ -1048,6 +1049,33 @@ class Model:
         else:
             raise ValueError("invalid value for mode : ", str(mode))
 
+    def _probability(self, domains):
+        cat_len = len(self._categoricals)
+        return self._probability_generic_mixed(domains[:cat_len], domains[cat_len:])
+
+    def _probability_generic_mixed(self, cat_domains, num_domains):
+        """
+        Returns an approximation to the probability of the given event.
+        This works generically for any model mixed model that stores categorical dimensions before numerical
+        dimensions. It is assumed that all domains are given in their respective order in the model.
+
+        Args:
+            list of domains of the event in correct order. Valid domains are:
+              * for categorical columns: a sequence of strings, e.g. ['A'], or ['A','B']
+              * for quantitative columns: a 2-element sequence or tuple, e.g. [1,2], or [1,1] or [2,6]
+                * if [l,h] is the interval, then neither l nor h may be +-infinity and it must hold l <= h
+        """
+        # volume of all combined each quantitative domains
+        vol = reduce(mul, [high - low for low, high in num_domains], 1)
+        # map quantitative domains to their mid
+        y = [(high + low) / 2 for low, high in num_domains]
+
+        # sum up density over all elements of the cartesian product of the categorical part of the event
+        # TODO: generalize
+        assert(all(len(d) == 1 for d in cat_domains))
+        x = list([d[0] for d in cat_domains])
+        return vol*self._density(x+y)
+
     def sample(self, n=1):
         """Returns n samples drawn from the model as a dataframe with suitable column names."""
         if self._isempty():
@@ -1097,7 +1125,10 @@ class Model:
             names: sequence of random variable names to get the conditioning domain for. If not given the condition values for all dimensions are returned.
             pairflag = False: Optional. If set True not a list of values but a zip-object of the names and the
              values to condition on is returned
+            to_scalar: flag to turn any non-scalar values to scalars.
         """
+        if not to_scalar:
+            raise NotImplemented
         fields = self.fields if names is None else self.byname(names)
         # It's not obvious but this is aequivalent to the more detailed code below...
         cond_values = [field['domain'].mid() for field in fields]

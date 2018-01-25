@@ -9,7 +9,7 @@ import unittest
 import numpy.testing as npt
 import numpy as np
 
-from gaussians import MultiVariateGaussianModel as Gaussian
+from mb_modelbase.models_core.gaussians import MultiVariateGaussianModel as Gaussian
 
 
 class TestRunningShouldNotRaiseException(unittest.TestCase):

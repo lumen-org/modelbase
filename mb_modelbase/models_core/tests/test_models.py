@@ -14,21 +14,38 @@ import unittest
 import pandas as pd
 from random import shuffle
 
-from models import Model
-from mockup_model import MockUpModel
+from mb_modelbase.models_core.models import Model
+from mb_modelbase.models_core.mockup_model import MockUpModel
 
-import data.crabs.crabs as crabs
+# load data
+from mb_modelbase.models_core.tests import crabs
+_crabs_mixed = crabs.mixed()
+_crabs_cat = crabs.continuous()
+_crabs_num = crabs.categorical()
 
-crabsdata = crabs.mixed('data/crabs/australian-crabs.csv')
+from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
+
+# class TestDensity(unittest.TestCase):
+#     """Test the model.probability method."""
+#
+#     def setUp(self):
+#         # get 1d data
+#         df = crabs.continuous().iloc[:, 0]
+#
+#         # learn model
+#         model = MixableCondGaussianModel().fit(df)
+#
+#
+
 
 class TestDataSelect(unittest.TestCase):
     """Test the model.select method."""
 
     def setUp(self):
         # crabs has columns: 'species', 'sex', 'FL', 'RW', 'CL', 'CW', 'BD'
-        self.data = pd.DataFrame(crabsdata)
-        self.model = MockUpModel('crabs').set_data(crabsdata)
-        self.cols = list(crabsdata.columns)
+        self.data = pd.DataFrame(_crabs_mixed)
+        self.model = MockUpModel('crabs').set_data(_crabs_mixed)
+        self.cols = list(_crabs_mixed.columns)
         self.shape = self.data.shape
         pass
 

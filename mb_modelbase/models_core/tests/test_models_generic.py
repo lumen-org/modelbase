@@ -30,13 +30,11 @@ Thinking about useful console output for this test module:
 
 """
 import logging
-
 import random
-
 import pandas as pd
 
-import mb_modelbase.models_core.domains as dm
-import mb_modelbase.models_core.models as md
+from mb_modelbase.models_core import domains as dm
+from mb_modelbase.models_core import models as md
 from mb_modelbase.models_core.mockup_model import MockUpModel
 from mb_modelbase.models_core.categoricals import CategoricalModel
 from mb_modelbase.models_core.gaussians import MultiVariateGaussianModel as GaussianModel
@@ -45,11 +43,9 @@ from mb_modelbase.models_core.cond_gaussians import ConditionallyGaussianModel a
 from mb_modelbase.models_core.cond_gaussian_wm import CgWmModel as CGWMModel
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel as MCGModel
 
-#import data.crabs.crabs as crabs
-
-from mb_modelbase.utils import is_running_in_debug_mode
-if is_running_in_debug_mode():
-    import mb_modelbase.models_core.models_debug
+# from mb_modelbase.utils import is_running_in_debug_mode
+# if is_running_in_debug_mode():
+#     import mb_modelbase.models_core.models_debug
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -58,12 +54,12 @@ logger.setLevel(logging.INFO)
 
 # REGISTER ALL YOUR MODEL SUBCLASSES TO TEST HERE
 # model classes
-models = {
+_models= {
     'discrete': [],
     'continuous': [],
     'mixed': [MCGModel]
 }
-# models = {
+# _models= {
     #'discrete': [MockUpModel, CategoricalModel],
     # 'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
     #'continuous': [MockUpModel, GaussianModel],
@@ -260,7 +256,7 @@ def _test_conditioning_discrete(model, depth, info):
             if depth > 0:
                 _test_marginalization_discrete(m, depth, info)
                 _test_conditioning_discrete(m, 1, info)
-            
+
 _test_conditioning_continuous = _test_conditioning_discrete  # it really is the same
 
 _test_conditioning = {
@@ -284,7 +280,7 @@ def test_all():
     depth = 3
 
     for mode in ['discrete', 'continuous', 'mixed']:
-        for model_class in models[mode]:
+        for model_class in _models[mode]:
             # create and fit model
             model = model_class(name=model_class.__name__)
 

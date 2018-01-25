@@ -9,8 +9,8 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from cond_gaussians import ConditionallyGaussianModel as CondGauss
-from cond_gaussian.datasampling import genCGSample, genCatData, genCatDataJEx, cg_dummy
+from mb_modelbase.models_core.cond_gaussians import ConditionallyGaussianModel as CondGauss
+from mb_modelbase.models_core.cond_gaussian.datasampling import genCGSample, genCatData, genCatDataJEx, cg_dummy
 
 
 def print_info(model):

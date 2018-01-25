@@ -10,7 +10,7 @@ import numpy.testing as npt
 import numpy as np
 import pandas as pd
 
-from categoricals import CategoricalModel as CategoricalModel
+from mb_modelbase.models_core.categoricals import CategoricalModel as CategoricalModel
 
 
 class TestRunningShouldNotRaiseException(unittest.TestCase):
