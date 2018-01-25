@@ -31,12 +31,9 @@ def most_frequent_equi_sized(data, opts=None):
     numeric = [np.issubdtype(dtype, np.number) for dtype in list(data.dtype)]
 
     if any(numeric):
-    #if np.number in list(data.dtypes):
         df = pd.DataFrame()
         for idx, colname in enumerate(data.columns):
-            # dtype = data[colname].dtype
             if numeric[idx]:
-            # np.issubdtype(dtype, np.number):
                 # attached leveled numerical column by cutting it to levels
                 df[colname], bins = pd.cut(x=data[colname], bins=k, retbins=True)
                 # change level values to the later result

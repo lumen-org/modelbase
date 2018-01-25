@@ -8,7 +8,7 @@ from numpy.linalg import inv, det
 from math import isnan
 import xarray as xr
 from scipy.optimize import minimize
-from operator import mul
+
 
 import mb_modelbase.utils
 
@@ -236,7 +236,7 @@ class MixableCondGaussianModel(md.Model):
         'normalized': set([True, False]),
     }
 
-    def __init__(self, name):
+    def __init__(self, name="model"):
         super().__init__(name)
         self._aggrMethods = {
             'maximum': self._maximum,
@@ -576,38 +576,7 @@ class MixableCondGaussianModel(md.Model):
 
         return result
 
-    def _probability(self, domains):
-        """
-        Returns an approximation to the probability of the given event.
 
-        Args:
-            list of domains of the event in correct order.
-        """
-
-        # normalize to bounded domain values
-        domains = [domain.bounded(field['extent'], value_flag=True) for field, domain in zip(self.fields, domains)]
-
-        cat_len = len(self._categoricals)
-        num_domains = domains[cat_len:]
-
-        # volume of all combined each quantitative domains
-        vol = functools.reduce(mul, [high - low for low, high in num_domains], 1)
-        # map quantitative domains to their mid
-        y = [(high + low) / 2 for low, high in num_domains]
-
-        cat_domains = domains[:cat_len]
-        # sum up density over all elements of the cartesian product of the categorical part of the event
-        # sum_ = 0 ...
-
-        # for now assume that all categorical domains only have one element
-        # TODO: generalize
-        #assert(all(d.issingular() for d in cat_domains))
-        # in this special case the cartesian product only has 1 element :)
-        assert(all(len(d) == 1 for d in cat_domains))
-        x = [d[0] for d in cat_domains]
-        print(x+y)
-        print(vol)
-        return vol*self._density(x+y)
 
     def _maximum_mixable_cg_heuristic_b(self):
         """ Returns an approximation to the point of maximum density.

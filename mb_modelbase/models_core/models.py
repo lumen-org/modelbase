@@ -6,24 +6,25 @@ This module defines:
 
    * Model: an abstract base class for models.
    * Field: a class that represent random variables in a model.
-   * ConditionTuple, SplitTuple, AggregationTuple: convenience tuples for handling such clauses in PQL queries
+   * Condition, Split, Aggregation: convenience constructor functions to easily make suitable clauses for PQL queries
 """
 import copy as cp
 from collections import namedtuple
 from functools import reduce
+from operator import mul
 import pickle as pickle
 import numpy as np
 import pandas as pd
 import logging
- 
+
 from mb_modelbase.models_core import domains as dm
 from mb_modelbase.models_core import splitter as sp
 from mb_modelbase.utils import utils as utils
 from mb_modelbase.models_core import data_aggregation as data_aggr
+from mb_modelbase.models_core import data_operations as data_ops
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-#logger.setLevel(logging.DEBUG)
 
 """ Development Notes (Philipp)
 # interesting links
@@ -42,7 +43,7 @@ NAME_IDX = 0
 METHOD_IDX = 1
 YIELDS_IDX = 2
 ARGS_IDX = 2
-ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
+Condition = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
 OP_IDX = 1
 VALUE_IDX = 2
 
@@ -61,13 +62,38 @@ VALUE_IDX = 2
             operator == 'less': a single element that is set to be the new lower bound of the domain.
 """
 
+"""Internal utility functions: For a number of interfaces we want to allow both: single name of fields or single fields, and sequences of these. These function help to get them in a uniform way internally: sequences of names."""
+
+
+def _name_from_field(base):
+    """Base may either be a field name or a Field. It returns the fields name in either cases."""
+    if isinstance(base, str):
+        return base
+    try:
+        return base['name']
+    except KeyError:
+        raise TypeError('Base must be a Field-dict or a name')
+
+
+def _is_single_name_or_field(obj):
+    return isinstance(obj, (str, dict))
+
+
+def _to_sequence(obj):
+    return [obj] if _is_single_name_or_field(obj) else obj
+
+
+def _to_name_sequence(obj):
+    return list(map(_name_from_field, _to_sequence(obj)))
+
 
 def Field(name, domain, extent, dtype='numerical'):
     if not extent.isbounded():
         raise ValueError("extents must not be unbounded")
-    if dtype not in ['numerical','string']:
+    if dtype not in ['numerical', 'string']:
         raise ValueError("dtype must be 'string' or 'numerical'")
-    return {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
+    field = {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
+    return field
 """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
     as passed in:
         'name': the name of the field
@@ -78,12 +104,65 @@ def Field(name, domain, extent, dtype='numerical'):
 """
 
 
+def Aggregation(base, method='maximum', yields=None, args=None):
+    name = _to_name_sequence(base)
+    if yields is None:
+        yields = "" if method == 'density' or method == 'probability' else name[0]
+    if args is None:
+        args = []
+    return AggregationTuple(name, method, yields, args)
+
+
+def Density(base):
+    return Aggregation(base, method='density')
+
+
+def Probability(base):
+    return Aggregation(base, method='probability')
+
+
+def Split(base, method=None, args=None):
+    if isinstance(base, str):
+        name = base
+        if method is None:
+            raise ValueError('Cannot infer suitable split method if only a name (but not a Field) is provided.')
+    else:
+        try:
+            name = base['name']
+        except KeyError:
+            raise TypeError('Base must be a Field-dict or a name')
+        if method is None:
+            if base['dtype'] == 'string':
+                method = 'elements'
+            elif base['dtype'] == 'numerical':
+                method = 'equiinterval'
+            else:
+                raise ValueError('unknown dtype: ' + str(base['dtype']))
+    if args is None:
+        if method == 'equiinterval' or method == 'equidist':
+            args = [25]
+        elif method == 'identity' or method == 'elements':
+            args = []
+        else:
+            raise ValueError('unknown method type: ' + str(method))
+    else:
+        # TODO: this whole way of handling args sucks... I should replace it with a default of None and a dict for actual values...
+        # promote non-iterable to sequences
+        if not isinstance(args, str):
+            try:
+                iter(args)  # if that did fail it's not iterable and we don't need to promote it
+            except TypeError:
+                args = [args]
+    return SplitTuple(name, method, args)
+
+
 def _Modeldata_field():
     """Returns a new field that represents the imaginary dimension of 'model vs data'."""
     return Field('model vs data', dm.DiscreteDomain(), dm.DiscreteDomain(['model', 'data']), dtype='string')
 
 
 """ Utility functions for converting models and parts / components of models to strings. """
+
 
 def field_tojson(field):
     """Returns an adapted version of a field that in any case is JSON serializable. A fields domain may contain the
@@ -114,9 +193,10 @@ def field_to_str(fields):
         <name> is the fields name
         * denotes a field with bound domain (i.e. it is already conditioned on it)
     """
+
     def _field_to_str(field):
         return ('#' if field['dtype'] == 'string' else '±') + field['name'] \
-               + ("*" if field['domain'].isbounded() else "")   # * marks fields with bounded domains
+               + ("*" if field['domain'].isbounded() else "")  # * marks fields with bounded domains
 
     if isinstance(fields, dict):
         return _field_to_str(fields)
@@ -148,6 +228,7 @@ def _tuple2str(tuple_):
     is_aggr_tuple = len(tuple_) == 4 and not tuple_[METHOD_IDX] == 'density'
     prefix = (str(tuple_[YIELDS_IDX]) + '@') if is_aggr_tuple else ""
     return prefix + str(tuple_[METHOD_IDX]) + '(' + str(tuple_[NAME_IDX]) + ')'
+
 
 """ Utility functions for data import. """
 
@@ -236,7 +317,9 @@ def get_numerical_fields(df, colnames):
     fields = []
     for colname in colnames:
         column = df[colname]
-        field = Field(colname, dm.NumericDomain(), dm.NumericDomain(column.min(), column.max()), 'numerical')
+        mi, ma = column.min(), column.max()
+        d = (ma-mi)*0.1
+        field = Field(colname, dm.NumericDomain(), dm.NumericDomain(mi-d, ma+d), 'numerical')
         fields.append(field)
     return fields
 
@@ -272,8 +355,7 @@ class Model:
         return (self.__class__.__name__ + " " + self.name + "':\n" +
                 "dimension: " + str(self.dim) + "\n" +
                 "names: " + str([self.names]) + "\n")
-                # "names: " + str([self.names]) + "\n" +
-                # "fields: " + str([str(field) for field in self.fields]))
+        # "fields: " + str([str(field) for field in self.fields]))
 
     def __short_str__(self, max_fields=5):
         fields = self.fields[:max_fields]
@@ -297,6 +379,7 @@ class Model:
 
         Note that this function correctly resolve the special field name 'model vs data'.
         """
+
         def _byname(name):
             try:
                 return self.fields[self._name2idx[name]]
@@ -348,10 +431,10 @@ class Model:
         same names but in the same order as the random variables in the model.
         It silently drops any duplicate names.
         """
-        assert(len(set(names)) <= len(self.names))
+        assert (len(set(names)) <= len(self.names))
         return utils.sort_filter_list(names, self.names)
 
-    def __init__(self, name):
+    def __init__(self, name="model"):
         self.name = name
         # the following is all done in _fields_set_empty, which is called below
         # self.fields = []
@@ -364,7 +447,6 @@ class Model:
         self._aggrMethods = None
         self.mode = "empty"
         self._modeldata_field = _Modeldata_field()
-
 
     def _setempty(self):
         self._update_remove_fields()
@@ -473,13 +555,13 @@ class Model:
 
         # derive and set fields
         self.fields = get_discrete_fields(df, self._categoricals) + \
-                 get_numerical_fields(df, self._numericals)
+                      get_numerical_fields(df, self._numericals)
 
         self.data = df
 
         # normalize numerical part of data frame. For better numerical performance.
         # this is done at model level
-        #if normalize:
+        # if normalize:
         #        ) = normalize_dataframe(df.loc[:, self._numericals])
         #        self.data_norm =
 
@@ -538,7 +620,8 @@ class Model:
             return self.set_data(df).fit(**kwargs)
 
         if df is None and self.mode != 'data':
-            raise ValueError('No data frame to fit to present: pass it as an argument or set it before using set_data(df)')
+            raise ValueError(
+                'No data frame to fit to present: pass it as an argument or set it before using set_data(df)')
 
         try:
             callbacks = self._fit(**kwargs)
@@ -558,19 +641,20 @@ class Model:
         Otherwise it is 'normally' marginalized out (assuming that the full domain is available).
 
         Arguments:
-            keep: A list of names of random variables of this model to keep. All other random variables
-                are marginalized out.
-            remove: A list of names of random variables  of this model to marginalize out.
+            keep: A sequence or a sequence of names of dimensions or fields of a model. The given dimensions of this model are kept. All other random variables are marginalized out.
+            remove: A sequence or a sequence of names of dimensions or fields of a model. The given dimensions of this model are marginalized out.
             is_pure: An performance optimization parameter. Set to True if you can guarantee that keep and remove do not contain the special value "model vs data".
 
         Returns:
             The modified model.
         """
-        #logger.debug('marginalizing: ' + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
+        # logger.debug('marginalizing: ' + ('keep = ' + str(keep) if remove is None else ', remove = ' + str(remove)))
 
         if keep is not None and remove is not None:
             raise ValueError("You may only specify either 'keep' or 'remove', but not both.")
+
         if keep is not None:
+            keep = _to_name_sequence(keep)
             if keep == '*':
                 keep = self.names
             elif not is_pure:
@@ -578,6 +662,7 @@ class Model:
             if not self.isfieldname(keep):
                 raise ValueError("invalid random variables names in argument 'keep': " + str(keep))
         elif remove is not None:
+            remove = _to_name_sequence(remove)
             if not is_pure:
                 remove = [name for name in remove if name != 'model vs data']
             if not self.isfieldname(remove):
@@ -608,7 +693,7 @@ class Model:
             Neither keep nor remove may contain the field 'model vs data'.
         """
         if keep is not None and remove is not None:
-            assert(set(keep) | set(remove) == set(self.names))
+            assert (set(keep) | set(remove) == set(self.names))
         else:
             if remove is None:
                 remove = self.inverse_names(keep, sorted_=True)
@@ -659,32 +744,7 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
-    def _condition_data(self, name, operator, values):
-        """Conditions the data of the model according to given parameters. Returns nothing.
-        """
-        df = self.data  # shortcut
-        field = self.byname(name)
-        column = df[name]
-        if operator == 'in':
-            if field['dtype'] == 'numerical':
-                df = df.loc[column.between(*values, inclusive=True)]
-            elif field['dtype'] == 'string':
-                df = df.loc[column.isin(values)]
-            else:
-                raise TypeError("unsupported field type: " + str(field.dtype))
-        else:
-            # values is necessarily a single scalar value, not a list
-            if operator == 'equals' or operator == '==':
-                df = df.loc[column == values]
-            elif operator == 'greater' or operator == '>':
-                df = df.loc[column > values]
-            elif operator == 'less' or operator == '<':
-                df = df.loc[column < values]
-            else:
-                raise ValueError('invalid operator for condition: ' + str(operator))
-        self.data = df
-
-    def condition(self, conditions=[], is_pure=False):
+    def condition(self, conditions=None, is_pure=False):
         """Conditions this model according to the list of three-tuples
         (<name-of-random-variable>, <operator>, <value(s)>). In particular
         objects of type ConditionTuples are accepted and see there for allowed values.
@@ -696,19 +756,20 @@ class Model:
         Returns:
             The modified model.
         """
-
+        if conditions is None:
+            conditions = []
         # TODO: simplify the interface?
 
         # can't do that because I want to allow a zip object as conditions...
         # if len(conditions) == 0:
         #     return self
 
-        # treat model vs data field correctly. It must be applied first.
+        # treat 'model vs data' field correctly. It must be applied first.
         names = []
         if is_pure:
             pure_conditions = conditions
         else:
-            # allow conditioning on modeldata_field
+            # allow conditioning on 'model vs data' field
             # find 'model vs data' field and apply conditions
             pure_conditions = []
             for condition in conditions:
@@ -716,11 +777,6 @@ class Model:
                 if name == 'model vs data':
                     domain = self._modeldata_field['domain']
                     domain.apply(operator, values)
-                    # REMOVE SOON:
-                    # if operator == 'in' or operator == 'equals' or operator == '==':
-                    #     domain.intersect(values)
-                    # else:
-                    #     raise ValueError('invalid operator for condition: ' + str(operator))
                     # set internal mode accordingly to both, data or model
                     value = domain.value()
                     self.mode = value if value == 'model' or value == 'data' else 'both'
@@ -728,16 +784,11 @@ class Model:
                     names.append(name)
                     pure_conditions.append(condition)
 
-        # continue with rest according to mode
-        if self.mode == 'model':
-            for (name, operator, values) in pure_conditions:
-                self.byname(name)['domain'].apply(operator, values)
-        else:
-            for (name, operator, values) in pure_conditions:
-                # condition model. actually, this only restricts the domain of the fields
-                self.byname(name)['domain'].apply(operator, values)
-                # condition data
-                self._condition_data(name, operator, values)
+        # condition model. actually, this only restricts the domain of the fields
+        for (name, operator, values) in pure_conditions:
+            self.byname(name)['domain'].apply(operator, values)
+        if self.mode != 'model':
+            data_ops.condition_data(self.data, pure_conditions)
         self._update_extents(names)
         return self
 
@@ -821,8 +872,6 @@ class Model:
             model_res = singular_res
         else:
             # 2. marginalize singular fields out
-            # TODO: use internal, faster version of marginalize / marginalizeout?
-            #submodel = self if len(singular_names) == 0 else self.copy()._marginalize(remove=singular_names)
             model = model if len(singular_names) == 0 else model._marginalize(keep=other_names, remove=singular_names)
 
             # 3. calculate 'unrestricted' aggregation on the remaining model
@@ -847,7 +896,7 @@ class Model:
         order of random variables in fields attribute of the model.
 
         Returns:
-            The aggregation of the model. It always returns a list, even if it contains only a single value.
+            The aggregation of the model as a sequence.
         """
         if self._isempty():
             raise ValueError('Cannot aggregate a 0-dimensional model')
@@ -862,107 +911,58 @@ class Model:
             return self.aggregate_data(method, opts)
         raise ValueError("invalid value for mode : ", str(mode))
 
-    def density(self, names, values=None):
-        """Returns the density at given point. You may either pass both, names
-        and values, or only one list with values. In the latter case values is
-        assumed to be in the same order as the random variables of the model.
+    def density(self, values=None, names=None):
+        """Returns the density at given point.
 
-        Also note that you may pass the special field with name 'model vs data'.
-        If the value is 'data' then it is interpreted as a density query against
-        the data, i.e. frequency of items is returned. If the value is 'model'
-        it is interpreted as a query against the model, i.e. density of input
-        is returned. If value is 'both' a 2-tuple of both is returned.
+         Args:
+            There are several ways to specify the arguments:
+            (1) A list of values in <values> and a list of dimensions names in <names>, with corresponding order. They need to be in the same order than the dimensions of this model.
+            (2) A list of values in <values> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
+            (2) A dict of key=name:value=value in <values>. <names> is ignored.
 
-        If you pass the 'model vs data' field, you must either also specify its name
-        or you must specify it as the last value.
+        Notes if supply the special field 'model vs data'.
+            * you must not use option (1) # TODO?
+            * if you use option (2): supply it as the last element of the domain list
+            * if you use option (3): use the key 'model vs data' for its domain
 
-        Args:
-            values: may be anything that numpy.array accepts to construct from.
+        You may pass a special field with name 'model vs data':
+          * If its value is 'data' then it is interpreted as a density query against the data, i.e. frequency of items is returned.
+          * If the value is 'model' it is interpreted as a query against the model, i.e. density of input is returned.
+          * If value is 'both' a 2-tuple of both is returned.
         """
-
-        # TODO: design: the way of handling the 'model vs data' field sucks ... how to do it better?
-        # TODO: also, this is a lot of code for just querying density!? we need a _fast_ way to do that,
-        # i.e. an interface that is used internally needs little preprocessing
-        # TODO/idea: different way of passing it in: as a dict of name-of-field : value ?
-
-        assert(len(set(names)) == len(names))
-
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
 
-        if values is not None and len(names) != len(values):
-            raise ValueError('Length of names and values does not match.')
-
+        # normalize parameters to ordered list form
         mode = self.mode
-        if len(names) != self.dim:
-            # it may be that the 'model vs data' field was passed in
-            if len(names) == self.dim+1:
-                if values is None:
-                    mode = names.pop()
-                else:
-                    names_ = []
-                    values_ = []
-                    # find 'model vs data' and rebuild accordingly shortened arguments
-                    for (name, value) in zip(names, values):
-                        if name == 'model vs data':
-                            mode = value
-                        else:
-                            names_.append(name)
-                            values_.append(value)
-                    names = names_
-                    values = values_
-            if len(set(names)) > self.dim:
-                raise ValueError('Incorrect number names/values provided. Require ' + str(self.dim) +
-                                 ' but got ' + str(len(names)) + '.')
-
-        if values is None:
-            # in that case the only argument holds the (correctly sorted) values
-            values = names
-        else:
-            # names and values need sorting
+        if isinstance(values, dict):
+            # dict was passed
+            if len(values) - ('model vs data' in values) != self.dim:
+                raise ValueError('Incorrect number of values given')
+            values = [values[name] for name in self.names]
+            mode = values.get('model vs data', self.mode)
+        elif names is not None and values is not None:
+            # unordered list was passed in. Not model vs data may be passed
+            if len(values) != len(names):
+                raise ValueError('Length of names and values does not match.')
+            elif len(set(names)) == len(names):
+                raise ValueError('Some name occurs twice.')
             sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
             values = [pair[1] for pair in sorted_]
+        elif len(values) == self.dim + 1:
+            # correctly ordered list was passed in, but with model vs data domain
+            mode = values[-1]
+            values = values[:-1]
+        else:
+            raise ValueError("Invalid number of values passed.")
 
         # data frequency
-        def filter_(df, conditions):
-            """ Apply all '==' filters in the sequence of conditions to given dataframe and return it."""
-            # TODO: do I need some general solution for the interval vs scalar problem?
-            for (col_name, value) in conditions:
-                try:
-                    if not isinstance(value, str):  # try to access its elements
-                        # TODO: this really is more difficult. in the future we want to support values like ['A', 'B']
-                        # TODO: I guess I should pass a (list of) Domain to the density-method in the first place
-                        # assuming interval for now
-                        df = df.loc[df[col_name].between(*value, inclusive=True)]
-                    else:
-                        df = df.loc[df[col_name] == value]
-                except TypeError:  # catch when expansion (*value) fails. its a scalar then...
-                    df = df.loc[df[col_name] == value]
-            return df
-
-        def reduce_to_scalars(values):
-            """Reduce all elements of values to scalars. Scalars will be kept. Intervals are reduced to its mean."""
-            v = []
-            for value in values:
-                # all of the todos in filter apply here as well...
-                try:
-                    if not isinstance(value, str):
-                        v.append((value[0]+value[1])/2)
-                    else:
-                        v.append(value)
-                except (TypeError, IndexError):
-                    v.append(value)
-            return v
-
-        # put debug / log code here
-        # TODO ??
-
         if mode == "both" or mode == "data":
-            cnt = len(filter_(self.data, zip(self.names, values)))
+            cnt = len(data_ops.condition_data(self.data, zip(self.names, ['=='] * self.dim, values)))
             if mode == "data":
                 return cnt
 
-        p = self._density(reduce_to_scalars(values))
+        p = self._density(data_ops.reduce_to_scalars(values))
         if mode == "model":
             return p
         elif mode == "both":
@@ -987,30 +987,94 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
+    def probability(self, domains=None, names=None):
         """
-        Returns the probability of an event.
-        
-        By default this uses an approximation. To implement it exactly or a different approximation for your model class reimplement the method _probability. 
-        
+        Returns the probability of given event.
+
+        By default this returns an approximation to the true probability. To implement it exactly or a different approximation for your model class reimplement the method _probability.
+
         Args:
             There are several ways to specify the arguments:
             (1) A list of domains in <domains> and a list of dimensions names in <names>, with corresponding order. They need to be in the same order than the dimensions of this model.
             (2) A list of domains in <domains> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
             (2) A dict of key=name:value=domain in <domains>. <names> is ignored.
-            
-            
+
+        You may pass a special field with name 'model vs data':
+          * you cannot use option (1) # TODO?
+          * if you use option (2): supply it as the last element of the domain list
+          * if you use option (3): use the key 'model vs data' for its domain
+          * If its value is 'data' then it is interpreted as a density query against the data, i.e. frequency of items is returned.
+          * If the value is 'model' it is interpreted as a query against the model, i.e. density of input is returned.
+          * If value is 'both' a 2-tuple of both is returned.
         """
-    def probability(self, domains=None, names=None):
-        # TODO: model vs data dimension?
+        if self._isempty():
+            raise ValueError('Cannot query density of 0-dimensional model')
+
         # normalize parameters to ordered list form
-        if isinstance(domains, dict):  # dict was passed
+        mode = self.mode
+        if isinstance(domains, dict):
+            # dict was passed
+            if len(domains) - ('model vs data' in domains) != self.dim:
+                raise ValueError('Incorrect number of values given')
             domains = [domains[name] for name in self.names]
-        elif names is not None and domains is not None:  # unordered list was passed in
+            mode = domains.get('model vs data', [self.mode])[0]
+        elif names is not None and domains is not None:
+            if len(domains) != len(names):
+                raise ValueError('Length of names and values does not match.')
+            elif len(set(names)) == len(names):
+                raise ValueError('Some name occurs twice.')
+            # unordered list was passed in. Not model vs data may be passed
             sorted_ = sorted(zip(self.asindex(names), domains), key=lambda pair: pair[0])
             domains = [pair[1] for pair in sorted_]
-        # else: correctly ordered list was passed in
-        #    pass
-        return self._probability(domains)
+        elif len(domains) == self.dim + 1:
+            # correctly ordered list was passed in, but with model vs data domain
+            mode = domains[-1][0]
+            domains = domains[:-1]
+        else:
+            raise ValueError("Invalid number of values passed.")
+
+        # data probability
+        if mode == "both" or mode == "data":
+            reduced_df = data_ops.condition_data(self.data, zip(self.names, ['in'] * self.dim, domains))
+            data_prob = len(reduced_df) / len(self.data)
+            if mode == "data":
+                return data_prob
+
+        # model probability
+        model_prob = self._probability(domains)
+        if mode == "model":
+            return model_prob
+        elif mode == "both":
+            return model_prob, data_prob
+        else:
+            raise ValueError("invalid value for mode : ", str(mode))
+
+    def _probability(self, domains):
+        cat_len = len(self._categoricals)
+        return self._probability_generic_mixed(domains[:cat_len], domains[cat_len:])
+
+    def _probability_generic_mixed(self, cat_domains, num_domains):
+        """
+        Returns an approximation to the probability of the given event.
+        This works generically for any model mixed model that stores categorical dimensions before numerical
+        dimensions. It is assumed that all domains are given in their respective order in the model.
+
+        Args:
+            list of domains of the event in correct order. Valid domains are:
+              * for categorical columns: a sequence of strings, e.g. ['A'], or ['A','B']
+              * for quantitative columns: a 2-element sequence or tuple, e.g. [1,2], or [1,1] or [2,6]
+                * if [l,h] is the interval, then neither l nor h may be +-infinity and it must hold l <= h
+        """
+        # volume of all combined each quantitative domains
+        vol = reduce(mul, [high - low for low, high in num_domains], 1)
+        # map quantitative domains to their mid
+        y = [(high + low) / 2 for low, high in num_domains]
+
+        # sum up density over all elements of the cartesian product of the categorical part of the event
+        # TODO: generalize
+        assert(all(len(d) == 1 for d in cat_domains))
+        x = list([d[0] for d in cat_domains])
+        return vol*self._density(x+y)
 
     def sample(self, n=1):
         """Returns n samples drawn from the model as a dataframe with suitable column names."""
@@ -1053,31 +1117,37 @@ class Model:
         mycopy._update_all_field_derivatives()
         return mycopy
 
-    def _condition_values(self, remove, pairflag=False):
+    def _condition_values(self, names=None, pairflag=False, to_scalar=True):
         """Returns the list of values to condition on given a sequence of random variable names to condition on.
         Essentially, this is a look up in the domain restrictions of the fields to be conditioned on.
 
         Args:
-            remove: sequence of random variable names
+            names: sequence of random variable names to get the conditioning domain for. If not given the condition values for all dimensions are returned.
             pairflag = False: Optional. If set True not a list of values but a zip-object of the names and the
              values to condition on is returned
+            to_scalar: flag to turn any non-scalar values to scalars.
         """
-        # TODO: we don't know yet how to condition on a not singular, but not unrestricted domain.
-        cond_values = []
-        for name in remove:
-            field = self.byname(name)
-            domain = field['domain']
-            dvalue = domain.value()
-            if not domain.isbounded():
-                raise ValueError("cannot condition random variables with not bounded domain!")
-            if field['dtype'] == 'numerical':
-                cond_values.append(dvalue if domain.issingular() else (dvalue[1] + dvalue[0]) / 2)
-            elif field['dtype'] == 'string':
-                cond_values.append(dvalue if domain.issingular() else dvalue[0])
-            else:
-                raise ValueError('invalid dtype of field: ' + str(field['dtype']))
+        if not to_scalar:
+            raise NotImplemented
+        fields = self.fields if names is None else self.byname(names)
+        # It's not obvious but this is aequivalent to the more detailed code below...
+        cond_values = [field['domain'].mid() for field in fields]
+        # cond_values = []
+        # for field in fields:
+        #     domain = field['domain']
+        #     dvalue = domain.value()
+        #     if not domain.isbounded():
+        #         raise ValueError("cannot condition random variables with not bounded domain!")
+        #     if field['dtype'] == 'numerical':
+        #         # TODO: I think this is wrong. I should solve this issue not here, but where the conditioning is actually applied!
+        #         cond_values.append(dvalue if domain.issingular() else (dvalue[1] + dvalue[0]) / 2)
+        #     elif field['dtype'] == 'string':
+        #         # TODO: I actually know how to apply such multi element conditions
+        #         cond_values.append(dvalue if domain.issingular() else dvalue[0])
+        #     else:
+        #         raise ValueError('invalid dtype of field: ' + str(field['dtype']))
 
-        return zip(remove, cond_values) if pairflag else cond_values
+        return zip(names, cond_values) if pairflag else cond_values
 
     @staticmethod
     def save(model, filename):
@@ -1101,16 +1171,17 @@ class Model:
         return
 
     def _update_extents(self, to_update=None):
-        """Updates self.extents of the fields with names in the sequence to_update. Updates all if to_update is None.
-        @fields
+        """Updates self.extents of the fields with names in the sequence to_update.
+        Updates all if to_update is None.
         """
         if to_update is None:
-            to_remove = self.names
-        to_update_idx = self.asindex(to_update)
-        for idx in to_update_idx:
-            field = self.fields[idx]
-            self.extents[idx] = field['domain'].bounded(field['extent'])
-        return self
+            self.extents = [field['domain'].bounded(field['extent']) for field in self.fields]
+        else:
+            to_update_idx = self.asindex(to_update)
+            for idx in to_update_idx:
+                field = self.fields[idx]
+                self.extents[idx] = field['domain'].bounded(field['extent'])
+            return self
 
     def _update_name2idx_dict(self):
         """Updates (i.e. recreates) the _name2idx dictionary from current self.fields."""
@@ -1126,10 +1197,8 @@ class Model:
 
         to_remove_idx = self.asindex(to_remove)
         # assert order of indexes
-        assert(all(to_remove_idx[i] <= to_remove_idx[i+1] for i in range(len(to_remove_idx)-1)))
+        assert (all(to_remove_idx[i] <= to_remove_idx[i + 1] for i in range(len(to_remove_idx) - 1)))
 
-        # TODO: I guess it is much faster to recreate that list ...
-        # however in the solution now we never change what object we reference to by self.name, ...
         for idx in reversed(to_remove_idx):
             del self.names[idx]
             del self.extents[idx]
@@ -1146,10 +1215,10 @@ class Model:
         self.dim = len(self.fields)
         self._update_name2idx_dict()
         self.names = [f['name'] for f in self.fields]
-        self.extents = [field['domain'].bounded(field['extent']) for field in self.fields]
+        self._update_extents()
         return self
 
-    def model(self, model='*', where=[], as_=None):
+    def model(self, model='*', where=None, as_=None):
         """Returns a model with name 'as_' that models the random variables in 'model'
         respecting conditions in 'where'.
 
@@ -1170,7 +1239,7 @@ class Model:
         self.name = self.name if as_ is None else as_
         return self.condition(where).marginalize(keep=model)
 
-    def predict(self, predict, where=[], splitby=[], returnbasemodel=False):
+    def predict(self, predict, where=None, splitby=None, returnbasemodel=False):
         """Calculates the prediction against the model and returns its result
         by means of a data frame.
 
@@ -1203,7 +1272,12 @@ class Model:
 
         if self._isempty():
             return pd.DataFrame()
-        #    return (pd.DataFrame(), pd.DataFrame()) if mode == 'both' else pd.DataFrame()
+
+        if where is None:
+            where = []
+        if splitby is None:
+            splitby = []
+        # return (pd.DataFrame(), pd.DataFrame()) if mode == 'both' else pd.DataFrame()
         idgen = utils.linear_id_generator()
 
         # How to handle the 'artificial field' 'model vs data':
@@ -1220,7 +1294,7 @@ class Model:
 
         # set default filter and split on 'model vs data' if necessary
         if 'model vs data' not in split_names \
-                and 'model vs data' not in filter_names\
+                and 'model vs data' not in filter_names \
                 and self.mode == 'both':
             where.append(('model vs data', '==', 'model'))
             filter_names.append('model vs data')
@@ -1251,7 +1325,6 @@ class Model:
                 basenames.add(name)
             else:
                 # t is an aggregation/density tuple
-                # TODO: test this
                 if t[NAME_IDX] == 'model vs data':
                     raise ValueError("Aggregations or Density queries on 'model vs data'-field are not possible")
                 id_ = _tuple2str(t) + next(idgen)
@@ -1272,7 +1345,6 @@ class Model:
         # for the current aggregation
 
         def _derive_aggregation_model(aggr):
-            #aggr_model = basemodel.copy()
             aggr_model = basemodel.copy(name=next(aggr_model_id_gen))
             if aggr[METHOD_IDX] == 'density':
                 return aggr_model.model(model=aggr[NAME_IDX])
@@ -1289,18 +1361,13 @@ class Model:
         else:
             def _get_group_frame(split, column_id):
                 # could be 'model vs data'
-                # TODO: does that really work? should I rather 'pimp' the 'byname' function? would that be consistent?
-                # REMOVE COMMENTS SOON
                 field = basemodel.byname(split[NAME_IDX])
-                #basemodel._modeldata_field if split[NAME_IDX] == 'model vs data' \
-                #else basemodel.byname(split[NAME_IDX])
-                # TODO: replace with self.extent ??
                 domain = field['domain'].bounded(field['extent'])
                 try:
                     splitfct = sp.splitter[split[METHOD_IDX].lower()]
                 except KeyError:
                     raise ValueError("split method '" + split[METHOD_IDX] + "' is not supported")
-                frame = pd.DataFrame({column_id: splitfct(domain.value(), split[ARGS_IDX])})
+                frame = pd.DataFrame({column_id: splitfct(domain.values(), split[ARGS_IDX])})
                 frame['__crossIdx__'] = 0  # need that index to cross join later
                 return frame
 
@@ -1331,8 +1398,8 @@ class Model:
         method2operator = {
             "equidist": "==",
             "equiinterval": "in",
-            "identity": "==",
-            "elements": "=="
+            "identity": "in",
+            "elements": "in"
         }
         operator_list = [method2operator[method] for (_, method, __) in splitby]
 
@@ -1340,9 +1407,16 @@ class Model:
         for idx, aggr in enumerate(aggrs):
             aggr_results = []
             aggr_model = aggr_models[idx]
+
+            # it depends on the split whether it is suitable to compute the density or the probability over the result of it
+            # i.e.: if we split into intervals, we need probability (which we will do most of the time)
+            # but if we split to points we need density (which would most of the time result in zero density on data)
+            # we need separate internal implementations of density and probability, but I think it would be nice
+            # if to the outside density accepts also intervals/sets and then just calls probability (and returns a probability)
+            # though, it's less clean...
+
             if aggr[METHOD_IDX] == 'density':
-                # TODO (1): this is inefficient because it recalculates the same value many times, when we split on more
-                #  than what the density is calculated on
+                # TODO (1): this is inefficient because it recalculates the same value many times, when we split on more than what the density is calculated on
                 # TODO: to solve it: calculate density only on the required groups and then join into the result table.
                 # TODO (2): .density also returns the frequency of the specified observation. Calculating it like this
                 #  is also super inefficient, since we really just need to group by all of the split-field and count
@@ -1350,39 +1424,24 @@ class Model:
                 #  frame for each call to density
                 # TODO (3) we even need special handling for the model/data field. See the density method.
                 # this is much too complicated. Somehow there must be an easier way to do all of this...
+                # by now I think we need a new 'type' of fields: artificial fields. We will anyway need this for
+                # hyperparameters like fitting params, etc. And we want a clean and eays and generic way to deal with them
                 try:
-                    # select relevant columns and iterate over it
-                    names = aggr[NAME_IDX]
+                    # select relevant columns in correct order and iterate over it
+                    names = self.sorted_names(aggr[NAME_IDX])
                     ids = [split_name2id[name] for name in names]
                     # if we split by 'model vs data' field we have to add this to the list of column ids
                     if 'model vs data' in splitnames_unique:
                         ids.append(split_name2id['model vs data'])
-                        # names = list(aggr[NAME_IDX])
                         names.append('model vs data')
                 except KeyError as err:
                     raise ValueError("missing split-clause for field '" + str(err) + "'.")
                 subframe = input_frame[ids]
 
-                # TODO: change interface: either list of values in order, or a dict.
-                # is it garantueed to be in order?
                 for row in subframe.itertuples(index=False):
-                    res = aggr_model.density(names, row)
+                    # res = aggr_model.density(values=row)
+                    res = aggr_model.probability(domains=row)
                     aggr_results.append(res)
-
-                # TODO: the normalization is incorrect: it must not normalize to 1, but to some slice
-                # normalize data frequency to data probability
-                # get view on data. there is two distinct cases that we need to worry about
-                aggr_results = pd.Series(aggr_results)
-                if 'model vs data' in splitnames_unique:
-                    # case 1: we split by 'model vs data'. need to select only the 'data' rows
-                    id = split_name2id['model vs data']
-                    mask = input_frame[id] == 'data'
-                    if mask.any():
-                        sum = aggr_results.loc[mask].sum()
-                        aggr_results.loc[mask] /= sum
-                elif basemodel.mode == 'data':
-                    # case 2: we filter 'model vs data' on 'data'
-                    aggr_results = aggr_results / aggr_results.sum()
 
             else:  # it is some aggregation
                 if len(splitby) == 0:
@@ -1392,7 +1451,7 @@ class Model:
                     if len(aggr[NAME_IDX]) != aggr_model.dim:  # debugging
                         raise ValueError("uh, interesting - check this out, and read the todo above this code line")
                     singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
-                    res = singlemodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX+1])
+                    res = singlemodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
                     # reduce to requested dimension
                     i = singlemodel.asindex(aggr[YIELDS_IDX])
                     aggr_results.append(res[i])
@@ -1403,7 +1462,7 @@ class Model:
                         # derive model for these specific conditions
                         rowmodel_name = aggr_model.name + next(row_id_gen)
                         rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
-                        res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX+1])
+                        res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
                         # reduce to requested dimension
                         i = rowmodel.asindex(aggr[YIELDS_IDX])
                         aggr_results.append(res[i])
@@ -1417,10 +1476,17 @@ class Model:
         # however, I cannot currently handle intervals on the client side easily
         # so we just turn it back into scalars
         def mean(entry):
-            return (entry[0]+entry[1])/2
+            return (entry[0] + entry[1]) / 2
+
         column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'equiinterval']
         for column in column_interval_list:
             input_frame[column] = input_frame[column].apply(mean)
+
+        # QUICK FIX2: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
+        column_interval_list = [split_name2id[name] for (name, method, __) in splitby if
+                                method == 'elements' or method == 'identity']
+        for column in column_interval_list:
+            input_frame[column] = input_frame[column].apply(lambda entry: entry[0])
 
         # (5) filter on aggregations?
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
@@ -1435,38 +1501,10 @@ class Model:
 
         return (data_frame, basemodel) if returnbasemodel else data_frame
 
-    def select_data(self, what, where=[], opts=None):
-        mask = [True]*len(self.data)
-        # iteratively build boolean selection mask
-        for (name, operator, values) in where:
-            operator = operator.lower()
-            column = self.data[name]
-            if operator == 'in':
-                dtype = self.byname(name)['dtype']
-                if dtype == 'numerical':
-                    # df = df.loc[column.between(*values, inclusive=True)]
-                    mask &= column.between(*values, inclusive=True)
-                elif dtype == 'string':
-                    # df = df.loc[column.isin(values)]
-                    mask &= column.isin(values)
-                else:
-                    raise TypeError("unsupported field type: " + str(dtype))
-            else:
-                # values is necessarily a single scalar value, not a list
-                if operator == 'equals' or operator == '==':
-                    # df = df.loc[column == values]
-                    mask &= column == values
-                elif operator == 'greater' or operator == '>':
-                    # df = df.loc[column > values]
-                    mask &= column > values
-                elif operator == 'less' or operator == '<':
-                    # df = df.loc[column < values]
-                    mask &= column < values
-                else:
-                    raise ValueError('invalid operator for condition: ' + str(operator))
-        return self.data.loc[mask, what]
+    def select_data(self, what, where=None, opts=None):
+        return data_ops.condition_data(self.data, where).loc[:, what]
 
-    def select(self, what, where=[], opts=None):
+    def select(self, what, where=None, opts=None):
         """Returns the selected attributes of all data items that satisfy the conditions as a
         pandas DataFrame.
         By default it selects data only, i.e. it will not return any samples from the model. It may, however, also
@@ -1477,6 +1515,8 @@ class Model:
         # check for empty queries
         if len(what) == 0:
             return pd.DataFrame()
+        if where is None:
+            where = []
 
         # if 'model vs data' is present as a filter the filter is respected: i.e. either one of them or both data is
         #  generated
@@ -1502,11 +1542,11 @@ class Model:
         # set default filter for 'model vs data'. Do not if 'model vs data' is in what, because that implies the query
         #  wants both
         if mvd_filter is None and 'model vs data' not in what:
-            mvd_filter = ConditionTuple('model vs data', "==", "data")
+            mvd_filter = Condition('model vs data', "==", "data")
 
         # TODO: !!!!!!!! !!!!!!!!! !!!!!!!!!!!! !!!!!!!!!!!!! #
         # DEBUG/DEVELOP: always set it to data only
-        mvd_filter = ConditionTuple('model vs data', "==", "data")
+        mvd_filter = Condition('model vs data', "==", "data")
 
         # now infer mode
         mode = dm.DiscreteDomain(['model', 'data'])

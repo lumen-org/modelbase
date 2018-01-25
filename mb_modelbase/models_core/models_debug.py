@@ -91,6 +91,7 @@ def aggregate_debug(self, method, opts=None):
 
 
 def density_debug(self, names, values=None):
+    raise NotImplemented("need to implement this again, since I changed the interface of density.")
     if values is None:
         # in that case the only argument holds the (correctly sorted) values
         name_strings = [md.field_to_str(field) for field in self.fields]

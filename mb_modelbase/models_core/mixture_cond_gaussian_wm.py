@@ -63,4 +63,4 @@ if __name__ == "__main__":
     model.set_k(2)
     model.fit(data)
     model.mode = "model"
-    print(str(model.density([1, 2, 3, 4])))
+    print(str(model.density(values=[1, 2, 3, 4])))
