@@ -273,7 +273,6 @@ class Model:
         return (self.__class__.__name__ + " " + self.name + "':\n" +
                 "dimension: " + str(self.dim) + "\n" +
                 "names: " + str([self.names]) + "\n")
-                # "names: " + str([self.names]) + "\n" +
                 # "fields: " + str([str(field) for field in self.fields]))
 
     def __short_str__(self, max_fields=5):
@@ -660,31 +659,6 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
-    # def _condition_data(self, name, operator, values):
-    #     """Conditions the data of the model according to given parameters. Returns nothing.
-    #     """
-    #     df = self.data  # shortcut
-    #     field = self.byname(name)
-    #     column = df[name]
-    #     if operator == 'in':
-    #         if field['dtype'] == 'numerical':
-    #             df = df.loc[column.between(*values, inclusive=True)]
-    #         elif field['dtype'] == 'string':
-    #             df = df.loc[column.isin(values)]
-    #         else:
-    #             raise TypeError("unsupported field type: " + str(field.dtype))
-    #     else:
-    #         # values is necessarily a single scalar value, not a list
-    #         if operator == 'equals' or operator == '==':
-    #             df = df.loc[column == values]
-    #         elif operator == 'greater' or operator == '>':
-    #             df = df.loc[column > values]
-    #         elif operator == 'less' or operator == '<':
-    #             df = df.loc[column < values]
-    #         else:
-    #             raise ValueError('invalid operator for condition: ' + str(operator))
-    #     self.data = df
-
     def condition(self, conditions=[], is_pure=False):
         """Conditions this model according to the list of three-tuples
         (<name-of-random-variable>, <operator>, <value(s)>). In particular
@@ -869,27 +843,15 @@ class Model:
             (2) A dict of key=name:value=value in <values>. <names> is ignored.
 
         Notes if supply the special field 'model vs data'.
-         * the domain must
-         you must
-            * not use option (1) # TODO?
+            * you must not use option (1) # TODO?
             * if you use option (2): supply it as the last element of the domain list
             * if you use option (3): use the key 'model vs data' for its domain
-
-         You may either pass both, names
-        and values, or only one list with values. In the latter case values is
-        assumed to be in the same order as the random variables of the model.
 
         Also note that you may pass the special field with name 'model vs data'.
         If the value is 'data' then it is interpreted as a density query against
         the data, i.e. frequency of items is returned. If the value is 'model'
         it is interpreted as a query against the model, i.e. density of input
-        is returned. If value is 'both' a 2-tuple of both is returned.
-
-        If you pass the 'model vs data' field, you must either also specify its name
-        or you must specify it as the last value.
-
-        Args:
-            values: may be anything that numpy.array accepts to construct from.
+        is returned. If value is 'both' a 2-tuple of both is returned..
         """
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
@@ -916,39 +878,6 @@ class Model:
             values = values[:-1]
         else:
             raise ValueError("Invalid number of values passed.")
-        #print("prob mode = ", str(mode))
-
-
-        # mode = self.mode
-        # if len(names) != self.dim:
-        #     # it may be that the 'model vs data' field was passed in
-        #     if len(names) == self.dim+1:
-        #         if values is None:
-        #             mode = names[-1:][0]
-        #             names = names[:-1]
-        #         else:
-        #             names_ = []
-        #             values_ = []
-        #             # find 'model vs data' and rebuild accordingly shortened arguments
-        #             for (name, value) in zip(names, values):
-        #                 if name == 'model vs data':
-        #                     mode = value
-        #                 else:
-        #                     names_.append(name)
-        #                     values_.append(value)
-        #             names = names_
-        #             values = values_
-        #     if len(names) > self.dim:
-        #         raise ValueError('Incorrect number names/values provided. Require ' + str(self.dim) +
-        #                          ' but got ' + str(len(names)) + '.')
-        #
-        # if values is None:
-        #     # in that case the only argument holds the (correctly sorted) values
-        #     values = names
-        # else:
-        #     # names and values need sorting
-        #     sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
-        #     values = [pair[1] for pair in sorted_]
 
         # data frequency
         if mode == "both" or mode == "data":
@@ -982,26 +911,26 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
+    def probability(self, domains=None, names=None):
         """
         Returns the probability of given event.
-        
-        By default this returns an approximation to the true probability. To implement it exactly or a different approximation for your model class reimplement the method _probability. 
-        
+
+        By default this returns an approximation to the true probability. To implement it exactly or a different approximation for your model class reimplement the method _probability.
+
         Args:
             There are several ways to specify the arguments:
             (1) A list of domains in <domains> and a list of dimensions names in <names>, with corresponding order. They need to be in the same order than the dimensions of this model.
             (2) A list of domains in <domains> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
             (2) A dict of key=name:value=domain in <domains>. <names> is ignored.
-            
+
         Notes if supply the special field 'model vs data'.
-         * the domain must 
-         you must 
+         * the domain must
+         you must
             * not use option (1) # TODO?
             * if you use option (2): supply it as the last element of the domain list
             * if you use option (3): use the key 'model vs data' for its domain
-            
+
         """
-    def probability(self, domains=None, names=None):
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
 
@@ -1135,16 +1064,17 @@ class Model:
         return
 
     def _update_extents(self, to_update=None):
-        """Updates self.extents of the fields with names in the sequence to_update. Updates all if to_update is None.
-        @fields
+        """Updates self.extents of the fields with names in the sequence to_update.
+        Updates all if to_update is None.
         """
         if to_update is None:
-            to_remove = self.names
-        to_update_idx = self.asindex(to_update)
-        for idx in to_update_idx:
-            field = self.fields[idx]
-            self.extents[idx] = field['domain'].bounded(field['extent'])
-        return self
+            self.extents = [field['domain'].bounded(field['extent']) for field in self.fields]
+        else:
+            to_update_idx = self.asindex(to_update)
+            for idx in to_update_idx:
+                field = self.fields[idx]
+                self.extents[idx] = field['domain'].bounded(field['extent'])
+            return self
 
     def _update_name2idx_dict(self):
         """Updates (i.e. recreates) the _name2idx dictionary from current self.fields."""
@@ -1180,7 +1110,7 @@ class Model:
         self.dim = len(self.fields)
         self._update_name2idx_dict()
         self.names = [f['name'] for f in self.fields]
-        self.extents = [field['domain'].bounded(field['extent']) for field in self.fields]
+        self._update_extents()
         return self
 
     def model(self, model='*', where=[], as_=None):
@@ -1323,13 +1253,12 @@ class Model:
             def _get_group_frame(split, column_id):
                 # could be 'model vs data'
                 field = basemodel.byname(split[NAME_IDX])
-                # TODO: replace with self.extent ??
                 domain = field['domain'].bounded(field['extent'])
                 try:
                     splitfct = sp.splitter[split[METHOD_IDX].lower()]
                 except KeyError:
                     raise ValueError("split method '" + split[METHOD_IDX] + "' is not supported")
-                frame = pd.DataFrame({column_id: splitfct(domain.value(), split[ARGS_IDX])})
+                frame = pd.DataFrame({column_id: splitfct(domain.values(), split[ARGS_IDX])})
                 frame['__crossIdx__'] = 0  # need that index to cross join later
                 return frame
 
@@ -1405,21 +1334,6 @@ class Model:
                     res = aggr_model.probability(domains=row)
                     aggr_results.append(res)
 
-                ## normalize data frequency to data probability
-                # get view on data. there is two distinct cases that we need to worry about
-                # TODO: the normalization is incorrect: it must not normalize to 1, but to some slice
-                # aggr_results = pd.Series(aggr_results)
-                # if 'model vs data' in splitnames_unique:
-                #     # case 1: we split by 'model vs data'. need to select only the 'data' rows
-                #     id = split_name2id['model vs data']
-                #     mask = input_frame[id] == 'data'
-                #     if mask.any():
-                #         sum = aggr_results.loc[mask].sum()
-                #         aggr_results.loc[mask] /= sum
-                # elif basemodel.mode == 'data':
-                #     # case 2: we filter 'model vs data' on 'data'
-                #     aggr_results = aggr_results / aggr_results.sum()
-
             else:  # it is some aggregation
                 if len(splitby) == 0:
                     # there is no fields to split by, hence only a single value will be aggregated
@@ -1473,35 +1387,6 @@ class Model:
 
     def select_data(self, what, where=[], opts=None):
         return data_ops.condition_data(self.data, where).loc[:,what]
-        # mask = [True]*len(self.data)
-        # # iteratively build boolean selection mask
-        # for (name, operator, values) in where:
-        #     operator = operator.lower()
-        #     column = self.data[name]
-        #     if operator == 'in':
-        #         dtype = self.byname(name)['dtype']
-        #         if dtype == 'numerical':
-        #             # df = df.loc[column.between(*values, inclusive=True)]
-        #             mask &= column.between(*values, inclusive=True)
-        #         elif dtype == 'string':
-        #             # df = df.loc[column.isin(values)]
-        #             mask &= column.isin(values)
-        #         else:
-        #             raise TypeError("unsupported field type: " + str(dtype))
-        #     else:
-        #         # values is necessarily a single scalar value, not a list
-        #         if operator == 'equals' or operator == '==':
-        #             # df = df.loc[column == values]
-        #             mask &= column == values
-        #         elif operator == 'greater' or operator == '>':
-        #             # df = df.loc[column > values]
-        #             mask &= column > values
-        #         elif operator == 'less' or operator == '<':
-        #             # df = df.loc[column < values]
-        #             mask &= column < values
-        #         else:
-        #             raise ValueError('invalid operator for condition: ' + str(operator))
-        # return self.data.loc[mask, what]
 
     def select(self, what, where=[], opts=None):
         """Returns the selected attributes of all data items that satisfy the conditions as a

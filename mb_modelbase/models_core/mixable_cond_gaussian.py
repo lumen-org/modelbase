@@ -581,7 +581,10 @@ class MixableCondGaussianModel(md.Model):
         Returns an approximation to the probability of the given event.
 
         Args:
-            list of domains of the event in correct order.
+            list of domains of the event in correct order. Valid domains are:
+              * for categorical columns: a sequence of strings, e.g. ['A'], or ['A','B']
+              * for quantitative columns: a 2-element sequence or tuple, e.g. [1,2], or [1,1] or [2,6]
+                * if [l,h] is the interval, then neither l nor h may be +-infinity and it must hold l <= h
         """
 
         # normalize to bounded domain values
@@ -600,16 +603,13 @@ class MixableCondGaussianModel(md.Model):
         # sum_ = 0 ...
 
         # for now assume that all categorical domains only have one element
+
         # TODO: generalize
         #assert(all(d.issingular() for d in cat_domains))
         # in this special case the cartesian product only has 1 element :)
-        if len(cat_domains) > 0:
-            print("hI")
-        #assert(all(len(d) == 1 for d in cat_domains))
-        #x = [d[0] for d in cat_domains]
+        assert(all(len(d) == 1 for d in cat_domains))
+        x = [d[0] for d in cat_domains]
         x = list(cat_domains)
-        print(x+y)
-        print(vol)
         return vol*self._density(x+y)
 
     def _maximum_mixable_cg_heuristic_b(self):
