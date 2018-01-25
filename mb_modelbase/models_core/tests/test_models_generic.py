@@ -35,24 +35,24 @@ import random
 
 import pandas as pd
 
-import domains as dm
-import models as md
-from mockup_model import MockUpModel
-from categoricals import CategoricalModel
-from gaussians import MultiVariateGaussianModel as GaussianModel
-from mixture_gaussians import MixtureOfGaussiansModel
-from cond_gaussians import ConditionallyGaussianModel as CGModel
-from cond_gaussian_wm import CgWmModel as CGWMModel
-from mixable_cond_gaussian import MixableCondGaussianModel as MCGModel
+import mb_modelbase.models_core.domains as dm
+import mb_modelbase.models_core.models as md
+from mb_modelbase.models_core.mockup_model import MockUpModel
+from mb_modelbase.models_core.categoricals import CategoricalModel
+from mb_modelbase.models_core.gaussians import MultiVariateGaussianModel as GaussianModel
+from mb_modelbase.models_core.mixture_gaussians import MixtureOfGaussiansModel
+from mb_modelbase.models_core.cond_gaussians import ConditionallyGaussianModel as CGModel
+from mb_modelbase.models_core.cond_gaussian_wm import CgWmModel as CGWMModel
+from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel as MCGModel
 
-import data.crabs.crabs as crabs
+#import data.crabs.crabs as crabs
 
-from utils import is_running_in_debug_mode
+from mb_modelbase.utils import is_running_in_debug_mode
 if is_running_in_debug_mode():
-    import models_debug
+    import mb_modelbase.models_core.models_debug
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 #logger.setLevel(logging.INFO)
 #logger.setLevel(logging.DEBUG)
 
@@ -272,7 +272,7 @@ _test_conditioning = {
 
 def test_all():
     # setup data for model training
-    df = crabs.mixed('data/crabs/australian-crabs.csv')
+    df = pd.read_csv('crabs.csv').drop(columns='index')
     all_, discrete, continuous = md.get_columns_by_dtype(df)
     data = {
         'discrete': pd.DataFrame(df, columns=discrete),

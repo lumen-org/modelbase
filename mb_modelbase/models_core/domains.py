@@ -71,16 +71,18 @@ class NumericDomain(Domain):
 #    def isbounded(self):
 #        return not self.issingular() and not self.isunbounded()
 
-    def bounded(self, extent):
+    def bounded(self, extent, value_flag=False):
         if not self.isbounded():
             [l, h] = self._value
             try:
                 [el, eh] = extent._value
             except AttributeError:
                 [el, eh] = extent
-            return NumericDomain(el if l == -math.inf else l, eh if h == math.inf else h)
+            l = el if l == -math.inf else l
+            h = eh if h == math.inf else h
+            return [l, h] if value_flag else NumericDomain(l, h)
         else:
-            return self
+            return self.values() if value_flag else self
 
     def value(self):
         return self._value[0] if self.issingular() else self._value
@@ -180,11 +182,15 @@ class DiscreteDomain(Domain):
     def isbounded(self):
         return self._value[0] != math.inf
 
-    def bounded(self, extent):
+    def bounded(self, extent, value_flag=False):
         if not self.isbounded():
-            return extent if isinstance(extent, DiscreteDomain) else DiscreteDomain(extent)
+            if isinstance(extent, DiscreteDomain):
+                return extent.values() if value_flag else extent
+            else:
+                return extent if value_flag else DiscreteDomain(extent)
+            # return extent if isinstance(extent, DiscreteDomain) else DiscreteDomain(extent)
         else:
-            return self
+            return self.values() if value_flag else self
 
     def value(self):
         return self._value[0] if self.issingular() else self._value

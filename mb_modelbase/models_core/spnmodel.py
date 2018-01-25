@@ -85,7 +85,6 @@ class SPNModel(Model):
       spncopy.index = self.index.copy()
       spncopy.nametoindex = self.nametoindex.copy()
       return spncopy
-       
 
 
 if __name__ == "__main__":
@@ -105,9 +104,9 @@ if __name__ == "__main__":
     spn2 = spn.copy()
     spn2._fit(iterations=1)
     print(spn2.index)
-    spn3 = spn2._marginalizeout([0], [1,2,3])
+    spn3 = spn2.marginalize([spn2.names[0]])
     print(spn3.index)
-    spn4 = spn3._conditionout([(1, 1.5)], [0, 2, 3])
+    spn4 = spn3.conditionout([(1, 1.5)])
     print(spn4.index)
     print(spn4._density([4.5, 1.8]))
     generateSPNPdf(spn._spnmodel, filename="img/test3")
