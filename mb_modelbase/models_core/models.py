@@ -955,8 +955,6 @@ class Model:
 
         # data probability
         if mode == "both" or mode == "data":
-            # TODO: apply range filters
-            # reduced_df = data_ops.point_condition_data(self.data, zip(self.names, domains))
             reduced_df = data_ops.condition_data(self.data, zip(self.names, ['in']*self.dim, domains))
             data_prob = len(reduced_df) / len(self.data)
             if mode == "data":
@@ -1209,7 +1207,6 @@ class Model:
                 basenames.add(name)
             else:
                 # t is an aggregation/density tuple
-                # TODO: test this
                 if t[NAME_IDX] == 'model vs data':
                     raise ValueError("Aggregations or Density queries on 'model vs data'-field are not possible")
                 id_ = _tuple2str(t) + next(idgen)
@@ -1283,8 +1280,8 @@ class Model:
         method2operator = {
             "equidist": "==",
             "equiinterval": "in",
-            "identity": "==",
-            "elements": "=="
+            "identity": "in",
+            "elements": "in"
         }
         operator_list = [method2operator[method] for (_, method, __) in splitby]
 

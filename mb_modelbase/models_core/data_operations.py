@@ -14,7 +14,7 @@ def condition_data(df, where):
         operator = operator.lower()
         column = df[name]
         if operator == 'in':
-            if column.dtype == 'object':  # categorical column
+            if column.dtype == 'object' or column.dtype.name == 'category':  # categorical column
                 # df = df.loc[column.isin(values)]
                 mask &= column.isin(values)
             else:  # quantitative column
@@ -26,7 +26,7 @@ def condition_data(df, where):
                 mask &= column == values
             elif operator == 'greater' or operator == '>':
                 # df = df.loc[column > values]
-                mask &= column > values
+                mask &= column >= values  # TODO: i use >= !!
             elif operator == 'less' or operator == '<':
                 # df = df.loc[column < values]
                 mask &= column < values
