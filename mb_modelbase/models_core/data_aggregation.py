@@ -123,7 +123,7 @@ def most_frequent(df):
     if len(grps) == 0:
         return [0] * n
     else:
-        data_res = grps.size().argmax()
+        data_res = grps.size().idxmax()
         return [data_res] if d == 1 else list(data_res)
 
 

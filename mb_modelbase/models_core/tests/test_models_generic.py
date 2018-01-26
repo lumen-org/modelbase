@@ -48,29 +48,8 @@ from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianMo
 #     import mb_modelbase.models_core.models_debug
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 #logger.setLevel(logging.INFO)
-#logger.setLevel(logging.DEBUG)
-
-# REGISTER ALL YOUR MODEL SUBCLASSES TO TEST HERE
-# model classes
-_models= {
-    'discrete': [],
-    'continuous': [],
-    'mixed': [MCGModel]
-}
-# _models= {
-    #'discrete': [MockUpModel, CategoricalModel],
-    # 'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
-    #'continuous': [MockUpModel, GaussianModel],
-    #'mixed': [CGModel, CGWMModel]
-    # 'mixed': [CGModel, CGWMModel, MCGModel]
-# }
-
-model_setup = {
-    ('continuous', MixtureOfGaussiansModel): lambda x: x.set_k(4)
-}
-
 
 def _values_of_extents(extents):
     """Returns a list of list, where each list consists of 'valid' values from the given extents.
@@ -88,6 +67,18 @@ def _values_of_extents(extents):
             [extent.values()[-1] for extent in extents],
             [middle(extent) for extent in extents]]
 
+
+# stateful flag to set which aggregations and densities are to be tested
+density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': True}
+
+def _test_all_density_and_aggregations(model, info):
+    use = density_aggregation_flags
+    if use['aggregations']:
+        _test_aggregations(model, info=info)
+    if use['density']:
+        _test_density(model, info=info)
+    if use['density_sum']:
+        test_density_sum(model, info=info)
 
 def _test_aggregations(model, info):
     """Computes all available aggregations on the given model.
@@ -108,6 +99,30 @@ def _test_density(model, info):
     values = _values_of_extents(model.extents)
     for value in values:
         p = model.density(values=value)
+
+
+def test_density_sum(model, info="", split_cnt=200, eps=0.05):
+    # Calculates the accumulated 1d density along this 1-dimensional model and succeeds iff this adds up to 1 +- eps.
+    if model.dim != 1:
+        # raise NotImplementedError('Currently this can only test density for 1d models/data')
+        return
+
+    logger.debug("(" + str(info) + ") Testing density sum of " + model.name)
+
+    f = model.fields[0]
+
+    def check_for_mode(mode):
+        p = model.predict(predict=[md.Density(f)],
+                          splitby=[md.Split(f, args=split_cnt)],
+                          where=[md.Condition('model vs data', "==", mode)])
+        p_sum = p.sum().values
+        if abs(p_sum - 1) > eps:
+            raise AssertionError(str(mode) + " prob does not add up to 1. It is " + str(p_sum))
+
+    if model.mode == 'both' or model.mode == 'data':
+        check_for_mode('data')
+    if model.mode == 'both' or model.mode == 'model':
+        check_for_mode('model')
 
 
 def _test_marginalization_mixed(model, depth, info):
@@ -139,8 +154,7 @@ def _test_marginalization_mixed(model, depth, info):
             m = m.model(names_to_keep)
 
             # try aggregations and density
-            _test_aggregations(m, info)
-            _test_density(m, info)
+            _test_all_density_and_aggregations(m, info)
 
             # recurse down?
             if depth > 0:
@@ -169,8 +183,7 @@ def _test_marginalization_discrete(model, depth, info):
         m = m.model(names_to_keep)
 
         # try aggregations and density
-        _test_aggregations(m, info)
-        _test_density(m, info)
+        _test_all_density_and_aggregations(m, info)
 
         # recurse down?
         if depth > 0:
@@ -219,8 +232,7 @@ def _test_conditioning_mixed(model, depth, info):
                 m = model.copy().model(model=names_to_keep, where=conditions)
 
                 # try aggregations and density
-                _test_aggregations(m, info)
-                _test_density(m, info)
+                _test_all_density_and_aggregations(m, info)
 
                 # recurse down?
                 if depth > 0:
@@ -249,8 +261,7 @@ def _test_conditioning_discrete(model, depth, info):
             m = model.copy().model(model=names_to_keep, where=conditions)
 
             # try aggregations and density
-            _test_aggregations(m, info)
-            _test_density(m, info)
+            _test_all_density_and_aggregations(m, info)
 
             # recurse down?
             if depth > 0:
@@ -266,46 +277,102 @@ _test_conditioning = {
 }
 
 
-def test_all():
+def _test_all(models, models_setup, data, depth, mvd='model'):
+    assert(mvd == 'model' or mvd == 'data')
+    for mode in ['discrete', 'continuous', 'mixed']:
+        for model_class in models[mode]:
+            # create and fit model
+            model = model_class(name=model_class.__name__)
+
+            # additional setup?
+            if (mode, model_class) in models_setup:
+                (models_setup[(mode, model_class)])(model)  # call it!
+
+            # set data
+            model.set_data(df=data[mode])
+
+            # if model mode, also fit model
+            if mvd == 'model':
+                model.fit()
+
+            # set to mode
+            model.mode = mvd
+
+            # test aggregations and such
+            _test_all_density_and_aggregations(model, info="")
+
+            # derive other models
+            _test_marginalization[mode](model, depth, info="")
+            _test_conditioning[mode](model, depth, info="")
+
+
+if __name__ == '__main__':
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    logger.addHandler(ch)
+    logging.root.setLevel(logger.level)
+
+    # special model setup?
+    models_setup = {
+        ('continuous', MixtureOfGaussiansModel): lambda x: x.set_k(4)
+    }
+
     # setup data for model training
     df = pd.read_csv('crabs.csv').drop(columns='index')
+    all_, discrete, continuous = md.get_columns_by_dtype(df)
+    data_full = {
+        'discrete': pd.DataFrame(df, columns=discrete),
+        'continuous': pd.DataFrame(df, columns=continuous),
+        'mixed': df
+    }
+
+    ## mockup model tests for MODEL and DATA
+    models = {
+        'discrete': [MockUpModel],
+        'continuous': [MockUpModel],
+        'mixed': []
+    }
+    density_aggregation_flags = {'aggregations': True, 'density': False, 'density_sum': False}
+    # _test_all(models, models_setup, data_full, depth=3, mvd='data')
+    # _test_all(models, models_setup, data_full, depth=3)
+
+
+    ## dedicated MCG model test for MODEL and DATA
+    models = {
+        'discrete': [],
+        'continuous': [],
+        'mixed': [MCGModel]
+    }
+    density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': False}
+    _test_all(models, models_setup, data_full, depth=3, mvd='data')
+    #_test_all(models, models_setup, data_full, depth=3)
+
+    ## dedicated density_sum test
+    df = pd.read_csv('crabs.csv', usecols=['sex', 'RW'])
     all_, discrete, continuous = md.get_columns_by_dtype(df)
     data = {
         'discrete': pd.DataFrame(df, columns=discrete),
         'continuous': pd.DataFrame(df, columns=continuous),
         'mixed': df
     }
+    density_aggregation_flags = {'aggregations': False, 'density': False, 'density_sum': True}
+    _test_all(models, models_setup, data, depth=2)
 
-    # set recursive depth
-    depth = 3
-
-    for mode in ['discrete', 'continuous', 'mixed']:
-        for model_class in _models[mode]:
-            # create and fit model
-            model = model_class(name=model_class.__name__)
-
-            # additional setup?
-            if (mode, model_class) in model_setup:
-                (model_setup[(mode, model_class)])(model)  # call it!
-
-            model.fit(df=data[mode])
-
-            # only model requests
-            model.mode = "model"
-
-            # test model
-            _test_aggregations(model, "")
-            _test_density(model, "")
-            _test_marginalization[mode](model, depth, "")
-            _test_conditioning[mode](model, depth, "")
+    # _models= {
+    #     'discrete': [MockUpModel, CategoricalModel],
+    #     'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
+    #     'continuous': [MockUpModel, GaussianModel],
+    #     'mixed': [CGModel, CGWMModel],
+    #     'mixed': [CGModel, CGWMModel, MCGModel]
+    # }
 
 
-if __name__ == '__main__':
 
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    logger.addHandler(ch)
 
-    logging.root.setLevel(logger.level)
 
-    test_all()
+
+
+
+
+
+

@@ -72,7 +72,7 @@ def _fix_args(fct, *args):
 
 def _density_mixture_cg(num, mu_, invS_, detS_, p_):
     """ Returns the density at num of the mixture of gaussian given by numpy arrays (not xarray)."""
-    assert(len(num)>  0)
+    assert(len(num) > 0)
     n = p_.size  # number of single gaussians in the cg
     m = len(num)  # gaussian dimension
     prefactor = (2 * pi) ** (-m / 2)  # needed several times below
@@ -314,7 +314,7 @@ class MixableCondGaussianModel(md.Model):
         return ()
 
     def _fit(self, **kwargs):
-        assert (self.mode != 'none')
+        assert (self.mode is not None)
         validate_opts(kwargs, __class__._fit_opts_allowed)
         self.opts.update(kwargs)
 
@@ -374,6 +374,8 @@ class MixableCondGaussianModel(md.Model):
 
     def _update(self):   # mostly like CG WM, but different update for _detS
         """Updates dependent parameters / precalculated values of the model after some internal changes."""
+        if self.mode == 'data':
+            return self
         if len(self._numericals) == 0:
             self._S = xr.DataArray([])
             self._SInv = xr.DataArray([])
@@ -683,7 +685,7 @@ class MixableCondGaussianModel(md.Model):
         mycopy._marginalized = self._marginalized.copy()
         mycopy._marginalized_mask = self._marginalized_mask.copy()
         mycopy.opts = self.opts.copy()
-        if self.opts['normalized']:
+        if self.opts['normalized'] and self.mode != 'data':
             mycopy._normalizer = self._normalizer.copy(mycopy)
         mycopy._update()
         return mycopy
