@@ -72,7 +72,7 @@ def _fix_args(fct, *args):
 
 def _density_mixture_cg(num, mu_, invS_, detS_, p_):
     """ Returns the density at num of the mixture of gaussian given by numpy arrays (not xarray)."""
-    assert(len(num)>  0)
+    assert(len(num) > 0)
     n = p_.size  # number of single gaussians in the cg
     m = len(num)  # gaussian dimension
     prefactor = (2 * pi) ** (-m / 2)  # needed several times below
