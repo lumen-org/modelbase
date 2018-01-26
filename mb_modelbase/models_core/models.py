@@ -43,7 +43,7 @@ NAME_IDX = 0
 METHOD_IDX = 1
 YIELDS_IDX = 2
 ARGS_IDX = 2
-Condition = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
+ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
 OP_IDX = 1
 VALUE_IDX = 2
 
@@ -111,6 +111,10 @@ def Aggregation(base, method='maximum', yields=None, args=None):
     if args is None:
         args = []
     return AggregationTuple(name, method, yields, args)
+
+
+def Condition(base, operator, value):
+    return ConditionTuple(_name_from_field(base), operator, value)
 
 
 def Density(base):
@@ -445,7 +449,7 @@ class Model:
         self._fields_set_empty()
         self.data = pd.DataFrame([])
         self._aggrMethods = None
-        self.mode = "empty"
+        self.mode = None
         self._modeldata_field = _Modeldata_field()
 
     def _setempty(self):
@@ -619,7 +623,7 @@ class Model:
         if df is not None:
             return self.set_data(df).fit(**kwargs)
 
-        if df is None and self.mode != 'data':
+        if self.data is None and self.mode != 'data':
             raise ValueError(
                 'No data frame to fit to present: pass it as an argument or set it before using set_data(df)')
 
@@ -706,6 +710,8 @@ class Model:
         # Data marginalization
         if self.mode == 'both' or self.mode == 'data':
             self.data = self.data.loc[:, keep]
+            if self.mode == 'data':
+                return self
 
         # Model marginalization
         # there are three cases of marginalization:
@@ -949,6 +955,9 @@ class Model:
                 raise ValueError('Some name occurs twice.')
             sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
             values = [pair[1] for pair in sorted_]
+        elif len(values) == self.dim:
+            # correctly ordered list was passed in, without model vs data domain
+            pass
         elif len(values) == self.dim + 1:
             # correctly ordered list was passed in, but with model vs data domain
             mode = values[-1]
@@ -1026,6 +1035,9 @@ class Model:
             # unordered list was passed in. Not model vs data may be passed
             sorted_ = sorted(zip(self.asindex(names), domains), key=lambda pair: pair[0])
             domains = [pair[1] for pair in sorted_]
+        elif len(domains) == self.dim:
+            # correctly ordered list was passed in, without model vs data domain
+            pass
         elif len(domains) == self.dim + 1:
             # correctly ordered list was passed in, but with model vs data domain
             mode = domains[-1][0]
@@ -1105,12 +1117,12 @@ class Model:
 
     def _defaultcopy(self, name=None):
         """Returns a new model of the same type with all instance variables of the abstract base model copied:
-          * data (a reference to it)
+          * data (a reference to it!!!) # CURRENTLY: copied!
           * fields (deep copy)
         """
         name = self.name if name is None else name
         mycopy = self.__class__(name)
-        mycopy.data = self.data
+        mycopy.data = self.data.copy()
         mycopy.fields = cp.deepcopy(self.fields)
         mycopy.mode = self.mode
         mycopy._modeldata_field = cp.deepcopy(self._modeldata_field)
@@ -1436,7 +1448,7 @@ class Model:
                         names.append('model vs data')
                 except KeyError as err:
                     raise ValueError("missing split-clause for field '" + str(err) + "'.")
-                subframe = input_frame[ids]
+                subframe = input_frame.loc[:,ids]
 
                 for row in subframe.itertuples(index=False):
                     # res = aggr_model.density(values=row)
