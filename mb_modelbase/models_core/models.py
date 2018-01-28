@@ -629,11 +629,12 @@ class Model:
 
         try:
             callbacks = self._fit(**kwargs)
+            self.mode = "both"
+            #self._update_all_field_derivatives()
             for callback in callbacks:
                 callback()
         except NameError:
             raise NotImplementedError("You have to implement the _fit method in your model!")
-        self.mode = "both"
         return self
 
     def marginalize(self, keep=None, remove=None, is_pure=False):
@@ -709,11 +710,16 @@ class Model:
 
         # Data marginalization
         if self.mode == 'both' or self.mode == 'data':
+            # this MUST copy or models break! this is because we do NOT copy data with _defaultcopy
+            # nope. we never need to copy data. creating views is enough.
             self.data = self.data.loc[:, keep]
+            #self.data = self.data.loc[:, keep].copy()
             if self.mode == 'data':
+                self._update_remove_fields(remove)
                 return self
 
         # Model marginalization
+        # we only get here, if self.mode != 'data
         # there are three cases of marginalization:
         # (1) unrestricted domain, (2) restricted, but not singular domain, (3) singular domain
         # we handle case (2) and (3) in ._conditionout, then case (1) in ._marginalizeout
@@ -724,13 +730,11 @@ class Model:
                 callback()
             remove = self.inverse_names(keep, sorted_=True)  # do it again, because fields may have changed
 
-        if len(keep) == self.dim or self._isempty():
-            return self
-
-        callbacks = self._marginalizeout(keep, remove)
-        self._update_remove_fields(remove)
-        for callback in callbacks:
-            callback()
+        if len(keep) != self.dim and not self._isempty():
+            callbacks = self._marginalizeout(keep, remove)
+            self._update_remove_fields(remove)
+            for callback in callbacks:
+                callback()
         return self
 
     def _marginalizeout(self, keep, remove):
@@ -781,6 +785,18 @@ class Model:
             for condition in conditions:
                 (name, operator, values) = condition
                 if name == 'model vs data':
+                    # TODO: need clean handling of such meta-attribute/fields
+                    # TODO: right now there seems no clean sync between self.mode and self._modeldata_field
+                    # TODO: I think self.mode should not be assignable from outside?
+                    # allowed = self._modeldata_field['domain'].values()
+                    # if values not in allowed:
+                    #     raise ValueError("conditioning ", + str(allowed) + " on " + str(values) + " impossile!")
+                    # if self.mode == 'both':
+                    #     self.mode = values
+                    # elif self.mode == values:
+                    #     pass
+                    # else:
+                    #     raise ValueError("conditioning ", + str(self.mode) + " on " + str(values) + " impossile!")
                     domain = self._modeldata_field['domain']
                     domain.apply(operator, values)
                     # set internal mode accordingly to both, data or model
@@ -794,7 +810,7 @@ class Model:
         for (name, operator, values) in pure_conditions:
             self.byname(name)['domain'].apply(operator, values)
         if self.mode != 'model':
-            data_ops.condition_data(self.data, pure_conditions)
+            self.data = data_ops.condition_data(self.data, pure_conditions)
         self._update_extents(names)
         return self
 
@@ -971,7 +987,8 @@ class Model:
             if mode == "data":
                 return cnt
 
-        p = self._density(data_ops.reduce_to_scalars(values))
+        #p = self._density(data_ops.reduce_to_scalars(values))
+        p = self._density(values)
         if mode == "model":
             return p
         elif mode == "both":
@@ -1200,7 +1217,7 @@ class Model:
         self._name2idx = dict(zip([f['name'] for f in self.fields], range(self.dim)))
 
     def _update_remove_fields(self, to_remove=None):
-        """Removes the fields in the sequence to_remove (and correspondingly derived structure) from self.fields.
+        """Removes the fields in the sequence to_remove (and correspondingly derived structures) from self.fields.
          Removes all if to_remove is None
          @fields
         """
@@ -1308,9 +1325,9 @@ class Model:
         if 'model vs data' not in split_names \
                 and 'model vs data' not in filter_names \
                 and self.mode == 'both':
-            where.append(('model vs data', '==', 'model'))
+            where.append(Condition('model vs data', '==', 'model'))
             filter_names.append('model vs data')
-            splitby.append(('model vs data', 'identity', []))
+            splitby.append(Split('model vs data', 'identity', []))
             split_names.append('model vs data')
 
         # (1) derive base model, i.e. a model on all requested dimensions and measures, respecting filters

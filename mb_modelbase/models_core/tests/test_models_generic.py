@@ -130,8 +130,8 @@ def _test_marginalization_mixed(model, depth, info):
     depth -= 1
     info += "m"
     # categorical and continuous names
-    cat = model._categoricals
-    num = model._numericals
+    cat = [f['name'] for f in model.fields if f['dtype'] == 'string']
+    num = [f['name'] for f in model.fields if f['dtype'] == 'numerical']
 
     # run marginalize queries
     # loop over number of fields to remove at once: 1 to model.dim-1 many
@@ -205,9 +205,8 @@ def _test_conditioning_mixed(model, depth, info):
     info += "c"
 
     # categorical and continuous names
-    # Note: this assumes, that all mixed models have these protected attributes!
-    cat = model._categoricals
-    num = model._numericals
+    cat = [f['name'] for f in model.fields if f['dtype'] == 'string']
+    num = [f['name'] for f in model.fields if f['dtype'] == 'numerical']
 
     # run condition queries
     # loop over number of fields to condition out at once: 1 to model.dim-1 many
@@ -333,8 +332,8 @@ if __name__ == '__main__':
         'mixed': []
     }
     density_aggregation_flags = {'aggregations': True, 'density': False, 'density_sum': False}
-    # _test_all(models, models_setup, data_full, depth=3, mvd='data')
-    # _test_all(models, models_setup, data_full, depth=3)
+    #_test_all(models, models_setup, data_full, depth=3, mvd='data')
+    #_test_all(models, models_setup, data_full, depth=3)
 
 
     ## dedicated MCG model test for MODEL and DATA
@@ -344,7 +343,7 @@ if __name__ == '__main__':
         'mixed': [MCGModel]
     }
     density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': False}
-    _test_all(models, models_setup, data_full, depth=3, mvd='data')
+    #_test_all(models, models_setup, data_full, depth=3, mvd='data')
     #_test_all(models, models_setup, data_full, depth=3)
 
     ## dedicated density_sum test
@@ -356,7 +355,7 @@ if __name__ == '__main__':
         'mixed': df
     }
     density_aggregation_flags = {'aggregations': False, 'density': False, 'density_sum': True}
-    _test_all(models, models_setup, data, depth=2)
+    # _test_all(models, models_setup, data, depth=2)
 
     # _models= {
     #     'discrete': [MockUpModel, CategoricalModel],

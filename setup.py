@@ -17,5 +17,6 @@ setup(name='mb_modelbase',
           'scipy',
 		  'flask',
 		  'flask-cors',
+		  'graphviz',
       ],
       zip_safe=False)
