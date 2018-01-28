@@ -1079,7 +1079,11 @@ class Model:
             raise ValueError("invalid value for mode : ", str(mode))
 
     def _probability(self, domains):
-        cat_len = len(self._categoricals)
+        try:
+            cat_len = len(self._categoricals)
+        except AttributeError:
+            # self._categoricals might not be implemented in a particular model. this is the fallback:
+            cat_len = sum(f['dtype'] == 'string' for f in self.fields)
         return self._probability_generic_mixed(domains[:cat_len], domains[cat_len:])
 
     def _probability_generic_mixed(self, cat_domains, num_domains):
