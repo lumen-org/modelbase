@@ -94,7 +94,7 @@ class SPNModel(Model):
     def copy(self, name=None):
       spncopy = super()._defaultcopy(name)
       
-      spncopy.model = cp.deepcopy(self.model)
+      spncopy._spnmodel = cp.deepcopy(self._spnmodel)
       spncopy.params = cp.deepcopy(self.params)
       spncopy.variables = self.variables
       spncopy.numcomp = self.numcomp
