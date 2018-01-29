@@ -105,7 +105,7 @@ class SPNModel(Model):
 
 if __name__ == "__main__":
     from sklearn.datasets import load_iris
-    from mb_modelbase.models_core.spn import generateSPNPdf
+
 
     iris = load_iris()
 
@@ -113,17 +113,9 @@ if __name__ == "__main__":
                         columns=iris['feature_names'])
 
     spn = SPNModel("test")
+    spn.set_data(data)
+    spn._fit()
+    x = spn.aggregate("maximum")
 
-    spn._set_data(data)
-    spn._fit(iterations=0)
-    generateSPNPdf(spn._spnmodel, filename="img/test1")
-    spn2 = spn.copy()
-    spn2._fit(iterations=1)
-    print(spn2.index)
-    spn3 = spn2.marginalize([spn2.names[0]])
-    print(spn3.index)
-    spn4 = spn3.conditionout([(1, 1.5)])
-    print(spn4.index)
-    print(spn4._density([4.5, 1.8]))
-    generateSPNPdf(spn._spnmodel, filename="img/test3")
-    generateSPNPdf(spn2._spnmodel, filename="img/test2")
+
+    
