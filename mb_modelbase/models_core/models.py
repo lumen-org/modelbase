@@ -768,8 +768,12 @@ class Model:
         """
         if conditions is None:
             conditions = []
-        # TODO: simplify the interface?
+		
+        if isinstance(conditions, tuple):
+            conditions = [conditions]
 
+        # TODO: simplify the interface?
+		
         # can't do that because I want to allow a zip object as conditions...
         # if len(conditions) == 0:
         #     return self
@@ -1301,8 +1305,16 @@ class Model:
             for model queries and data queries.
         """
         # TODO: add default splits for each data type?
-        # TODO: improve interface: allow scalar arguments instead of lists too
 
+        if isinstance(predict, (str, tuple)):
+            predict = [predict]
+        
+        if isinstance(where, tuple):
+            where = [where]
+        
+        if isinstance(splitby, tuple):
+            splitby = [splitby]
+        
         if self._isempty():
             return pd.DataFrame()
 
