@@ -16,14 +16,10 @@ from random import shuffle
 
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core.mockup_model import MockUpModel
+from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
 
 # load data
-from mb_modelbase.models_core.tests import crabs
-_crabs_mixed = crabs.mixed()
-_crabs_cat = crabs.continuous()
-_crabs_num = crabs.categorical()
-
-from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
+from mb_modelbase.models_core.tests import test_crabs
 
 # class TestDensity(unittest.TestCase):
 #     """Test the model.probability method."""
@@ -176,4 +172,7 @@ class TestAllModels(unittest.TestCase):
             self.assertEqual(model.mode, 'both')
 
 if __name__ == '__main__':
+    _crabs_mixed = test_crabs.mixed()
+    _crabs_cat = test_crabs.continuous()
+    _crabs_num = test_crabs.categorical()
     unittest.main()
