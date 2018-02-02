@@ -1208,7 +1208,7 @@ class PiecewiseLinearPDFNode(Node):
     @jit
     def eval(self, data, index=None):
         if index is not None and index[self.featureIdx] is True:
-           return 1
+           return [1]
         else:
            if index is not None:
               data = np.array([index[self.featureIdx]])
@@ -1238,7 +1238,7 @@ class PiecewiseLinearPDFNode(Node):
    
            # print(self.featureIdx, self.name, result)
            # result[np.logical_or(lt, mt)] = LOG_ZERO
-   
+                      
            return np.logaddexp(self.log_prior_weight + self.log_prior_density,
                                np.log(1 - self.prior_weight) + result)
            # return np.log(self.prior_weight * self.prior_density +
@@ -1248,7 +1248,8 @@ class PiecewiseLinearPDFNode(Node):
            #     print('\n\n\n\nPIECEWISE gets zero ll\n')
            #     print(self)
            #     print(np.nonzero(result == LOG_ZERO))
-   
+           
+           
            return result
 
     def mpe_eval(self, data):

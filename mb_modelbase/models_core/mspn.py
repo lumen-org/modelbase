@@ -65,11 +65,9 @@ class MSPNModel(Model):
        return []
 
     def _density(self, x):
-        print(self.index, x)
         j = 0
         tmp = self.index.copy()
         for i in tmp.keys():
-            print(tmp)
             if tmp[i] is None:
                 tmp[i] = x[j]
                 j += 1
@@ -108,12 +106,11 @@ if __name__ == "__main__":
     data = pd.DataFrame(data=np.c_[iris['data']],
                         columns=iris['feature_names'])
     
-    mspn = MSPNModel("Iris")
+    mspn = MSPNModel("Iris", featureTypes=["continuous"]*4)
     mspn.set_data(data)
     mspn.fit()
-    data2 = np.array([[4.4, 4.4, 4.4,  2.3]])
-    print(np.exp(mspn._mspnmodel.eval(data2)))
-    data2 = np.array([4.4, 4.4, 4.4,  2.3])
+    mspn.marginalize(remove=[mspn.names[0]])
+    data2 = np.array([4.4, 4.4, 2.3]) #, 1.0])
     print(mspn._density(data2))
     
     #c.save_pdf_graph("asdjh2.pdf")
