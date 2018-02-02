@@ -16,24 +16,24 @@ from sklearn.cluster.dbscan_ import DBSCAN
 from sklearn.cluster.k_means_ import KMeans
 from sklearn.feature_extraction.text import TfidfTransformer
 
-from mlutils.LSH import above, make_planes
-from mlutils.benchmarks import Chrono
-from mlutils.stabilityTest import getIndependentGroupsStabilityTest
-from mlutils.statistics import get_local_minimum
-from pdn.ABPDN import ABPDN
-from pdn.independenceptest import getIndependentGroups, getIndependentRDCGroups
-from pdn.mixedClustering import getMixedGowerClustering
-from tfspn.histogram import getHistogramVals
-from tfspn.piecewise import piecewise_linear_approximation, estimate_bins, \
+from mb_modelbase.models_core.mspn.mlutils.LSH import above, make_planes
+from mb_modelbase.models_core.mspn.mlutils.benchmarks import Chrono
+from mb_modelbase.models_core.mspn.mlutils.stabilityTest import getIndependentGroupsStabilityTest
+from mb_modelbase.models_core.mspn.mlutils.statistics import get_local_minimum
+from mb_modelbase.models_core.mspn.pdn.ABPDN import ABPDN
+from mb_modelbase.models_core.mspn.pdn.independenceptest import getIndependentGroups, getIndependentRDCGroups
+from mb_modelbase.models_core.mspn.pdn.mixedClustering import getMixedGowerClustering
+from mb_modelbase.models_core.mspn.tfspn.histogram import getHistogramVals
+from mb_modelbase.models_core.mspn.tfspn.piecewise import piecewise_linear_approximation, estimate_bins, \
     estimate_domains, estimate_domains_range, compute_histogram
-from tfspn.rdc import getIndependentGDTGroups_py
-from tfspn.rdc import getIndependentRDCGroups_py, rdc_transformer
-from tfspn.tfspn import SumNode, ProductNode, PoissonNode, GaussianNode, BernoulliNode
-from tfspn.tfspn import CategoricalNode
-from tfspn.tfspn import PiecewiseLinearPDFNodeOld, PiecewiseLinearPDFNode, IsotonicUnimodalPDFNode, HistNode, KernelDensityEstimatorNode
-from tfspn.piecewise import compute_histogram_type_wise
-from tfspn.piecewise import piecewise_linear_to_unimodal_isotonic
-from tfspn.piecewise import histogram_to_piecewise_linear_type_wise
+from mb_modelbase.models_core.mspn.tfspn.rdc import getIndependentGDTGroups_py
+from mb_modelbase.models_core.mspn.tfspn.rdc import getIndependentRDCGroups_py, rdc_transformer
+from mb_modelbase.models_core.mspn.tfspn.tfspn import SumNode, ProductNode, PoissonNode, GaussianNode, BernoulliNode
+from mb_modelbase.models_core.mspn.tfspn.tfspn import CategoricalNode
+from mb_modelbase.models_core.mspn.tfspn.tfspn import PiecewiseLinearPDFNodeOld, PiecewiseLinearPDFNode, IsotonicUnimodalPDFNode, HistNode, KernelDensityEstimatorNode
+from mb_modelbase.models_core.mspn.tfspn.piecewise import compute_histogram_type_wise
+from mb_modelbase.models_core.mspn.tfspn.piecewise import piecewise_linear_to_unimodal_isotonic
+from mb_modelbase.models_core.mspn.tfspn.piecewise import histogram_to_piecewise_linear_type_wise
 
 
 numpy.set_printoptions(threshold=numpy.inf)
