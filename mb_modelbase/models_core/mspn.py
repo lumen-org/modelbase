@@ -6,9 +6,12 @@ Created on Fri Jan 26 15:48:00 2018
 @author: julien
 @email: julien.klaus@uni-jena.de
 """
+import rpy2
+
 from mb_modelbase.models_core import Model
 
-from mb_modelbase.models_core.mspn.SPN import SPN, Splitting
+from mb_modelbase.models_core.mspn.tfspn.piecewise import estimate_domains
+from mb_modelbase.models_core.mspn.tfspn.SPN import SPN, Splitting
 
 from scipy.optimize import minimize
 import numpy as np
@@ -62,7 +65,17 @@ class MSPNModel(Model):
        return []
 
     def _density(self, x):
-        raise NotImplemented()
+        print(self.index, x)
+        j = 0
+        tmp = self.index.copy()
+        for i in tmp.keys():
+            print(tmp)
+            if tmp[i] is None:
+                tmp[i] = x[j]
+                j += 1
+        if len(x) != j:
+            raise Exception("Two many values.")
+        return np.exp(mspn._mspnmodel.eval(None,tmp))
 
     # calculated iterations times the maximum and returns the position
     # with the highest densitiy value
@@ -98,8 +111,10 @@ if __name__ == "__main__":
     mspn = MSPNModel("Iris")
     mspn.set_data(data)
     mspn.fit()
-    data3 = np.array([[4.4, 4.4, 4.4,  2.3]])
-    print(np.exp(mspn._mspnmodel.eval(data3)))
+    data2 = np.array([[4.4, 4.4, 4.4,  2.3]])
+    print(np.exp(mspn._mspnmodel.eval(data2)))
+    data2 = np.array([4.4, 4.4, 4.4,  2.3])
+    print(mspn._density(data2))
     
     #c.save_pdf_graph("asdjh2.pdf")
     
