@@ -93,7 +93,7 @@ class MSPNModel(Model):
                 j += 1
         if len(x) != j:
             raise Exception("Two many values.")
-        return np.exp(self._mspnmodel.eval(None, tmp))
+        return np.exp(self._mspnmodel.eval(None, tmp))[0]
 
     # calculated iterations times the maximum and returns the position
     # with the highest densitiy value
