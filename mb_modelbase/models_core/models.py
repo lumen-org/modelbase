@@ -1434,7 +1434,8 @@ class Model:
                 # compute input frame according to data splits
                 data_split_names = [s[NAME_IDX] for s in data_splits]
                 assert(self.mode == 'both')
-                input_frame = self.data.loc[:, data_split_names]\
+                limit = 15*len(data_split_names)  # TODO: maybe we need a nicer heuristic? :)
+                input_frame = self.data.loc[:limit, data_split_names]\
                     .drop_duplicates()\
                     .sort_values(by=data_split_names, ascending=True)
                 pass
@@ -1450,7 +1451,7 @@ class Model:
                 # TODO: I do not understand why this reset is necesary, but it breaks if I don't do it.
                 input_frame = input_frame.reset_index(drop=True)
             else:
-                raise NotImplemented('Currently mixing data splits with any other splits is not supported.')
+                raise NotImplementedError('Currently mixing data splits with any other splits is not supported.')
 
         # (4) query models and fill result data frame
         """ question is: how to efficiently query the model? how can I vectorize it?
