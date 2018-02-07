@@ -1583,10 +1583,12 @@ class Model:
 
         return (data_frame, basemodel) if returnbasemodel else data_frame
 
-    def select_data(self, what, where=None, opts=None):
-        return data_ops.condition_data(self.data, where).loc[:, what]
+    def select_data(self, what, where=None, **kwargs):
+        opts = utils.update_opts({'what': 'training'}, kwargs, {'what': ['training', 'test']})
+        df = self.data if opts['what'] == 'training' else self.test_data
+        return data_ops.condition_data(df, where).loc[:, what]
 
-    def select(self, what, where=None, opts=None):
+    def select(self, what, where=None, **kwargs):
         """Returns the selected attributes of all data items that satisfy the conditions as a
         pandas DataFrame.
         By default it selects data only, i.e. it will not return any samples from the model. It may, however, also
@@ -1645,7 +1647,7 @@ class Model:
             if 'model vs data' in what:
                 samples['model vs data'] = 'model'
         if 'data' in mode:
-            data = self.select_data(pure_what, pure_where)
+            data = self.select_data(pure_what, pure_where, **kwargs)
             if 'model vs data' in what:
                 data['model vs data'] = 'data'
 
