@@ -82,13 +82,11 @@ class SPNModel(Model):
     # with the highest densitiy value
     def _maximum(self):
         fun = lambda x :-1 * self._density(x)
-        xlength = sum(1 for x in self.index.values() if x is None)
         xmax = None
-        
-        x0 = np.random.randn(xlength)
-        xopt = minimize(fun, x0, method='Nelder-Mead')
-        if xmax is None or self._density(xmax) <=  self._density(xopt.x):
-           xmax = xopt.x
+        for x0 in self._getStartVectors:
+           xopt = minimize(fun, x0, method='Nelder-Mead')
+           if xmax is None or self._density(xmax) <=  self._density(xopt.x):
+              xmax = xopt.x
         return xmax
 
     def copy(self, name=None):
@@ -101,6 +99,47 @@ class SPNModel(Model):
       spncopy.index = self.index.copy()
       spncopy.nametoindex = self.nametoindex.copy()
       return spncopy
+   
+    def _getStartVectors(self):
+       xlength = sum([1 for i in self.index.values() if i is None])
+       worklist = [(self._spnmodel.root.children[0], [None]*(xlength+1))]
+       values = []
+       i = 0
+       #fill the values
+       while len(worklist) > 0:
+          (node,vector) = worklist.pop(0)
+          tmp = vector.copy()
+          if node.__class__.__name__ is "NormalLeafNode":
+             tmp[node.index+1] = node.mean
+             values.append(tmp)
+          for child in node.children:
+             if node.__class__.__name__ is "SumNode":
+                tmpChild = tmp.copy()
+                tmpChild[0] = i
+                i = i+1
+                worklist.append((child,tmpChild))
+             else:
+                worklist.append((child,tmp))
+       #sort for the first key
+       valuesSorted = (sorted(values,key=lambda x: x[0]))
+       #discard all keys with less then xlenght instances
+       valuesFiltered = [i for i in valuesSorted if len([b for b in valuesSorted if b[0] == i[0]]) == xlength]
+       #get the names of the indexes
+       valuesIndexes = list({i[0] for i in valuesFiltered})
+       #create a list of start vectors
+       vectors = []
+       for i in valuesIndexes:
+          #all values for a given index (should be xlength much)
+          valuesTemp = [j for j in valuesFiltered if j[0] == i]
+          #create a vector for with all not None values at the right index
+          xt = [None]*xlength
+          for i in range(xlength):
+             for j in valuesTemp:
+                xt[i] = j[i+1] if j[i+1] is not None else xt[i]      
+          vectors.append(xt)
+       #remove elements which contains a None
+       vectors = [i for i in vectors if None not in i]
+
 
 
 if __name__ == "__main__":
@@ -116,6 +155,7 @@ if __name__ == "__main__":
     spn.set_data(data)
     spn._fit()
     x = spn.aggregate("maximum")
-
-
+    print(x, spn._density(x))
+    print("start aggregating")
+    
     
