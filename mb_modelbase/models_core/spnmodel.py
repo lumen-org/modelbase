@@ -83,7 +83,13 @@ class SPNModel(Model):
     def _maximum(self):
         fun = lambda x :-1 * self._density(x)
         xmax = None
-        for x0 in self._getStartVectors:
+        xlength = sum([1 for i in self.index.values() if i is None])
+        startVectors = self._getStartVectors()
+        # if the list is empty, we create 10 values by random
+        if len(startVectors) == 0:
+           for i in range(10):
+              startVectors.append(np.random.rand(xlength))
+        for x0 in startVectors:
            xopt = minimize(fun, x0, method='Nelder-Mead')
            if xmax is None or self._density(xmax) <=  self._density(xopt.x):
               xmax = xopt.x
