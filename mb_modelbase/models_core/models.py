@@ -1419,9 +1419,39 @@ class Model:
             def _crossjoin(df1, df2):
                 return pd.merge(df1, df2, on='__crossIdx__', copy=False)
 
-            # TODO: speedup by first grouping by 'model vs data'?
-            group_frames = map(_get_group_frame, splitby, split_ids)
-            input_frame = reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
+            identity_splits, identity_ids = zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'identity'))
+            data_splits, data_ids = zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'data'))
+
+            # all splits are non-data splits
+            if len(data_splits) == 0:
+                # TODO: speedup by first grouping by 'model vs data'?
+                group_frames = map(_get_group_frame, splitby, split_ids)
+                input_frame = reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
+
+            # all splits are data and/or identity splits
+            elif len(data_splits) + len(identity_splits) == len(splitby):
+
+                # compute input frame according to data splits
+                data_split_names = [s[NAME_IDX] for s in data_splits]
+                assert(self.mode == 'both')
+                limit = 15*len(data_split_names)  # TODO: maybe we need a nicer heuristic? :)
+                input_frame = self.data.loc[:limit, data_split_names]\
+                    .drop_duplicates()\
+                    .sort_values(by=data_split_names, ascending=True)
+                pass
+                input_frame.columns = data_ids  # rename to data split ids!
+
+                # add identity splits
+                for id_, s in zip(identity_ids, identity_splits):
+                    field = basemodel.byname(s[NAME_IDX])
+                    domain = field['domain'].bounded(field['extent'])
+                    assert(domain.issingular())
+                    input_frame[id_] = domain.value()
+
+                # TODO: I do not understand why this reset is necesary, but it breaks if I don't do it.
+                input_frame = input_frame.reset_index(drop=True)
+            else:
+                raise NotImplementedError('Currently mixing data splits with any other splits is not supported.')
 
         # (4) query models and fill result data frame
         """ question is: how to efficiently query the model? how can I vectorize it?
@@ -1444,7 +1474,8 @@ class Model:
             "equidist": "==",
             "equiinterval": "in",
             "identity": "in",
-            "elements": "in"
+            "elements": "in",
+            "data": "in",
         }
         operator_list = [method2operator[method] for (_, method, __) in splitby]
 
@@ -1650,16 +1681,20 @@ class Model:
 
 
 if __name__ == '__main__':
-    import numpy as np
     import pandas as pd
-    from mb_data.mb_data.crabs import crabs as crabs
-    from mb_data.mb_data.iris import iris as iris
+    import mb_modelbase as mb
 
-    from mb_modelbase.models_core import cond_gaussians as cg
+    df = pd.read_csv('../../../mb_data/mb_data/iris/iris.csv')
+    m = mb.MixableCondGaussianModel()
+    m.fit(df)
+    res = m.predict(predict=['sepal_width', mb.Aggregation('sepal_length')], splitby=mb.SplitTuple('sepal_width', 'data', [5]))
+    print(res)
 
-    irisdata = iris.mixed('../mb_data/mb_data/iris/iris.csv')
-    crabsdata = crabs.mixed('../mb_data/mb_data/crabs/australian-crabs.csv')
+    res = m.predict(predict=['sepal_width', 'petal_width', mb.Aggregation(['sepal_length'])], splitby=[mb.SplitTuple('sepal_width', 'data', [5]), mb.SplitTuple('petal_width', 'data', [5])])
+    print("\n")
+    print(res)
 
-    iris = cg.ConditionallyGaussianModel("iris").fit(irisdata)
 
-    print(iris.name)
+    #res = m.predict(predict=['sepal_width', mb.Aggregation('sepal_length')], splitby=mb.SplitTuple('sepal_width', 'equidist', [5]))
+    # print(res)
+

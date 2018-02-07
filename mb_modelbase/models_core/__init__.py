@@ -14,4 +14,5 @@ from mb_modelbase.models_core.mockup_model import *
 from mb_modelbase.models_core.models import *
 from mb_modelbase.models_core.splitter import *
 from mb_modelbase.models_core.spn import *
+from mb_modelbase.models_core.mspn import *
 from mb_modelbase.models_core.tests import *

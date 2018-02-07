@@ -1227,7 +1227,10 @@ class PiecewiseLinearPDFNode(Node):
            mt = obs > (self.domain[-1] + EPSILON)
    
            outside_domain = np.logical_or(lt, mt)
-           assert outside_domain.sum() == 0, (obs[lt], obs[mt], self.domain)
+           # CHANGED BY JULIEN AND PHILIPP
+           # assert outside_domain.sum() == 0, (obs[lt], obs[mt], self.domain)
+           if outside_domain.sum() != 0:
+               return [0.0]
    
            result = np.zeros(obs.shape)
            result[:] = LOG_ZERO
