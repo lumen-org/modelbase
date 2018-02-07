@@ -1419,8 +1419,11 @@ class Model:
             def _crossjoin(df1, df2):
                 return pd.merge(df1, df2, on='__crossIdx__', copy=False)
 
-            identity_splits, identity_ids = zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'identity'))
-            data_splits, data_ids = zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'data'))
+            id_tpl = tuple(zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'identity')))
+            identity_splits, identity_ids = ([], []) if len(id_tpl) == 0 else id_tpl
+
+            split_tpl = tuple(zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'data')))
+            data_splits, data_ids = ([], []) if len(split_tpl) == 0 else split_tpl
 
             # all splits are non-data splits
             if len(data_splits) == 0:

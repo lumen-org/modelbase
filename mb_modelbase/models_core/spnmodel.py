@@ -140,7 +140,7 @@ class SPNModel(Model):
           #create a vector for with all not None values at the right index
           xt = [None]*xlength
           for i in range(xlength):
-             for j in valuesTemp:
+              for j in valuesTemp:
                 xt[i] = j[i+1] if j[i+1] is not None else xt[i]      
           vectors.append(xt)
        #remove elements which contains a None
