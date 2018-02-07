@@ -1584,8 +1584,9 @@ class Model:
         return (data_frame, basemodel) if returnbasemodel else data_frame
 
     def select_data(self, what, where=None, **kwargs):
-        opts = utils.update_opts({'what': 'training'}, kwargs, {'what': ['training', 'test']})
-        df = self.data if opts['what'] == 'training' else self.test_data
+        # todo: use update_opts also at other places where appropiate (search for validate_opts)
+        opts = utils.update_opts({'data_category': 'training data'}, kwargs, {'data_category': ['training data', 'test data']})
+        df = self.data if opts['data_category'] == 'training data' else self.test_data
         return data_ops.condition_data(df, where).loc[:, what]
 
     def select(self, what, where=None, **kwargs):
