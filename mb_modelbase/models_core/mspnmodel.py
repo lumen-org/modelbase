@@ -99,10 +99,9 @@ class MSPNModel(Model):
     # with the highest densitiy value
     def _maximum(self, iterations=10):
         fun = lambda x: -1 * self._density(x)
-        xlength = sum(1 for x in self.index.values() if x is None)
         xmax = None
         for i in range(iterations):
-            x0 = np.random.randn(xlength)
+            x0 = self._getRandomVector()
             xopt = minimize(fun, x0, method='Nelder-Mead')
             if xmax is None or self._density(xmax) <= self._density(xopt.x):
                 xmax = xopt.x
@@ -118,6 +117,34 @@ class MSPNModel(Model):
         spncopy.nametoindex = self.nametoindex.copy()
         spncopy.index = self.index.copy()
         return spncopy
+     
+    def _getDomains(self):
+       w=[self._mspnmodel]
+       domains = dict()
+       while len(w) > 0:
+          n = w.pop(0)
+          if n.__class__.__name__ is "PiecewiseLinearPDFNode":
+             if n.featureIdx in domains.keys():
+                if len(domains[n.featureIdx]) > 1: 
+                   domains[n.featureIdx][0] = n.domain[0] if domains[n.featureIdx][0] < n.domain[0] else domains[n.featureIdx][0]
+                if len(domains[n.featureIdx]) > 1: 
+                   domains[n.featureIdx][-1] = n.domain[-1] if domains[n.featureIdx][-1] > n.domain[-1] else domains[n.featureIdx][-1] 
+             else: 
+                domains[n.featureIdx] = n.domain
+          for c in n.children:
+             w.append(c)
+       return domains
+     
+    def _getRandomVector(self):
+       domains = self._getDomains()
+       xlength = sum(1 for x in self.index.values() if x is None)
+       x0 = np.zeros(xlength)
+       j = 0
+       for i in self.index.keys():
+            if self.index[i] is None:
+                x0[j] = np.random.uniform(domains[i][0],domains[i][-1])
+                j += 1
+       return x0
 
 
 if __name__ == "__main__":
@@ -131,6 +158,7 @@ if __name__ == "__main__":
     mspn = MSPNModel("Iris")
     mspn.set_data(data)
     mspn.fit()
+    print(mspn._maximum())
     mspn.marginalize(remove=[mspn.names[0]])
     data2 = np.array([4.4, 4.4, 2.3])  # , 1.0])
     print(mspn._density(data2))
