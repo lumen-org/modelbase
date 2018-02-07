@@ -1440,8 +1440,8 @@ class Model:
                 # compute input frame according to data splits
                 data_split_names = [s[NAME_IDX] for s in data_splits]
                 assert(self.mode == 'both')
-                limit = 15*len(data_split_names)  # TODO: maybe we need a nicer heuristic? :)
-                input_frame = self.test_data.loc[:limit, data_split_names]\
+                #limit = 15*len(data_split_names)  # TODO: maybe we need a nicer heuristic? :)
+                input_frame = self.test_data.loc[:, data_split_names]\
                     .drop_duplicates()\
                     .sort_values(by=data_split_names, ascending=True)
                 pass
