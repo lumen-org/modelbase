@@ -10,6 +10,20 @@ from mb_modelbase.utils import utils
 DEFAULT_BIN_NUMBER = 10
 
 
+def aggregate_data(df, method, opts=None):
+    """Aggregate the models data according to given method and options, and returns this aggregation."""
+    row_cnt, col_cnt = df.shape
+    if row_cnt == 0:
+        # can not compute any aggregation. return nan
+        # TODO: allows Nans
+        # raise ValueError("empty data frame - cannot compute any aggregations. implement nans.")
+        return [0] * col_cnt
+    elif method == 'maximum' or method == 'average':
+        # return data_aggr.most_frequent_equi_sized(data, opts)  # this is also an option, but I think it's worse
+        return average_most_frequent(df, opts)
+    else:
+        raise ValueError("invalid value for method: " + str(method))
+
 def most_frequent_equi_sized(data, opts=None):
     """ Expects a pandas data frame of mixed (i.e. numerical and categorical) columns.
     It returns a most frequent item, with details as follows:
