@@ -272,7 +272,10 @@ class ModelBase:
             base = self._extractFrom(query)
             resultframe = base.select(
                 what=self._extractSelect(query),
-                where=self._extractWhere(query))
+                where=self._extractWhere(query),
+                **self._extractOpts(query)
+            )
+
             return _json_dumps({"header": resultframe.columns.tolist(),
                                 "data": resultframe.to_csv(index=False, header=False)})
 
@@ -394,6 +397,12 @@ class ModelBase:
             return []
         else:
             return query['WHERE']
+
+    def _extractOpts(self, query):
+        if 'OPTS' not in query:
+            return {}
+        print("OPTIONS: " + str(query['OPTS']))  # TODO DEBUGGING!
+        return query['OPTS']
 
     def _extractSelect(self, query):
         if 'SELECT' not in query:

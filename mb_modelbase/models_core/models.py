@@ -237,6 +237,14 @@ def _tuple2str(tuple_):
 """ Utility functions for data import. """
 
 
+def split_training_test_data(df):
+    # select training and test data
+    limit = 25
+    test_data = df.iloc[:limit, :]
+    data = df.iloc[limit:, :]
+    return test_data, data
+
+
 def normalize_dataframe(df, numericals):
     """Normalizes all columns in data frame df. It uses z-score normalization and applies it per column. Returns the normalization parameters and the normalized dataframe,  as a tuple of (df, means, sigma). It expects only numercial columns in given dataframe.
 
@@ -448,6 +456,7 @@ class Model:
         # self._name2idx = {}
         self._fields_set_empty()
         self.data = pd.DataFrame([])
+        self.test_data = pd.DataFrame([])
         self._aggrMethods = None
         self.mode = None
         self._modeldata_field = _Modeldata_field()
@@ -554,14 +563,13 @@ class Model:
         #  reorder data frame such that categorical columns are first
         df = df[self._categoricals + self._numericals]
 
-        # shuffle data frame
-        df = df.sample(frac=1).reset_index(drop=True)
+        # shuffle and set data frame
+        df = df.sample(frac=1, random_state=42).reset_index(drop=True)
+        self.test_data, self.data = split_training_test_data(df)
 
         # derive and set fields
         self.fields = get_discrete_fields(df, self._categoricals) + \
                       get_numerical_fields(df, self._numericals)
-
-        self.data = df
 
         # normalize numerical part of data frame. For better numerical performance.
         # this is done at model level
@@ -581,8 +589,9 @@ class Model:
         if len(categoricals) > 0:
             raise ValueError('Data frame contains categorical columns: ' + str(categoricals))
 
-        # set data for model as needed
-        self.data = pd.DataFrame(df, columns=numericals)
+        # shuffle and set data frame
+        df = pd.DataFrame(df, columns=numericals).sample(frac=1, random_state=42).reset_index(drop=True)
+        self.test_data, self.data = split_training_test_data(df)
 
         # derive and set fields
         self.fields = get_numerical_fields(self.data, numericals)
@@ -599,8 +608,9 @@ class Model:
         if len(numericals) > 0:
             raise ValueError('Data frame contains numerical columns: ' + str(numericals))
 
-        # set data for model as needed
-        self.data = pd.DataFrame(df, columns=categoricals)
+        # shuffle and set data frame
+        df = pd.DataFrame(df, columns=categoricals).sample(frac=1, random_state=42).reset_index(drop=True)
+        self.test_data, self.data = split_training_test_data(df)
 
         # derive and set fields
         self.fields = get_discrete_fields(self.data, categoricals)
@@ -710,10 +720,9 @@ class Model:
 
         # Data marginalization
         if self.mode == 'both' or self.mode == 'data':
-            # this MUST copy or models break! this is because we do NOT copy data with _defaultcopy
-            # nope. we never need to copy data. creating views is enough.
+            # Note: we never need to copy data, since we never change data. creating views is enough
             self.data = self.data.loc[:, keep]
-            #self.data = self.data.loc[:, keep].copy()
+            self.test_data = self.test_data.loc[:, keep]
             if self.mode == 'data':
                 self._update_remove_fields(remove)
                 return self
@@ -815,6 +824,7 @@ class Model:
             self.byname(name)['domain'].apply(operator, values)
         if self.mode != 'model':
             self.data = data_ops.condition_data(self.data, pure_conditions)
+            self.test_data = data_ops.condition_data(self.test_data, pure_conditions)
         self._update_extents(names)
         return self
 
@@ -842,17 +852,8 @@ class Model:
 
     def aggregate_data(self, method, opts=None):
         """Aggregate the models data according to given method and options, and returns this aggregation."""
-        data = self.data
-        if len(data) == 0:
-            # can not compute any aggregation. return nan
-            # TODO: allows Nans
-            # raise ValueError("empty data frame - cannot compute any aggregations. implement nans.")
-            return [0] * self.dim
-        elif method == 'maximum' or method == 'average':
-            # return data_aggr.most_frequent_equi_sized(data, opts)  # this is also an option, but I think it's worse
-            return data_aggr.average_most_frequent(data, opts)
-        else:
-            raise ValueError("invalid value for method: " + str(method))
+        data_aggr.aggregate_data(self.data, method, opts)
+        data_aggr.aggregate_data(self.test_data, method, opts)
 
     def aggregate_model(self, method, opts=None):
         """Aggregate the model according to given method and options and return the aggregation value."""
@@ -987,6 +988,7 @@ class Model:
 
         # data frequency
         if mode == "both" or mode == "data":
+            # TODO?? should I do this against the test data as well?? expand mode to test data or something? also applies to similar sections in model.probability
             cnt = len(data_ops.condition_data(self.data, zip(self.names, ['=='] * self.dim, values)))
             if mode == "data":
                 return cnt
@@ -1148,6 +1150,7 @@ class Model:
         name = self.name if name is None else name
         mycopy = self.__class__(name)
         mycopy.data = self.data.copy()
+        mycopy.test_data = self.test_data.copy()
         mycopy.fields = cp.deepcopy(self.fields)
         mycopy.mode = self.mode
         mycopy._modeldata_field = cp.deepcopy(self._modeldata_field)
@@ -1437,8 +1440,8 @@ class Model:
                 # compute input frame according to data splits
                 data_split_names = [s[NAME_IDX] for s in data_splits]
                 assert(self.mode == 'both')
-                limit = 15*len(data_split_names)  # TODO: maybe we need a nicer heuristic? :)
-                input_frame = self.data.loc[:limit, data_split_names]\
+                #limit = 15*len(data_split_names)  # TODO: maybe we need a nicer heuristic? :)
+                input_frame = self.test_data.loc[:, data_split_names]\
                     .drop_duplicates()\
                     .sort_values(by=data_split_names, ascending=True)
                 pass
@@ -1580,10 +1583,13 @@ class Model:
 
         return (data_frame, basemodel) if returnbasemodel else data_frame
 
-    def select_data(self, what, where=None, opts=None):
-        return data_ops.condition_data(self.data, where).loc[:, what]
+    def select_data(self, what, where=None, **kwargs):
+        # todo: use update_opts also at other places where appropiate (search for validate_opts)
+        opts = utils.update_opts({'data_category': 'training data'}, kwargs, {'data_category': ['training data', 'test data']})
+        df = self.data if opts['data_category'] == 'training data' else self.test_data
+        return data_ops.condition_data(df, where).loc[:, what]
 
-    def select(self, what, where=None, opts=None):
+    def select(self, what, where=None, **kwargs):
         """Returns the selected attributes of all data items that satisfy the conditions as a
         pandas DataFrame.
         By default it selects data only, i.e. it will not return any samples from the model. It may, however, also
@@ -1642,7 +1648,7 @@ class Model:
             if 'model vs data' in what:
                 samples['model vs data'] = 'model'
         if 'data' in mode:
-            data = self.select_data(pure_what, pure_where)
+            data = self.select_data(pure_what, pure_where, **kwargs)
             if 'model vs data' in what:
                 data['model vs data'] = 'data'
 

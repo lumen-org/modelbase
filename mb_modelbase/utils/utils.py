@@ -74,6 +74,16 @@ def validate_opts(opts, allowed):
         raise ValueError('unrecognized argument names: {0!s}'.format(list(cpy.keys())))
 
 
+def update_opts(current_opts, updates, allowed_opts=None):
+    """Updates dictionary current_opts using the dictionary updates. The updated dictionary is returned for chaining, but anyway changed inplace. If allowed_opts is specfified updates is checked to be valid options.
+    See also validate_opts.
+    """
+    if allowed_opts is not None:
+        validate_opts(updates, allowed_opts)
+    current_opts.update(updates)
+    return current_opts
+
+
 def mergebyidx2(zips):
     """Merges list l1 and list l2 into one list in increasing index order, where the indices are given by idx1
     and idx2, respectively. idx1 and idx2 are expected to be sorted. No index may be occur twice. Indexing starts at 0.
