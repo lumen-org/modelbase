@@ -83,7 +83,7 @@ class SPNModel(Model):
     def _maximum(self):
         fun = lambda x :-1 * self._density(x)
         xmax = None
-        for x0 in self._getStartVectors:
+        for x0 in self._getStartVectors():
            xopt = minimize(fun, x0, method='Nelder-Mead')
            if xmax is None or self._density(xmax) <=  self._density(xopt.x):
               xmax = xopt.x
@@ -134,7 +134,7 @@ class SPNModel(Model):
           #create a vector for with all not None values at the right index
           xt = [None]*xlength
           for i in range(xlength):
-             for j in valuesTemp:
+              for j in valuesTemp:
                 xt[i] = j[i+1] if j[i+1] is not None else xt[i]      
           vectors.append(xt)
        #remove elements which contains a None
