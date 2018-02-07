@@ -12,6 +12,7 @@ from mb_modelbase.models_core import Model
 
 from mb_modelbase.models_core.mspn.tfspn.piecewise import estimate_domains
 from mb_modelbase.models_core.mspn.tfspn.SPN import SPN, Splitting
+from mb_modelbase.models_core.mspn.tfspn.tfspn import PiecewiseLinearPDFNode
 
 from scipy.optimize import minimize
 import numpy as np
@@ -31,7 +32,7 @@ class MSPNModel(Model):
        self._set_data_mixed(df, drop_silently)
        if self.featureTypes is None:
           #lets asume their are all continuous
-          self.featureTypes = ["continuous"]*len(mspn.fields)
+          self.featureTypes = ["continuous"]*len(self.fields)
        if self.min_instances_slice is None:
           #if there is not minimum slice width we set it to 8% of the data length
           self.min_instances_slice = len(self.data)*0.08
@@ -41,10 +42,12 @@ class MSPNModel(Model):
        return []
 
     def _fit(self):
-       self._mspnmodel = SPN.LearnStructure(np.array(data), featureTypes=self.featureTypes, \
+       model  = SPN.LearnStructure(np.array(self.data), featureTypes=self.featureTypes, \
                             row_split_method=Splitting.KmeansRows(), \
                             col_split_method=Splitting.RDCTest(threshold=self.threshold), \
-                            min_instances_slice=self.min_instances_slice).root
+                            min_instances_slice=self.min_instances_slice)
+       model.save_pdf_graph("../graph.pdf")
+       self._mspnmodel = model.root
        return []
 
     def _marginalizeout(self, keep, remove):
@@ -73,16 +76,43 @@ class MSPNModel(Model):
                 j += 1
         if len(x) != j:
             raise Exception("Two many values.")
-        return np.exp(mspn._mspnmodel.eval(None,tmp))
+        return np.exp(self._mspnmodel.eval(None,tmp))
 
+    def _getDomains(self):
+       w=[self._mspnmodel]
+       domains = dict()
+       while len(w) > 0:
+          n = w.pop(0)
+          if n.__class__.__name__ is "PiecewiseLinearPDFNode":
+             if n.featureIdx in domains.keys():
+                if len(domains[n.featureIdx]) > 1: 
+                   domains[n.featureIdx][0] = n.domain[0] if domains[n.featureIdx][0] < n.domain[0] else domains[n.featureIdx][0]
+                if len(domains[n.featureIdx]) > 1: 
+                   domains[n.featureIdx][-1] = n.domain[-1] if domains[n.featureIdx][-1] > n.domain[-1] else domains[n.featureIdx][-1] 
+             else: 
+                domains[n.featureIdx] = n.domain
+          for c in n.children:
+             w.append(c)
+       return domains
+     
+    def _getRandomVector(self):
+       domains = self._getDomains()
+       xlength = sum(1 for x in self.index.values() if x is None)
+       x0 = np.zeros(xlength)
+       j = 0
+       for i in self.index.keys():
+            if self.index[i] is None:
+                x0[j] = np.random.uniform(domains[i][0],domains[i][-1])
+                j += 1
+       return x0
+     
     # calculated iterations times the maximum and returns the position
     # with the highest densitiy value
     def _maximum(self, iterations=10):
         fun = lambda x :-1 * self._density(x)
-        xlength = sum(1 for x in self.index.values() if x is None)
         xmax = None
         for i in range(iterations):
-           x0 = np.random.randn(xlength)
+           x0 = self._getRandomVector()
            xopt = minimize(fun, x0, method='Nelder-Mead')
            if xmax is None or self._density(xmax) <=  self._density(xopt.x):
               xmax = xopt.x
@@ -96,8 +126,8 @@ class MSPNModel(Model):
       spncopy._mspnmodel = self._mspnmodel
       return spncopy
 
-
 if __name__ == "__main__":
+    
     from sklearn.datasets import load_iris
 
 
@@ -109,11 +139,16 @@ if __name__ == "__main__":
     mspn = MSPNModel("Iris", featureTypes=["continuous"]*4)
     mspn.set_data(data)
     mspn.fit()
+    """
     mspn.marginalize(remove=[mspn.names[0]])
     data2 = np.array([4.4, 4.4, 2.3]) #, 1.0])
     print(mspn._density(data2))
     
     #c.save_pdf_graph("asdjh2.pdf")
+    """
+    print(mspn._maximum())
+
+        
     
 
 

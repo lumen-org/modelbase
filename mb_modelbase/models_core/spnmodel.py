@@ -80,15 +80,15 @@ class SPNModel(Model):
 
     # calculated iterations times the maximum and returns the position 
     # with the highest densitiy value
-    def _maximum(self, iterations=10):
+    def _maximum(self):
         fun = lambda x :-1 * self._density(x)
         xlength = sum(1 for x in self.index.values() if x is None)
         xmax = None
-        for i in range(iterations):
-           x0 = np.random.randn(xlength)
-           xopt = minimize(fun, x0, method='Nelder-Mead')
-           if xmax is None or self._density(xmax) <=  self._density(xopt.x):
-              xmax = xopt.x
+        
+        x0 = np.random.randn(xlength)
+        xopt = minimize(fun, x0, method='Nelder-Mead')
+        if xmax is None or self._density(xmax) <=  self._density(xopt.x):
+           xmax = xopt.x
         return xmax
 
     def copy(self, name=None):
