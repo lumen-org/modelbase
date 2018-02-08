@@ -174,14 +174,17 @@ class MSPNModel(Model):
         self.index = tmp
         return normalizeFactor
      
-    def _flatten(self,lst):
-       result = []
-       for el in lst:
-           if hasattr(el, "__iter__") and not isinstance(el, str):
-               result.extend(self._flatten(el))
-           else:
-               result.append(el)
-       return result
+    def _flatten(self, lst):
+        result = []
+        try:
+           for el in lst:
+               if hasattr(el, "__iter__") and not isinstance(el, str):
+                   result.extend(self._flatten(el))
+               else:
+                   result.append(el)
+        except TypeError:
+            result.append(lst)
+        return result
         
     def _getStartVectors(self,steps):
        domains = self._getDomains()
