@@ -864,8 +864,8 @@ class Model:
 
     def aggregate_data(self, method, opts=None):
         """Aggregate the models data according to given method and options, and returns this aggregation."""
-        data_aggr.aggregate_data(self.data, method, opts)
-        data_aggr.aggregate_data(self.test_data, method, opts)
+        return data_aggr.aggregate_data(self.data, method, opts)
+        #data_aggr.aggregate_data(self.test_data, method, opts)  # TODO: should I add the option to compute aggregations on a selectable part of the data
 
     def aggregate_model(self, method, opts=None):
         """Aggregate the model according to given method and options and return the aggregation value."""
