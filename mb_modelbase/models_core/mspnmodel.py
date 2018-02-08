@@ -20,7 +20,14 @@ In addition to any dependencies required by the mb_modelbase package you also ne
 
 What did we do to make it run:
   * in particular we changed line ~ tfspn.py:1230
+  * we pushed our index through the eval. if the index of the
+    RV is True then we return simply 1.0 for the marginalization
+    
+IMPORTANT:
+  * the model is not normalized
+  * to normalize it you have to marginalize out all RV and then get the density, which is your normalisation factor
 """
+
 import rpy2
 
 from mb_modelbase.models_core import Model, get_columns_by_dtype
@@ -41,6 +48,7 @@ class MSPNModel(Model):
         self.threshold = threshold if threshold is not None else 0.4
         self.min_instances_slice = min_instances_slice
         self.index = {}
+        self.normalizeFactor = 1.0
         self._aggrMethods = {
             'maximum': self._maximum,
         }
@@ -62,6 +70,7 @@ class MSPNModel(Model):
                                              row_split_method=Splitting.KmeansRows(), \
                                              col_split_method=Splitting.RDCTest(threshold=self.threshold), \
                                              min_instances_slice=self.min_instances_slice).root
+        self.normalizeFactor = self._getNormalizeFactor()
         return []
 
     def _marginalizeout(self, keep, remove):
@@ -93,7 +102,7 @@ class MSPNModel(Model):
                 j += 1
         if len(x) != j:
             raise Exception("Two many values.")
-        return np.exp(self._mspnmodel.eval(None, tmp))[0]
+        return np.exp(self._mspnmodel.eval(None, tmp))[0]/self.normalizeFactor
 
     # calculated iterations times the maximum and returns the position
     # with the highest densitiy value
@@ -145,6 +154,20 @@ class MSPNModel(Model):
                 x0[j] = np.random.uniform(domains[i][0],domains[i][-1])
                 j += 1
        return x0
+    
+    def _getNormalizeFactor(self):
+        #copy the current index
+        tmp = self.index.copy()
+        #lets normalize, through this key, eval allways returns 1.0
+        self.index["norm"] = True
+        xlength = sum([1 for i in self.index.values() if i is None or i is True])
+        #it is not important what x is, only the length (because of norm -1)
+        normalizeFactor = self._density([1.0]*(xlength-1))
+        #reset the index
+        self.index = tmp
+        return normalizeFactor
+        
+           
 
 
 if __name__ == "__main__":
@@ -158,9 +181,4 @@ if __name__ == "__main__":
     mspn = MSPNModel("Iris")
     mspn.set_data(data)
     mspn.fit()
-    print(mspn._maximum())
-    mspn.marginalize(remove=[mspn.names[0]])
-    data2 = np.array([4.4, 4.4, 2.3])  # , 1.0])
-    print(mspn._density(data2))
-
-    # c.save_pdf_graph("asdjh2.pdf")
+    print(mspn._density([1,1,1,1]))
