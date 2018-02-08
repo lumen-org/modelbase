@@ -107,7 +107,7 @@ class MSPNModel(Model):
 
     # calculated iterations times the maximum and returns the position
     # with the highest densitiy value
-    def _maximum(self,steps=2):
+    def _maximum(self,steps=3):
         fun = lambda x: -1 * self._density(x)
         xmax = None
         #there should be a lot of start vectors
@@ -182,10 +182,11 @@ class MSPNModel(Model):
        domains = self._getDomains()
        rangeDomains = []
        for i in sorted(domains.keys()):
-          start = domains[i][0]
-          stop = domains[i][-1]
-          step = (stop-start)/steps
-          rangeDomains.append(list(np.arange(start, stop+1, step)))
+          if self.index[i] == None:
+             start = domains[i][0]
+             stop = domains[i][-1]
+             step = (stop-start)/steps
+             rangeDomains.append(list(np.arange(start, stop+1, step)))
        ranges = []
        for i in range(len(rangeDomains)):
           if i == 0:
