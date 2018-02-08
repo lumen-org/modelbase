@@ -1206,9 +1206,11 @@ class PiecewiseLinearPDFNode(Node):
         pass
 
     @jit
-    def eval(self, data, index=None):
+    def eval(self, data, index=None):  
+        if "norm" in index.keys() and index["norm"] is True:
+           return [1.0]
         if index is not None and index[self.featureIdx] is True:
-           return [1]
+           return [1.0]
         else:
            if index is not None:
               data = np.array([index[self.featureIdx]])

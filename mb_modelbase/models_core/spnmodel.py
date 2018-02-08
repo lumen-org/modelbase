@@ -5,6 +5,13 @@ Created on Thu Jan 18 13:49:15 2018
 
 @author: julien
 @email: julien.klaus@uni-jena.de
+
+What did we do to make it run:
+  * we pushed our index through the eval. if the index of the
+    RV is True then we return simply 1.0 for the marginalization
+
+IMPORTANT:
+  * the model only allows continous data
 """
 
 from mb_modelbase.models_core import Model

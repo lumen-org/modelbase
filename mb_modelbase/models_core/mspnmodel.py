@@ -20,7 +20,14 @@ In addition to any dependencies required by the mb_modelbase package you also ne
 
 What did we do to make it run:
   * in particular we changed line ~ tfspn.py:1230
+  * we pushed our index through the eval. if the index of the
+    RV is True then we return simply 1.0 for the marginalization
+    
+IMPORTANT:
+  * the model is not normalized
+  * to normalize it you have to marginalize out all RV and then get the density, which is your normalisation factor
 """
+
 import rpy2
 
 from mb_modelbase.models_core import Model, get_columns_by_dtype
@@ -32,6 +39,7 @@ from scipy.optimize import minimize
 import numpy as np
 import pandas as pd
 import copy as cp
+from collections import Iterable
 
 
 class MSPNModel(Model):
@@ -41,6 +49,7 @@ class MSPNModel(Model):
         self.threshold = threshold if threshold is not None else 0.4
         self.min_instances_slice = min_instances_slice
         self.index = {}
+        self.normalizeFactor = 1.0
         self._aggrMethods = {
             'maximum': self._maximum,
         }
@@ -62,6 +71,7 @@ class MSPNModel(Model):
                                              row_split_method=Splitting.KmeansRows(), \
                                              col_split_method=Splitting.RDCTest(threshold=self.threshold), \
                                              min_instances_slice=self.min_instances_slice).root
+        self.normalizeFactor = self._getNormalizeFactor()
         return []
 
     def _marginalizeout(self, keep, remove):
@@ -93,15 +103,16 @@ class MSPNModel(Model):
                 j += 1
         if len(x) != j:
             raise Exception("Two many values.")
-        return np.exp(self._mspnmodel.eval(None, tmp))[0]
+        return np.exp(self._mspnmodel.eval(None, tmp))[0]/self.normalizeFactor
 
     # calculated iterations times the maximum and returns the position
     # with the highest densitiy value
-    def _maximum(self, iterations=10):
+    def _maximum(self,steps=2):
         fun = lambda x: -1 * self._density(x)
         xmax = None
-        for i in range(iterations):
-            x0 = self._getRandomVector()
+        #there should be a lot of start vectors
+        for x0 in self._getStartVectors(steps):
+            #print(x0)
             xopt = minimize(fun, x0, method='Nelder-Mead')
             if xmax is None or self._density(xmax) <= self._density(xopt.x):
                 xmax = xopt.x
@@ -145,6 +156,45 @@ class MSPNModel(Model):
                 x0[j] = np.random.uniform(domains[i][0],domains[i][-1])
                 j += 1
        return x0
+    
+    def _getNormalizeFactor(self):
+        #copy the current index
+        tmp = self.index.copy()
+        #lets normalize, through this key, eval allways returns 1.0
+        self.index["norm"] = True
+        xlength = sum([1 for i in self.index.values() if i is None or i is True])
+        #it is not important what x is, only the length (because of norm -1)
+        normalizeFactor = self._density([1.0]*(xlength-1))
+        #reset the index
+        self.index = tmp
+        return normalizeFactor
+     
+    def _flatten(self,lst):
+       result = []
+       for el in lst:
+           if hasattr(el, "__iter__") and not isinstance(el, str):
+               result.extend(self._flatten(el))
+           else:
+               result.append(el)
+       return result
+        
+    def _getStartVectors(self,steps):
+       domains = self._getDomains()
+       rangeDomains = []
+       for i in sorted(domains.keys()):
+          start = domains[i][0]
+          stop = domains[i][-1]
+          step = (stop-start)/steps
+          rangeDomains.append(list(np.arange(start, stop+1, step)))
+       ranges = []
+       for i in range(len(rangeDomains)):
+          if i == 0:
+             ranges = rangeDomains[i]
+          else:
+             ranges = [list([j,k]) for j in ranges for k in rangeDomains[i]]
+       ranges = [self._flatten(i) for i in ranges]
+       return ranges
+           
 
 
 if __name__ == "__main__":
@@ -158,9 +208,20 @@ if __name__ == "__main__":
     mspn = MSPNModel("Iris")
     mspn.set_data(data)
     mspn.fit()
-    print(mspn._maximum())
-    mspn.marginalize(remove=[mspn.names[0]])
-    data2 = np.array([4.4, 4.4, 2.3])  # , 1.0])
-    print(mspn._density(data2))
-
-    # c.save_pdf_graph("asdjh2.pdf")
+    domains = mspn._getDomains()
+    rangeDomains = []
+    for i in sorted(domains.keys()):
+       start = domains[i][0]
+       stop = domains[i][-1]
+       step = (stop-start)/10
+       print(start, stop, step)
+       rangeDomains.append(list(np.arange(start, stop+1, step)))
+    ranges = []
+    for i in range(len(rangeDomains)):
+       if i == 0:
+          ranges = rangeDomains[i]
+       else:
+          ranges = [list([j,k]) for j in ranges for k in rangeDomains[i]]
+    ranges = [mspn._flatten(i) for i in ranges]
+    
+       
