@@ -39,6 +39,7 @@ from scipy.optimize import minimize
 import numpy as np
 import pandas as pd
 import copy as cp
+from collections import Iterable
 
 
 class MSPNModel(Model):
@@ -106,11 +107,12 @@ class MSPNModel(Model):
 
     # calculated iterations times the maximum and returns the position
     # with the highest densitiy value
-    def _maximum(self, iterations=10):
+    def _maximum(self,steps=2):
         fun = lambda x: -1 * self._density(x)
         xmax = None
-        for i in range(iterations):
-            x0 = self._getRandomVector()
+        #there should be a lot of start vectors
+        for x0 in self._getStartVectors(steps):
+            #print(x0)
             xopt = minimize(fun, x0, method='Nelder-Mead')
             if xmax is None or self._density(xmax) <= self._density(xopt.x):
                 xmax = xopt.x
@@ -166,7 +168,32 @@ class MSPNModel(Model):
         #reset the index
         self.index = tmp
         return normalizeFactor
+     
+    def _flatten(self,lst):
+       result = []
+       for el in lst:
+           if hasattr(el, "__iter__") and not isinstance(el, str):
+               result.extend(self._flatten(el))
+           else:
+               result.append(el)
+       return result
         
+    def _getStartVectors(self,steps):
+       domains = self._getDomains()
+       rangeDomains = []
+       for i in sorted(domains.keys()):
+          start = domains[i][0]
+          stop = domains[i][-1]
+          step = (stop-start)/steps
+          rangeDomains.append(list(np.arange(start, stop+1, step)))
+       ranges = []
+       for i in range(len(rangeDomains)):
+          if i == 0:
+             ranges = rangeDomains[i]
+          else:
+             ranges = [list([j,k]) for j in ranges for k in rangeDomains[i]]
+       ranges = [self._flatten(i) for i in ranges]
+       return ranges
            
 
 
@@ -181,4 +208,20 @@ if __name__ == "__main__":
     mspn = MSPNModel("Iris")
     mspn.set_data(data)
     mspn.fit()
-    print(mspn._density([1,1,1,1]))
+    domains = mspn._getDomains()
+    rangeDomains = []
+    for i in sorted(domains.keys()):
+       start = domains[i][0]
+       stop = domains[i][-1]
+       step = (stop-start)/10
+       print(start, stop, step)
+       rangeDomains.append(list(np.arange(start, stop+1, step)))
+    ranges = []
+    for i in range(len(rangeDomains)):
+       if i == 0:
+          ranges = rangeDomains[i]
+       else:
+          ranges = [list([j,k]) for j in ranges for k in rangeDomains[i]]
+    ranges = [mspn._flatten(i) for i in ranges]
+    
+       
