@@ -239,7 +239,7 @@ def _tuple2str(tuple_):
 
 def split_training_test_data(df):
     # select training and test data
-    limit = 25
+    limit = int(min(max(df.shape[0]*0.05, 25), 50, df.shape[0]))  # 5% of the data, but not less than 25 and not more than 50
     test_data = df.iloc[:limit, :]
     data = df.iloc[limit:, :]
     return test_data, data
