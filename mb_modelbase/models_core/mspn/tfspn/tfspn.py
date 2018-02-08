@@ -1030,7 +1030,7 @@ class PiecewiseLinearPDFNodeOld(Node):
     def validate(self):
         pass
 
-    @jit
+    #@jit
     def eval(self, data, index=None):
         """
         1. get the interval in which input falls
@@ -1205,7 +1205,7 @@ class PiecewiseLinearPDFNode(Node):
     def validate(self):
         pass
 
-    @jit
+    #@jit
     def eval(self, data, index=None):  
         if "norm" in index.keys() and index["norm"] is True:
            return [0.0]
@@ -1232,8 +1232,9 @@ class PiecewiseLinearPDFNode(Node):
            # CHANGED BY JULIEN AND PHILIPP
            # assert outside_domain.sum() == 0, (obs[lt], obs[mt], self.domain)
            if outside_domain.sum() != 0:
+               #return [1.0]
                return [0.0]
-   
+
            result = np.zeros(obs.shape)
            result[:] = LOG_ZERO
    
