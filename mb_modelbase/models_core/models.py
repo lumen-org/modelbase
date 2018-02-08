@@ -335,6 +335,15 @@ def get_numerical_fields(df, colnames):
         fields.append(field)
     return fields
 
+def to_category_cols(df, colnames):
+    """Returns df where all columns with names in colnames have been converted to the category type using pd.astype('category'.
+    """
+    # df.loc[:,colnames].apply(lambda c: c.astype('category'))  # also works, but more tedious merge with not converted df part
+    for c in colnames:
+        # .cat.codes access the integer codes that encode the actual categorical values. Here, however, we want such integer values.
+        df[c] = df[c].astype('category').cat.codes
+    return df
+
 
 class Model:
     """An abstract base model that provides an interface to derive submodels from it or query density and other
@@ -550,11 +559,14 @@ class Model:
         """
         raise NotImplementedError("your model must implement this method")
 
-    def _set_data_mixed(self, df, silently_drop):
+    def _set_data_mixed(self, df, silently_drop, num_names=None, cat_names=None):
         """see Model._set_data"""
 
         # split in categorical and numeric columns
-        _, self._categoricals, self._numericals = get_columns_by_dtype(df)
+        if num_names is None or cat_names is None:
+            _, cat_names, num_names = get_columns_by_dtype(df)
+        self._categoricals = cat_names
+        self._numericals = num_names
 
         # check if dtype are ok
         #  ... nothing to do here ...
