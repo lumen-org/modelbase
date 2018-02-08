@@ -1441,8 +1441,8 @@ class Model:
                 data_split_names = [s[NAME_IDX] for s in data_splits]
                 assert(self.mode == 'both')
                 #limit = 15*len(data_split_names)  # TODO: maybe we need a nicer heuristic? :)
+                # #.drop_duplicates()\ # TODO: would make sense to do it, but then I run into problems with matching test data to aggregations on them in frontend, because I drop them for the aggregations, but not for test data select
                 input_frame = self.test_data.loc[:, data_split_names]\
-                    .drop_duplicates()\
                     .sort_values(by=data_split_names, ascending=True)
                 pass
                 input_frame.columns = data_ids  # rename to data split ids!
