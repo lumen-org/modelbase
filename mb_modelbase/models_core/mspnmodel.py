@@ -30,7 +30,7 @@ IMPORTANT:
 
 import rpy2
 
-from mb_modelbase.models_core import Model, get_columns_by_dtype
+from mb_modelbase.models_core import Model, get_columns_by_dtype, to_category_cols
 
 from mb_modelbase.models_core.mspn.tfspn.piecewise import estimate_domains
 from mb_modelbase.models_core.mspn.tfspn.SPN import SPN, Splitting
@@ -55,9 +55,11 @@ class MSPNModel(Model):
         }
 
     def _set_data(self, df, drop_silently=False):
-        _, categoricals, numericals = get_columns_by_dtype(df)
-        self._set_data_mixed(df, drop_silently)
-        self.featureTypes = ["categorical"]*len(categoricals) + ['continuous']*len(numericals)
+        _, cat_names, num_names = get_columns_by_dtype(df)
+        df = to_category_cols(df, cat_names)
+        self._set_data_mixed(df, drop_silently, num_names, cat_names)
+
+        self.featureTypes = ["categorical"]*len(cat_names) + ['continuous']*len(num_names)
         if self.min_instances_slice is None:
             # if there is not minimum slice width we set it to 8% of the data length
             self.min_instances_slice = len(self.data) * 0.08
@@ -67,6 +69,9 @@ class MSPNModel(Model):
         return []
 
     def _fit(self):
+        # data = np.array(self.data)
+        # for i in range(len(data)):
+        #     data[i] = [int(j) if self.featureTypes[i] == "categorical" else j for j in data[i]]
         self._mspnmodel = SPN.LearnStructure(np.array(self.data), featureTypes=self.featureTypes, \
                                              row_split_method=Splitting.KmeansRows(), \
                                              col_split_method=Splitting.RDCTest(threshold=self.threshold), \
@@ -169,14 +174,17 @@ class MSPNModel(Model):
         self.index = tmp
         return normalizeFactor
      
-    def _flatten(self,lst):
-       result = []
-       for el in lst:
-           if hasattr(el, "__iter__") and not isinstance(el, str):
-               result.extend(self._flatten(el))
-           else:
-               result.append(el)
-       return result
+    def _flatten(self, lst):
+        result = []
+        try:
+           for el in lst:
+               if hasattr(el, "__iter__") and not isinstance(el, str):
+                   result.extend(self._flatten(el))
+               else:
+                   result.append(el)
+        except TypeError:
+            result.append(lst)
+        return result
         
     def _getStartVectors(self,steps):
        domains = self._getDomains()

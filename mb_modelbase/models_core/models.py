@@ -239,7 +239,7 @@ def _tuple2str(tuple_):
 
 def split_training_test_data(df):
     # select training and test data
-    limit = 25
+    limit = int(min(max(df.shape[0]*0.05, 25), 50, df.shape[0]))  # 5% of the data, but not less than 25 and not more than 50
     test_data = df.iloc[:limit, :]
     data = df.iloc[limit:, :]
     return test_data, data
@@ -334,6 +334,15 @@ def get_numerical_fields(df, colnames):
         field = Field(colname, dm.NumericDomain(), dm.NumericDomain(mi-d, ma+d), 'numerical')
         fields.append(field)
     return fields
+
+def to_category_cols(df, colnames):
+    """Returns df where all columns with names in colnames have been converted to the category type using pd.astype('category'.
+    """
+    # df.loc[:,colnames].apply(lambda c: c.astype('category'))  # also works, but more tedious merge with not converted df part
+    for c in colnames:
+        # .cat.codes access the integer codes that encode the actual categorical values. Here, however, we want such integer values.
+        df[c] = df[c].astype('category').cat.codes
+    return df
 
 
 class Model:
@@ -550,11 +559,14 @@ class Model:
         """
         raise NotImplementedError("your model must implement this method")
 
-    def _set_data_mixed(self, df, silently_drop):
+    def _set_data_mixed(self, df, silently_drop, num_names=None, cat_names=None):
         """see Model._set_data"""
 
         # split in categorical and numeric columns
-        _, self._categoricals, self._numericals = get_columns_by_dtype(df)
+        if num_names is None or cat_names is None:
+            _, cat_names, num_names = get_columns_by_dtype(df)
+        self._categoricals = cat_names
+        self._numericals = num_names
 
         # check if dtype are ok
         #  ... nothing to do here ...
@@ -852,8 +864,8 @@ class Model:
 
     def aggregate_data(self, method, opts=None):
         """Aggregate the models data according to given method and options, and returns this aggregation."""
-        data_aggr.aggregate_data(self.data, method, opts)
-        data_aggr.aggregate_data(self.test_data, method, opts)
+        return data_aggr.aggregate_data(self.data, method, opts)
+        #data_aggr.aggregate_data(self.test_data, method, opts)  # TODO: should I add the option to compute aggregations on a selectable part of the data
 
     def aggregate_model(self, method, opts=None):
         """Aggregate the model according to given method and options and return the aggregation value."""
