@@ -152,8 +152,7 @@ class SPNModel(Model):
           vectors.append(xt)
        #remove elements which contains a None
        vectors = [i for i in vectors if None not in i]
-
-
+       return vectors
 
 if __name__ == "__main__":
     from sklearn.datasets import load_iris
@@ -167,7 +166,7 @@ if __name__ == "__main__":
     spn = SPNModel("test")
     spn.set_data(data)
     spn._fit()
-    x = spn.aggregate("maximum")
+    x = spn._maximum()
     print(x, spn._density(x))
     print("start aggregating")
     
