@@ -161,7 +161,7 @@ class DiscreteDomain(Domain):
         elif l == 1:
             # convert to array if its a single value
             val = args[0]
-            self._value = [val] if isinstance(val, str) else val
+            self._value = [val] if isinstance(val, str) else val  # implicitely assumes that values can only be strings
         else:
             raise ValueError("Too many arguments given: " + str(args))
         self._validate()
