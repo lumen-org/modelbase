@@ -50,22 +50,43 @@ class MSPNModel(Model):
         self.min_instances_slice = min_instances_slice
         self.index = {}
         self.normalizeFactor = 1.0
+        self.colToCategory = {}
         self._aggrMethods = {
             'maximum': self._maximum,
         }
 
     def _set_data(self, df, drop_silently=False):
         _, cat_names, num_names = get_columns_by_dtype(df)
-        df = to_category_cols(df, cat_names)
         self._set_data_mixed(df, drop_silently, num_names, cat_names)
-
         self.featureTypes = ["categorical"]*len(cat_names) + ['continuous']*len(num_names)
         if self.min_instances_slice is None:
             # if there is not minimum slice width we set it to 8% of the data length
-            self.min_instances_slice = len(self.data) * 0.08
+            self.min_instances_slice = len(self.data) * 0.08         
+        
+        ### start replace category with number ###
+        categoricals = [i for (i,j) in zip(range(len(self.featureTypes)), self.featureTypes) if j == "categorical"]
+        # for each categorical
+        catToNumber = frozenset()
+        for cat in categoricals:
+          colname = self.fields[cat]['name']
+          categories = frozenset(self.data[colname])
+          # assignment from category to number
+          catToNumber = dict(zip(categories,range(len(categories))))
+          # remember the assignment for this specific columns 
+          self.colToCategory[colname] = catToNumber.copy()
+          
+          # replace category with number 
+          for category in catToNumber:
+            occurenceIndex = (self.data[colname] == category)
+            self.data[colname][occurenceIndex] = catToNumber[category]
+        ### end replace category with number ###
+        
         self.nametoindex = dict((field["name"], i) for i, field in zip(range(len(self.fields)), self.fields))
         for i in range(len(self.fields)):
             self.index[i] = None
+        
+        print("SET:", self.colToCategory)
+        
         return []
 
     def _fit(self):
@@ -77,10 +98,16 @@ class MSPNModel(Model):
                                              col_split_method=Splitting.RDCTest(threshold=self.threshold), \
                                              min_instances_slice=self.min_instances_slice).root
         self.normalizeFactor = self._getNormalizeFactor()
+        
+        print("FIT:", self.colToCategory)
+        
         return []
 
     def _marginalizeout(self, keep, remove):
         tmp = {}
+        print("MARG:", self.colToCategory)
+        print("MARG:", self.nametoindex)
+        print("MARG:", self.index)
         indexes = [self.nametoindex[i] for i in remove]
         for i in indexes:
             tmp[i] = True
@@ -89,25 +116,42 @@ class MSPNModel(Model):
 
     def _conditionout(self, keep, remove):
         tmp = {}
+        inverseNTI = dict((self.nametoindex[i],i) for i in self.nametoindex)
         indexes = [self.nametoindex[i] for i in remove]
         values = self._condition_values(remove)
+        # replace category with number
         for (index, value) in zip(indexes, values):
-            tmp[index] = value
+            if inverseNTI[index] in self.colToCategory.keys():
+              print("COND:",index, inverseNTI, value, self.nametoindex, self.colToCategory)
+              tmp[index] = self.colToCategory[inverseNTI[index]][value]
+              
+            else:
+              tmp[index] = value
         self.index.update(tmp)
+        print("COND:", self.index, tmp)
+        print(self.index)
         return []
 
     def _density(self, x):
-
-        x = [float(e) for e in x]
-
+        print("DENSITY:", self.colToCategory)
+        # inverse this list
+        inverseNTI = dict((self.nametoindex[i],i) for i in self.nametoindex)
+        print("DataBefore:",x,self.nametoindex,self.index)
         j = 0
         tmp = self.index.copy()
         for i in tmp.keys():
             if tmp[i] is None:
-                tmp[i] = x[j]
+                if inverseNTI[i] is not None and type(x[j]) is str:
+                   colname = ""
+                   colname = inverseNTI[i]
+                   tmp[i] = float(self.colToCategory[colname][x[j]])
+                else:
+                   tmp[i] = float(x[j])
                 j += 1
+        print("DataAfter:", x)
         if len(x) != j:
             raise Exception("Two many values.")
+        print("DENSITY:", self.colToCategory)
         return np.exp(self._mspnmodel.eval(None, tmp))[0]/self.normalizeFactor
 
     # calculated iterations times the maximum and returns the position
@@ -132,6 +176,7 @@ class MSPNModel(Model):
         spncopy._mspnmodel = self._mspnmodel
         spncopy.nametoindex = self.nametoindex.copy()
         spncopy.index = self.index.copy()
+        spncopy.colToCategory = self.colToCategory.copy()
         return spncopy
      
     def _getDomains(self):
@@ -233,4 +278,19 @@ if __name__ == "__main__":
           ranges = [list([j,k]) for j in ranges for k in rangeDomains[i]]
     ranges = [mspn._flatten(i) for i in ranges]
     
+    """
+    fit model:
+       ./fit_models.py -i 'mspn_titanic_jk1' -d './titanicjk'
+       
+    start ajax:
+       ./ajax.py -n 'mspn_titanic_jk1' -d '../../mb_data/titanicjk/'
+   
+    model:
+       mspn_titanic_jk1
+       
+    
+    
+    
+    
+    """
        
