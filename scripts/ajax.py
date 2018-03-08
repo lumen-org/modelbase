@@ -5,13 +5,15 @@
 """
 
 from flask import Flask, request
-from flask_cors import CORS, cross_origin
+from flask_cors import cross_origin
 import logging
 import json
 import traceback
 
 from mb_modelbase.utils import utils
 from mb_modelbase.server import modelbase as mbase
+
+logging.getLogger('flask_cors').level = logging.DEBUG
 
 from mb_modelbase.utils.utils import is_running_in_debug_mode
 # if is_running_in_debug_mode():
@@ -23,6 +25,7 @@ logger = None  # create module variable
 
 # the (static) start page
 @app.route('/')
+@cross_origin()  # allows cross origin requests
 def index():
     return app.send_static_file('index.html')
 

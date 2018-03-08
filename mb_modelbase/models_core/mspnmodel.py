@@ -10,13 +10,13 @@ Note to get it run:
 
 In addition to any dependencies required by the mb_modelbase package you also need:
     (1) these python packages available:
-        rpy2, joblib, tensorflow
-      to install pip install rpy2, joblib, tensorflow
-    (2) R installed, with these packages available:
-        histogram, iterators, partykit, foreach, doMC, dplyr, gtools, igraph, energy, dummies,
-      to install, run from an R console:
-        install.package(histogram, iterators, partykit, foreach, doMC, dplyr, gtools, igraph, energy, dummies)
+        rpy2, joblib, tensorflow, networkx, numba, mpmath
+      to install pip install rpy2, joblib, tensorflow, networkx, numba, mpmath
 
+    (2) R installed, with these packages available:
+        histogram, iterators, partykit, foreach, doMC, dplyr, gtools, igraph, energy, dummies
+      to install, run from an R console:
+        install.packages(c("digest", "histogram", "iterators", "partykit", "foreach", "doMC", "dplyr", "gtools", "igraph", "energy", "dummies"))
 
 What did we do to make it run:
   * in particular we changed line ~ tfspn.py:1230

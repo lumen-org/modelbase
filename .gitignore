@@ -97,4 +97,7 @@ ENV/
 stuff/
 mb_modelbase/models_core/img/
 
+# backups of any text files
+*.py~
+*.*~
 
