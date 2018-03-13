@@ -1,0 +1,35 @@
+[[source]]
+
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+
+[packages]
+
+matplotlib = "==2.1.0"
+flask = "*"
+flask-cors = "*"
+numpy = "*"
+xarray = "*"
+pandas = "*"
+scipy = "*"
+sklearn = "*"
+graphviz = "*"
+"rpy2" = "*"
+astropy = "*"
+joblib = "*"
+tensorflow = "*"
+networkx = "*"
+numba = "*"
+mpmath = "*"
+statsmodels = "*"
+
+
+[dev-packages]
+
+
+
+[requires]
+
+python_version = "3.6"
