@@ -13,7 +13,7 @@ import traceback
 from mb_modelbase.utils import utils
 from mb_modelbase.server import modelbase as mbase
 
-logging.getLogger('flask_cors').level = logging.DEBUG
+#logging.getLogger('flask_cors').level = logging.DEBUG
 
 from mb_modelbase.utils.utils import is_running_in_debug_mode
 # if is_running_in_debug_mode():

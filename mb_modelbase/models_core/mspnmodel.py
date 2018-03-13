@@ -85,7 +85,7 @@ class MSPNModel(Model):
         for i in range(len(self.fields)):
             self.index[i] = None
         
-        print("SET:", self.colToCategory)
+        #("SET:", self.colToCategory)
         
         return []
 
@@ -99,15 +99,15 @@ class MSPNModel(Model):
                                              min_instances_slice=self.min_instances_slice).root
         self.normalizeFactor = self._getNormalizeFactor()
         
-        print("FIT:", self.colToCategory)
+        #print("FIT:", self.colToCategory)
         
         return []
 
     def _marginalizeout(self, keep, remove):
         tmp = {}
-        print("MARG:", self.colToCategory)
-        print("MARG:", self.nametoindex)
-        print("MARG:", self.index)
+        #print("MARG:", self.colToCategory)
+        #print("MARG:", self.nametoindex)
+        #print("MARG:", self.index)
         indexes = [self.nametoindex[i] for i in remove]
         for i in indexes:
             tmp[i] = True
@@ -122,21 +122,21 @@ class MSPNModel(Model):
         # replace category with number
         for (index, value) in zip(indexes, values):
             if inverseNTI[index] in self.colToCategory.keys():
-              print("COND:",index, inverseNTI, value, self.nametoindex, self.colToCategory)
+              #print("COND:",index, inverseNTI, value, self.nametoindex, self.colToCategory)
               tmp[index] = self.colToCategory[inverseNTI[index]][value]
               
             else:
               tmp[index] = value
         self.index.update(tmp)
-        print("COND:", self.index, tmp)
-        print(self.index)
+        #print("COND:", self.index, tmp)
+        #print(self.index)
         return []
 
     def _density(self, x):
-        print("DENSITY:", self.colToCategory)
+        #print("DENSITY:", self.colToCategory)
         # inverse this list
         inverseNTI = dict((self.nametoindex[i],i) for i in self.nametoindex)
-        print("DataBefore:",x,self.nametoindex,self.index)
+        #print("DataBefore:",x,self.nametoindex,self.index)
         j = 0
         tmp = self.index.copy()
         for i in tmp.keys():
@@ -148,10 +148,10 @@ class MSPNModel(Model):
                 else:
                    tmp[i] = float(x[j])
                 j += 1
-        print("DataAfter:", x)
+        #print("DataAfter:", x)
         if len(x) != j:
             raise Exception("Two many values.")
-        print("DENSITY:", self.colToCategory)
+        #print("DENSITY:", self.colToCategory)
         return np.exp(self._mspnmodel.eval(None, tmp))[0]/self.normalizeFactor
 
     # calculated iterations times the maximum and returns the position
@@ -268,7 +268,7 @@ if __name__ == "__main__":
        start = domains[i][0]
        stop = domains[i][-1]
        step = (stop-start)/10
-       print(start, stop, step)
+       #print(start, stop, step)
        rangeDomains.append(list(np.arange(start, stop+1, step)))
     ranges = []
     for i in range(len(rangeDomains)):
