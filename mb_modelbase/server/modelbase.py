@@ -126,6 +126,8 @@ class ModelBase:
         ModelBase.models: a dictionary of all models in the modelbase. Each
             model must have a unique string as its name, and this name is used
             as a key in the dictionary.
+        ModelBase.settings: various settings:
+            .float_format : The float format used to encode floats in a result. Defaults to '%.5f'
     """
 
     def __init__(self, name, model_dir='data_models', load_all=True):
@@ -134,6 +136,10 @@ class ModelBase:
         self.name = name
         self.models = {}  # models is a dictionary, using the name of a model as its key
         self.model_dir = model_dir
+
+        self.settings = {
+            'float_format': '%.5f',
+        }
 
         # load some initial models to play with
         if load_all:
@@ -287,7 +293,8 @@ class ModelBase:
                 splitby=self._extractSplitBy(query)
             )
             return _json_dumps({"header": resultframe.columns.tolist(),
-                                "data": resultframe.to_csv(index=False, header=False, float_format='.5f')})
+                                "data": resultframe.to_csv(index=False, header=False,
+                                                           float_format=self.settings['float_format'])})
 
         elif 'DROP' in query:
             self.drop(name=query['DROP'])

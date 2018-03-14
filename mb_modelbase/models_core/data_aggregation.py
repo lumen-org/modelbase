@@ -140,7 +140,7 @@ def most_frequent(df):
 def average_most_frequent(df, opts=None):
     """ Expects a pandas data frame of possibly both numerical and categorical columns.
     Returns an 'mixed-heuristic' average-maximum aggregation, as follows:
-        For the categorical part of the data it returns the most frequent row
+        For the categorical p   art of the data it returns the most frequent row
         For the numerical part of the data it returns the average row
     """
     n, d = df.shape
