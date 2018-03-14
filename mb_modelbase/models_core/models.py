@@ -789,12 +789,12 @@ class Model:
         """
         if conditions is None:
             conditions = []
-		
+
         if isinstance(conditions, tuple):
             conditions = [conditions]
 
         # TODO: simplify the interface?
-		
+
         # can't do that because I want to allow a zip object as conditions...
         # if len(conditions) == 0:
         #     return self
@@ -804,7 +804,7 @@ class Model:
         if is_pure:
             pure_conditions = conditions
         else:
-            # allow conditioning on 'model vs data' field
+            # we allow conditioning on 'model vs data' field:
             # find 'model vs data' field and apply conditions
             pure_conditions = []
             for condition in conditions:
@@ -831,10 +831,18 @@ class Model:
                     names.append(name)
                     pure_conditions.append(condition)
 
-        # condition model. actually, this only restricts the domain of the fields
+        # condition the domain of the fields
         for (name, operator, values) in pure_conditions:
             self.byname(name)['domain'].apply(operator, values)
-        if self.mode != 'model':
+
+        # condition model
+        # todo: currently, conditioning of a model is always only done when it is conditioned out.
+        # in the future this should be decided by the model itself:
+        #  for an emperical model it is always possible to compute the conditional model
+        #  for an gaussian model we may compute it for point conditinals right away, but we maybe would not want to do it for range conditionals
+
+        # condition data
+        if self.mode != 'model':  # i.e. == 'data' or == 'both'
             self.data = data_ops.condition_data(self.data, pure_conditions)
             self.test_data = data_ops.condition_data(self.test_data, pure_conditions)
         self._update_extents(names)
@@ -1001,7 +1009,8 @@ class Model:
         # data frequency
         if mode == "both" or mode == "data":
             # TODO?? should I do this against the test data as well?? expand mode to test data or something? also applies to similar sections in model.probability
-            cnt = len(data_ops.condition_data(self.data, zip(self.names, ['=='] * self.dim, values)))
+            #cnt = len(data_ops.condition_data(self.data, zip(self.names, ['=='] * self.dim, values)))
+            cnt = data_ops.density(self.data, values)
             if mode == "data":
                 return cnt
 
@@ -1082,8 +1091,7 @@ class Model:
 
         # data probability
         if mode == "both" or mode == "data":
-            reduced_df = data_ops.condition_data(self.data, zip(self.names, ['in'] * self.dim, domains))
-            data_prob = len(reduced_df) / len(self.data)
+            data_prob = data_ops.probability(self.data, domains)
             if mode == "data":
                 return data_prob
 
@@ -1101,6 +1109,7 @@ class Model:
             cat_len = len(self._categoricals)
         except AttributeError:
             # self._categoricals might not be implemented in a particular model. this is the fallback:
+            cat_len = sum(f['dtype'] == 'string' for f in self.fields)
             cat_len = sum(f['dtype'] == 'string' for f in self.fields)
         return self._probability_generic_mixed(domains[:cat_len], domains[cat_len:])
 
@@ -1171,7 +1180,7 @@ class Model:
 
     def _condition_values(self, names=None, pairflag=False, to_scalar=True):
         """Returns the list of values to condition on given a sequence of random variable names to condition on.
-        Essentially, this is a look up in the domain restrictions of the fields to be conditioned on.
+        Essentially, this is a look up in the domain restrictions of the fields to be conditioned on (i.e. the sequence names).
 
         Args:
             names: sequence of random variable names to get the conditioning domain for. If not given the condition values for all dimensions are returned.
@@ -1434,9 +1443,11 @@ class Model:
             def _crossjoin(df1, df2):
                 return pd.merge(df1, df2, on='__crossIdx__', copy=False)
 
+            # filter to tuples of (identity_split, split_id)
             id_tpl = tuple(zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'identity')))
             identity_splits, identity_ids = ([], []) if len(id_tpl) == 0 else id_tpl
 
+            # filter to tuples of (data_split, split_id)
             split_tpl = tuple(zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'data')))
             data_splits, data_ids = ([], []) if len(split_tpl) == 0 else split_tpl
 

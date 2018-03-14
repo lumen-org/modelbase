@@ -4,6 +4,7 @@ from mb_modelbase.models_core.cond_gaussians import *
 from mb_modelbase.models_core.cond_gaussian_wm import *
 from mb_modelbase.models_core.data_aggregation import *
 from mb_modelbase.models_core.domains import *
+from mb_modelbase.models_core.empirical_model import *
 from mb_modelbase.models_core.fixed_mixture_model import *
 from mb_modelbase.models_core.gaussians import *
 from mb_modelbase.models_core.mixable_cond_gaussian import *

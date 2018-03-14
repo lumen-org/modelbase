@@ -13,6 +13,7 @@ from mb_modelbase.models_core import domains as dm
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
+
 class MultiVariateGaussianModel(md.Model):
     """A multivariate gaussian model and methods to derive submodels from it
     or query density and other aggregations of it

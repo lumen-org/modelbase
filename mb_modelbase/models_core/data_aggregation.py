@@ -24,6 +24,7 @@ def aggregate_data(df, method, opts=None):
     else:
         raise ValueError("invalid value for method: " + str(method))
 
+
 def most_frequent_equi_sized(data, opts=None):
     """ Expects a pandas data frame of mixed (i.e. numerical and categorical) columns.
     It returns a most frequent item, with details as follows:

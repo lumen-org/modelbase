@@ -35,6 +35,23 @@ def condition_data(df, where):
     return df.loc[mask, :]
 
 
+def density(df, values):
+    """"""
+    dim = df.shape[1]
+    names = df.columns
+    # TODO: count matches instead of data frame construction? should be faster
+    reduced_df = condition_data(df, zip(names, ['=='] * dim, values))
+    return reduced_df.shape[0]
+
+
+def probability(df, domains):
+    dim = df.shape[1]
+    names = df.columns
+    # TODO: count matches instead of data frame construction? should be faster
+    reduced_df = condition_data(df, zip(names, ['in'] * dim, domains))
+    return reduced_df.shape[0] / df.shape[0]
+
+
 def reduce_to_scalars(values):
     """Reduce all elements of values to scalars, as follows:
        * a scalar s are kept: s -> s
