@@ -6,7 +6,9 @@ from mb_modelbase.models_core import data_aggregation as data_aggr
 
 
 class EmpericalModel(Model):
-    """An emperical model"""
+    """
+    An empirical model is a model that is directly based on the relative frequency of relevant evidence.
+    """
 
     def __init__(self, name):
         super().__init__(name)
@@ -41,10 +43,9 @@ class EmpericalModel(Model):
         return ()
 
     def _conditionout(self, keep, remove):
-        """Conditions the random variables with name in remove on their available, //not unbounded// domain and marginalizes
-                them out.
+        """Conditions the random variables with name in remove on their available, //not unbounded// domain and marginalizes them out.
          """
-        # TODO: I believe this method is not required for this model class at all.
+        # TODO: I believe this method will not required for this model class at all.
         # because it will not be part of the required abstract interface of a model class anymore
 
         # collect conditions

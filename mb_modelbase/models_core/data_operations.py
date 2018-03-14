@@ -1,10 +1,13 @@
-import numpy as np
-import pandas as pd
-
-from mb_modelbase.utils import utils
+# Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de)
 
 
 def condition_data(df, where):
+    """ Conditions data frame df according to conditions in where and returns a view on the remaining, filtered data frame.
+
+    :param df: A data frame.
+    :param where: a single condition, or a sequence of conditions. A condition is a three-tuple of (name, operator, values).
+    :return: pd.DataFrame
+    """
     # make it a sequence if not already
     if isinstance(where, tuple):
         where = [where,]
@@ -18,7 +21,7 @@ def condition_data(df, where):
                 # df = df.loc[column.isin(values)]
                 mask &= column.isin(values)
             else:  # quantitative column
-                mask &= column.between(*values, inclusive=True)
+                mask &= column.between(*values, inclusive=True)  # TODO: inclusive??
         else:
             # values is necessarily a single scalar value, not a list
             if operator == 'equals' or operator == '==':
@@ -32,19 +35,32 @@ def condition_data(df, where):
                 mask &= column < values
             else:
                 raise ValueError('invalid operator for condition: ' + str(operator))
+    # apply mask all at once
     return df.loc[mask, :]
 
 
-def density(df, values):
-    """"""
+def density(df, x):
+    """Returns the density (i.e. absolute frequency) of point x in DataFrame df.
+
+    Args:
+        df: A data frame.
+        x: a sequence of values of the dimensions of DataFrame df, in the same order as in df.columns.
+    """
     dim = df.shape[1]
     names = df.columns
     # TODO: count matches instead of data frame construction? should be faster
-    reduced_df = condition_data(df, zip(names, ['=='] * dim, values))
+    reduced_df = condition_data(df, zip(names, ['=='] * dim, x))
     return reduced_df.shape[0]
 
 
 def probability(df, domains):
+    """Returns the probability (i.e relative, empirical frequency) of the space described by
+
+     Args:
+        df: A data frame.
+        domains: a sequence of domains of the dimensions of DataFrame df, in the same order as in df.columns.
+            A domain may not be a scalar value, but must be a sequence. Even if it only holds one element.
+     """
     dim = df.shape[1]
     names = df.columns
     # TODO: count matches instead of data frame construction? should be faster
