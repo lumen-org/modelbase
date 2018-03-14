@@ -287,7 +287,7 @@ class ModelBase:
                 splitby=self._extractSplitBy(query)
             )
             return _json_dumps({"header": resultframe.columns.tolist(),
-                                "data": resultframe.to_csv(index=False, header=False)})
+                                "data": resultframe.to_csv(index=False, header=False, float_format='.5f')})
 
         elif 'DROP' in query:
             self.drop(name=query['DROP'])

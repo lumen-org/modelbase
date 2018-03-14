@@ -98,6 +98,9 @@ class NumericDomain(Domain):
             return [None if l == -math.inf else l, None if h == math.inf else h]
 
     def clamp(self, val):
+        """Returns val clamped to the range of the domain. However, if val is None then None is returned."""
+        if val is None:
+            return None
         [l, h] = self._value
         if val < l:
             return l
@@ -206,6 +209,9 @@ class DiscreteDomain(Domain):
             return None
 
     def clamp(self, val):
+        """Returns val clamped to the range of the domain. However, if val is None then None is returned."""
+        if val is None:
+            return None
         if not self.isbounded() or val in self._value:
             return val
         else:

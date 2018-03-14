@@ -15,9 +15,7 @@ def aggregate_data(df, method, opts=None):
     row_cnt, col_cnt = df.shape
     if row_cnt == 0:
         # can not compute any aggregation. return nan
-        # TODO: allows Nans
-        # raise ValueError("empty data frame - cannot compute any aggregations. implement nans.")
-        return [0] * col_cnt
+        return [None] * col_cnt
     elif method == 'maximum' or method == 'average':
         # return data_aggr.most_frequent_equi_sized(data, opts)  # this is also an option, but I think it's worse
         return average_most_frequent(df, opts)
@@ -60,9 +58,8 @@ def most_frequent_equi_sized(data, opts=None):
 
     # find observation with highest number of occurrences
     grps = df.groupby(list(df.columns))
-    # TODO: allow Nans in the result! it fails on the client when decoding the JSON at the moment
     if len(grps) == 0:
-        return [0] * d
+        return [None] * d
     else:
         data_res = grps.size().argmax()
         #assert (len(data_res) == len(df.columns) and len(data_res) == d)
@@ -116,9 +113,8 @@ def most_frequent_equi_massed(data, opts=None):
     allcols = list(mycopy.columns)
     grps = mycopy.groupby(allcols)
 
-    # TODO: allow Nans in the result! it fails on the client when decoding the JSON at the moment
     if len(grps) == 0:
-        return [0] * d
+        return [None] * d
     else:
         data_res = grps.size().argmax()
         return [data_res] if d == 1 else list(data_res)
@@ -134,9 +130,8 @@ def most_frequent(df):
     allcols = list(df.columns)
     grps = df.groupby(allcols)
 
-    # TODO: allow Nans in the result! it fails on the client when decoding the JSON at the moment
     if len(grps) == 0:
-        return [0] * n
+        return [None] * n
     else:
         data_res = grps.size().idxmax()
         return [data_res] if d == 1 else list(data_res)
@@ -148,11 +143,12 @@ def average_most_frequent(df, opts=None):
         For the categorical part of the data it returns the most frequent row
         For the numerical part of the data it returns the average row
     """
-    n,d = df.shape
-    if n == 0:
-        raise NotImplementedError("cannot return NaNs at the moment.")
+    n, d = df.shape
     if d == 0:
-        raise ValueError("cannot aggregate dataframe without any column")
+        raise ValueError("Cannot aggregate empty DataFrame")
+    if n == 0:
+        return [None] * n
+
 
     num_idx = []
     cat_idx = []
