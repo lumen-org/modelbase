@@ -14,6 +14,7 @@ class EmpericalModel(Model):
             'maximum': self._maximum,
             'average': self._maximum
         }
+        self._emp_data = None
 
     def _set_data(self, df, drop_silently):
         self._set_data_mixed(df, drop_silently)
@@ -44,11 +45,11 @@ class EmpericalModel(Model):
                 them out.
          """
         # TODO: I believe this method is not required for this model class at all.
-        # because it will not be part of the required abstract interface of a model class
+        # because it will not be part of the required abstract interface of a model class anymore
 
         # collect conditions
         values = [self.byname(r)['domain'].values() for r in remove]
-        conditions = zip(values, ['in']*len(values), remove)
+        conditions = zip(remove, ['in']*len(values), values)
 
         # condition
         self._condition(conditions)
@@ -81,6 +82,7 @@ class EmpericalModel(Model):
     def copy(self, name=None):
         """Returns a copy of this model."""
         mycopy = self._defaultcopy(name)
+        mycopy._emp_data = self._emp_data
         return mycopy
 
     def _generate_model(self, opts):
