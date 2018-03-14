@@ -42,6 +42,7 @@ from mb_modelbase.models_core.mixture_gaussians import MixtureOfGaussiansModel
 from mb_modelbase.models_core.cond_gaussians import ConditionallyGaussianModel as CGModel
 from mb_modelbase.models_core.cond_gaussian_wm import CgWmModel as CGWMModel
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel as MCGModel
+from mb_modelbase.models_core.empirical_model import EmpiricalModel
 
 # from mb_modelbase.utils import is_running_in_debug_mode
 # if is_running_in_debug_mode():
@@ -357,6 +358,13 @@ if __name__ == '__main__':
     density_aggregation_flags = {'aggregations': False, 'density': False, 'density_sum': True}
     # _test_all(models, models_setup, data, depth=2)
 
+
+    ## RUN TESTS FOR ALL MODELS:
+    models = {
+        'discrete': [],
+        'continuous': [],
+        'mixed': [EmpiricalModel]
+    }
     # _models= {
     #     'discrete': [MockUpModel, CategoricalModel],
     #     'continuous': [MockUpModel, GaussianModel, MixtureOfGaussiansModel],
@@ -364,6 +372,12 @@ if __name__ == '__main__':
     #     'mixed': [CGModel, CGWMModel],
     #     'mixed': [CGModel, CGWMModel, MCGModel]
     # }
+    density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': False}
+    #_test_all(models, models_setup, data_full, depth=3, mvd='data')
+    _test_all(models, models_setup, data_full, depth=3, mvd='model')
+
+
+
 
 
 

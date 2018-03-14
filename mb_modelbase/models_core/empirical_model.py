@@ -5,7 +5,7 @@ from mb_modelbase.models_core import data_operations as data_op
 from mb_modelbase.models_core import data_aggregation as data_aggr
 
 
-class EmpericalModel(Model):
+class EmpiricalModel(Model):
     """
     An empirical model is a model that is directly based on the relative frequency of relevant evidence.
     """
