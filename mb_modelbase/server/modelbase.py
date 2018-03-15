@@ -306,7 +306,7 @@ class ModelBase:
                 model = self._extractFrom(query)
                 result = {"name": model.name,  "fields": model.json_fields(include_modeldata_field=True)}
             elif show == "MODELS":
-                result = self.list_models()
+                result = {'models': self.list_models()}
             else:
                 raise ValueError("invalid value given in SHOW-clause: " + str(show))
             return _json_dumps(result)
