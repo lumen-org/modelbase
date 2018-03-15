@@ -311,6 +311,15 @@ class ModelBase:
                 raise ValueError("invalid value given in SHOW-clause: " + str(show))
             return _json_dumps(result)
 
+        elif 'RELOAD' in query:
+            what = self._extractReload(query)
+            if what == '*':
+                loaded_models = self.load_all_models()
+                return _json_dumps({'STATUS': 'success',
+                                    'reloaded models': [model[0] for model in loaded_models]})
+            else:
+                raise ValueError() # not implemented?!
+
     ### _extract* functions are helpers to extract a certain part of a PQL query
     #   and do some basic syntax and semantic checks
 
@@ -410,6 +419,15 @@ class ModelBase:
             return {}
         print("OPTIONS: " + str(query['OPTS']))  # TODO DEBUGGING!
         return query['OPTS']
+
+    def _extractReload(self, query):
+        if 'RELOAD' not in query:
+            raise QuerySyntaxError("'RELOAD'-statement missing")
+        what = query['RELOAD']
+        if what == '*':
+            return '*'
+        else:
+            raise NotImplementedError('model-specific reloads not yet implemented!')
 
     def _extractSelect(self, query):
         if 'SELECT' not in query:
