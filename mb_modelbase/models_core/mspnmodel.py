@@ -78,7 +78,8 @@ class MSPNModel(Model):
           # replace category with number 
           for category in catToNumber:
             occurenceIndex = (self.data[colname] == category)
-            self.data[colname][occurenceIndex] = catToNumber[category]
+            self.data.loc[occurenceIndex,colname] = catToNumber[category]
+            # self.data[colname][occurenceIndex] = catToNumber[category]
         ### end replace category with number ###
         
         self.nametoindex = dict((field["name"], i) for i, field in zip(range(len(self.fields)), self.fields))
