@@ -61,6 +61,8 @@ def probability(df, domains):
         domains: a sequence of domains of the dimensions of DataFrame df, in the same order as in df.columns.
             A domain may not be a scalar value, but must be a sequence. Even if it only holds one element.
      """
+    if df.shape[0] == 0:
+        return 0
     dim = df.shape[1]
     names = df.columns
     # TODO: count matches instead of data frame construction? should be faster
