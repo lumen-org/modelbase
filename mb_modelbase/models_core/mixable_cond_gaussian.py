@@ -165,10 +165,12 @@ class Normalizer():
             num_keep = utils.sort_filter_list(num_keep, self._nums)  # bring num_keep in correct order
             n2i = self._numname2idx
             idxs = [n2i[n] for n in num_keep]
+            # slice out sdddev and mean to keep
             self._stddev = self._stddev[idxs]
             self._mean = self._mean[idxs]
-
-            self._numname2idx = {name: n2i[name] for name in num_keep}  # rebuild with remaining numerical field names
+            # update name2idx map with remaining numerical field names. note that num_keep is garantueed to be in order
+            # OLD: self._numname2idx = {name: n2i[name] for name in num_keep}
+            self._numname2idx = {name: i for i, name in enumerate(num_keep)}
             self._nums = num_keep
         return self
 
