@@ -11,7 +11,8 @@ Note to get it run:
 In addition to any dependencies required by the mb_modelbase package you also need:
     (1) these python packages available:
         rpy2, joblib, tensorflow, networkx, numba, mpmath
-      to install pip install rpy2, joblib, tensorflow, networkx, numba, mpmath
+      to install:
+        pip install rpy2 joblib tensorflow networkx numba mpmath astropy statsmodels
 
     (2) R installed, with these packages available:
         histogram, iterators, partykit, foreach, doMC, dplyr, gtools, igraph, energy, dummies
