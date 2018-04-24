@@ -1227,9 +1227,9 @@ class Model:
         elif len(domains) == (self.dim - self._hidden_count) + 1:
             assert (self._hidden_count == 0)  # TODO: remove this constraint / remove model vs data
             # correctly ordered list was passed in, but with model vs data domain
-            mode = domains.pop()[0]
-            # mode = domains[-1][0]
-            # domains = domains[:-1]
+            #mode = domains.pop()[0]
+            mode = domains[-1][0]
+            domains = domains[:-1]
         else:
             raise ValueError("Invalid number of values passed.")
 
