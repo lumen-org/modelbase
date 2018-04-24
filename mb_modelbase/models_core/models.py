@@ -909,6 +909,12 @@ class Model:
 
         return self
 
+    def hidden_fields(self, invert=False):
+        return [f['name'] for f in self.fields if (invert-f['hidden'])]
+
+    def hidden_idxs(self, invert=False):
+        return [idx for idx, f in enumerate(self.fields) if (invert-f['hidden'])]
+
     def reveal(self, dims):
         """Reveals the given fields. Provide either a single field or a field name or a sequence of these.
 
@@ -1028,6 +1034,8 @@ class Model:
         aggregation as a list. The order of elements in the list matches the
         order of random variables in fields attribute of the model.
 
+        Hidden dimensions: The aggregation is computed on the model of all dimensions, however, the values of hidden dimensions are removed prior to returning the aggregation value.
+
         Returns:
             The aggregation of the model as a sequence.
         """
@@ -1036,12 +1044,26 @@ class Model:
         # the data part can be aggregated without any model specific code and merged into the model results at the end
         # see my notes for how to calculate a single aggregation
         mode = self.mode
+
+        if mode == 'both' or mode == 'data':
+            data_res = self.aggregate_data(method, opts)
+        if mode == 'both' or mode == 'model':
+            model_res = self.aggregate_model(method, opts)
+
+        # remove values of hidden dimensions
+        if self._hidden_count != 0:
+            idxs = self.hidden_idxs(invert=True)  # returns the non-hidden indexes
+            if data_res:
+                data_res = (data_res[i] for i in idxs)
+            if model_res:
+                model_res = (model_res[i] for i in idxs)
+
         if mode == "both":
-            return self.aggregate_model(method, opts), self.aggregate_data(method, opts)
+            return model_res, data_res
         if mode == "model":
-            return self.aggregate_model(method, opts)
+            return model_res
         if mode == "data":
-            return self.aggregate_data(method, opts)
+            return data_res
         raise ValueError("invalid value for mode : ", str(mode))
 
     def density(self, values=None, names=None):
@@ -1263,7 +1285,8 @@ class Model:
         if self._isempty():
             raise ValueError('Cannot sample from 0-dimensional model')
         samples = (self._sample() for i in range(n))
-        return pd.DataFrame.from_records(data=samples, columns=self.names)
+        hidden_dims = [f['name'] for f in self.fields if f['hidden']]
+        return pd.DataFrame.from_records(data=samples, columns=self.names, exclude=hidden_dims)
 
     def _sample(self):
         """Returns a single sample drawn from the model.
