@@ -871,12 +871,36 @@ class Model:
         raise NotImplementedError("Implement this method in your model!")
 
     def hide(self, dims):
+        """Hides the given fields. Provide either a single field or a field name or a sequence of these.
+
+        Only fields that have a default value set can be hidden.
+
+        Hiding a dimension does not cause any actual change in the model. However, it allows you to query to model without specifying a value for the hidden dimension. In this sense, it provides you with a view on a splice of the model, where hidden dimensions are fixed to their default values. That is why only dimensions with default values can be hidden.
+
+        Note that any hidden dimension is still reported as a dimension of the model by means of auxilary methods like Model.byname, Model.isfieldname, Model.fields, etc etc.
+
+        However, hiding a dimension with name 'foo' has the following effects on subsequent queries against the model:
+          * density: No value for 'foo' needs to be specified, but the default value is used and the density at that point is returnd
+          * probability: TODO!??
+          * predict: Predictions are done 'normally', i.e. including the hidden dimension foo. However, in the returned tuples the values for foo are removed
+          * sample: Sampling is done 'normally', but the hidden dimensions are removed from the generated samples.
+          * condition: no issue here what so ever. It is possible to condition hidden dimensions.
+          * marginalize: no issue here either.
+
+        For more details, look at the documentation of each of the methods.
+        """
         dims = _to_name_sequence(dims)
         for field in self.byname(dims):
+            if field['default_value'] is None:
+                raise ValueError("Cannot hide field '" + field['name'] + "' that has no default value set.")
             field.hidden = True
         return self
 
     def reveal(self, dims):
+        """Reveals the given fields. Provide either a single field or a field name or a sequence of these.
+
+        See also Model.hide().
+        """
         dims = _to_name_sequence(dims)
         for field in self.byname(dims):
             field.status = False
@@ -915,10 +939,12 @@ class Model:
 
         return self
 
-    def freeze(self, **kwargs):
+    def freeze(self, dims, values=None):
         """Freeze given dimensions to given values."""
-        self.set_default(kwargs)
-        # self.hide() # todo: extract dimension names/indexes from kwargs
+        self.set_default(dims, values)
+        if values is None:
+            dims = dims.keys()
+        self.hide(dims)
 
     def aggregate_data(self, method, opts=None):
         """Aggregate the models data according to given method and options, and returns this aggregation."""
@@ -1015,7 +1041,7 @@ class Model:
             There are several ways to specify the arguments:
             (1) A list of values in <values> and a list of dimensions names in <names>, with corresponding order. They need to be in the same order than the dimensions of this model.
             (2) A list of values in <values> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
-            (2) A dict of key=name:value=value in <values>. <names> is ignored.
+            (3) A dict of key=name:value=value in <values>. <names> is ignored.
 
         Notes if supply the special field 'model vs data'.
             * you must not use option (1) # TODO?
