@@ -870,7 +870,8 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
-    def hide(self, dims):
+
+    def hide(self, dims, val=True):
         """Hides the given fields. Provide either a single field or a field name or a sequence of these.
 
         Only fields that have a default value set can be hidden.
@@ -893,7 +894,9 @@ class Model:
         for field in self.byname(dims):
             if field['default_value'] is None:
                 raise ValueError("Cannot hide field '" + field['name'] + "' that has no default value set.")
-            field.hidden = True
+            self._hidden_count -= field['hidden'] - val
+            field['hidden'] = val
+
         return self
 
     def reveal(self, dims):
@@ -901,10 +904,7 @@ class Model:
 
         See also Model.hide().
         """
-        dims = _to_name_sequence(dims)
-        for field in self.byname(dims):
-            field.status = False
-        return self
+        return self.hide(dims, False)
 
     def set_default(self, dims, values=None):
         """Sets default values for dimensions. There is two ways of specifying the arguments:
@@ -1043,7 +1043,8 @@ class Model:
             (2) A list of values in <values> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
             (3) A dict of key=name:value=value in <values>. <names> is ignored.
 
-        Notes if supply the special field 'model vs data'.
+        Special field 'model vs data':
+
             * you must not use option (1) # TODO?
             * if you use option (2): supply it as the last element of the domain list
             * if you use option (3): use the key 'model vs data' for its domain
@@ -1052,6 +1053,16 @@ class Model:
           * If its value is 'data' then it is interpreted as a density query against the data, i.e. frequency of items is returned.
           * If the value is 'model' it is interpreted as a query against the model, i.e. density of input is returned.
           * If value is 'both' a 2-tuple of both is returned.
+
+        Hidden dimensions:
+
+        The density will be computed on the model over all, hidden and non-hidden dimensions. If you do not specify a value for a hidden dimension its default value will be used instead to compute the density at that point.
+
+        If you use variant (1) and (3) of specifying arguments:
+        You may or not provide a value for hidden dimensions. You may also 'mix', i.e. give values for some hidden dimensions but not for other hidden dimensions.
+
+        If you use variant (2):
+        You must not give any value of hidden dimensions. It would be impossible to determine which you specified and which not.
         """
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
@@ -1305,6 +1316,7 @@ class Model:
         self.extents = []
         self.dim = 0
         self._name2idx = {}
+        self._hidden_count = 0
         return
 
     def _update_extents(self, to_update=None):
@@ -1337,6 +1349,7 @@ class Model:
         assert (all(to_remove_idx[i] <= to_remove_idx[i + 1] for i in range(len(to_remove_idx) - 1)))
 
         for idx in reversed(to_remove_idx):
+            self._hidden_count -= self.fields[idx]['hidden']
             del self.names[idx]
             del self.extents[idx]
             del self.fields[idx]
@@ -1353,6 +1366,7 @@ class Model:
         self._update_name2idx_dict()
         self.names = [f['name'] for f in self.fields]
         self._update_extents()
+        self._hidden_count = sum(map(lambda f: f['hidden'], self.fields))
         return self
 
     def model(self, model='*', where=None, as_=None):
