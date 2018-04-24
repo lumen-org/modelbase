@@ -100,7 +100,7 @@ def Field(name, domain, extent, dtype='numerical'):
         raise ValueError("extents must not be unbounded")
     if dtype not in ['numerical', 'string']:
         raise ValueError("dtype must be 'string' or 'numerical'")
-    field = {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
+    field = {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype, 'hidden': False, 'default_value': None}
     return field
 
 
