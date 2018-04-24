@@ -113,11 +113,14 @@ def mergebyidx2(zips):
 
 def mergebyidx(list1, list2, idx1, idx2):
     """Merges list l1 and list l2 into one list in increasing index order, where the indices are given by idx1
-    and idx2, respectively. idx1 and idx2 are expected to be sorted. No index may be occur twice. Indexing starts at 0.
+    and idx2, respectively. idx1 and idx2 are expected to be sorted. No index may occur twice. Indexing starts at 0.
 
     For example mergebyidx( [a,b], [c,d], [1,3], [0,2] ) gives [c,a,d,b] )
     """
-    assert (len(list1) == len(idx1) and len(list2) == len(idx2))
+    if len(list1) != len(idx1):
+        raise ValueError("list1 and idx1 are not of same length")
+    if len(list2) != len(idx2):
+        raise ValueError("list2 and idx2 are not of same length")
     result = []
     zip1 = zip(idx1, list1)
     zip2 = zip(idx2, list2)
@@ -134,6 +137,12 @@ def mergebyidx(list1, list2, idx1, idx2):
             raise ValueError("missing index " + str(idxres) + " in given index ranges")
     return result
 
+# not tested.
+# def splitByCondition(lst, fct):
+#     good, bad = [], []
+#     for x in lst:
+#         (bad, good)[fct(x)].append(x)
+#     return good, bad
 
 def rolling_1d_mean(seq):
     return [(seq[i]+seq[i+1])/2 for i in range(len(seq)-1)]

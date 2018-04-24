@@ -399,6 +399,8 @@ class Model:
         fields of this model.
 
         Note that this function correctly resolve the special field name 'model vs data'.
+
+        # TODO: even though it's not urgent, I think it is so ugly, that I need that many lookups just to get a field by a name. I should just add another map that directly maps name to field!
         """
 
         def _byname(name):
@@ -1054,15 +1056,15 @@ class Model:
           * If the value is 'model' it is interpreted as a query against the model, i.e. density of input is returned.
           * If value is 'both' a 2-tuple of both is returned.
 
-        Hidden dimensions:
+        Hidden dimensions and default values:
 
-        The density will be computed on the model over all, hidden and non-hidden dimensions. If you do not specify a value for a hidden dimension its default value will be used instead to compute the density at that point.
+        The density will be computed on the model over all (i.e. hidden and non-hidden) dimensions. If you do not specify a value for a dimension (hidden or not) its default value will be used instead to compute the density at that point.
 
         If you use variant (1) and (3) of specifying arguments:
-        You may or not provide a value for hidden dimensions. You may also 'mix', i.e. give values for some hidden dimensions but not for other hidden dimensions.
+        You may or not provide a value for dimensions with default values. You may also 'mix', i.e. give values for some dimensions that have default values, but not for other dimensions that also have default values.
 
         If you use variant (2):
-        You must not give any value of hidden dimensions. It would be impossible to determine which you specified and which not.
+        You must not specify the value of any hidden dimension. This is because it would be impossible to determine what field they belong to.
         """
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
@@ -1071,9 +1073,10 @@ class Model:
         mode = self.mode
         if isinstance(values, dict):
             # dict was passed
-            if len(values) - ('model vs data' in values) != self.dim:
-                raise ValueError('Incorrect number of values given')
-            values = [values[name] for name in self.names]
+            # if len(values) - ('model vs data' in values) != self.dim:
+            #     raise ValueError('Incorrect number of values given')
+            #old: values = [values[name] for name in self.names]
+            values = [values.get(name, self.byname(name)['default_value']) for name in self.names]
             mode = values.get('model vs data', self.mode)
         elif names is not None and values is not None:
             # unordered list was passed in. Not model vs data may be passed
@@ -1081,15 +1084,22 @@ class Model:
                 raise ValueError('Length of names and values does not match.')
             elif len(set(names)) == len(names):
                 raise ValueError('Some name occurs twice.')
-            sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
-            values = [pair[1] for pair in sorted_]
-        elif len(values) == self.dim:
+            values = dict(zip(values, names))  # to dict
+            values = [values.get(name, self.byname(name)['default_value']) for name in self.names]  # to
+            #old: sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
+            #values = [pair[1] for pair in sorted_]
+        elif len(values) == (self.dim - self._hidden_count):
             # correctly ordered list was passed in, without model vs data domain
-            pass
-        elif len(values) == self.dim + 1:
+            if self._hidden_count != 0:
+                # merge with defaults of hidden dimensions (which may not have been passed!)
+                i = iter(values)
+                values = [f['default_value'] if f['hidden'] else next(i) for f in self.fields]
+            else:
+                pass # nothing to do
+        elif len(values) == (self.dim - self._hidden_count) + 1:
+            assert(self._hidden_count == 0)  # TODO: remove this constraint / remove model vs data
             # correctly ordered list was passed in, but with model vs data domain
-            mode = values[-1]
-            values = values[:-1]
+            mode = values.pop()
         else:
             raise ValueError("Invalid number of values passed.")
 
@@ -1139,6 +1149,8 @@ class Model:
             (2) A list of domains in <domains> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
             (3) A dict of key=name:value=domain in <domains>. <names> is ignored.
 
+        Special field 'model vs data':
+
         You may pass a special field with name 'model vs data':
           * you cannot use option (1) # TODO?
           * if you use option (2): supply it as the last element of the domain list
@@ -1146,6 +1158,11 @@ class Model:
           * If its value is 'data' then it is interpreted as a density query against the data, i.e. frequency of items is returned.
           * If the value is 'model' it is interpreted as a query against the model, i.e. density of input is returned.
           * If value is 'both' a 2-tuple of both is returned.
+
+        Hidden dimensions and default values:
+
+        See Model.density().
+
         """
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
@@ -1154,25 +1171,35 @@ class Model:
         mode = self.mode
         if isinstance(domains, dict):
             # dict was passed
-            if len(domains) - ('model vs data' in domains) != self.dim:
-                raise ValueError('Incorrect number of values given')
-            domains = [domains[name] for name in self.names]
+            #if len(domains) - ('model vs data' in domains) != self.dim:
+            #    raise ValueError('Incorrect number of values given')
+            #old: domains = [domains[name] for name in self.names]
+            domains = [domains.get(name, self.byname(name)['default_range']) for name in self.names]
             mode = domains.get('model vs data', [self.mode])[0]
         elif names is not None and domains is not None:
             if len(domains) != len(names):
                 raise ValueError('Length of names and values does not match.')
             elif len(set(names)) == len(names):
                 raise ValueError('Some name occurs twice.')
-            # unordered list was passed in. Not model vs data may be passed
-            sorted_ = sorted(zip(self.asindex(names), domains), key=lambda pair: pair[0])
-            domains = [pair[1] for pair in sorted_]
+            domains = dict(zip(domains, names))  # to dict
+            domains = [domains.get(name, self.byname(name)['default_range']) for name in self.names]  # to domains
+            # old: unordered list was passed in. Not model vs data may be passed
+            #sorted_ = sorted(zip(self.asindex(names), domains), key=lambda pair: pair[0])
+            #domains = [pair[1] for pair in sorted_]
         elif len(domains) == self.dim:
             # correctly ordered list was passed in, without model vs data domain
-            pass
-        elif len(domains) == self.dim + 1:
+            if self._hidden_count != 0:
+                # merge with defaults of hidden dimensions (which may not have been passed!)
+                i = iter(domains)
+                domains = [f['default_domain'] if f['hidden'] else next(i) for f in self.fields]
+            else:
+                pass # nothing to do
+        elif len(domains) == (self.dim - self._hidden_count) + 1:
+            assert (self._hidden_count == 0)  # TODO: remove this constraint / remove model vs data
             # correctly ordered list was passed in, but with model vs data domain
-            mode = domains[-1][0]
-            domains = domains[:-1]
+            mode = domains.pop()[0]
+            # mode = domains[-1][0]
+            # domains = domains[:-1]
         else:
             raise ValueError("Invalid number of values passed.")
 
