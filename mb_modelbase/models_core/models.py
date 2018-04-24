@@ -669,8 +669,11 @@ class Model:
         its domain is bounded it is conditioned on this value (and marginalized out).
         Otherwise it is 'normally' marginalized out (assuming that the full domain is available).
 
+        Hidden dimensions: You may marginalize hidden dimensions. Note, however, that hidden dimensions are
+        always kept, unless they are explicitely included in the argument remove.
+
         Arguments:
-            keep: A sequence or a sequence of names of dimensions or fields of a model. The given dimensions of this model are kept. All other random variables are marginalized out.
+            keep: A sequence or a sequence of names of dimensions or fields of a model. The given dimensions of this model are kept. All other random variables are marginalized out. You may specify the special string "*", which stands for 'keep all dimensions'
             remove: A sequence or a sequence of names of dimensions or fields of a model. The given dimensions of this model are marginalized out.
             is_pure: An performance optimization parameter. Set to True if you can guarantee that keep and remove do not contain the special value "model vs data".
 
@@ -683,9 +686,11 @@ class Model:
             raise ValueError("You may only specify either 'keep' or 'remove', but not both.")
 
         if keep is not None:
-            keep = _to_name_sequence(keep)
             if keep == '*':
-                keep = self.names
+                return self
+            keep = _to_name_sequence(keep)
+            if self._hidden_count != 0:
+                keep.extent(f['name'] for f in self.fields if f['hidden'])  # keep hidden dims
             elif not is_pure:
                 keep = [name for name in keep if name != 'model vs data']
             if not self.isfieldname(keep):
@@ -785,6 +790,9 @@ class Model:
         Note: This only restricts the domains of the random variables. To
         remove the conditioned random variable you need to call marginalize
         with the appropriate parameters.
+        TODO: this is actually a conceptual error. It should NOT only restrict the domain, but actually compute a conditional model. See  https://ci.inf-i2.uni-jena.de/gemod/modelbase/issues/4
+
+        Hidden dimensions: Whether or not any dimension of the model is hidden makes no difference to the result of this method. In particular you may condition on hidden dimensions.
 
         Returns:
             The modified model.
