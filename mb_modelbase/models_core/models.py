@@ -88,20 +88,20 @@ def _to_name_sequence(obj):
 
 
 def Field(name, domain, extent, dtype='numerical'):
+    """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
+        as passed in:
+            'name': the name of the field
+            'domain': the domain of the field,
+            'extent': the extent of the field that will be used as a fallback for domain if domain is unbounded but a
+                value for domain is required
+            'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
+    """
     if not extent.isbounded():
         raise ValueError("extents must not be unbounded")
     if dtype not in ['numerical', 'string']:
         raise ValueError("dtype must be 'string' or 'numerical'")
     field = {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype}
     return field
-""" A constructor that returns 'Field'-dicts, i.e. a dict with three components
-    as passed in:
-        'name': the name of the field
-        'domain': the domain of the field,
-        'extent': the extent of the field that will be used as a fallback for domain if domain is unbounded but a
-            value for domain is required
-        'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
-"""
 
 
 def Aggregation(base, method='maximum', yields=None, args=None):
@@ -870,6 +870,56 @@ class Model:
         """
         raise NotImplementedError("Implement this method in your model!")
 
+    def hide(self, dims):
+        dims = _to_name_sequence(dims)
+        for field in self.byname(dims):
+            field.hidden = True
+        return self
+
+    def reveal(self, dims):
+        dims = _to_name_sequence(dims)
+        for field in self.byname(dims):
+            field.status = False
+        return self
+
+    def set_default(self, dims, values=None):
+        """Sets default values for dimensions. There is two ways of specifying the arguments:
+
+        1. Provide a dict of <field-name> to <default-value> (as first argument or argument dims).
+        2. Provide two sequences: dims and values that contain the field names and default values respectively.
+
+        You may set default values for hidden and non-hidden dimensions of the model.
+
+        Returns self.
+        """
+
+        if values is None:
+            # dims is a dict of <field-name> to <default-value>
+            if not isinstance(dims, dict):
+                raise TypeError("dims must be a dict of <field-name> to <default-value>, if values is None.")
+        else:
+            # dims and values are two lists
+            if len(dims) != len(values):
+                raise ValueError("dims and values must be of equal length.")
+            dims = dict(zip(dims, values))
+
+        if not self.isfieldname(dims.keys()):
+            raise ValueError("dimensions must be specified by their name and must be a dimension of this model")
+
+        # update default values
+        for name, value in dims.items():
+            field = self.byname(name)
+            if not field['domain'].contains(value):
+                raise ValueError("The value to set as default must be within the domain of the dimension.")
+            field['default'] = value
+
+        return self
+
+    def freeze(self, **kwargs):
+        """Freeze given dimensions to given values."""
+        self.set_default(kwargs)
+        # self.hide() # todo: extract dimension names/indexes from kwargs
+
     def aggregate_data(self, method, opts=None):
         """Aggregate the models data according to given method and options, and returns this aggregation."""
         return data_aggr.aggregate_data(self.data, method, opts)
@@ -1050,7 +1100,7 @@ class Model:
             There are several ways to specify the arguments:
             (1) A list of domains in <domains> and a list of dimensions names in <names>, with corresponding order. They need to be in the same order than the dimensions of this model.
             (2) A list of domains in <domains> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
-            (2) A dict of key=name:value=domain in <domains>. <names> is ignored.
+            (3) A dict of key=name:value=domain in <domains>. <names> is ignored.
 
         You may pass a special field with name 'model vs data':
           * you cannot use option (1) # TODO?

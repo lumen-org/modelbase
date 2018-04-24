@@ -142,6 +142,10 @@ class NumericDomain(Domain):
         values = self.values()
         return values[0] if issingular else ((values[1] + values[0]) / 2)
 
+    def contains(self, value):
+        """Returns true iff value is an element of this domain."""
+        return self._value[0] <= value <= self._value[1]
+
 
 class DiscreteDomain(Domain):
     """An (ordered) discrete domain that can be represented by a list of values [val1, val2, ... ]."""
@@ -151,6 +155,8 @@ class DiscreteDomain(Domain):
              * pass no arguments for an unbounded domain
              * not anymore: pass one scalar argument for a singular domain
              * pass a list of values for a bounded domain. its order is preserved.
+
+           ONLY strings as categorical values are allowed!
         """
 
         """Internal representation is as follows:
@@ -244,3 +250,7 @@ class DiscreteDomain(Domain):
             raise ValueError("cannot compute mid of not bounded domain!")
         values = self.values()
         return values[0]
+
+    def contains(self, value):
+        """Returns true iff value is an element of this domain."""
+        return self._value[0] <= value <= self._value[1]
