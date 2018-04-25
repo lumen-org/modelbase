@@ -13,6 +13,7 @@ from collections import namedtuple
 from functools import reduce
 from operator import mul
 import pickle as pickle
+
 import numpy as np
 import pandas as pd
 import logging
@@ -238,8 +239,13 @@ def _tuple2str(tuple_):
 
 
 def split_training_test_data(df):
+    n = df.shape[0]
+
     # select training and test data
-    limit = int(min(max(df.shape[0]*0.05, 25), 50, df.shape[0]))  # 5% of the data, but not less than 25 and not more than 50
+    limit = int(min(max(n*0.05, 25), 50, n))  # 5% of the data, but not less than 25 and not more than 50, and not more than 50% test
+    if limit > n/2:
+        limit = n//2
+
     test_data = df.iloc[:limit, :]
     data = df.iloc[limit:, :]
     return test_data, data
@@ -454,7 +460,9 @@ class Model:
         same names but in the same order as the random variables in the model.
         It silently drops any duplicate names.
         """
-        assert (len(set(names)) <= len(self.names))
+        #if len(set(names)) > len(self.names):
+        #    print(str(names))
+        #assert (len(set(names)) <= len(self.names))
         return utils.sort_filter_list(names, self.names)
 
     def __init__(self, name="model"):
@@ -536,6 +544,11 @@ class Model:
         """
         # general clean up
         df = clean_dataframe(df)
+
+        if df.shape[0] == 0:
+            raise ValueError("Cannot fit to data frame with no rows.")
+        if df.shape[1] == 0:
+            raise ValueError("Cannot fit to data frame with no columns.")
 
         # model specific clean up, setting of data, models fields, and possible more model specific stuff
         callbacks = self._set_data(df, silently_drop)
@@ -1129,9 +1142,19 @@ class Model:
         elif len(values) == (self.dim - self._hidden_count) + 1:
             assert(self._hidden_count == 0)  # TODO: remove this constraint / remove model vs data
             # correctly ordered list was passed in, but with model vs data domain
-            mode = values.pop()
+            #mode = values.pop()
+            mode = values[-1]
+            values = values[:-1]
         else:
             raise ValueError("Invalid number of values passed.")
+
+        # it may happen that some elements of values are not scalars such as 1 or 'foo' but a single item list
+        # this is because the split-method 'elements' is used to create input for both:
+        #   * probability (requiring a sequence of domains), and
+        #   * density (requiring a sequence of scalars)
+        # TODO: fix this somehow? not sure if it is possible
+
+        values = data_ops.reduce_to_scalars(values)
 
         # data frequency
         if mode == "both" or mode == "data":
@@ -1141,7 +1164,6 @@ class Model:
             if mode == "data":
                 return cnt
 
-        #p = self._density(data_ops.reduce_to_scalars(values))
         p = self._density(values)
         if mode == "model":
             return p
@@ -1615,13 +1637,12 @@ class Model:
                 # #.drop_duplicates()\ # TODO: would make sense to do it, but then I run into problems with matching test data to aggregations on them in frontend, because I drop them for the aggregations, but not for test data select
                 input_frame = self.test_data.loc[:, data_split_names]\
                     .sort_values(by=data_split_names, ascending=True)
-                pass
                 input_frame.columns = data_ids  # rename to data split ids!
 
                 # add identity splits
                 for id_, s in zip(identity_ids, identity_splits):
                     field = basemodel.byname(s[NAME_IDX])
-                    domain = field['domain'].bounded(field['extent'])
+                    domain = field['domain'].bounded(field['extent'])  # TODO: what does this do?
                     assert(domain.issingular())
                     input_frame[id_] = domain.value()
 
@@ -1683,17 +1704,28 @@ class Model:
                     # select relevant columns in correct order and iterate over it
                     names = self.sorted_names(aggr[NAME_IDX])
                     ids = [split_name2id[name] for name in names]
+
                     # if we split by 'model vs data' field we have to add this to the list of column ids
                     if 'model vs data' in splitnames_unique:
                         ids.append(split_name2id['model vs data'])
                         names.append('model vs data')
+
                 except KeyError as err:
                     raise ValueError("missing split-clause for field '" + str(err) + "'.")
-                subframe = input_frame.loc[:,ids]
+                subframe = input_frame.loc[:, ids]
+
+                # when splitting by elements or identity we get single element lists instead of scalars. However, density() requires scalars.
+                # for those columns that have values of element or identity splits: map to
+                # TODO: I believe this issue should be handled in a conceptually better and faster way...
+                nonscalar_ids = [split_name2id[name] for (name, method, __) in splitby if
+                                        method == 'elements' or method == 'identity' and name in names]
+                for col_id in nonscalar_ids:
+                    subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
 
                 for row in subframe.itertuples(index=False):
-                    # res = aggr_model.density(values=row)
-                    res = aggr_model.probability(domains=row)
+                    # todo: why not use _density? calling density creates a lot of overhead!
+                    res = aggr_model.density(values=row)
+                    #res = aggr_model.probability(domains=row)
                     aggr_results.append(res)
 
             else:  # it is some aggregation

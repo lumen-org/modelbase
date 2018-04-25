@@ -10,7 +10,7 @@ import numpy.testing as npt
 import numpy as np
 
 from mb_modelbase.models_core.gaussians import MultiVariateGaussianModel as Gaussian
-
+from mb_modelbase.models_core.models import Density
 
 class TestRunningShouldNotRaiseException(unittest.TestCase):
     """ This is not a real test case... it's just a couple of model queries that should go through
@@ -42,8 +42,9 @@ class TestRunningShouldNotRaiseException(unittest.TestCase):
                           where=[('dim0', 'equals', 1)], splitby=[('dim0', 'equidist', [10])])
         print("\n\npredict 3\n" + str(res))
 
-        res = foo.predict(predict=[(['dim0'], 'density', 'dim0', []), 'dim0'],
-                           splitby=[('dim0', 'equidist', [10])])
+        res = foo.predict(predict=[Density('dim0'), 'dim0'], splitby=[('dim0', 'equidist', [10])])
+        #res = foo.predict(predict=[(['dim0'], 'density', 'dim0', []), 'dim0'],
+        #                   splitby=[('dim0', 'equidist', [10])])
         print("\n\npredict 4\n" + str(res))
 
         res = foo.predict(

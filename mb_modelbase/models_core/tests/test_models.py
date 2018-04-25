@@ -4,8 +4,7 @@
 
 Test Suite for the models base class.
 
-Its tests the abstract functionality provided by the Model class. It does not intend to test any specific implementation
-of subclasses.
+Its tests the abstract functionality provided by the Model class. It does not intend to test any specific implementation of subclasses.
 
 For generic testing of subclasses see test_models_generic.py.
 """
@@ -19,25 +18,17 @@ from mb_modelbase.models_core.mockup_model import MockUpModel
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
 
 # load data
-from mb_modelbase.models_core.tests import test_crabs
-
-# class TestDensity(unittest.TestCase):
-#     """Test the model.probability method."""
-#
-#     def setUp(self):
-#         # get 1d data
-#         df = crabs.continuous().iloc[:, 0]
-#
-#         # learn model
-#         model = MixableCondGaussianModel().fit(df)
-#
-#
+from mb_modelbase.models_core.tests import crabs
 
 
 class TestDataSelect(unittest.TestCase):
     """Test the model.select method."""
 
     def setUp(self):
+        _crabs_mixed = crabs.mixed()
+        # _crabs_cat = crabs.continuous()
+        # _crabs_num = crabs.categorical()
+
         # crabs has columns: 'species', 'sex', 'FL', 'RW', 'CL', 'CW', 'BD'
         self.data = pd.DataFrame(_crabs_mixed)
         self.model = MockUpModel('crabs').set_data(_crabs_mixed)
@@ -47,12 +38,18 @@ class TestDataSelect(unittest.TestCase):
 
     def test_it(self):
         result = self.model.select(what=['species'])
-        self.assertTrue((self.shape[0],1) == result.shape
-                        and result.columns[0] == 'species',
-                        'tests that correct columns are returned')
+        result2 = self.model.select(what=['species'], data_category='test data')
 
-        result = self.model.select(what=['FL','species','RW'])
-        self.assertTrue((self.shape[0],3) == result.shape
+        print(str(result))
+        print(str(result2))
+
+        self.assertTrue(self.shape[0] == result.shape[0] + result2.shape[0], "tests that correct number of items is returned")
+
+        self.assertTrue(result.columns[0] == result2.columns[0] == 'species'
+                        and result.shape[1] == result2.shape[1] == 1, 'tests that correct columns are returned')
+
+        result = self.model.select(what=['FL', 'species', 'RW'])
+        self.assertTrue(3 == result.shape[1]
                         and result.columns[0] == 'FL'
                         and result.columns[1] == 'species'
                         and result.columns[2] == 'RW',
@@ -60,7 +57,7 @@ class TestDataSelect(unittest.TestCase):
 
         # test conditions are followed: no values incorrectly left out
         result = self.model.select(what=['FL','species','RW'])
-        self.assertTrue((self.shape[0],3) == result.shape
+        self.assertTrue(3 == result.shape[1]
                         and result.columns[0] == 'FL'
                         and result.columns[1] == 'species'
                         and result.columns[2] == 'RW',
@@ -151,6 +148,7 @@ class TestInvalidParams(unittest.TestCase):
             shuffle(shuffled)
             self.assertEqual(m.names, m.sorted_names(shuffled))
 
+
 class TestAllModels(unittest.TestCase):
     """This test case tests simple invariants that should hold for all concrete models, that however,
     are not abstracted into the abstract base class."""
@@ -165,14 +163,12 @@ class TestAllModels(unittest.TestCase):
     def test_automated_model_creation(self):
         for class_ in TestAllModels.subclasses:
             model = class_("foo")
-            self.assertEqual(model.mode, 'empty')
+            self.assertEqual(model.mode, None)
             model.generate_model()
             self.assertEqual(model.mode, 'model')
             model._generate_data()
             self.assertEqual(model.mode, 'both')
 
+
 if __name__ == '__main__':
-    _crabs_mixed = test_crabs.mixed()
-    _crabs_cat = test_crabs.continuous()
-    _crabs_num = test_crabs.categorical()
     unittest.main()
