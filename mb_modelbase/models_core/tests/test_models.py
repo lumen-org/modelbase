@@ -169,7 +169,7 @@ class TestDefaultValue(unittest.TestCase):
     def setUp(self):
         pass
 
-    def test_hide_simple(self):
+    def test_hide(self):
         m = __class__.model.copy()
         cols = __class__.cols
 
@@ -185,11 +185,22 @@ class TestDefaultValue(unittest.TestCase):
         with self.assertRaises(ValueError):
             m.hide(cols)
 
-    def test_set_default_simple(self):
+        # hide some fields
+        item = ['Orange', 'Female', 10.7, 9.7, 21.4, 24, 9.8]
+        defaults = dict(zip(m.names, item))
+
+        for names in [['sex'], ['sex', 'RW'], ['species', 'FL', 'CL'], m.names]:
+            m.freeze({n: defaults[n] for n in names})  # freeze is set default + hide
+            self.assertEqual(m._hidden_count, len(names), "tests hidden count.")
+            self.assertEquals(set(m.hidden_fields()), set(names), "tests Model.hidden_fields()")
+            m.hide(names, False)
+            self.assertEquals(m._hidden_count, 0, "tests unhiding.")
+
+    def test_set_default(self):
 
         m = __class__.model.copy()
 
-        def invariate_density(model, x, dims):
+        def invariate_density(model, x, dims, x_alternative=None):
             """Given a model <model> a point (list) <x> and a list or single name of fields, it tests that
             the density doesn't change if dims are set to default values"""
 
@@ -212,51 +223,28 @@ class TestDefaultValue(unittest.TestCase):
 
             self.assertEqual(p_before, p_after, 'tests that value of density(x) does not change when we set a default value')
 
-        #cols = __class__.cols
-        item = ['Orange', 'Female', 10.7, 9.7, 21.4, 24, 9.8]  # an item from the data set
-        #item2 = ['Blue', 'Male', 9.2, 7.8, 19, 22.4, 7.7]
+            p_override = m.density(x_before)
+            self.assertEqual(p_before, p_override, 'tests that overriding the default value with an identical value does not change the result')
 
-        invariate_density(m, item, 'sex')
-        invariate_density(m, item, 'species')
-        invariate_density(m, item, 'FL')
-        invariate_density(m, item, ['sex', 'RW'])
-        invariate_density(m, item, ['CL', 'CW'])
+            if x_alternative is not None:
+                x_update = dict(zip(names, x_alternative))  # to dict
+                x_update = {k: x_update[k] for k in dims}  # filter to the dims that we want to change
+                x_alt = dict(x_before)
+                x_alt.update(x_update)
+                p_alt = m.density(x_alt)
+                self.assertNotEqual(p_after, p_alt, 'tests that it results in a different density if we override the default value')
 
-        # todo: test with hidden dims
+        item = ['Orange', 'Female', 10.7, 9.7, 21.4, 24, 9.8]  # items from the data set
+        item2 = ['Blue', 'Male', 9.2, 7.8, 19, 22.4, 7.7]
+
+        invariate_density(m, item, 'sex', item2)
+        invariate_density(m, item, 'species', item2)
+        invariate_density(m, item, 'FL', item2)
+        invariate_density(m, item, ['sex', 'RW'], item2)
+        invariate_density(m, item, ['CL', 'CW'], item2)
+
+
         # todo: test other queries: aggregations, ...
-        # todo: test override of defaults for non-hidden
-
-        name = 'sex'
-        def_val = 'Female'
-        #
-        # item_with = list(item)
-        # p_before = m.density(item_with)
-        #
-        # m.set_default({name: def_val})
-        # field = m.byname(name)
-        # self.assertEqual(field['default'], def_val, 'tests initial setting of a default value')
-        #
-        # #hidden_fields = m.hidden_fields()
-        # #self.assertEquals(len(hidden_fields), 1, 'tests Model.hidden_fields()')
-        # #self.assertEquals(hidden_fields[0]['name'], name, 'tests Model.hidden_fields()  (2)')
-        #
-        # item_without = list(item)
-        # item_without.remove(def_val)
-        # p_after = m.density(item_without)
-        # self.assertEqual(p_before, p_after)
-
-        # --------
-
-        # def_val = "Female"
-        # m.set_default({name: def_val})
-        # self.assertEqual(field['default'], def_val, 'tests changing of a default value')
-        #
-        # m.set_default({name: None})
-        # self.assertIsNone(field['default'], 'tests correct removal of a default value (1)')
-        #
-        # # tests correct removal of a default value (2)
-        # with self.assertRaises(ValueError):
-        #     m.hide('species')
 
 
 class TestAllModels(unittest.TestCase):
