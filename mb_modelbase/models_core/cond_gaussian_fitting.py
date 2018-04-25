@@ -38,11 +38,11 @@ def fit_clz_mean (df):
     solver = CG_CLZ_Utils(meta)  # initialize problem
     solver.dropdata(D, Y)  # set training data
     # solve it attribute .x contains the solution parameter vector.
-    res = solver.solveSparse(klbda=0.2, verb=True, innercallback=solver.nocallback)
+    res = solver.solveSparse(klbda=0.2, verb=False, innercallback=solver.nocallback)
     #res = solver.solve(verb = 1, callback= solver.slimcallback) # without regularization - means far away
-    clz_model_params = solver.getCanonicalParams(res.x, verb=True)
+    clz_model_params = solver.getCanonicalParams(res.x, verb=False)
 
-    (p, mus, Sigmas) = clz_model_params.getMeanParams(verb=True)
+    (p, mus, Sigmas) = clz_model_params.getMeanParams(verb=False)
     return p, mus, Sigmas, meta
 
 
@@ -61,7 +61,7 @@ def fit_map_mean (df):
     solver = CG_MAP_Utils(meta)  # initialize problem
     solver.dropdata(D, Y)  # set training data
 
-    (p, mus, Sigmas) = solver.fitCG_variableCov(verb = True)
+    (p, mus, Sigmas) = solver.fitCG_variableCov(verb=False)
 #    (p, mus, Sigmas) = solver.fitCG_fixedCov(verb = True)
     return p, mus, Sigmas, meta
 

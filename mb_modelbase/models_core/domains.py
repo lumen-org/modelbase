@@ -253,4 +253,4 @@ class DiscreteDomain(Domain):
 
     def contains(self, value):
         """Returns true iff value is an element of this domain."""
-        return self._value[0] <= value <= self._value[1]
+        return not self.isbounded() or value in self._value

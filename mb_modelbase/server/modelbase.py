@@ -143,6 +143,7 @@ class ModelBase:
 
         # load some initial models to play with
         if load_all:
+            logger.info("Loading models from directory '" + model_dir + "'")
             loaded_models = self.load_all_models()
             if len(loaded_models) == 0:
                 logger.warning("I did not load ANY model. Make sure the provided model directory is correct! "

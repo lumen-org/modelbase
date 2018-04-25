@@ -20,7 +20,6 @@ from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianMo
 # load data
 from mb_modelbase.models_core.tests import crabs
 
-
 class TestDataSelect(unittest.TestCase):
     """Test the model.select method."""
 
@@ -34,15 +33,10 @@ class TestDataSelect(unittest.TestCase):
         self.model = MockUpModel('crabs').set_data(_crabs_mixed)
         self.cols = list(_crabs_mixed.columns)
         self.shape = self.data.shape
-        pass
 
     def test_it(self):
         result = self.model.select(what=['species'])
         result2 = self.model.select(what=['species'], data_category='test data')
-
-        print(str(result))
-        print(str(result2))
-
         self.assertTrue(self.shape[0] == result.shape[0] + result2.shape[0], "tests that correct number of items is returned")
 
         self.assertTrue(result.columns[0] == result2.columns[0] == 'species'
@@ -76,7 +70,7 @@ class TestDataSelect(unittest.TestCase):
 class TestInvalidParams(unittest.TestCase):
 
     def setUp(self):
-        # setup model with known fixed paramters
+        # setup model with known fixed parameters
         self.model = MockUpModel()
         self.model.generate_model(opts={'dim': 6})
 
@@ -149,6 +143,122 @@ class TestInvalidParams(unittest.TestCase):
             self.assertEqual(m.names, m.sorted_names(shuffled))
 
 
+class TestDefaultValue(unittest.TestCase):
+    """Test the default values."""
+
+    """
+    ## sample of crabs data frame
+    species,sex,FL,RW,CL,CW,BD
+    --------------------------------
+    Blue,Male,8.1,6.7,16.1,19,7
+    Blue,Male,8.8,7.7,18.1,20.8,7.4
+    Blue,Male,9.2,7.8,19,22.4,7.7
+    Orange,Female,10.7,9.7,21.4,24,9.8
+    Orange,Female,11.4,9.2,21.7,24.1,9.7
+    Orange,Female,12.5,10,24.1,27,10.9
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        """Setup the model only once, since it is expensive and can be copied"""
+        cls.data = crabs.mixed()
+        cls.model = MixableCondGaussianModel('crabs').fit(cls.data)
+        # crabs has columns: 'species', 'sex', 'FL', 'RW', 'CL', 'CW', 'BD'
+        cls.cols = list(cls.data.columns)
+
+    def setUp(self):
+        pass
+
+    def test_hide_simple(self):
+        m = __class__.model.copy()
+        cols = __class__.cols
+
+        self.assertEquals(m._hidden_count, 0, "tests initial hidden count.")
+        self.assertEquals(m.hidden_fields(invert=True), cols, "tests initial Model.hidden_fields()")
+        self.assertEquals(m.hidden_idxs(invert=True), list(range(len(cols))), "tests initial Model.hidden_fields()")
+
+        # tests that cannot hide without default values
+        for name in cols:
+            with self.assertRaises(ValueError):
+                m.hide(name)
+
+        with self.assertRaises(ValueError):
+            m.hide(cols)
+
+    def test_set_default_simple(self):
+
+        m = __class__.model.copy()
+
+        def invariate_density(model, x, dims):
+            """Given a model <model> a point (list) <x> and a list or single name of fields, it tests that
+            the density doesn't change if dims are set to default values"""
+
+            if isinstance(dims, str):  # make it a list
+                dims = [dims]
+            dims = m.sorted_names(dims)
+
+            # check that value of density(x) does not change when we set a default value to field <dims>
+            names = model.names
+
+            x_before = dict(zip(names, x))  # x is given as list. we want a dict
+            p_before = m.density(x_before)
+
+            x_defaults = {k: x_before[k] for k in dims}  # dict of defaults to set
+            model.set_default(x_defaults)  # set defaults
+
+            dims_inv = model.inverse_names(dims)
+            x_after = {k: x_before[k] for k in dims_inv}  # generate new x without the values of <dims>
+            p_after = m.density(x_after)
+
+            self.assertEqual(p_before, p_after, 'tests that value of density(x) does not change when we set a default value')
+
+        #cols = __class__.cols
+        item = ['Orange', 'Female', 10.7, 9.7, 21.4, 24, 9.8]  # an item from the data set
+        #item2 = ['Blue', 'Male', 9.2, 7.8, 19, 22.4, 7.7]
+
+        invariate_density(m, item, 'sex')
+        invariate_density(m, item, 'species')
+        invariate_density(m, item, 'FL')
+        invariate_density(m, item, ['sex', 'RW'])
+        invariate_density(m, item, ['CL', 'CW'])
+
+        # todo: test with hidden dims
+        # todo: test other queries: aggregations, ...
+        # todo: test override of defaults for non-hidden
+
+        name = 'sex'
+        def_val = 'Female'
+        #
+        # item_with = list(item)
+        # p_before = m.density(item_with)
+        #
+        # m.set_default({name: def_val})
+        # field = m.byname(name)
+        # self.assertEqual(field['default'], def_val, 'tests initial setting of a default value')
+        #
+        # #hidden_fields = m.hidden_fields()
+        # #self.assertEquals(len(hidden_fields), 1, 'tests Model.hidden_fields()')
+        # #self.assertEquals(hidden_fields[0]['name'], name, 'tests Model.hidden_fields()  (2)')
+        #
+        # item_without = list(item)
+        # item_without.remove(def_val)
+        # p_after = m.density(item_without)
+        # self.assertEqual(p_before, p_after)
+
+        # --------
+
+        # def_val = "Female"
+        # m.set_default({name: def_val})
+        # self.assertEqual(field['default'], def_val, 'tests changing of a default value')
+        #
+        # m.set_default({name: None})
+        # self.assertIsNone(field['default'], 'tests correct removal of a default value (1)')
+        #
+        # # tests correct removal of a default value (2)
+        # with self.assertRaises(ValueError):
+        #     m.hide('species')
+
+
 class TestAllModels(unittest.TestCase):
     """This test case tests simple invariants that should hold for all concrete models, that however,
     are not abstracted into the abstract base class."""
@@ -171,4 +281,5 @@ class TestAllModels(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    print("test")
     unittest.main()

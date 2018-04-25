@@ -919,7 +919,6 @@ class Model:
                 raise ValueError("Cannot hide field '" + field['name'] + "' that has no default value set.")
             self._hidden_count -= field['hidden'] - val
             field['hidden'] = val
-
         return self
 
     def hidden_fields(self, invert=False):
@@ -964,7 +963,7 @@ class Model:
             field = self.byname(name)
             if not field['domain'].contains(value):
                 raise ValueError("The value to set as default must be within the domain of the dimension.")
-            field['default'] = value
+            field['default_value'] = value
 
         return self
 
@@ -1107,7 +1106,7 @@ class Model:
         You may or not provide a value for dimensions with default values. You may also 'mix', i.e. give values for some dimensions that have default values, but not for other dimensions that also have default values.
 
         If you use variant (2):
-        You must not specify the value of any hidden dimension. This is because it would be impossible to determine what field they belong to.
+        You must not specify the value of any hidden dimension. And you must specify values for all non-hidden dimensions. This is because it would be impossible to determine what field they belong to.
         """
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
@@ -1119,8 +1118,8 @@ class Model:
             # if len(values) - ('model vs data' in values) != self.dim:
             #     raise ValueError('Incorrect number of values given')
             #old: values = [values[name] for name in self.names]
-            values = [values.get(name, self.byname(name)['default_value']) for name in self.names]
             mode = values.get('model vs data', self.mode)
+            values = [values.get(name, self.byname(name)['default_value']) for name in self.names]
         elif names is not None and values is not None:
             # unordered list was passed in. Not model vs data may be passed
             if len(values) != len(names):
@@ -1131,6 +1130,7 @@ class Model:
             values = [values.get(name, self.byname(name)['default_value']) for name in self.names]  # to
             #old: sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
             #values = [pair[1] for pair in sorted_]
+        # NEW:
         elif len(values) == (self.dim - self._hidden_count):
             # correctly ordered list was passed in, without model vs data domain
             if self._hidden_count != 0:
@@ -1138,7 +1138,7 @@ class Model:
                 i = iter(values)
                 values = [f['default_value'] if f['hidden'] else next(i) for f in self.fields]
             else:
-                pass # nothing to do
+                pass  # nothing to do
         elif len(values) == (self.dim - self._hidden_count) + 1:
             assert(self._hidden_count == 0)  # TODO: remove this constraint / remove model vs data
             # correctly ordered list was passed in, but with model vs data domain
@@ -1154,7 +1154,7 @@ class Model:
         #   * density (requiring a sequence of scalars)
         # TODO: fix this somehow? not sure if it is possible
 
-        values = data_ops.reduce_to_scalars(values)
+        # values = data_ops.reduce_to_scalars(values)
 
         # data frequency
         if mode == "both" or mode == "data":
