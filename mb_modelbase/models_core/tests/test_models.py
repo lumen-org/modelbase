@@ -176,11 +176,10 @@ class TestDefaultValue(unittest.TestCase):
 
         # tests that cannot hide without default values
         for name in cols:
-            with self.assertRaises(ValueError):
-                m.hide(name)
-
-        with self.assertRaises(ValueError):
-            m.hide(cols)
+            # should not raise any exception
+            m.hide(name)
+        m.hide(cols)
+        m.hide(cols, False)
 
         # hide some fields
         item = ['Orange', 'Female', 10.7, 9.7, 21.4, 24, 9.8]
@@ -192,7 +191,8 @@ class TestDefaultValue(unittest.TestCase):
 
             # freeze (i.e. combined set_default() and hide())
             default_slice = {n: defaults[n] for n in names}
-            m.freeze(default_slice)
+            m.set_default_value(default_slice)
+            m.hide(default_slice.keys())
             self.assertEqual(m._hidden_count, len(names), "tests hidden count.")
             self.assertEqual(set(m.hidden_fields()), set(names), "tests Model.hidden_fields()")
             aggr_after = m.aggregate('maximum')
@@ -228,7 +228,7 @@ class TestDefaultValue(unittest.TestCase):
             aggr_before = m.aggregate('maximum')
 
             x_defaults = {k: x_before[k] for k in dims}  # dict of defaults to set
-            model.set_default(x_defaults)  # set defaults
+            model.set_default_value(x_defaults)  # set defaults
 
             dims_inv = model.inverse_names(dims)
             x_after = {k: x_before[k] for k in dims_inv}  # generate new x without the values of <dims>
@@ -258,7 +258,6 @@ class TestDefaultValue(unittest.TestCase):
         invariate_density(m, item, 'FL', item2)
         invariate_density(m, item, ['sex', 'RW'], item2)
         invariate_density(m, item, ['CL', 'CW'], item2)
-        # TODO: test other queries: aggregations, ...
 
     def test_model_interface(self):
         m = __class__.model.copy()

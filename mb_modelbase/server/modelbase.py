@@ -269,7 +269,8 @@ class ModelBase:
             derived_model.model(
                 model=self._extractModel(query),
                 where=self._extractWhere(query),
-                default_values=self._extractDefaultValues(query),
+                default_values=self._extractDefaultValue(query),
+                default_subsets=self._extractDefaultSubset(query),
                 hide=self._extractHide(query)),
             # add to modelbase
             self.add(derived_model, query["AS"])
@@ -391,11 +392,17 @@ class ModelBase:
             raise QuerySyntaxError("'PREDICT'-statement missing")
         return query['PREDICT']
 
-    def _extractDefaultValues(self, query):
+    def _extractDefaultValue(self, query):
         if 'DEFAULT_VALUE' not in query:
             return None
         else:
             return query['DEFAULT_VALUE']
+
+    def _extractDefaultSubset(self, query):
+        if 'DEFAULT_SUBSET' not in query:
+            return None
+        else:
+            return query['DEFAULT_SUBSET']
 
     def _extractHide(self, query):
         if 'HIDE' not in query:

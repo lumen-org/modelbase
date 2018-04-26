@@ -101,7 +101,7 @@ def Field(name, domain, extent, dtype='numerical'):
         raise ValueError("extents must not be unbounded")
     if dtype not in ['numerical', 'string']:
         raise ValueError("dtype must be 'string' or 'numerical'")
-    field = {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype, 'hidden': False, 'default_value': None}
+    field = {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype, 'hidden': False, 'default_value': None, 'default_subset': None}
     return field
 
 
@@ -910,15 +910,15 @@ class Model:
            * if a dict is provided for dims, this is ignored, otherwise
            * set to True to hide, or False to unhide all given dimensions.
 
-        Only fields that have a default value set can be hidden.
+        Hiding a dimension does not cause any actual change in the model. However, it allows you to query to model without specifying a value for the hidden dimension. In this sense, it provides you with a view on a splice of the model, where hidden dimensions are fixed to their default values / subsets.
 
-        Hiding a dimension does not cause any actual change in the model. However, it allows you to query to model without specifying a value for the hidden dimension. In this sense, it provides you with a view on a splice of the model, where hidden dimensions are fixed to their default values. That is why only dimensions with default values can be hidden.
+        Dimensions without defaults values/subsets can be hidden, however.
 
         Note that any hidden dimension is still reported as a dimension of the model by means of auxiliary methods like Model.byname, Model.isfieldname, Model.fields, etc etc.
 
         However, hiding a dimension with name 'foo' has the following effects on subsequent queries against the model:
-          * density: No value for 'foo' needs to be specified, but the default value is used and the density at that point is returnd
-          * probability: TODO!??
+          * density: If no value for 'foo' is specified, the default values (which must be set) is used and the density at that point is returnd
+          * probability: If no subset for 'foo' is specified, the default subset (which must be set) is used and the density at that point is returnd
           * predict: Predictions are done 'normally', i.e. including the hidden dimension foo. However, in the returned tuples the values for foo are removed
           * sample: Sampling is done 'normally', but the hidden dimensions are removed from the generated samples.
           * condition: no issue here what so ever. It is possible to condition hidden dimensions.
@@ -937,8 +937,6 @@ class Model:
 
         for name, flag in dims.items():
             field = self.byname(name)
-            if field['default_value'] is None:
-                raise ValueError("Cannot hide field '" + field['name'] + "' that has no default value set.")
             self._hidden_count -= field['hidden'] - flag
             field['hidden'] = flag
         return self
@@ -956,11 +954,11 @@ class Model:
         """
         return self.hide(dims, False)
 
-    def set_default(self, dims, values=None):
+    def set_default_value(self, dims, values=None):
         """Sets default values for dimensions. There is two ways of specifying the arguments:
 
         1. Provide a dict of <field-name> to <default-value> (as first argument or argument dims).
-        2. Provide two sequences: dims and values that contain the field names and default values respectively.
+        2. Provide two sequences: dims and values that contain the field names and default values, respectively.
 
         You may set default values for hidden and non-hidden dimensions of the model.
 
@@ -991,9 +989,48 @@ class Model:
 
         return self
 
+    def set_default_subset(self, dims, subsets=None):
+        """Sets default subsets for dimensions. There is two ways of specifying the arguments:
+
+        1. Provide a dict of <field-name> to <default-subset> (as first argument or argument dims).
+        2. Provide two sequences: dims and subsets that contain the field names and default subsets, respectively.
+
+        You may set defaults for hidden and non-hidden dimensions of the model.
+
+        The default subset of a dimensions is used when probability is queried, but no value for a dimensions i provided. Then the default subset value is used instead.
+
+        Returns self.
+        """
+
+        if subsets is None:
+            if dims is None:
+                dims = {}
+            # dims is a dict of <field-name> to <default-value>
+            if not isinstance(dims, dict):
+                raise TypeError("dims must be a dict of <field-name> to <default-value>, if values is None.")
+        else:
+            # dims and values are two lists
+            if len(dims) != len(subsets):
+                raise ValueError("dims and values must be of equal length.")
+            dims = dict(zip(dims, subsets))
+
+        if not self.isfieldname(dims.keys()):
+            raise ValueError("dimensions must be specified by their name and must be a dimension of this model")
+
+        # update default values
+        for name, subset in dims.items():
+            field = self.byname(name)
+            if not field['domain'].contains(subset):
+                raise ValueError("The value to set as default must be within the domain of the dimension.")
+            field['default_subset'] = subset
+
+        return self
+
     def freeze(self, dims, values=None):
         """Freeze given dimensions to given values."""
-        self.set_default(dims, values)
+        # TODO: remove this method. I think it makes not much sense... also we would need to differentiate bewteen default subsets and values
+
+        self.set_default_value(dims, values)
         if values is None:
             dims = dims.keys()
         self.hide(dims)
@@ -1139,10 +1176,6 @@ class Model:
         # normalize parameters to ordered list form
         mode = self.mode
         if isinstance(values, dict):
-            # dict was passed
-            # if len(values) - ('model vs data' in values) != self.dim:
-            #     raise ValueError('Incorrect number of values given')
-            #old: values = [values[name] for name in self.names]
             mode = values.get('model vs data', self.mode)
             values = [values.get(name, self.byname(name)['default_value']) for name in self.names]
         elif names is not None and values is not None:
@@ -1153,9 +1186,6 @@ class Model:
                 raise ValueError('Some name occurs twice.')
             values = dict(zip(values, names))  # to dict
             values = [values.get(name, self.byname(name)['default_value']) for name in self.names]  # to
-            #old: sorted_ = sorted(zip(self.asindex(names), values), key=lambda pair: pair[0])
-            #values = [pair[1] for pair in sorted_]
-        # NEW:
         elif len(values) == (self.dim - self._hidden_count):
             # correctly ordered list was passed in, without model vs data domain
             if self._hidden_count != 0:
@@ -1167,8 +1197,7 @@ class Model:
         elif len(values) == (self.dim - self._hidden_count) + 1:
             assert(self._hidden_count == 0)  # TODO: remove this constraint / remove model vs data
             # correctly ordered list was passed in, but with model vs data domain
-            #mode = values.pop()
-            mode = values[-1]
+            mode = values[-1]  # cannot do mode = values.pop() because the values is actually often a Pandas series...
             values = values[:-1]
         else:
             raise ValueError("Invalid number of values passed.")
@@ -1178,7 +1207,7 @@ class Model:
         #   * probability (requiring a sequence of domains), and
         #   * density (requiring a sequence of scalars)
         # TODO: fix this somehow? not sure if it is possible
-
+        # currently, we do not allow this at this point. In Model.predict(), however, we take care of it in the problematic cases
         # values = data_ops.reduce_to_scalars(values)
 
         # data frequency
@@ -1248,10 +1277,7 @@ class Model:
         mode = self.mode
         if isinstance(domains, dict):
             # dict was passed
-            #if len(domains) - ('model vs data' in domains) != self.dim:
-            #    raise ValueError('Incorrect number of values given')
-            #old: domains = [domains[name] for name in self.names]
-            domains = [domains.get(name, self.byname(name)['default_range']) for name in self.names]
+            domains = [domains.get(name, self.byname(name)['default_subset']) for name in self.names]
             mode = domains.get('model vs data', [self.mode])[0]
         elif names is not None and domains is not None:
             if len(domains) != len(names):
@@ -1259,10 +1285,7 @@ class Model:
             elif len(set(names)) == len(names):
                 raise ValueError('Some name occurs twice.')
             domains = dict(zip(domains, names))  # to dict
-            domains = [domains.get(name, self.byname(name)['default_range']) for name in self.names]  # to domains
-            # old: unordered list was passed in. Not model vs data may be passed
-            #sorted_ = sorted(zip(self.asindex(names), domains), key=lambda pair: pair[0])
-            #domains = [pair[1] for pair in sorted_]
+            domains = [domains.get(name, self.byname(name)['default_subset']) for name in self.names]  # to domains
         elif len(domains) == self.dim:
             # correctly ordered list was passed in, without model vs data domain
             if self._hidden_count != 0:
@@ -1274,8 +1297,7 @@ class Model:
         elif len(domains) == (self.dim - self._hidden_count) + 1:
             assert (self._hidden_count == 0)  # TODO: remove this constraint / remove model vs data
             # correctly ordered list was passed in, but with model vs data domain
-            #mode = domains.pop()[0]
-            mode = domains[-1][0]
+            mode = domains[-1][0]  # cannot do mode = domains.pop()[0] because domains is often a Pandas.Series
             domains = domains[:-1]
         else:
             raise ValueError("Invalid number of values passed.")
@@ -1474,7 +1496,7 @@ class Model:
         self._hidden_count = sum(map(lambda f: f['hidden'], self.fields))
         return self
 
-    def model(self, model='*', where=None, as_=None, default_values=None, hide=None):
+    def model(self, model='*', where=None, as_=None, default_values=None, default_subsets=None, hide=None):
         """Returns a model with name 'as_' that models the random variables in 'model'
         respecting conditions in 'where'. Moreover, dimensions in hide will be hidden/unhidden (depending on the passed boolean) and default values will be set.
 
@@ -1488,7 +1510,8 @@ class Model:
                 model.
             as_: An optional string. The name for the model to derive. If set
                 to None the name of the base model is used. Defaults to None.
-            default_values: A optional dict of <name>:<value>, where <name> is the name of a dimension of this model and <value> the default value to be set. Pass None to remove the default.
+            default_values: An optional dict of <name>:<value>, where <name> is the name of a dimension of this model and <value> the default value to be set. Pass None to remove the default.
+            default_subsets: An optional dict of <name>:<subset>, where <name> is the name of a dimension of this model and <subset> the default subset to be set. Pass None to remove the default.
             hide: Optional. Either a string or list of strings, where each string is the name of a dimension of this model that will be hidden. Or a <name>:<bool>-dict where name is a dimensions name and bool is True iff the dimension will be hidden, or False if it is unhidden.
 
         Returns:
@@ -1496,7 +1519,10 @@ class Model:
         """
         self.name = self.name if as_ is None else as_
 
-        return self.set_default(default_values).hide(hide).condition(where).marginalize(keep=model)
+        return self.set_default_value(default_values)\
+            .set_default_subset(default_subsets)\
+            .hide(hide).condition(where)\
+            .marginalize(keep=model)
 
     def predict(self, predict, where=None, splitby=None, returnbasemodel=False):
         """Calculates the prediction against the model and returns its result
