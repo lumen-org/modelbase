@@ -111,6 +111,8 @@ def Aggregation(base, method='maximum', yields=None, args=None):
         yields = "" if method == 'density' or method == 'probability' else name[0]
     if args is None:
         args = []
+    if method not in set(['density', 'probability', 'maximum', 'average']):
+        raise ValueError('invalid aggregation method: ' + str(method))
     return AggregationTuple(name, method, yields, args)
 
 
@@ -1688,8 +1690,8 @@ class Model:
             # we need separate internal implementations of density and probability, but I think it would be nice
             # if to the outside density accepts also intervals/sets and then just calls probability (and returns a probability)
             # though, it's less clean...
-
-            if aggr[METHOD_IDX] == 'density':
+            aggr_method = aggr[METHOD_IDX]
+            if aggr_method == 'density' or aggr_method == 'probability':
                 # TODO (1): this is inefficient because it recalculates the same value many times, when we split on more than what the density is calculated on
                 # TODO: to solve it: calculate density only on the required groups and then join into the result table.
                 # TODO (2): .density also returns the frequency of the specified observation. Calculating it like this
@@ -1714,21 +1716,27 @@ class Model:
                     raise ValueError("missing split-clause for field '" + str(err) + "'.")
                 subframe = input_frame.loc[:, ids]
 
-                # when splitting by elements or identity we get single element lists instead of scalars. However, density() requires scalars.
-                # for those columns that have values of element or identity splits: map to
-                # TODO: I believe this issue should be handled in a conceptually better and faster way...
-                nonscalar_ids = [split_name2id[name] for (name, method, __) in splitby if
-                                        method == 'elements' or method == 'identity' and name in names]
-                for col_id in nonscalar_ids:
-                    subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
+                if aggr_method == 'density':
+                    # when splitting by elements or identity we get single element lists instead of scalars. However, density() requires scalars.
+                    # for those columns that have values of element or identity splits: map to
+                    # TODO: I believe this issue should be handled in a conceptually better and faster way...
+                    nonscalar_ids = [split_name2id[name] for (name, method, __) in splitby if
+                                            method == 'elements' or method == 'identity' and name in names]
+                    for col_id in nonscalar_ids:
+                        subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
 
-                for row in subframe.itertuples(index=False):
-                    # todo: why not use _density? calling density creates a lot of overhead!
-                    res = aggr_model.density(values=row)
-                    #res = aggr_model.probability(domains=row)
-                    aggr_results.append(res)
+                    for row in subframe.itertuples(index=False):
+                        # todo: why not use _density? calling density creates a lot of overhead!
+                        res = aggr_model.density(values=row)
+                        #res = aggr_model.probability(domains=row)
+                        aggr_results.append(res)
+                else:
+                    for row in subframe.itertuples(index=False):
+                        # todo: why not use _density? calling density creates a lot of overhead!
+                        res = aggr_model.probability(domains=row)
+                        aggr_results.append(res)
 
-            else:  # it is some aggregation
+            elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 if len(splitby) == 0:
                     # there is no fields to split by, hence only a single value will be aggregated
                     # i.e. marginalize all other fields out
@@ -1751,6 +1759,8 @@ class Model:
                         # reduce to requested dimension
                         i = rowmodel.asindex(aggr[YIELDS_IDX])
                         aggr_results.append(res[i])
+            else:
+                raise ValueError("Invalid 'aggregation method': " + str(aggr_method))
 
             # generate DataSeries from it
             columns = [aggr_ids[idx]]
@@ -1905,8 +1915,3 @@ if __name__ == '__main__':
     res = m.predict(predict=['sepal_width', 'petal_width', mb.Aggregation(['sepal_length'])], splitby=[mb.SplitTuple('sepal_width', 'data', [5]), mb.SplitTuple('petal_width', 'data', [5])])
     print("\n")
     print(res)
-
-
-    #res = m.predict(predict=['sepal_width', mb.Aggregation('sepal_length')], splitby=mb.SplitTuple('sepal_width', 'equidist', [5]))
-    # print(res)
-

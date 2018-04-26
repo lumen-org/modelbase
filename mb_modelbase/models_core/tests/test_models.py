@@ -16,18 +16,14 @@ from random import shuffle
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core.mockup_model import MockUpModel
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
-
-# load data
 from mb_modelbase.models_core.tests import crabs
+
 
 class TestDataSelect(unittest.TestCase):
     """Test the model.select method."""
 
     def setUp(self):
         _crabs_mixed = crabs.mixed()
-        # _crabs_cat = crabs.continuous()
-        # _crabs_num = crabs.categorical()
-
         # crabs has columns: 'species', 'sex', 'FL', 'RW', 'CL', 'CW', 'BD'
         self.data = pd.DataFrame(_crabs_mixed)
         self.model = MockUpModel('crabs').set_data(_crabs_mixed)
@@ -242,9 +238,7 @@ class TestDefaultValue(unittest.TestCase):
         invariate_density(m, item, 'FL', item2)
         invariate_density(m, item, ['sex', 'RW'], item2)
         invariate_density(m, item, ['CL', 'CW'], item2)
-
-
-        # todo: test other queries: aggregations, ...
+        # TODO: test other queries: aggregations, ...
 
 
 class TestAllModels(unittest.TestCase):
