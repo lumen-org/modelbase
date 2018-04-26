@@ -705,7 +705,7 @@ class Model:
                 return self
             keep = _to_name_sequence(keep)
             if self._hidden_count != 0:
-                keep.extent(f['name'] for f in self.fields if f['hidden'])  # keep hidden dims
+                keep = keep + [f['name'] for f in self.fields if f['hidden']]  # keep hidden dims
             elif not is_pure:
                 keep = [name for name in keep if name != 'model vs data']
             if not self.isfieldname(keep):
@@ -898,13 +898,23 @@ class Model:
 
 
     def hide(self, dims, val=True):
-        """Hides the given fields. Provide either a single field or a field name or a sequence of these.
+        """Hides/unhides the given fields.
+        Args:
+        Provide for dims:
+           * a single field, or
+           * a single field name, or
+           * a sequence of the above, or
+           * a dict of <name>:<bool>, where <name> is the name of the dimensions to hide (<bool> == True) or unhide (<bool> == False)
+
+        val (optional, defaults to True)
+           * if a dict is provided for dims, this is ignored, otherwise
+           * set to True to hide, or False to unhide all given dimensions.
 
         Only fields that have a default value set can be hidden.
 
         Hiding a dimension does not cause any actual change in the model. However, it allows you to query to model without specifying a value for the hidden dimension. In this sense, it provides you with a view on a splice of the model, where hidden dimensions are fixed to their default values. That is why only dimensions with default values can be hidden.
 
-        Note that any hidden dimension is still reported as a dimension of the model by means of auxilary methods like Model.byname, Model.isfieldname, Model.fields, etc etc.
+        Note that any hidden dimension is still reported as a dimension of the model by means of auxiliary methods like Model.byname, Model.isfieldname, Model.fields, etc etc.
 
         However, hiding a dimension with name 'foo' has the following effects on subsequent queries against the model:
           * density: No value for 'foo' needs to be specified, but the default value is used and the density at that point is returnd
@@ -916,12 +926,21 @@ class Model:
 
         For more details, look at the documentation of each of the methods.
         """
-        dims = _to_name_sequence(dims)
-        for field in self.byname(dims):
+
+        if dims is None:
+            dims = {}
+
+        # normalize to dict
+        if not isinstance(dims, dict):
+            dims = _to_name_sequence(dims)
+            dims = dict(zip(dims, [val]*len(dims)))
+
+        for name, flag in dims.items():
+            field = self.byname(name)
             if field['default_value'] is None:
                 raise ValueError("Cannot hide field '" + field['name'] + "' that has no default value set.")
-            self._hidden_count -= field['hidden'] - val
-            field['hidden'] = val
+            self._hidden_count -= field['hidden'] - flag
+            field['hidden'] = flag
         return self
 
     def hidden_fields(self, invert=False):
@@ -949,6 +968,8 @@ class Model:
         """
 
         if values is None:
+            if dims is None:
+                dims = {}
             # dims is a dict of <field-name> to <default-value>
             if not isinstance(dims, dict):
                 raise TypeError("dims must be a dict of <field-name> to <default-value>, if values is None.")
@@ -1453,11 +1474,11 @@ class Model:
         self._hidden_count = sum(map(lambda f: f['hidden'], self.fields))
         return self
 
-    def model(self, model='*', where=None, as_=None):
+    def model(self, model='*', where=None, as_=None, default_values=None, hide=None):
         """Returns a model with name 'as_' that models the random variables in 'model'
-        respecting conditions in 'where'.
+        respecting conditions in 'where'. Moreover, dimensions in hide will be hidden/unhidden (depending on the passed boolean) and default values will be set.
 
-        Note that it does NOT create a copy, but modifies this model.
+        Note that it does NOT create a copy, but MODIFIES this model.
 
         Args:
             model:  A list of strings, representing the names of random variables to
@@ -1467,12 +1488,15 @@ class Model:
                 model.
             as_: An optional string. The name for the model to derive. If set
                 to None the name of the base model is used. Defaults to None.
+            default_values: A optional dict of <name>:<value>, where <name> is the name of a dimension of this model and <value> the default value to be set. Pass None to remove the default.
+            hide: Optional. Either a string or list of strings, where each string is the name of a dimension of this model that will be hidden. Or a <name>:<bool>-dict where name is a dimensions name and bool is True iff the dimension will be hidden, or False if it is unhidden.
 
         Returns:
             The modified model.
         """
         self.name = self.name if as_ is None else as_
-        return self.condition(where).marginalize(keep=model)
+
+        return self.set_default(default_values).hide(hide).condition(where).marginalize(keep=model)
 
     def predict(self, predict, where=None, splitby=None, returnbasemodel=False):
         """Calculates the prediction against the model and returns its result
@@ -1577,7 +1601,7 @@ class Model:
                 predict_ids.append(id_)
                 basenames.update(t[NAME_IDX])
 
-        basemodel = self.copy().model(basenames, where, self.name + '_base')
+        basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
         # (2) derive a sub-model for each requested aggregation
         splitnames_unique = set(split_names)
@@ -1899,7 +1923,7 @@ class Model:
         if self.mode != "model" and self.mode != "both":
             raise ValueError("cannot sample from empty model, i.e. the model has not been learned/set yet.")
 
-        self.data = self.sample(n)
+        self._set_data(df=self.sample(n), drop_silently=False)
         self.mode = 'both'
         return self
 

@@ -13,7 +13,7 @@ import unittest
 import pandas as pd
 from random import shuffle
 
-from mb_modelbase.models_core.models import Model
+from mb_modelbase.models_core.models import Model, Condition
 from mb_modelbase.models_core.mockup_model import MockUpModel
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
 from mb_modelbase.models_core.tests import crabs
@@ -170,9 +170,9 @@ class TestDefaultValue(unittest.TestCase):
         m = __class__.model.copy()
         cols = __class__.cols
 
-        self.assertEquals(m._hidden_count, 0, "tests initial hidden count.")
-        self.assertEquals(m.hidden_fields(invert=True), cols, "tests initial Model.hidden_fields()")
-        self.assertEquals(m.hidden_idxs(invert=True), list(range(len(cols))), "tests initial Model.hidden_fields()")
+        self.assertEqual(m._hidden_count, 0, "tests initial hidden count.")
+        self.assertEqual(m.hidden_fields(invert=True), cols, "tests initial Model.hidden_fields()")
+        self.assertEqual(m.hidden_idxs(invert=True), list(range(len(cols))), "tests initial Model.hidden_fields()")
 
         # tests that cannot hide without default values
         for name in cols:
@@ -194,7 +194,7 @@ class TestDefaultValue(unittest.TestCase):
             default_slice = {n: defaults[n] for n in names}
             m.freeze(default_slice)
             self.assertEqual(m._hidden_count, len(names), "tests hidden count.")
-            self.assertEquals(set(m.hidden_fields()), set(names), "tests Model.hidden_fields()")
+            self.assertEqual(set(m.hidden_fields()), set(names), "tests Model.hidden_fields()")
             aggr_after = m.aggregate('maximum')
 
             # determine alternative slice
@@ -204,7 +204,7 @@ class TestDefaultValue(unittest.TestCase):
 
             # unhide
             m.hide(names, False)
-            self.assertEquals(m._hidden_count, 0, "tests unhiding.")
+            self.assertEqual(m._hidden_count, 0, "tests unhiding.")
             aggr_after2 = m.aggregate('maximum')
             self.assertEqual(aggr_before, aggr_after2, 'tests invariance of aggregation under hide() unhide() cycle')
 
@@ -259,6 +259,12 @@ class TestDefaultValue(unittest.TestCase):
         invariate_density(m, item, ['sex', 'RW'], item2)
         invariate_density(m, item, ['CL', 'CW'], item2)
         # TODO: test other queries: aggregations, ...
+
+    def test_model_interface(self):
+        m = __class__.model.copy()
+        m1 = m.copy().model(model='sex', default_values={'species': 'Blue', 'RW': 9.1}, hide='species')
+        m2 = m.copy().model(model=['CL', 'CW', 'sex'], where=Condition('BD', '==', 7.4), default_values={'species':'Orange', 'RW': 11.1}, hide=['species', 'RW'])
+        m2.aggregate("maximum")
 
 
 class TestAllModels(unittest.TestCase):

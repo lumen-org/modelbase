@@ -268,7 +268,9 @@ class ModelBase:
             # derive submodel
             derived_model.model(
                 model=self._extractModel(query),
-                where=self._extractWhere(query))
+                where=self._extractWhere(query),
+                default_values=self._extractDefaultValues(query),
+                hide=self._extractHide(query)),
             # add to modelbase
             self.add(derived_model, query["AS"])
             # return header
@@ -388,6 +390,18 @@ class ModelBase:
         if 'PREDICT' not in query:
             raise QuerySyntaxError("'PREDICT'-statement missing")
         return query['PREDICT']
+
+    def _extractDefaultValues(self, query):
+        if 'DEFAULT_VALUE' not in query:
+            return None
+        else:
+            return query['DEFAULT_VALUE']
+
+    def _extractHide(self, query):
+        if 'HIDE' not in query:
+            return None
+        else:
+            return query['HIDE']
 
     def _extractAs(self, query):
         """ Extracts from query the name under which the derived model is to be
