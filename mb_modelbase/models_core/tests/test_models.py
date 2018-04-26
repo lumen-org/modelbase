@@ -159,6 +159,7 @@ class TestDefaultValue(unittest.TestCase):
         """Setup the model only once, since it is expensive and can be copied"""
         cls.data = crabs.mixed()
         cls.model = MixableCondGaussianModel('crabs').fit(cls.data)
+        cls.model.mode = 'model'
         # crabs has columns: 'species', 'sex', 'FL', 'RW', 'CL', 'CW', 'BD'
         cls.cols = list(cls.data.columns)
 
@@ -186,11 +187,26 @@ class TestDefaultValue(unittest.TestCase):
         defaults = dict(zip(m.names, item))
 
         for names in [['sex'], ['sex', 'RW'], ['species', 'FL', 'CL'], m.names]:
-            m.freeze({n: defaults[n] for n in names})  # freeze is set default + hide
+
+            aggr_before = m.aggregate('maximum')
+
+            # freeze (i.e. combined set_default() and hide())
+            default_slice = {n: defaults[n] for n in names}
+            m.freeze(default_slice)
             self.assertEqual(m._hidden_count, len(names), "tests hidden count.")
             self.assertEquals(set(m.hidden_fields()), set(names), "tests Model.hidden_fields()")
+            aggr_after = m.aggregate('maximum')
+
+            # determine alternative slice
+            inv_names = m.inverse_names(names)
+            aggr_before_slice = [v for k, v in dict(zip(m.names, aggr_before)).items() if k in inv_names]
+            self.assertEqual(aggr_before_slice, aggr_after, 'tests invariance of aggregation under hide() and correct slicing of results aggregation')
+
+            # unhide
             m.hide(names, False)
             self.assertEquals(m._hidden_count, 0, "tests unhiding.")
+            aggr_after2 = m.aggregate('maximum')
+            self.assertEqual(aggr_before, aggr_after2, 'tests invariance of aggregation under hide() unhide() cycle')
 
     def test_set_default(self):
 
@@ -209,6 +225,7 @@ class TestDefaultValue(unittest.TestCase):
 
             x_before = dict(zip(names, x))  # x is given as list. we want a dict
             p_before = m.density(x_before)
+            aggr_before = m.aggregate('maximum')
 
             x_defaults = {k: x_before[k] for k in dims}  # dict of defaults to set
             model.set_default(x_defaults)  # set defaults
@@ -216,8 +233,11 @@ class TestDefaultValue(unittest.TestCase):
             dims_inv = model.inverse_names(dims)
             x_after = {k: x_before[k] for k in dims_inv}  # generate new x without the values of <dims>
             p_after = m.density(x_after)
+            aggr_after = m.aggregate('maximum')
 
             self.assertEqual(p_before, p_after, 'tests that value of density(x) does not change when we set a default value')
+
+            self.assertEqual(aggr_before, aggr_after, 'tests that aggregation does not change when we set a default value')
 
             p_override = m.density(x_before)
             self.assertEqual(p_before, p_override, 'tests that overriding the default value with an identical value does not change the result')

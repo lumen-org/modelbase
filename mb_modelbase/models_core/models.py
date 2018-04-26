@@ -825,6 +825,7 @@ class Model:
         #     return self
 
         # treat 'model vs data' field correctly. It must be applied first.
+        mode = self.mode
         names = []
         if is_pure:
             pure_conditions = conditions
@@ -851,7 +852,7 @@ class Model:
                     domain.apply(operator, values)
                     # set internal mode accordingly to both, data or model
                     value = domain.value()
-                    self.mode = value if value == 'model' or value == 'data' else 'both'
+                    mode = value if value == 'model' or value == 'data' else 'both'
                 else:
                     names.append(name)
                     pure_conditions.append(condition)
@@ -867,7 +868,7 @@ class Model:
         #  for an gaussian model we may compute it for point conditinals right away, but we maybe would not want to do it for range conditionals
 
         # condition data
-        if self.mode != 'model':  # i.e. == 'data' or == 'both'
+        if mode != 'model':  # i.e. == 'data' or == 'both'
             self.data = data_ops.condition_data(self.data, pure_conditions)
             self.test_data = data_ops.condition_data(self.test_data, pure_conditions)
         self._update_extents(names)
@@ -1058,7 +1059,8 @@ class Model:
         # the data part can be aggregated without any model specific code and merged into the model results at the end
         # see my notes for how to calculate a single aggregation
         mode = self.mode
-
+        data_res = None
+        model_res = None
         if mode == 'both' or mode == 'data':
             data_res = self.aggregate_data(method, opts)
         if mode == 'both' or mode == 'model':
@@ -1067,10 +1069,10 @@ class Model:
         # remove values of hidden dimensions
         if self._hidden_count != 0:
             idxs = self.hidden_idxs(invert=True)  # returns the non-hidden indexes
-            if data_res:
-                data_res = (data_res[i] for i in idxs)
-            if model_res:
-                model_res = (model_res[i] for i in idxs)
+            if data_res is not None:
+                data_res = [data_res[i] for i in idxs]
+            if model_res is not None:
+                model_res = [model_res[i] for i in idxs]
 
         if mode == "both":
             return model_res, data_res
