@@ -13,7 +13,7 @@ import unittest
 import pandas as pd
 from random import shuffle
 
-from mb_modelbase.models_core.models import Model, Condition
+from mb_modelbase.models_core.models import Model, Condition, Density
 from mb_modelbase.models_core.mockup_model import MockUpModel
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
 from mb_modelbase.models_core.tests import crabs
@@ -264,6 +264,20 @@ class TestDefaultValue(unittest.TestCase):
         m1 = m.copy().model(model='sex', default_values={'species': 'Blue', 'RW': 9.1}, hide='species')
         m2 = m.copy().model(model=['CL', 'CW', 'sex'], where=Condition('BD', '==', 7.4), default_values={'species':'Orange', 'RW': 11.1}, hide=['species', 'RW'])
         m2.aggregate("maximum")
+
+    def test_predict_interface(self):
+
+        dims = ['sex', 'FL', 'RW']
+        x = {'sex': 'Male', 'FL': 8.1, 'RW': 6.7}
+
+        m = __class__.model.copy().model(model=dims)
+        p_before = m.density(x)
+
+        m2 = m.copy().set_default_value(x)  # sets defaults for ALL dims
+        p_after = m2.density([])
+        self.assertEqual(p_before, p_after)
+
+        # TOOD: m.predict('sex', 'FL', 'RW', Density(base=dims))  # sucks to query density a
 
 
 class TestAllModels(unittest.TestCase):
