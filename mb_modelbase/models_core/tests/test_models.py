@@ -13,7 +13,7 @@ import unittest
 import pandas as pd
 from random import shuffle
 
-from mb_modelbase.models_core.models import Model, Condition, Density, Aggregation
+from mb_modelbase.models_core.models import Model, Condition, Density, Aggregation, Split
 from mb_modelbase.models_core.mockup_model import MockUpModel
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
 from mb_modelbase.models_core.tests import crabs
@@ -285,12 +285,27 @@ class TestDefaultValue(unittest.TestCase):
 
         m = __class__.model.copy().model(model=dims)
         m.set_default_value({'sex': 'Male'})
-
         df = m.predict(predict=['sex', Aggregation('FL')])
         self.assertEqual(df.columns.tolist(), ['sex', "FL@maximum(['FL'])"])
         self.assertEqual(df.shape, (1,2))
         self.assertEqual(df.iloc[0, :].to_dict()['sex'], 'Male')
 
+    def test_predict_with_defaults2(self):
+        dims = ['sex', 'FL']
+        x = {'FL': 8.1, 'RW': 6.7}
+
+        m = __class__.model.copy().model(model=['species', 'sex', 'RW', 'FL'])
+        m.set_default_value({'sex': 'Female', 'FL': 8.1})
+
+        df = m.predict(predict=['sex', 'species', 'FL', Aggregation('RW')], splitby=Split('species', method='elements'))
+        print(df)
+
+        self.assertEqual(df.columns.tolist(), ['sex', 'species', 'FL', "RW@maximum(['RW'])"])
+        self.assertEqual(df.shape, (2, 4))
+        item = df.iloc[0, :].to_dict()
+        self.assertEqual(item['sex'], 'Female')
+        self.assertEqual(item['FL'], 8.1)
+        self.assertIn(item['species'], ['Orange', 'Blue'])
 
 
 class TestAllModels(unittest.TestCase):

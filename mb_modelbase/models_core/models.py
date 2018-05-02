@@ -1502,7 +1502,7 @@ class Model:
                     else:
                         raise ValueError("Missing split-tuple for a split-field in predict: " + name)
 
-                    logger.debug("using default for dim " + str(name) + " : " + def_)
+                    logger.info("using default for dim " + str(name) + " : " + str(def_))
 
                     # add split
                     split = Split(name, 'identity')
@@ -1675,7 +1675,7 @@ class Model:
                         # todo: why not use _density? calling density creates a lot of overhead!
                         res = aggr_model.density(values=row)
                         aggr_results.append(res)
-                else:
+                else:  # aggr_method == 'probability'
                     for row in subframe.itertuples(index=False):
                         # todo: why not use _density? calling density creates a lot of overhead!
                         res = aggr_model.probability(domains=row)
