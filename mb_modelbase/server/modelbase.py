@@ -276,7 +276,7 @@ class ModelBase:
             self.add(derived_model, query["AS"])
             # return header
             return _json_dumps({"name": derived_model.name,
-                                "fields": derived_model.json_fields(include_modeldata_field=True)})
+                                "fields": derived_model.json_fields()})
 
         elif 'SELECT' in query:
             base = self._extractFrom(query)
@@ -308,7 +308,7 @@ class ModelBase:
             show = self._extractShow(query)
             if show == "HEADER":
                 model = self._extractFrom(query)
-                result = {"name": model.name,  "fields": model.json_fields(include_modeldata_field=True)}
+                result = {"name": model.name,  "fields": model.json_fields()}
             elif show == "MODELS":
                 result = {'models': self.list_models()}
             else:

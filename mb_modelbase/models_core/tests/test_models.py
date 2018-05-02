@@ -274,7 +274,7 @@ class TestDefaultValue(unittest.TestCase):
         p_before = m.density(x)
 
         m2 = m.copy().set_default_value(x)  # sets defaults for ALL dims
-        p_after = m2.density([])
+        p_after = m2.density({})
         self.assertEqual(p_before, p_after)
 
         # TOOD: m.predict('sex', 'FL', 'RW', Density(base=dims))  # sucks to query density a

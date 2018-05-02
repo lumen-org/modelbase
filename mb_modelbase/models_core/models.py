@@ -452,7 +452,6 @@ class Model:
         self.test_data = pd.DataFrame([])
         self._aggrMethods = None
         self.mode = None
-        self._modeldata_field = _Modeldata_field()
 
     def _setempty(self):
         self._update_remove_fields()
@@ -461,11 +460,9 @@ class Model:
     def _isempty(self):
         return self.dim == 0
 
-    def json_fields(self, include_modeldata_field=False):
+    def json_fields(self):
         """Returns a json-like representation of the fields of this model."""
         json_ = list(map(field_tojson, self.fields))
-        if include_modeldata_field:
-            json_.append(field_tojson(self._modeldata_field))
         return json_
 
     def set_model_params(self, **kwargs):
@@ -801,7 +798,7 @@ class Model:
         names = []
         for (name, operator, values) in conditions:
             self.byname(name)['domain'].apply(operator, values)
-            names.push(name)
+            names.append(name)
 
         # condition model
         # todo: currently, conditioning of a model is always only done when it is conditioned out.
