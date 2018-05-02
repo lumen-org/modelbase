@@ -13,7 +13,7 @@ import unittest
 import pandas as pd
 from random import shuffle
 
-from mb_modelbase.models_core.models import Model, Condition, Density
+from mb_modelbase.models_core.models import Model, Condition, Density, Aggregation
 from mb_modelbase.models_core.mockup_model import MockUpModel
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
 from mb_modelbase.models_core.tests import crabs
@@ -277,7 +277,20 @@ class TestDefaultValue(unittest.TestCase):
         p_after = m2.density({})
         self.assertEqual(p_before, p_after)
 
-        # TOOD: m.predict('sex', 'FL', 'RW', Density(base=dims))  # sucks to query density a
+        # TOOD: m.predict('sex', 'FL', 'RW', Density(base=dims))  # it sucks to query density at a single point x using the predict method!
+
+    def test_predict_with_defaults(self):
+        dims = ['sex', 'FL']
+        x = {'FL': 8.1, 'RW': 6.7}
+
+        m = __class__.model.copy().model(model=dims)
+        m.set_default_value({'sex': 'Male'})
+
+        df = m.predict(predict=['sex', Aggregation('FL')])
+        self.assertEqual(df.columns.tolist(), ['sex', "FL@maximum(['FL'])"])
+        self.assertEqual(df.shape, (1,2))
+        self.assertEqual(df.iloc[0, :].to_dict()['sex'], 'Male')
+
 
 
 class TestAllModels(unittest.TestCase):

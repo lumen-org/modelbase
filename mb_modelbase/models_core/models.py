@@ -25,7 +25,7 @@ from mb_modelbase.models_core import data_aggregation as data_aggr
 from mb_modelbase.models_core import data_operations as data_ops
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 """ Development Notes (Philipp)
 # interesting links
@@ -1053,7 +1053,7 @@ class Model:
         Default values:
             Instead of the aggregation of a model, the aggregation of the conditional model on all defaulting dimensions is returned.
             For example:
-                Let p(sex,age) be a bivariate model and let its maximum be at argmax(p(sex,age)) = ('Female',18). However, when the default of sex is set to 'Male' the aggregation of the model is ('Male', argmax(p(age|sex='Male')) instead. If could be, for example, ('Male', 23).
+                Let p(sex,age) be a bivariate model and let its maximum be at argmax(p(sex,age)) = ('Female',18). However, if the default of dimension 'sex' is set to 'Male' the aggregation of the model is ('Male', argmax(p(age|sex='Male')) instead. If could be, for example, ('Male', 23).
 
         TODO: right now default values are not taken into consideration in this way...
 
@@ -1079,7 +1079,6 @@ class Model:
             model = self._cond_default_model = self.copy().model(where=conditions)
         # TODO: CONTINUE HERE. make use of "model"!
 
-        # see my notes for how to calculate a single aggregation
         model_res = self.aggregate_model(method, opts)
 
         # TODO: add values of dimensions that defaulted to some value
@@ -1478,8 +1477,7 @@ class Model:
         predict_ids = []  # unique ids of columns in data frame. In correct order. For reordering of columns.
         predict_names = []  # names of columns as to be returned. In correct order. For renaming of columns.
 
-        split_ids = [f[NAME_IDX] + next(idgen) for f in
-                     splitby]  # ids for columns for fields to split by. Same order as in splitby-clause.
+        split_ids = [f[NAME_IDX] + next(idgen) for f in splitby]  # ids for columns for fields to split by. Same order as in splitby-clause.
         split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids (for columns in data frames)
 
         aggrs = []  # list of aggregation tuples, in same order as in the predict-clause
@@ -1494,8 +1492,33 @@ class Model:
                 try:
                     predict_ids.append(split_name2id[name])
                 except KeyError:
-                    # TODO: here is one place to continue
-                    raise ValueError("Missing split-tuple for a split-field in predict: " + name)
+                    dim = self.byname(name)
+                    # dimensions with defaults may be left out.
+                    # In this case: add identity split and a filter
+                    if dim['default_value'] is not None:
+                        def_ = dim['default_value']
+                    elif dim['default_subset'] is not None:
+                        def_ = dim['default_subset']
+                    else:
+                        raise ValueError("Missing split-tuple for a split-field in predict: " + name)
+
+                    logger.debug("using default for dim " + str(name) + " : " + def_)
+
+                    # add split
+                    split = Split(name, 'identity')
+                    splitby.append(split)
+                    id_ = name + next(idgen)
+                    split_ids.append(id_)
+                    split_name2id[name] = id_
+
+                    # add condition
+                    condition = Condition(name, '==', def_)
+                    where.append(condition)
+                    filter_names.append(name)
+
+                    # "retry"
+                    predict_ids.append(split_name2id[name])
+
                 basenames.add(name)
             else:
                 # t is an aggregation/density tuple

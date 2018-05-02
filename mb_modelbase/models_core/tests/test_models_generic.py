@@ -330,7 +330,7 @@ if __name__ == '__main__':
         'mixed': [MCGModel]
     }
     density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': False}
-    #_test_all(models, models_setup, data_full, depth=3)
+    _test_all(models, models_setup, data_full, depth=3)
 
     ## dedicated density_sum test
     df = pd.read_csv('crabs.csv', usecols=['sex', 'RW'])
