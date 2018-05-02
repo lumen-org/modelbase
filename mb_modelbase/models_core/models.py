@@ -163,10 +163,6 @@ def Split(base, method=None, args=None):
     return SplitTuple(name, method, args)
 
 
-def _Modeldata_field():
-    """Returns a new field that represents the imaginary dimension of 'model vs data'."""
-    return Field('model vs data', dm.DiscreteDomain(), dm.DiscreteDomain(['model', 'data']), dtype='string')
-
 
 """ Utility functions for converting models and parts / components of models to strings. """
 
@@ -368,15 +364,6 @@ class Model:
     A model has a number of fields (aka dimensions). The model models a probability density function on these fields
     and allows various queries again this density. The model is based on data (aka evidence), and the data can be
     queried the same way like the model.
-
-    In fact unified queries are possible, by means of an additional 'artificial' field 'model vs data'. That is an
-    ordinal field with the two values "model" and "data". It can only be filtered or split by this field, and the
-    results are accordingly for the results from the data or the model, respectively.
-
-    Internal:
-        Internally queries against the model and its data are answered differently. Also that field does not actually
-        exists in the model. Queries may contain it, however they are translated onto the 'internal' interface in the
-        .marginalize, .condition, .predict-methods.
     """
 
     def __str__(self):
@@ -394,8 +381,6 @@ class Model:
     def asindex(self, names):
         """Given a single name or a list of names of random variables, returns
         the indexes of these in the .field attribute of the model.
-
-        Note that this function cannot resolve the special field name 'model vs data', as that field has no internal index.
         """
         if isinstance(names, str):
             return self._name2idx[names]
@@ -406,19 +391,10 @@ class Model:
         """Given a list of names of random variables, returns the corresponding
         fields of this model.
 
-        Note that this function correctly resolve the special field name 'model vs data'.
-
         # TODO: even though it's not urgent, I think it is so ugly, that I need that many lookups just to get a field by a name. I should just add another map that directly maps name to field!
         """
-
         def _byname(name):
-            try:
-                return self.fields[self._name2idx[name]]
-            except KeyError as ke:
-                if ke.args[0] == 'model vs data':
-                    return self._modeldata_field
-                raise
-
+            return self.fields[self._name2idx[name]]
         if isinstance(names, str):
             return _byname(names)
         else:
@@ -427,14 +403,10 @@ class Model:
     def isfieldname(self, names):
         """Returns true iff the single string or list of strings given as variables names are (all) names of random
         variables of this model.
-
-        Note that this function correctly handles the special field name 'model vs data'.
         """
         if isinstance(names, str):
             return names in self._name2idx
         else:
-            # TODO try:
-            # return all([name in self._name2idx or name == 'model vs data' for name in names])
             return all([name in self._name2idx for name in names])
 
     def inverse_names(self, names, sorted_=False):
@@ -694,7 +666,6 @@ class Model:
         Arguments:
             keep: A sequence or a sequence of names of dimensions or fields of a model. The given dimensions of this model are kept. All other random variables are marginalized out. You may specify the special string "*", which stands for 'keep all dimensions'
             remove: A sequence or a sequence of names of dimensions or fields of a model. The given dimensions of this model are marginalized out.
-            is_pure: An performance optimization parameter. Set to True if you can guarantee that keep and remove do not contain the special value "model vs data".
 
         Returns:
             The modified model.
@@ -710,14 +681,10 @@ class Model:
             keep = _to_name_sequence(keep)
             if self._hidden_count != 0:
                 keep = keep + [f['name'] for f in self.fields if f['hidden']]  # keep hidden dims
-            elif not is_pure:
-                keep = [name for name in keep if name != 'model vs data']
             if not self.isfieldname(keep):
                 raise ValueError("invalid random variables names in argument 'keep': " + str(keep))
         elif remove is not None:
             remove = _to_name_sequence(remove)
-            if not is_pure:
-                remove = [name for name in remove if name != 'model vs data']
             if not self.isfieldname(remove):
                 raise ValueError("invalid random variable names in argument 'remove': " + str(remove))
             keep = set(self.names) - set(remove)
@@ -743,7 +710,6 @@ class Model:
 
         Notes:
             You have to specify at least one of keep and remove.
-            Neither keep nor remove may contain the field 'model vs data'.
         """
         if keep is not None and remove is not None:
             assert (set(keep) | set(remove) == set(self.names))
@@ -762,6 +728,7 @@ class Model:
             self.data = self.data.loc[:, keep]
             self.test_data = self.test_data.loc[:, keep]
             if self.mode == 'data':
+                # need to call this, since it will not be called later in this particular case
                 self._update_remove_fields(remove)
                 return self
 
@@ -830,42 +797,11 @@ class Model:
         # if len(conditions) == 0:
         #     return self
 
-        # treat 'model vs data' field correctly. It must be applied first.
-        mode = self.mode
-        names = []
-        if is_pure:
-            pure_conditions = conditions
-        else:
-            # we allow conditioning on 'model vs data' field:
-            # find 'model vs data' field and apply conditions
-            pure_conditions = []
-            for condition in conditions:
-                (name, operator, values) = condition
-                if name == 'model vs data':
-                    # TODO: need clean handling of such meta-attribute/fields
-                    # TODO: right now there seems no clean sync between self.mode and self._modeldata_field
-                    # TODO: I think self.mode should not be assignable from outside?
-                    # allowed = self._modeldata_field['domain'].values()
-                    # if values not in allowed:
-                    #     raise ValueError("conditioning ", + str(allowed) + " on " + str(values) + " impossile!")
-                    # if self.mode == 'both':
-                    #     self.mode = values
-                    # elif self.mode == values:
-                    #     pass
-                    # else:
-                    #     raise ValueError("conditioning ", + str(self.mode) + " on " + str(values) + " impossile!")
-                    domain = self._modeldata_field['domain']
-                    domain.apply(operator, values)
-                    # set internal mode accordingly to both, data or model
-                    value = domain.value()
-                    mode = value if value == 'model' or value == 'data' else 'both'
-                else:
-                    names.append(name)
-                    pure_conditions.append(condition)
-
         # condition the domain of the fields
-        for (name, operator, values) in pure_conditions:
+        names = []
+        for (name, operator, values) in conditions:
             self.byname(name)['domain'].apply(operator, values)
+            names.push(name)
 
         # condition model
         # todo: currently, conditioning of a model is always only done when it is conditioned out.
@@ -874,9 +810,9 @@ class Model:
         #  for an gaussian model we may compute it for point conditinals right away, but we maybe would not want to do it for range conditionals
 
         # condition data
-        if mode != 'model':  # i.e. == 'data' or == 'both'
-            self.data = data_ops.condition_data(self.data, pure_conditions)
-            self.test_data = data_ops.condition_data(self.test_data, pure_conditions)
+        if self.mode == 'data' or self.mode == 'both':
+            self.data = data_ops.condition_data(self.data, conditions)
+            self.test_data = data_ops.condition_data(self.test_data, conditions)
 
         self._update_extents(names)
         return self
@@ -1144,17 +1080,10 @@ class Model:
             conditions.update(conditions_subset)
 
             model = self._cond_default_model = self.copy().model(where=conditions)
-
+        # TODO: CONTINUE HERE. make use of "model"!
 
         # see my notes for how to calculate a single aggregation
-        mode = self.mode
-        data_res = None
-        model_res = None
-        if mode == 'both' or mode == 'data':
-            data_res = self.aggregate_data(method, opts)
-        if mode == 'both' or mode == 'model':
-            model_res = self.aggregate_model(method, opts)
-
+        model_res = self.aggregate_model(method, opts)
 
         # TODO: add values of dimensions that defaulted to some value
 
@@ -1162,18 +1091,9 @@ class Model:
         # TODO: move to own method
         if self._hidden_count != 0:
             idxs = self.hidden_idxs(invert=True)  # returns the non-hidden indexes
-            if data_res is not None:
-                data_res = [data_res[i] for i in idxs]
-            if model_res is not None:
-                model_res = [model_res[i] for i in idxs]
+            model_res = [model_res[i] for i in idxs]
 
-        if mode == "both":
-            return model_res, data_res
-        if mode == "model":
-            return model_res
-        if mode == "data":
-            return data_res
-        raise ValueError("invalid value for mode : ", str(mode))
+        return model_res
 
     def density(self, values=None, names=None):
         """Returns the density at given point.
@@ -1183,17 +1103,6 @@ class Model:
             (1) A list of values in <values> and a list of dimensions names in <names>, with corresponding order. They need to be in the same order than the dimensions of this model.
             (2) A list of values in <values> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
             (3) A dict of key=name:value=value in <values>. <names> is ignored.
-
-        Special field 'model vs data':
-
-            * you must not use option (1) # TODO?
-            * if you use option (2): supply it as the last element of the domain list
-            * if you use option (3): use the key 'model vs data' for its domain
-
-        You may pass a special field with name 'model vs data':
-          * If its value is 'data' then it is interpreted as a density query against the data, i.e. frequency of items is returned.
-          * If the value is 'model' it is interpreted as a query against the model, i.e. density of input is returned.
-          * If value is 'both' a 2-tuple of both is returned.
 
         Hidden dimensions and default values:
 
@@ -1211,10 +1120,9 @@ class Model:
         # normalize parameters to ordered list form
         mode = self.mode
         if isinstance(values, dict):
-            mode = values.get('model vs data', self.mode)
             values = [values.get(name, self.byname(name)['default_value']) for name in self.names]
         elif names is not None and values is not None:
-            # unordered list was passed in. Not model vs data may be passed
+            # unordered list was passed in
             if len(values) != len(names):
                 raise ValueError('Length of names and values does not match.')
             elif len(set(names)) == len(names):
@@ -1222,18 +1130,13 @@ class Model:
             values = dict(zip(values, names))  # to dict
             values = [values.get(name, self.byname(name)['default_value']) for name in self.names]  # to
         elif len(values) == (self.dim - self._hidden_count):
-            # correctly ordered list was passed in, without model vs data domain
+            # correctly ordered list was passed in
             if self._hidden_count != 0:
                 # merge with defaults of hidden dimensions (which may not have been passed!)
                 i = iter(values)
                 values = [f['default_value'] if f['hidden'] else next(i) for f in self.fields]
             else:
-                pass  # nothing to do
-        elif len(values) == (self.dim - self._hidden_count) + 1:
-            assert(self._hidden_count == 0)  # TODO: remove this constraint / remove model vs data
-            # correctly ordered list was passed in, but with model vs data domain
-            mode = values[-1]  # cannot do mode = values.pop() because the values is actually often a Pandas series...
-            values = values[:-1]
+                pass  # nothing to do]
         else:
             raise ValueError("Invalid number of values passed.")
 
@@ -1241,25 +1144,13 @@ class Model:
         # this is because the split-method 'elements' is used to create input for both:
         #   * probability (requiring a sequence of domains), and
         #   * density (requiring a sequence of scalars)
+
         # TODO: fix this somehow? not sure if it is possible
         # currently, we do not allow this at this point. In Model.predict(), however, we take care of it in the problematic cases
         # values = data_ops.reduce_to_scalars(values)
 
-        # data frequency
-        if mode == "both" or mode == "data":
-            # TODO?? should I do this against the test data as well?? expand mode to test data or something? also applies to similar sections in model.probability
-            #cnt = len(data_ops.condition_data(self.data, zip(self.names, ['=='] * self.dim, values)))
-            cnt = data_ops.density(self.data, values)
-            if mode == "data":
-                return cnt
-
         p = self._density(values)
-        if mode == "model":
-            return p
-        elif mode == "both":
-            return p, cnt
-        else:
-            raise ValueError("invalid value for mode : ", str(mode))
+        return p
 
     def _density(self, x):
         """Returns the density of the model at point x.
@@ -1290,16 +1181,6 @@ class Model:
             (2) A list of domains in <domains> in the same order than the dimensions of this model. <names> must not be passed. This is faster than (1).
             (3) A dict of key=name:value=domain in <domains>. <names> is ignored.
 
-        Special field 'model vs data':
-
-        You may pass a special field with name 'model vs data':
-          * you cannot use option (1) # TODO?
-          * if you use option (2): supply it as the last element of the domain list
-          * if you use option (3): use the key 'model vs data' for its domain
-          * If its value is 'data' then it is interpreted as a density query against the data, i.e. frequency of items is returned.
-          * If the value is 'model' it is interpreted as a query against the model, i.e. density of input is returned.
-          * If value is 'both' a 2-tuple of both is returned.
-
         Hidden dimensions and default values:
 
         See Model.density().
@@ -1309,11 +1190,9 @@ class Model:
             raise ValueError('Cannot query density of 0-dimensional model')
 
         # normalize parameters to ordered list form
-        mode = self.mode
         if isinstance(domains, dict):
             # dict was passed
             domains = [domains.get(name, self.byname(name)['default_subset']) for name in self.names]
-            mode = domains.get('model vs data', [self.mode])[0]
         elif names is not None and domains is not None:
             if len(domains) != len(names):
                 raise ValueError('Length of names and values does not match.')
@@ -1322,42 +1201,25 @@ class Model:
             domains = dict(zip(domains, names))  # to dict
             domains = [domains.get(name, self.byname(name)['default_subset']) for name in self.names]  # to domains
         elif len(domains) == self.dim:
-            # correctly ordered list was passed in, without model vs data domain
+            # correctly ordered list was passed in
             if self._hidden_count != 0:
                 # merge with defaults of hidden dimensions (which may not have been passed!)
                 i = iter(domains)
                 domains = [f['default_domain'] if f['hidden'] else next(i) for f in self.fields]
             else:
                 pass # nothing to do
-        elif len(domains) == (self.dim - self._hidden_count) + 1:
-            assert (self._hidden_count == 0)  # TODO: remove this constraint / remove model vs data
-            # correctly ordered list was passed in, but with model vs data domain
-            mode = domains[-1][0]  # cannot do mode = domains.pop()[0] because domains is often a Pandas.Series
-            domains = domains[:-1]
         else:
             raise ValueError("Invalid number of values passed.")
 
-        # data probability
-        if mode == "both" or mode == "data":
-            data_prob = data_ops.probability(self.data, domains)
-            if mode == "data":
-                return data_prob
-
         # model probability
         model_prob = self._probability(domains)
-        if mode == "model":
-            return model_prob
-        elif mode == "both":
-            return model_prob, data_prob
-        else:
-            raise ValueError("invalid value for mode : ", str(mode))
+        return model_prob
 
     def _probability(self, domains):
         try:
             cat_len = len(self._categoricals)
         except AttributeError:
             # self._categoricals might not be implemented in a particular model. this is the fallback:
-            cat_len = sum(f['dtype'] == 'string' for f in self.fields)
             cat_len = sum(f['dtype'] == 'string' for f in self.fields)
         return self._probability_generic_mixed(domains[:cat_len], domains[cat_len:])
 
@@ -1385,7 +1247,9 @@ class Model:
         return vol*self._density(x+y)
 
     def sample(self, n=1):
-        """Returns n samples drawn from the model as a dataframe with suitable column names."""
+        """Returns n samples drawn from the model as a dataframe with suitable column names.
+        TODO: make interface similar to select_data
+        """
         if self._isempty():
             raise ValueError('Cannot sample from 0-dimensional model')
         samples = (self._sample() for i in range(n))
@@ -1423,7 +1287,6 @@ class Model:
         mycopy.test_data = self.test_data.copy()
         mycopy.fields = cp.deepcopy(self.fields)
         mycopy.mode = self.mode
-        mycopy._modeldata_field = cp.deepcopy(self._modeldata_field)
         mycopy._update_all_field_derivatives()
         return mycopy
 
@@ -1440,7 +1303,7 @@ class Model:
         if not to_scalar:
             raise NotImplemented
         fields = self.fields if names is None else self.byname(names)
-        # It's not obvious but this is aequivalent to the more detailed code below...
+        # It's not obvious but this is equivalent to the more detailed code below...
         cond_values = [field['domain'].mid() for field in fields]
         # cond_values = []
         # for field in fields:
@@ -1590,10 +1453,6 @@ class Model:
             You may leave out splits for dimensions that have a default value. You may, at the same time, include the defaulting dimensions in the result table.
             # TODO: write tests
 
-        Internal:
-            .predict accepts the 'artificial field' 'model vs data' ('mvd' for short in the following)
-            in order to unify queries again model and data. It also translates it into to internal interfaces
-            for model queries and data queries.
         """
         # TODO: add default splits for each data type?
 
@@ -1615,26 +1474,8 @@ class Model:
             splitby = []
         idgen = utils.linear_id_generator()
 
-        # How to handle the 'artificial field' 'model vs data':
-        # The possible cases, as which 'model vs data' occur are:
-        #   * as a filter: that sets the internal mode of the model. Is handled in '.condition'
-        #   * as a split: splits by the values of that field. Is handled where we handle splits.
-        #   * not at all: defaults to a filter to equal 'model' and a default identity split on it, ONLY if
-        #       self.mode is 'both'
-        #   * in predict-clause or not -> need to assemble result frame correctly
-        #   * in aggregation: raise error
-
         filter_names = [f[NAME_IDX] for f in where]
         split_names = [f[NAME_IDX] for f in splitby]  # name of fields to split by. Same order as in split-by clause.
-
-        # set default filter and split on 'model vs data' if necessary
-        if 'model vs data' not in split_names \
-                and 'model vs data' not in filter_names \
-                and self.mode == 'both':
-            where.append(Condition('model vs data', '==', 'model'))
-            filter_names.append('model vs data')
-            splitby.append(Split('model vs data', 'identity', []))
-            split_names.append('model vs data')
 
         # (1) derive base model, i.e. a model on all requested dimensions and measures, respecting filters
         predict_ids = []  # unique ids of columns in data frame. In correct order. For reordering of columns.
@@ -1656,12 +1497,11 @@ class Model:
                 try:
                     predict_ids.append(split_name2id[name])
                 except KeyError:
+                    # TODO: here is one place to continue
                     raise ValueError("Missing split-tuple for a split-field in predict: " + name)
                 basenames.add(name)
             else:
                 # t is an aggregation/density tuple
-                if t[NAME_IDX] == 'model vs data':
-                    raise ValueError("Aggregations or Density queries on 'model vs data'-field are not possible")
                 id_ = _tuple2str(t) + next(idgen)
                 aggrs.append(t)
                 aggr_ids.append(id_)
@@ -1695,7 +1535,6 @@ class Model:
             input_frame = pd.DataFrame()
         else:
             def _get_group_frame(split, column_id):
-                # could be 'model vs data'
                 field = basemodel.byname(split[NAME_IDX])
                 domain = field['domain'].bounded(field['extent'])
                 try:
@@ -1719,7 +1558,6 @@ class Model:
 
             # all splits are non-data splits
             if len(data_splits) == 0:
-                # TODO: speedup by first grouping by 'model vs data'?
                 group_frames = map(_get_group_frame, splitby, split_ids)
                 input_frame = reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
 
@@ -1800,12 +1638,6 @@ class Model:
                     # select relevant columns in correct order and iterate over it
                     names = self.sorted_names(aggr[NAME_IDX])
                     ids = [split_name2id[name] for name in names]
-
-                    # if we split by 'model vs data' field we have to add this to the list of column ids
-                    if 'model vs data' in splitnames_unique:
-                        ids.append(split_name2id['model vs data'])
-                        names.append('model vs data')
-
                 except KeyError as err:
                     raise ValueError("missing split-clause for field '" + str(err) + "'.")
                 subframe = input_frame.loc[:, ids]
@@ -1822,7 +1654,6 @@ class Model:
                     for row in subframe.itertuples(index=False):
                         # todo: why not use _density? calling density creates a lot of overhead!
                         res = aggr_model.density(values=row)
-                        #res = aggr_model.probability(domains=row)
                         aggr_results.append(res)
                 else:
                     for row in subframe.itertuples(index=False):
@@ -1834,9 +1665,6 @@ class Model:
                 if len(splitby) == 0:
                     # there is no fields to split by, hence only a single value will be aggregated
                     # i.e. marginalize all other fields out
-                    # TODO: can there ever be more fields left than the one(s) that is aggregated over?
-                    if len(aggr[NAME_IDX]) != aggr_model.dim:  # debugging
-                        raise ValueError("uh, interesting - check this out, and read the todo above this code line")
                     singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
                     res = singlemodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
                     # reduce to requested dimension
@@ -1899,10 +1727,8 @@ class Model:
     def select(self, what, where=None, **kwargs):
         """Returns the selected attributes of all data items that satisfy the conditions as a
         pandas DataFrame.
-        By default it selects data only, i.e. it will not return any samples from the model. It may, however, also
-        sample from the model if:
-          * the where-clause implies so (i.e. contains a filter of the 'model vs data'-field on the value 'model'.
-          * the what-clause contains teh 'model vs data'-field (both, data and samples, will be returned)
+
+        It selects data only, i.e. it will never return any samples from the model. To sample use sample().
         """
         # check for empty queries
         if len(what) == 0:
@@ -1910,65 +1736,15 @@ class Model:
         if where is None:
             where = []
 
-        # if 'model vs data' is present as a filter the filter is respected: i.e. either one of them or both data is
-        #  generated
-        # iff 'model vs data' is present in what the column will be returned
-        # if 'model vs data' is not present in any of the arguments it defaults to a data-select, i.e. a filter for data
-
-        # remove 'model vs data' from what
-        pure_what = [w for w in what if w != 'model vs data']
-
         # check that all columns to select are in data
-        if any((label not in self.data.columns for label in pure_what)):
-            raise KeyError('at least on of ' + str(pure_what) + ' is not a column label of the data.')
+        if any((label not in self.data.columns for label in what)):
+            raise KeyError('at least on of ' + str(what) + ' is not a column label of the data.')
 
-        # remove 'model vs data' from filters
-        mvd_filter = None
-        pure_where = []
-        for w in where:
-            if w[NAME_IDX] == 'model vs data':
-                mvd_filter = w
-            else:
-                pure_where.append(w)
-
-        # set default filter for 'model vs data'. Do not if 'model vs data' is in what, because that implies the query
-        #  wants both
-        if mvd_filter is None and 'model vs data' not in what:
-            mvd_filter = Condition('model vs data', "==", "data")
-
-        # TODO: !!!!!!!! !!!!!!!!! !!!!!!!!!!!! !!!!!!!!!!!!! #
-        # DEBUG/DEVELOP: always set it to data only
-        mvd_filter = Condition('model vs data', "==", "data")
-
-        # now infer mode
-        mode = dm.DiscreteDomain(['model', 'data'])
-        if mvd_filter is not None:
-            mode.apply(mvd_filter.operator, mvd_filter.value)
-        mode = mode.values()
-
-        # select data and or sample, and add model vs data column if requested
-        if 'model' in mode:
-            # todo: does not meet conditions...!!
-            # todo: sampling from less requires model marginalization?
-            # todo: default number of samples?
-            samples = self.sample(100)
-            if 'model vs data' in what:
-                samples['model vs data'] = 'model'
-        if 'data' in mode:
-            data = self.select_data(pure_what, pure_where, **kwargs)
-            if 'model vs data' in what:
-                data['model vs data'] = 'data'
-
-        # concatenate to one data frame (and prevent copy if possible)
-        if 'model' in mode and 'data' in mode:
-            df = pd.concat([samples, data], ignore_index=True)
-        elif 'model' in mode:
-            df = samples
-        else:
-            df = data
+        # select data
+        data = self.select_data(what, where, **kwargs)
 
         # return reordered
-        return df.loc[:, what]
+        return data.loc[:, what]
 
     def generate_model(self, opts={}):
         # call specific class method
