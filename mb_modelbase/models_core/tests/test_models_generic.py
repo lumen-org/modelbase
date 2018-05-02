@@ -269,8 +269,7 @@ _test_conditioning = {
 }
 
 
-def _test_all(models, models_setup, data, depth, mvd='model'):
-    assert(mvd == 'model' or mvd == 'data')
+def _test_all(models, models_setup, data, depth):
     for mode in ['discrete', 'continuous', 'mixed']:
         for model_class in models[mode]:
             # create and fit model
@@ -283,12 +282,8 @@ def _test_all(models, models_setup, data, depth, mvd='model'):
             # set data
             model.set_data(df=data[mode])
 
-            # if model mode, also fit model
-            if mvd == 'model':
-                model.fit()
-
-            # set to mode
-            model.mode = mvd
+            # fit model
+            model.fit()
 
             # test aggregations and such
             _test_all_density_and_aggregations(model, info="")
@@ -318,25 +313,23 @@ if __name__ == '__main__':
         'mixed': df
     }
 
-    ## mockup model tests for MODEL and DATA
+    ## mockup model tests
     models = {
         'discrete': [MockUpModel],
         'continuous': [MockUpModel],
         'mixed': []
     }
     density_aggregation_flags = {'aggregations': True, 'density': False, 'density_sum': False}
-    #_test_all(models, models_setup, data_full, depth=3, mvd='data')
     #_test_all(models, models_setup, data_full, depth=3)
 
 
-    ## dedicated MCG model test for MODEL and DATA
+    ## dedicated MCG model test
     models = {
         'discrete': [],
         'continuous': [],
         'mixed': [MCGModel]
     }
     density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': False}
-    #_test_all(models, models_setup, data_full, depth=3, mvd='data')
     #_test_all(models, models_setup, data_full, depth=3)
 
     ## dedicated density_sum test
@@ -365,8 +358,7 @@ if __name__ == '__main__':
     #     'mixed': [CGModel, CGWMModel, MCGModel]
     # }
     density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': False}
-    #_test_all(models, models_setup, data_full, depth=3, mvd='data')
-    _test_all(models, models_setup, data_full, depth=3, mvd='model')
+    _test_all(models, models_setup, data_full, depth=3)
 
 
 
