@@ -1101,20 +1101,24 @@ class Model:
             (3) A dict of key=name:value=value in <values>. <names> is ignored.
 
         Hidden dimensions and default values:
+            The density will be computed on the model over all (i.e. hidden and non-hidden) dimensions. If you do not specify a value for a dimension (hidden or not) its default value will be used instead to compute the density at that point.
 
-        The density will be computed on the model over all (i.e. hidden and non-hidden) dimensions. If you do not specify a value for a dimension (hidden or not) its default value will be used instead to compute the density at that point.
+            If you use variant (1) and (3) of specifying arguments:
+            You may or not provide a value for dimensions with default values. You may also 'mix', i.e. give values for some dimensions that have default values, but not for other dimensions that also have default values.
 
-        If you use variant (1) and (3) of specifying arguments:
-        You may or not provide a value for dimensions with default values. You may also 'mix', i.e. give values for some dimensions that have default values, but not for other dimensions that also have default values.
+            If you use variant (2):
+            You must not specify the value of any hidden dimension. And you must specify values for all non-hidden dimensions. This is because it would be impossible to determine what field they belong to.
 
-        If you use variant (2):
-        You must not specify the value of any hidden dimension. And you must specify values for all non-hidden dimensions. This is because it would be impossible to determine what field they belong to.
+        Internal:
+            It may happen that some elements of values are not scalars such as 1 or 'foo' but a single item list such as [1] or ['foo']. This is because the split-method 'elements' is used to create input for both:
+              * probability (requiring a sequence of domains), and
+              * density (requiring a sequence of scalars)
+            Currently, we only allow scalar values at input and instead we take care of it in Model.predict().
         """
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
 
         # normalize parameters to ordered list form
-        mode = self.mode
         if isinstance(values, dict):
             values = [values.get(name, self.byname(name)['default_value']) for name in self.names]
         elif names is not None and values is not None:
@@ -1135,15 +1139,6 @@ class Model:
                 pass  # nothing to do]
         else:
             raise ValueError("Invalid number of values passed.")
-
-        # it may happen that some elements of values are not scalars such as 1 or 'foo' but a single item list
-        # this is because the split-method 'elements' is used to create input for both:
-        #   * probability (requiring a sequence of domains), and
-        #   * density (requiring a sequence of scalars)
-
-        # TODO: fix this somehow? not sure if it is possible
-        # currently, we do not allow this at this point. In Model.predict(), however, we take care of it in the problematic cases
-        # values = data_ops.reduce_to_scalars(values)
 
         p = self._density(values)
         return p
@@ -1196,7 +1191,7 @@ class Model:
                 raise ValueError('Some name occurs twice.')
             domains = dict(zip(domains, names))  # to dict
             domains = [domains.get(name, self.byname(name)['default_subset']) for name in self.names]  # to domains
-        elif len(domains) == self.dim:
+        elif len(domains) == (self.dim - self._hidden_count):
             # correctly ordered list was passed in
             if self._hidden_count != 0:
                 # merge with defaults of hidden dimensions (which may not have been passed!)
@@ -1635,25 +1630,12 @@ class Model:
         for idx, aggr in enumerate(aggrs):
             aggr_results = []
             aggr_model = aggr_models[idx]
-
-            # it depends on the split whether it is suitable to compute the density or the probability over the result of it
-            # i.e.: if we split into intervals, we need probability (which we will do most of the time)
-            # but if we split to points we need density (which would most of the time result in zero density on data)
-            # we need separate internal implementations of density and probability, but I think it would be nice
-            # if to the outside density accepts also intervals/sets and then just calls probability (and returns a probability)
-            # though, it's less clean...
             aggr_method = aggr[METHOD_IDX]
+
             if aggr_method == 'density' or aggr_method == 'probability':
                 # TODO (1): this is inefficient because it recalculates the same value many times, when we split on more than what the density is calculated on
                 # TODO: to solve it: calculate density only on the required groups and then join into the result table.
-                # TODO (2): .density also returns the frequency of the specified observation. Calculating it like this
-                #  is also super inefficient, since we really just need to group by all of the split-field and count
-                #  occurrences - instead of iteratively counting occurrences, which involves a linear scan on the data
-                #  frame for each call to density
-                # TODO (3) we even need special handling for the model/data field. See the density method.
-                # this is much too complicated. Somehow there must be an easier way to do all of this...
-                # by now I think we need a new 'type' of fields: artificial fields. We will anyway need this for
-                # hyperparameters like fitting params, etc. And we want a clean and eays and generic way to deal with them
+                # TODO: to solve it(2): splits should be respected also for densities
                 try:
                     # select relevant columns in correct order and iterate over it
                     names = self.sorted_names(aggr[NAME_IDX])
@@ -1663,21 +1645,19 @@ class Model:
                 subframe = input_frame.loc[:, ids]
 
                 if aggr_method == 'density':
-                    # when splitting by elements or identity we get single element lists instead of scalars. However, density() requires scalars.
-                    # for those columns that have values of element or identity splits: map to
+                    # when splitting by elements or identity we get single element lists instead of scalars.
+                    # However, density() requires scalars.
                     # TODO: I believe this issue should be handled in a conceptually better and faster way...
                     nonscalar_ids = [split_name2id[name] for (name, method, __) in splitby if
                                             method == 'elements' or method == 'identity' and name in names]
                     for col_id in nonscalar_ids:
                         subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
 
-                    for row in subframe.itertuples(index=False):
-                        # todo: why not use _density? calling density creates a lot of overhead!
+                    for row in subframe.itertuples(index=False, name=None):
                         res = aggr_model.density(values=row)
                         aggr_results.append(res)
                 else:  # aggr_method == 'probability'
-                    for row in subframe.itertuples(index=False):
-                        # todo: why not use _density? calling density creates a lot of overhead!
+                    for row in subframe.itertuples(index=False, name=None):
                         res = aggr_model.probability(domains=row)
                         aggr_results.append(res)
 
@@ -1712,12 +1692,9 @@ class Model:
         # QUICK FIX: when splitting by 'equiinterval' we get intervals instead of scalars as entries
         # however, I cannot currently handle intervals on the client side easily
         # so we just turn it back into scalars
-        def mean(entry):
-            return (entry[0] + entry[1]) / 2
-
         column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'equiinterval']
         for column in column_interval_list:
-            input_frame[column] = input_frame[column].apply(mean)
+            input_frame[column] = input_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)
 
         # QUICK FIX2: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
         column_interval_list = [split_name2id[name] for (name, method, __) in splitby if
