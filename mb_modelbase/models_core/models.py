@@ -645,7 +645,7 @@ class Model:
             raise NotImplementedError("You have to implement the _fit method in your model!")
         return self
 
-    def marginalize(self, keep=None, remove=None, is_pure=False):
+    def marginalize(self, keep=None, remove=None):
         """Marginalizes random variables out of the model. Either specify which
         random variables to keep or specify which to remove.
 
@@ -655,10 +655,11 @@ class Model:
 
         Hidden dimensions:
           * You may marginalize hidden dimensions.
-          * hidden dimensions are always kept, unless they are explicitely included in the argument remove.
+          * hidden dimensions are always kept, unless they are explicitly included in the argument remove.
 
         Default values:
-            Are not taken into consideration in any way.
+            If a dimension that has a default value is to be marginalized out, it is instead conditioned out on its
+            default.
 
         Arguments:
             keep: A sequence or a sequence of names of dimensions or fields of a model. The given dimensions of this model are kept. All other random variables are marginalized out. You may specify the special string "*", which stands for 'keep all dimensions'
@@ -694,6 +695,24 @@ class Model:
             return self._setempty()
 
         keep = self.sorted_names(keep)
+        remove = self.inverse_names(keep, sorted_=True)
+
+        # condition out any dimensions with default values/subsets on that very default
+        conditions = []
+        defaulting_dims = []
+        for name in remove:
+            field = self.byname(name)
+            if field['default_subset'] is not None:
+                c = Condition(name, "in", field['default_subset'])
+            elif field['default_value'] is not None:
+                c = Condition(name, "==", field['default_value'])
+            else:
+                continue
+            defaulting_dims.append(name)
+            conditions.append(c)
+        if len(conditions) > 0:
+            self.condition(conditions)._marginalize(remove=defaulting_dims)
+
         return self._marginalize(keep)
 
     def _marginalize(self, keep=None, remove=None):
@@ -965,6 +984,18 @@ class Model:
             field['default_subset'] = subset
 
         return self
+
+    @staticmethod
+    def has_default(self, dims):
+        """Given a single dimension name or a sequence of dimension names returns a single or a sequence of booleans, each indicating whether or not the dimension with that name has any defaulting value/subset.
+        """
+        def _has_default(dim):
+            return dim['default_value'] is not None or dim['default_subset'] is not None
+
+        if isinstance(dims, str):
+            return _has_default(dims)
+        else:
+            return map(_has_default, dims)
 
     def freeze(self, dims, values=None):
         """Freeze given dimensions to given values."""
