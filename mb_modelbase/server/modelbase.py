@@ -439,7 +439,7 @@ class ModelBase:
     def _extractOpts(self, query):
         if 'OPTS' not in query:
             return {}
-        print("OPTIONS: " + str(query['OPTS']))  # TODO DEBUGGING!
+        print("OPTIONS: " + str(query['OPTS']))
         return query['OPTS']
 
     def _extractReload(self, query):

@@ -1479,6 +1479,37 @@ class Model:
         aggr_ids = []  # ids for columns of fields to aggregate. Same order as in predict-clause
 
         basenames = set(split_names)  # set of names of fields needed for basemodel of this query
+
+        def add_split_for_defaulting_dimension(dim):
+            """ Dimensions that have defaults may be left out when specifying the query.
+            This method will add a filter and identity split for such provided defaulting dimension, if possible.
+
+            Returns:
+                the value/subset dim defaults to.
+            """
+            if dim['default_value'] is not None:
+                def_ = dim['default_value']
+            elif dim['default_subset'] is not None:
+                def_ = dim['default_subset']
+            else:
+                raise ValueError("Missing split-tuple for a split-field in predict: " + name)
+
+            logger.info("using default for dim " + str(name) + " : " + str(def_))
+
+            # add split
+            split = Split(name, 'identity')
+            splitby.append(split)
+            id_ = name + next(idgen)
+            split_ids.append(id_)
+            split_name2id[name] = id_
+
+            # add condition
+            condition = Condition(name, '==', def_)
+            where.append(condition)
+            filter_names.append(name)
+
+            return def_
+
         for t in predict:
             if isinstance(t, str):
                 # t is a string, i.e. name of a field that is split by
@@ -1488,31 +1519,8 @@ class Model:
                     predict_ids.append(split_name2id[name])
                 except KeyError:
                     dim = self.byname(name)
-                    # dimensions with defaults may be left out.
-                    # In this case: add identity split and a filter
-                    if dim['default_value'] is not None:
-                        def_ = dim['default_value']
-                    elif dim['default_subset'] is not None:
-                        def_ = dim['default_subset']
-                    else:
-                        raise ValueError("Missing split-tuple for a split-field in predict: " + name)
-
-                    logger.info("using default for dim " + str(name) + " : " + str(def_))
-
-                    # add split
-                    split = Split(name, 'identity')
-                    splitby.append(split)
-                    id_ = name + next(idgen)
-                    split_ids.append(id_)
-                    split_name2id[name] = id_
-
-                    # add condition
-                    condition = Condition(name, '==', def_)
-                    where.append(condition)
-                    filter_names.append(name)
-
-                    # "retry"
-                    predict_ids.append(split_name2id[name])
+                    add_split_for_defaulting_dimension(dim)
+                    predict_ids.append(split_name2id[name])  # "retry"
 
                 basenames.add(name)
             else:
@@ -1636,12 +1644,19 @@ class Model:
                 # TODO (1): this is inefficient because it recalculates the same value many times, when we split on more than what the density is calculated on
                 # TODO: to solve it: calculate density only on the required groups and then join into the result table.
                 # TODO: to solve it(2): splits should be respected also for densities
-                try:
-                    # select relevant columns in correct order and iterate over it
-                    names = self.sorted_names(aggr[NAME_IDX])
-                    ids = [split_name2id[name] for name in names]
-                except KeyError as err:
-                    raise ValueError("missing split-clause for field '" + str(err) + "'.")
+                names = self.sorted_names(aggr[NAME_IDX])
+                # select relevant columns in correct order and iterate over it
+                ids = []
+                for name in names:
+                    try:
+                        id_ = split_name2id[name]
+                    except KeyError as err:
+                        dim = self.byname(name)
+                        default_ = add_split_for_defaulting_dimension(dim)
+                        id_ = split_name2id[name]  # try again
+                        input_frame[id_] = [default_] * len(input_frame)  # add a column with the default to input_frame
+                    ids.append(id_)
+
                 subframe = input_frame.loc[:, ids]
 
                 if aggr_method == 'density':
@@ -1657,6 +1672,7 @@ class Model:
                         res = aggr_model.density(values=row)
                         aggr_results.append(res)
                 else:  # aggr_method == 'probability'
+                    # TODO: use DataFrame.apply instead? What is faster?
                     for row in subframe.itertuples(index=False, name=None):
                         res = aggr_model.probability(domains=row)
                         aggr_results.append(res)
