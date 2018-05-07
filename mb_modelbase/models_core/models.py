@@ -364,6 +364,12 @@ class Model:
     A model has a number of fields (aka dimensions). The model models a probability density function on these fields
     and allows various queries again this density. The model is based on data (aka evidence), and the data can be
     queried the same way like the model.
+
+    History:
+        Models also provide a 'history', i.e. information about what operations (condition, marginalize) have been applied in order to arrive to the current model.
+        This information is stored under the .history attribute and is a organized as a dictionary. The key is the name of the dimension that was changed. The value is a a dict with these keys:
+          * 'conditioned': a list of conditions applied in that order
+          * 'marginalized': a string: either None (if not marginalized in any way), or 'marginalized_out' (if marginalized over the full domain) or 'conditioned_out' (if marginalized after conditioning)
     """
 
     def __str__(self):
@@ -452,6 +458,7 @@ class Model:
         self.test_data = pd.DataFrame([])
         self._aggrMethods = None
         self.mode = None
+        self.history = {}
 
     def _setempty(self):
         self._update_remove_fields()
@@ -530,12 +537,17 @@ class Model:
 
         return self
 
+    def _init_history(self):
+        for f in self.fields:
+            self.history[f['name']] = {'conditioned': [], 'marginalized': None}
+
     def _set_data(self, df, silently_drop):
         """ This method sets the data for this model instance using the data frame df. After completion of this method
         the following attributes are set:
          * self.data
          * self.fields
          * self.mode
+         * self._history (initialized)
         See also model.set_data.
 
         This method must be implemented by all actual model classes. You might just want to use one of the following:
@@ -575,6 +587,8 @@ class Model:
         #        ) = normalize_dataframe(df.loc[:, self._numericals])
         #        self.data_norm =
 
+        self._init_history()
+
         return self
 
     def _set_data_continuous(self, df, silently_drop):
@@ -594,6 +608,8 @@ class Model:
         # derive and set fields
         self.fields = get_numerical_fields(self.data, numericals)
 
+        self._init_history()
+
         return self
 
     def _set_data_categorical(self, df, silently_drop):
@@ -612,6 +628,9 @@ class Model:
 
         # derive and set fields
         self.fields = get_discrete_fields(self.data, categoricals)
+
+        self._init_history()
+
         return self
 
     def fit(self, df=None, **kwargs):
@@ -759,12 +778,16 @@ class Model:
             for callback in callbacks:
                 callback()
             remove = self.inverse_names(keep, sorted_=True)  # do it again, because fields may have changed
+            for name in cond_out:
+                self.history[name]['marginalized'] = 'conditioned_out'
 
         if len(keep) != self.dim and not self._isempty():
             callbacks = self._marginalizeout(keep, remove)
             self._update_remove_fields(remove)
             for callback in callbacks:
                 callback()
+            for name in remove:
+                self.history[name]['marginalized'] = 'marginalized_out'
         return self
 
     def _marginalizeout(self, keep, remove):
@@ -818,6 +841,9 @@ class Model:
         for (name, operator, values) in conditions:
             self.byname(name)['domain'].apply(operator, values)
             names.append(name)
+            # store history
+            e = {'operator': operator, 'value': values}
+            self.history[name]['conditioned'].append(e)
 
         # condition model
         # todo: currently, conditioning of a model is always only done when it is conditioned out.
@@ -1300,16 +1326,17 @@ class Model:
 
     def _defaultcopy(self, name=None):
         """Returns a new model of the same type with all instance variables of the abstract base model copied:
-          * data (a reference to it!!!) # CURRENTLY: copied!
+          * data (a reference to it!!!)
           * fields (deep copy)
         """
         name = self.name if name is None else name
         mycopy = self.__class__(name)
-        mycopy.data = self.data.copy()
+        mycopy.data = self.data  # .copy()
         mycopy.test_data = self.test_data.copy()
         mycopy.fields = cp.deepcopy(self.fields)
         mycopy.mode = self.mode
         mycopy._update_all_field_derivatives()
+        mycopy.history = cp.deepcopy(self.history)
         return mycopy
 
     def _condition_values(self, names=None, pairflag=False, to_scalar=True):
@@ -1793,6 +1820,7 @@ class Model:
     def generate_model(self, opts={}):
         # call specific class method
         callbacks = self._generate_model(opts)
+        self._init_history()
         self._update_all_field_derivatives()
         for callback in callbacks:
             callback()

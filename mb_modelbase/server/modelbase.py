@@ -42,6 +42,17 @@ class QueryValueError(Exception):
         return repr(self.value)
 
 
+class QueryIncompleteError(Exception):
+    meaning = """This error indicates that a PQL query was incomplete, i.e. it could not be successfully interpreted because required information was missing."""
+
+    def __init__(self, message="", value=None):
+        self.value = value
+        self.message = message
+
+    def __repr__(self):
+        return repr(self.value)
+
+
 class NumpyCompliantJSONEncoder(json.JSONEncoder):
     """A JSON encoder that does *not* fail when serializing numpy.integer, numpy.floating or numpy.ndarray.
      Other than that it behaves like the default encoder.
@@ -322,7 +333,11 @@ class ModelBase:
                 return _json_dumps({'STATUS': 'success',
                                     'reloaded models': [model[0] for model in loaded_models]})
             else:
-                raise ValueError() # not implemented?!
+                raise ValueError("not implemented")
+        else:
+            raise QueryIncompleteError("Missing Statement-Type (e.g. DROP, PREDICT, SELECT)")
+
+
 
     ### _extract* functions are helpers to extract a certain part of a PQL query
     #   and do some basic syntax and semantic checks
