@@ -52,7 +52,7 @@ class NumericDomain(Domain):
             self._value = [args[0], args[1]]
         else:
             raise ValueError("Too many arguments given: " + str(args))
-        self._validate()
+        #self._validate()
 
     def __str__(self):
         return str(self._value)
@@ -60,6 +60,9 @@ class NumericDomain(Domain):
     def _validate(self):
         if self._value[0] > self._value[1]:
             raise ValueError("resulting domain is empty: " + str(self._value))
+
+    def isempty(self):
+        return self._value[0] <= self._value[1]
 
     def issingular(self):
         return self._value[0] == self._value[1]
@@ -143,8 +146,10 @@ class NumericDomain(Domain):
         return values[0] if issingular else ((values[1] + values[0]) / 2)
 
     def contains(self, value):
-        """Returns true iff value is an element of this domain."""
-        return self._value[0] <= value <= self._value[1]
+        """Returns true iff value is an within this domain.
+        Value may be anything the constructor for NumericDomain accepts.
+        """
+        return NumericDomain(value).intersect(self).isempty()
 
 
 class DiscreteDomain(Domain):
