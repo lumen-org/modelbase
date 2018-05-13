@@ -106,6 +106,23 @@ def _gradient_mixture_cg(x, mu_, invS_, detS_, p_):
     return gradient_sum
 
 
+def _inverse_transform_sampling(ps):
+    """Returns a sampled index from an array of probabilities which sum up to 1, also for multidimensional arrays """
+
+    rand = np.random.uniform()
+    bucket, index = 0, 0
+    for p in np.array(ps).ravel():
+        bucket += p
+        if bucket <= rand:
+            index += 1
+        else:
+            break
+
+    index = np.unravel_index(index, ps.shape)
+
+    return index
+
+
 def _maximum_cg(mus, Sinvs, Sdets, ps, num_len):
     """Returns an approximation to the point of maximum of density function and its value as a tuple (argmax, max)."""
 
@@ -675,6 +692,30 @@ class MixableCondGaussianModel(md.Model):
 
         assert(result is not None)
         return self._normalizer.denormalize(result) if self.opts['normalized'] else result
+
+
+    def _sample(self, k=42):
+        """Returns k sample points"""
+        sample_points = []
+        for i in range(0, k):
+            sample_cat = _inverse_transform_sampling(self._p)
+            cat_dict = self._p[sample_cat].to_dict()
+            sample_point = []
+
+            for cat in self._categoricals:
+                sample_point.append(cat_dict['coords'][cat]['data'])
+
+            mu = np.array(self._mu[sample_cat])
+            sigma = np.array(self._S[sample_cat])
+
+            sample = np.matrix(sigma) * np.matrix(np.random.randn(len(mu))).T + np.matrix(mu).T
+
+            for value in sample:
+                sample_point.append(float(value))
+
+            sample_points.append(sample_point)
+
+        return sample_points
 
     # mostly like cg wm
     def copy(self, name=None):
