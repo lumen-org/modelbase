@@ -681,15 +681,13 @@ class MixableCondGaussianModel(md.Model):
         """Returns k sample points"""
         sample_points = []
 
-        # Generating comultative density
-        comultative_dens = self._p.values.ravel().cumsum(0)
-
+        # Calculating cumulative density
+        cum_dens = utils.cumulative_density(self._p.values)
         for i in range(0, k):
             sample_point = []
 
-            # Get index via inverse transform sampling
-            rand = np.random.uniform()
-            index = np.searchsorted(comultative_dens, rand)
+            # Getting index via inverse transform sampling
+            index = utils.inverse_transform_sampling(cum_dens)
             sample_cat = np.unravel_index(index, self._p.shape)
 
             # Get categoricals
@@ -697,11 +695,10 @@ class MixableCondGaussianModel(md.Model):
             sample_point += [cat_dict['coords'][cat]['data'] for cat in self._categoricals]
 
             # Sample from gaussian
-            mu = np.array(self._mu[sample_cat])
-            sigma = np.array(self._S[sample_cat])
-            sample = np.matrix(sigma) * np.matrix(np.random.randn(len(mu))).T + np.matrix(mu).T
+            if len(self._mu) > 0:
+                sample = self._S[sample_cat].values.dot(np.random.randn(len(self._mu[sample_cat]))) + self._mu[sample_cat].values
 
-            sample_point += [float(x) for x in sample]
+                sample_point += sample.tolist()
 
             sample_points.append(sample_point)
 

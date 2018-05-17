@@ -10,6 +10,7 @@ import random
 from functools import wraps, reduce
 from numpy import matrix, ix_, isfinite, linalg
 from xarray import DataArray
+import numpy as np
 
 
 def assert_all_psd(S, len_num):
@@ -321,6 +322,14 @@ def truncate_string(str_, trim_length=500):
 def no_nan(nparr):
     """Returns true iff nparr has size 0 or all its elements are finite, i.e. isfinite(nparr).any() holds."""
     return nparr.size == 0 or isfinite(nparr).any()
+
+
+def cumulative_density(array):
+    return array.ravel().cumsum(0)
+
+
+def inverse_transform_sampling(cumulative_dens):
+    return np.searchsorted(cumulative_dens, np.random.uniform())
 
 
 if __name__ == '__main__':
