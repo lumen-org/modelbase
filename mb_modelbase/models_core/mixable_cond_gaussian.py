@@ -695,7 +695,7 @@ class MixableCondGaussianModel(md.Model):
             sample_point += [cat_dict['coords'][cat]['data'] for cat in self._categoricals]
 
             # Sample from gaussian
-            if len(self._mu) > 0:
+            if len(mymod._numericals) > 0:
                 sample = self._S[sample_cat].values.dot(np.random.randn(len(self._mu[sample_cat]))) + self._mu[sample_cat].values
 
                 sample_point += sample.tolist()
