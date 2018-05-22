@@ -10,6 +10,7 @@ import random
 from functools import wraps, reduce
 from numpy import matrix, ix_, isfinite, linalg
 from xarray import DataArray
+import numpy as np
 
 
 def assert_all_psd(S, len_num):
@@ -203,8 +204,8 @@ def shortest_interval(seq):
 
 
 def unique_list(iter_):
-    """ Creates and returns a list from given iterable which only contains 
-    each item once. Order is preserved. 
+    """ Creates and returns a list from given iterable which only contains
+    each item once. Order is preserved.
     """
     ex = set()
     list_ = list()
@@ -243,7 +244,7 @@ def issorted(seq):
 
 
 def invert_indexes(idx, len_):
-    """utility function that returns an inverted index list given a sorted 
+    """utility function that returns an inverted index list given a sorted
     sequence of indexes, e.g. given [0,1,4] and len=6 it returns [2,3,5].
 
     This is a special case of invert_sequence.
@@ -251,11 +252,11 @@ def invert_indexes(idx, len_):
     it = iter(idx)
     cur = next(it, None)
     inv = []
-    for i in range(len_):        
+    for i in range(len_):
         if i == cur:
             cur = next(it, None)
         else:
-            inv.append(i)                
+            inv.append(i)
     return inv
 
 
@@ -321,6 +322,14 @@ def truncate_string(str_, trim_length=500):
 def no_nan(nparr):
     """Returns true iff nparr has size 0 or all its elements are finite, i.e. isfinite(nparr).any() holds."""
     return nparr.size == 0 or isfinite(nparr).any()
+
+
+def cumulative_density(array):
+    return array.ravel().cumsum(0)
+
+
+def inverse_transform_sampling(cumulative_dens):
+    return np.searchsorted(cumulative_dens, np.random.uniform())
 
 
 if __name__ == '__main__':
