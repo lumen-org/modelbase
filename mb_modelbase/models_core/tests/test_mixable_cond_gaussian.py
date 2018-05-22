@@ -5,8 +5,10 @@ from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianMo
 
 class TestMethods(unittest.TestCase):
 
+    def test_something(self):
+        return 0
 
 
 
 if __name__ == '__main__':
-  unittest.main()
+    unittest.main()
