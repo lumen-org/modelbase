@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 # list of attributes names of Model class to update
-_attrs_to_update = ('fields', 'names', 'data', 'dim', '_name2idx', 'mode', '_modeldata_field')
+_attrs_to_update = ('fields', 'names', 'data', 'dim', '_name2idx', 'mode')
 
 
 class FixedMixtureModel(md.Model):

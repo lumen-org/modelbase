@@ -52,7 +52,7 @@ class NumericDomain(Domain):
             self._value = [args[0], args[1]]
         else:
             raise ValueError("Too many arguments given: " + str(args))
-        self._validate()
+        #self._validate()
 
     def __str__(self):
         return str(self._value)
@@ -60,6 +60,9 @@ class NumericDomain(Domain):
     def _validate(self):
         if self._value[0] > self._value[1]:
             raise ValueError("resulting domain is empty: " + str(self._value))
+
+    def isempty(self):
+        return self._value[0] <= self._value[1]
 
     def issingular(self):
         return self._value[0] == self._value[1]
@@ -142,6 +145,12 @@ class NumericDomain(Domain):
         values = self.values()
         return values[0] if issingular else ((values[1] + values[0]) / 2)
 
+    def contains(self, value):
+        """Returns true iff value is an within this domain.
+        Value may be anything the constructor for NumericDomain accepts.
+        """
+        return NumericDomain(value).intersect(self).isempty()
+
 
 class DiscreteDomain(Domain):
     """An (ordered) discrete domain that can be represented by a list of values [val1, val2, ... ]."""
@@ -151,6 +160,8 @@ class DiscreteDomain(Domain):
              * pass no arguments for an unbounded domain
              * not anymore: pass one scalar argument for a singular domain
              * pass a list of values for a bounded domain. its order is preserved.
+
+           ONLY strings as categorical values are allowed!
         """
 
         """Internal representation is as follows:
@@ -244,3 +255,7 @@ class DiscreteDomain(Domain):
             raise ValueError("cannot compute mid of not bounded domain!")
         values = self.values()
         return values[0]
+
+    def contains(self, value):
+        """Returns true iff value is an element of this domain."""
+        return not self.isbounded() or value in self._value
