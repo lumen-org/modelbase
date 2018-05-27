@@ -16,7 +16,7 @@ from random import shuffle
 from mb_modelbase.models_core.models import Model, Condition, Density, Aggregation, Split
 from mb_modelbase.models_core.mockup_model import MockUpModel
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
-from mb_modelbase.models_core.tests import crabs
+from mb_modelbase.models_core.tests import test_crabs
 
 
 class TestDataSelect(unittest.TestCase):

@@ -1520,13 +1520,13 @@ class Model:
 
         if isinstance(predict, (str, tuple)):
             predict = [predict]
-        
+
         if isinstance(where, tuple):
             where = [where]
-        
+
         if isinstance(splitby, tuple):
             splitby = [splitby]
-        
+
         if self._isempty():
             return pd.DataFrame()
 
@@ -1856,6 +1856,8 @@ class Model:
         self.mode = 'both'
         return self
 
+    def loglikelikelihood(self):
+        return sum([np.log(self._density(x)) for x in np.array(self.data)])
 
 if __name__ == '__main__':
     import pandas as pd
