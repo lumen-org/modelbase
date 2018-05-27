@@ -676,6 +676,34 @@ class MixableCondGaussianModel(md.Model):
         assert(result is not None)
         return self._normalizer.denormalize(result) if self.opts['normalized'] else result
 
+
+    def _sample(self, k=42):
+        """Returns k sample points"""
+        sample_points = []
+
+        # Calculating cumulative density
+        cum_dens = utils.cumulative_density(self._p.values)
+        for i in range(0, k):
+            sample_point = []
+
+            # Getting index via inverse transform sampling
+            index = utils.inverse_transform_sampling(cum_dens)
+            sample_cat = np.unravel_index(index, self._p.shape)
+
+            # Get categoricals
+            cat_dict = self._p[sample_cat].to_dict()
+            sample_point += [cat_dict['coords'][cat]['data'] for cat in self._categoricals]
+
+            # Sample from gaussian
+            if len(self._numericals) > 0:
+                sample = self._S[sample_cat].values.dot(np.random.randn(len(self._mu[sample_cat]))) + self._mu[sample_cat].values
+
+                sample_point += sample.tolist()
+
+            sample_points.append(sample_point)
+
+        return sample_points
+
     # mostly like cg wm
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)

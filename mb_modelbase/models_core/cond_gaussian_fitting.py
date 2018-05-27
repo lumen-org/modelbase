@@ -14,7 +14,7 @@ Parameters are generally provided by means of numpy ndarrays. The order of categ
 """
 from CGmodelselection.CG_CLZ_utils import CG_CLZ_Utils
 from CGmodelselection.CG_MAP_utils import CG_MAP_Utils
-from CGmodelselection.dataops import getMetaData, prepareCatData
+from CGmodelselection.dataops import get_meta_data, prepare_cat_data
 
 ### model selection methods
 
@@ -30,13 +30,13 @@ def fit_clz_mean (df):
         df: DataFrame of training data.
     """
 
-    meta = getMetaData(df)
+    meta = get_meta_data(df)
     Y = df.as_matrix(meta['contnames'])
 #    means, sigmas = standardizeContinuousData(Y) # required to avoid exp overflow
-    D = prepareCatData(df[meta['catnames']], meta, method = 'dummy')  # transform discrete variables to indicator data
+    D = prepare_cat_data(df[meta['catnames']], meta, method = 'dummy')  # transform discrete variables to indicator data
     # TODO: split into training and test data? if so: see Franks code
     solver = CG_CLZ_Utils(meta)  # initialize problem
-    solver.dropdata(D, Y)  # set training data
+    solver.drop_data(D, Y)  # set training data
     # solve it attribute .x contains the solution parameter vector.
     res = solver.solveSparse(klbda=0.2, verb=False, innercallback=solver.nocallback)
     #res = solver.solve(verb = 1, callback= solver.slimcallback) # without regularization - means far away
@@ -53,13 +53,13 @@ def fit_map_mean (df):
         df: DataFrame of training data.
     """
 
-    meta = getMetaData(df)
+    meta = get_meta_data(df)
     Y = df.as_matrix(meta['contnames'])
 #    means, sigmas = standardizeContinuousData(Y) # required to avoid exp overflow
-    D = prepareCatData(df[meta['catnames']], meta, method = 'flat')  # transform discrete variables to flat indices
+    D = prepare_cat_data(df[meta['catnames']], meta, method = 'flat')  # transform discrete variables to flat indices
     # TODO: split into training and test data? if so: see Franks code
     solver = CG_MAP_Utils(meta)  # initialize problem
-    solver.dropdata(D, Y)  # set training data
+    solver.drop_data(D, Y)  # set training data
 
     (p, mus, Sigmas) = solver.fitCG_variableCov(verb=False)
 #    (p, mus, Sigmas) = solver.fitCG_fixedCov(verb = True)
