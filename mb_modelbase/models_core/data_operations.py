@@ -74,7 +74,7 @@ def reduce_to_scalars(values):
     """Reduce all elements of values to scalars, as follows:
        * a scalar s are kept: s -> s
        * an interval [a,b] is reduced to its mean: [a,b] -> (a+b)/2
-       Note that it only accepts numbers or intervals of numbers.
+       NOTE: it only accepts numbers or intervals of numbers.
     """
     v = []
     for value in values:
@@ -87,3 +87,7 @@ def reduce_to_scalars(values):
         except (TypeError, IndexError):
             v.append(value)
     return v
+
+def scalarize(lst):
+    """Given a list of any mix of scalars (string or numbers) and single-element lists of scalars return a flattened list, i.e. a list of scalars. It is stable, i.e. the order of elements is kept."""
+    pass

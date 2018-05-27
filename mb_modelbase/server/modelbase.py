@@ -42,6 +42,17 @@ class QueryValueError(Exception):
         return repr(self.value)
 
 
+class QueryIncompleteError(Exception):
+    meaning = """This error indicates that a PQL query was incomplete, i.e. it could not be successfully interpreted because required information was missing."""
+
+    def __init__(self, message="", value=None):
+        self.value = value
+        self.message = message
+
+    def __repr__(self):
+        return repr(self.value)
+
+
 class NumpyCompliantJSONEncoder(json.JSONEncoder):
     """A JSON encoder that does *not* fail when serializing numpy.integer, numpy.floating or numpy.ndarray.
      Other than that it behaves like the default encoder.
@@ -143,6 +154,7 @@ class ModelBase:
 
         # load some initial models to play with
         if load_all:
+            logger.info("Loading models from directory '" + model_dir + "'")
             loaded_models = self.load_all_models()
             if len(loaded_models) == 0:
                 logger.warning("I did not load ANY model. Make sure the provided model directory is correct! "
@@ -267,12 +279,15 @@ class ModelBase:
             # derive submodel
             derived_model.model(
                 model=self._extractModel(query),
-                where=self._extractWhere(query))
+                where=self._extractWhere(query),
+                default_values=self._extractDefaultValue(query),
+                default_subsets=self._extractDefaultSubset(query),
+                hide=self._extractHide(query)),
             # add to modelbase
             self.add(derived_model, query["AS"])
             # return header
             return _json_dumps({"name": derived_model.name,
-                                "fields": derived_model.json_fields(include_modeldata_field=True)})
+                                "fields": derived_model.json_fields()})
 
         elif 'SELECT' in query:
             base = self._extractFrom(query)
@@ -304,7 +319,7 @@ class ModelBase:
             show = self._extractShow(query)
             if show == "HEADER":
                 model = self._extractFrom(query)
-                result = {"name": model.name,  "fields": model.json_fields(include_modeldata_field=True)}
+                result = {"name": model.name,  "fields": model.json_fields()}
             elif show == "MODELS":
                 result = {'models': self.list_models()}
             else:
@@ -318,7 +333,11 @@ class ModelBase:
                 return _json_dumps({'STATUS': 'success',
                                     'reloaded models': [model[0] for model in loaded_models]})
             else:
-                raise ValueError() # not implemented?!
+                raise ValueError("not implemented")
+        else:
+            raise QueryIncompleteError("Missing Statement-Type (e.g. DROP, PREDICT, SELECT)")
+
+
 
     ### _extract* functions are helpers to extract a certain part of a PQL query
     #   and do some basic syntax and semantic checks
@@ -388,6 +407,24 @@ class ModelBase:
             raise QuerySyntaxError("'PREDICT'-statement missing")
         return query['PREDICT']
 
+    def _extractDefaultValue(self, query):
+        if 'DEFAULT_VALUE' not in query:
+            return None
+        else:
+            return query['DEFAULT_VALUE']
+
+    def _extractDefaultSubset(self, query):
+        if 'DEFAULT_SUBSET' not in query:
+            return None
+        else:
+            return query['DEFAULT_SUBSET']
+
+    def _extractHide(self, query):
+        if 'HIDE' not in query:
+            return None
+        else:
+            return query['HIDE']
+
     def _extractAs(self, query):
         """ Extracts from query the name under which the derived model is to be
         stored and returns it.
@@ -417,7 +454,7 @@ class ModelBase:
     def _extractOpts(self, query):
         if 'OPTS' not in query:
             return {}
-        print("OPTIONS: " + str(query['OPTS']))  # TODO DEBUGGING!
+        print("OPTIONS: " + str(query['OPTS']))
         return query['OPTS']
 
     def _extractReload(self, query):
@@ -445,23 +482,8 @@ if __name__ == '__main__':
     i2.marginalize(remove=["sepal_length"])
     print(i2.aggregate(method='maximum'))
     print(i2.aggregate(method='average'))
-    i3 = i2.copy()
-    i3.model(model='*', where=[('model vs data', '==', 'model')])
-    print(i3.aggregate(method='average'))
-    i4 = i2.copy()
-    i4.model(model='*', where=[('model vs data', '==', 'data')])
-    print(i4.aggregate(method='average'))
-    res = i2.predict(predict=['model vs data'], splitby=[('model vs data', 'elements', [])])
-    print(res)
     aggr = md.AggregationTuple(['sepal_width','petal_length'],'maximum','petal_length',[])
-    res = i2.predict(predict=['model vs data', aggr], splitby=[('model vs data', 'elements', [])])
-    print(res)
-    res = i2.predict(predict=['model vs data', aggr], splitby=[('model vs data', 'elements', []), ('petal_width', 'equidist', [4])])
-    print(res)
-
-    res = i2.predict(predict=['model vs data', aggr],
-                     splitby=[('petal_width', 'equidist', [4])])
-    print(res)
+    print(aggr)
 
     #foo = cc.copy().model(["total", "alcohol"], [gm.ConditionTuple("alcohol", "equals", 10)])
     print(str(iris))

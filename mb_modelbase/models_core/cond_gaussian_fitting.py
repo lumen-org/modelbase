@@ -61,7 +61,7 @@ def fit_map_mean (df):
     solver = CG_MAP_Utils(meta)  # initialize problem
     solver.drop_data(D, Y)  # set training data
 
-    (p, mus, Sigmas) = solver.fitCG_variableCov(verb = False)
+    (p, mus, Sigmas) = solver.fitCG_variableCov(verb=False)
 #    (p, mus, Sigmas) = solver.fitCG_fixedCov(verb = True)
     return p, mus, Sigmas, meta
 

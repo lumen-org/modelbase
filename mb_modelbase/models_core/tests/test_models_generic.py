@@ -112,19 +112,11 @@ def test_density_sum(model, info="", split_cnt=200, eps=0.05):
 
     f = model.fields[0]
 
-    def check_for_mode(mode):
-        p = model.predict(predict=[md.Density(f)],
-                          splitby=[md.Split(f, args=split_cnt)],
-                          where=[md.Condition('model vs data', "==", mode)])
-        p_sum = p.sum().values
-        if abs(p_sum - 1) > eps:
-            raise AssertionError(str(mode) + " prob does not add up to 1. It is " + str(p_sum))
-
-    if model.mode == 'both' or model.mode == 'data':
-        check_for_mode('data')
-    if model.mode == 'both' or model.mode == 'model':
-        check_for_mode('model')
-
+    p = model.predict(predict=[md.Probability(f)],
+                      splitby=[md.Split(f, args=split_cnt)])
+    p_sum = p.sum().values
+    if abs(p_sum - 1) > eps:
+        raise AssertionError("Probability does not add up to 1. It is " + str(p_sum))
 
 def _test_marginalization_mixed(model, depth, info):
     logger.debug("# (" + str(info) + ") Testing marginalization of " + model.name)
@@ -277,8 +269,7 @@ _test_conditioning = {
 }
 
 
-def _test_all(models, models_setup, data, depth, mvd='model'):
-    assert(mvd == 'model' or mvd == 'data')
+def _test_all(models, models_setup, data, depth):
     for mode in ['discrete', 'continuous', 'mixed']:
         for model_class in models[mode]:
             # create and fit model
@@ -291,12 +282,8 @@ def _test_all(models, models_setup, data, depth, mvd='model'):
             # set data
             model.set_data(df=data[mode])
 
-            # if model mode, also fit model
-            if mvd == 'model':
-                model.fit()
-
-            # set to mode
-            model.mode = mvd
+            # fit model
+            model.fit()
 
             # test aggregations and such
             _test_all_density_and_aggregations(model, info="")
@@ -326,26 +313,24 @@ if __name__ == '__main__':
         'mixed': df
     }
 
-    ## mockup model tests for MODEL and DATA
+    ## mockup model tests
     models = {
         'discrete': [MockUpModel],
         'continuous': [MockUpModel],
         'mixed': []
     }
     density_aggregation_flags = {'aggregations': True, 'density': False, 'density_sum': False}
-    #_test_all(models, models_setup, data_full, depth=3, mvd='data')
     #_test_all(models, models_setup, data_full, depth=3)
 
 
-    ## dedicated MCG model test for MODEL and DATA
+    ## dedicated MCG model test
     models = {
         'discrete': [],
         'continuous': [],
         'mixed': [MCGModel]
     }
     density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': False}
-    #_test_all(models, models_setup, data_full, depth=3, mvd='data')
-    #_test_all(models, models_setup, data_full, depth=3)
+    _test_all(models, models_setup, data_full, depth=3)
 
     ## dedicated density_sum test
     df = pd.read_csv('crabs.csv', usecols=['sex', 'RW'])
@@ -373,8 +358,7 @@ if __name__ == '__main__':
     #     'mixed': [CGModel, CGWMModel, MCGModel]
     # }
     density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': False}
-    #_test_all(models, models_setup, data_full, depth=3, mvd='data')
-    _test_all(models, models_setup, data_full, depth=3, mvd='model')
+    _test_all(models, models_setup, data_full, depth=3)
 
 
 

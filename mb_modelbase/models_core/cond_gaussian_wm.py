@@ -399,7 +399,7 @@ class CgWmModel(md.Model):
         if len(cat_remove) == 0:
             return
 
-        pairs = dict(self._condition_values(cat_remove, True))
+        pairs = dict(self._condition_values(names=cat_remove, pairflag=True))
 
         # _p changes like in the categoricals.py case
         # trim the probability look-up table to the appropriate subrange and normalize it
