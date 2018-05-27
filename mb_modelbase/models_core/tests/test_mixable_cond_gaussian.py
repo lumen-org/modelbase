@@ -36,7 +36,7 @@ class TestMethods(unittest.TestCase):
 
     def test_onlycats(self):
         margmod = self.model.copy().marginalize(keep=['sex'])
-        self.assertEqual(type(margmod._sample(1)[0][0]), type('str'))# == 'Male' or margmod._sample(1)[0][0] == 'Female')
+        self.assertEqual(type(margmod._sample(1)[0][0]), type('str'))
 
     def test_onlynumericals(self):
         margmod = self.model.copy().marginalize(keep=['age'])
