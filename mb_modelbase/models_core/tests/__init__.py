@@ -4,6 +4,6 @@ from mb_modelbase.models_core.tests.test_cond_gaussians import *
 from mb_modelbase.models_core.tests.test_gaussians import *
 from mb_modelbase.models_core.tests.test_models import *
 from mb_modelbase.models_core.tests.test_models_generic import *
-from mb_modelbase.models_core.tests.test_crabs import *
+from mb_modelbase.models_core.tests.crabs import *
 from mb_modelbase.models_core.tests.test_mixable_cond_gaussian import *
 from mb_modelbase.models_core.tests.test_allbus import *
