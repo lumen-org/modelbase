@@ -63,7 +63,7 @@ class ProductLayer(Layer):
             v, p = child.map_value(x, evidence, sample)
             child_values.append(v)
             child_probs.append(p)
-        # TODO decide if reduction funciton makes sense
+        # TODO decide if reduction function makes sense
         child_prob_tensor = self.reduction(child_probs)
         child_value_tensor = self.reduction(child_values)
         n = tf.shape(child_value_tensor)[0]
