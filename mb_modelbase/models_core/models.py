@@ -1871,6 +1871,7 @@ if __name__ == '__main__':
     res = m.predict(predict=['sepal_width', mb.Aggregation('sepal_length')], splitby=mb.SplitTuple('sepal_width', 'data', [5]))
     print(res)
 
+
     res = m.predict(predict=['sepal_width', 'petal_width', mb.Aggregation(['sepal_length'])], splitby=[mb.SplitTuple('sepal_width', 'data', [5]), mb.SplitTuple('petal_width', 'data', [5])])
     print("\n")
     print(res)
