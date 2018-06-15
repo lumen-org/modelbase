@@ -1856,8 +1856,10 @@ class Model:
         self.mode = 'both'
         return self
 
-    def loglikelihood(self):
-        return sum([np.log(self._density(x)) for x in np.array(self.data)])
+    def loglikelihood(self, data=None):
+        if data == None:
+            data = self.data
+        return sum([np.log(self._density(x)) for x in np.array(data)])
 
 if __name__ == '__main__':
     import pandas as pd
