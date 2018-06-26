@@ -11,6 +11,7 @@ import json
 import traceback
 
 from mb_modelbase.utils import utils
+from mb_modelbase.utils.activity_logger import ActivityLogger
 from mb_modelbase.server import modelbase as mbase
 
 #logging.getLogger('flask_cors').level = logging.DEBUG
@@ -52,6 +53,22 @@ def service():
             msg = "failed to execute query: " + str(inst)
             logger.error(msg + "\n" + traceback.format_exc())
             return msg, 400
+
+
+# user activity logger
+@app.route('/activitylogger', methods=['POST'])
+@cross_origin()  # allows cross origin requests
+def activitylogger():
+    # log as requested
+    try:
+        activity = request.get_json()
+        logger.info('LOG received:' + str(activity))
+        activitylogger.log(activity)
+        return "OK"
+    except Exception as inst:
+        msg = "failed to log: " + str(inst)
+        logger.error(msg + "\n" + traceback.format_exc())
+        return msg, 400
 
 
 # the webclient
@@ -124,6 +141,10 @@ Usage:
     )
     logger = logging.getLogger(__name__)
 
+    # setup activity logger
+    activitylogger = ActivityLogger()
+
+    # start ModelBase
     logger.info("starting modelbase ... ")
     mb = mbase.ModelBase(name=args.name, model_dir=args.directory)
     logger.info("... done (starting modelbase).")

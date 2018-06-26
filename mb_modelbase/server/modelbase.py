@@ -331,7 +331,7 @@ class ModelBase:
             if what == '*':
                 loaded_models = self.load_all_models()
                 return _json_dumps({'STATUS': 'success',
-                                    'reloaded models': [model[0] for model in loaded_models]})
+                                    'models': [model[0] for model in loaded_models]})
             else:
                 raise ValueError("not implemented")
         else:
