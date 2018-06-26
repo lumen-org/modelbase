@@ -1804,9 +1804,18 @@ class Model:
 
     def select_data(self, what, where=None, **kwargs):
         # todo: use update_opts also at other places where appropiate (search for validate_opts)
-        opts = utils.update_opts({'data_category': 'training data'}, kwargs, {'data_category': ['training data', 'test data']})
+        opts = utils.update_opts({'data_category': 'training data'}, kwargs)
+        # TODO: use validation argument for update_opts again, i.e. implement numerical ranges or such
+        #opts = utils.update_opts({'data_category': 'training data'}, kwargs, {'data_category': ['training data', 'test data']})
         df = self.data if opts['data_category'] == 'training data' else self.test_data
-        return data_ops.condition_data(df, where).loc[:, what]
+
+        selected_data = data_ops.condition_data(df, where).loc[:, what]
+
+        # limit number of returned data points if requested
+        if 'data_point_limit' in kwargs:
+            selected_data = selected_data.iloc[:kwargs['data_point_limit'], :]
+
+        return selected_data
 
     def select(self, what, where=None, **kwargs):
         """Returns the selected attributes of all data items that satisfy the conditions as a
