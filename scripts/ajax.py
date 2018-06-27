@@ -34,7 +34,7 @@ def index():
 # webservice interface to the model base
 @app.route('/webservice', methods=['GET', 'POST'])
 @cross_origin()  # allows cross origin requests
-def service():
+def modebase_service():
     # return usage information
     if request.method == 'GET':
         return "send a POST request to this url containing your model query and you will get your answer :-)"
@@ -43,7 +43,7 @@ def service():
         try:
             # extract json formatted query
             query = request.get_json()
-            logger.info('received query:' + str(query))
+            logger.info('received QUERY:' + str(query))
             # process query
             result = mb.execute(query)
             logger.info('result of query:' + utils.truncate_string(str(result)))
@@ -58,13 +58,13 @@ def service():
 # user activity logger
 @app.route('/activitylogger', methods=['POST'])
 @cross_origin()  # allows cross origin requests
-def activitylogger():
+def activitylogger_service():
     # log as requested
     try:
         activity = request.get_json()
-        logger.info('LOG received:' + str(activity))
+        logger.debug('received LOG:' + str(activity))
         activitylogger.log(activity)
-        return "OK"
+        return json.dumps({'STATUS': 'success'})
     except Exception as inst:
         msg = "failed to log: " + str(inst)
         logger.error(msg + "\n" + traceback.format_exc())
@@ -74,7 +74,7 @@ def activitylogger():
 # the webclient
 @app.route('/webquery', methods=['GET'])
 @cross_origin()  # allows cross origin requests
-def webquery():
+def webquery_service():
     return app.send_static_file('webqueryclient.html')
 
 
