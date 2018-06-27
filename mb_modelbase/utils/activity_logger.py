@@ -5,16 +5,10 @@
 An ActivityLogger allows to store log data.
 """
 
-import json
-import logging
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
 
 class ActivityLogger:
 
-    def __init__ (self):
+    def __init__(self):
         self._logfile = None
         self._filehandler = None
         pass
@@ -28,16 +22,19 @@ class ActivityLogger:
             raise KeyError('missing logPath property in json_obj')
         logfile = json_obj['logPath']
 
-        # todo: respect append flag
-
         # need to change log file?
         if self._logfile is None or self._logfile != logfile:
             if self._filehandler is not None:
-                self._filehandler.close()  # close old file
-            self._logfile = logfile  # set new log file
-            self._filehandler = open(self._logfile, 'a')  # open new logfile and append
+                # close old file
+                self._filehandler.close()
+
+            # set new log file
+            self._logfile = logfile
+
+            # open new logfile and append or overwrite
+            replace = json_obj.get('logAppend', True)
+            file_mode = 'tw' if replace else 'ta'
+            self._filehandler = open(self._logfile, file_mode, 1)  # 1 means line buffering
 
         # log it baby!
         self._filehandler.write(str(json_obj) + ',\n')
-
-
