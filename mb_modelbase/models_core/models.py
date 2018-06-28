@@ -850,7 +850,7 @@ class Model:
         # in the future this should be decided by the model itself:
         #  for an emperical model it is always possible to compute the conditional model
         #  for an gaussian model we may compute it for point conditinals right away, but we maybe would not want to do it for range conditionals
-
+        # TODO: if conditions is a zip: how can it be reused a 2nd and 3rd time below!??
         # condition data
         if self.mode == 'data' or self.mode == 'both':
             self.data = data_ops.condition_data(self.data, conditions)
