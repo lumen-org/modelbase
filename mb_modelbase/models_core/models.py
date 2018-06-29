@@ -460,6 +460,7 @@ class Model:
         self._aggrMethods = None
         self.mode = None
         self.history = {}
+        self.parallel_processing = True
 
     def _setempty(self):
         self._update_remove_fields()
@@ -1740,14 +1741,27 @@ class Model:
                     for col_id in nonscalar_ids:
                         subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
 
-                    with mp.Pool(mp.cpu_count()) as p:
-                        aggr_results = p.map(aggr_model.density, subframe.itertuples(index=False, name=None))
+                    if(self.parallel_processing):
+                        #Open parallel environment
+                        with mp.Pool(mp.cpu_count()) as p:
+                            aggr_results = p.map(aggr_model.density, subframe.itertuples(index=False, name=None))
+                    else:
+                        for row in subframe.itertuples(index=False, name=None):
+                            res = aggr_model.density(values=row)
+                            aggr_results.append(res)
+
+
                 else:  # aggr_method == 'probability'
                     # TODO: use DataFrame.apply instead? What is faster?
 
-                    #Open parallel environment
-                    with mp.Pool(mp.cpu_count()) as p:
-                        aggr_results = p.map(aggr_model.probability, subframe.itertuples(index=False, name=None))
+                    if(self.parallel_processing):
+                        #Open parallel environment
+                        with mp.Pool(mp.cpu_count()) as p:
+                            aggr_results = p.map(aggr_model.probability, subframe.itertuples(index=False, name=None))
+                    else:
+                        for row in subframe.itertuples(index=False, name=None):
+                            res = aggr_model.probability(domains=row)
+                            aggr_results.append(res)
 
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 if len(splitby) == 0:
