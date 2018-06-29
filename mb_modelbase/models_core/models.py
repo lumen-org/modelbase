@@ -13,6 +13,7 @@ from collections import namedtuple
 from functools import reduce
 from operator import mul
 import pickle as pickle
+import multiprocessing as mp
 
 import numpy as np
 import pandas as pd
@@ -1739,14 +1740,14 @@ class Model:
                     for col_id in nonscalar_ids:
                         subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
 
-                    for row in subframe.itertuples(index=False, name=None):
-                        res = aggr_model.density(values=row)
-                        aggr_results.append(res)
+                    with mp.Pool(mp.cpu_count()) as p:
+                        aggr_results = p.map(aggr_model.density, subframe.itertuples(index=False, name=None))
                 else:  # aggr_method == 'probability'
                     # TODO: use DataFrame.apply instead? What is faster?
-                    for row in subframe.itertuples(index=False, name=None):
-                        res = aggr_model.probability(domains=row)
-                        aggr_results.append(res)
+
+                    #Open parallel environment
+                    with mp.Pool(mp.cpu_count()) as p:
+                        aggr_results = p.map(aggr_model.probability, subframe.itertuples(index=False, name=None))
 
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 if len(splitby) == 0:
