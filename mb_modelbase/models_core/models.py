@@ -14,6 +14,7 @@ from functools import reduce
 from operator import mul
 import pickle as pickle
 import multiprocessing as mp
+import multiprocessing_on_dill as mp_dill
 
 import numpy as np
 import pandas as pd
@@ -1743,7 +1744,7 @@ class Model:
 
                     if(self.parallel_processing):
                         #Open parallel environment
-                        with mp.Pool(mp.cpu_count()) as p:
+                        with mp.Pool() as p:
                             aggr_results = p.map(aggr_model.density, subframe.itertuples(index=False, name=None))
                     else:
                         for row in subframe.itertuples(index=False, name=None):
@@ -1756,7 +1757,7 @@ class Model:
 
                     if(self.parallel_processing):
                         #Open parallel environment
-                        with mp.Pool(mp.cpu_count()) as p:
+                        with mp.Pool() as p:
                             aggr_results = p.map(aggr_model.probability, subframe.itertuples(index=False, name=None))
                     else:
                         for row in subframe.itertuples(index=False, name=None):
@@ -1774,15 +1775,34 @@ class Model:
                     aggr_results.append(res[i])
                 else:
                     row_id_gen = utils.linear_id_generator(prefix="_row")
-                    for row in input_frame.itertuples(index=False, name=None):
-                        pairs = zip(split_names, operator_list, row)
-                        # derive model for these specific conditions
+
+                    #print("split_names: ", split_names, "\noperator_list: ", operator_list, "\naggr_model: ", aggr_model, "\nname: ", name, "\nrow_id_gen: ", row_id_gen, "aggr: ", aggr, "\nNAME_IDX: ", NAME_IDX, "\nMETHOD_IDX", METHOD_IDX, "\nYIELDS_IDX: ", YIELDS_IDX)
+
+                    if(self.parallel_processing):
+
                         rowmodel_name = aggr_model.name + next(row_id_gen)
-                        rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
-                        res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
-                        # reduce to requested dimension
-                        i = rowmodel.asindex(aggr[YIELDS_IDX])
-                        aggr_results.append(res[i])
+
+                        def pred_max(row, split_names=split_names, operator_list=operator_list, rowmodel_name=rowmodel_name, aggr_model=aggr_model, NAME_IDX=NAME_IDX, METHOD_IDX=METHOD_IDX, ARGS_IDX=ARGS_IDX, YIELDS_IDX=YIELDS_IDX):
+
+                            pairs = zip(split_names, operator_list, row)
+                            rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
+                            res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
+                            i = rowmodel.asindex(aggr[YIELDS_IDX])
+                            return res[i]
+
+                        with mp_dill.Pool() as p:
+                            aggr_results = p.map(pred_max, input_frame.itertuples(index=False, name=None))
+
+                    else:
+                        for row in input_frame.itertuples(index=False, name=None):
+                            pairs = zip(split_names, operator_list, row)
+                            # derive model for these specific conditions
+                            rowmodel_name = aggr_model.name + next(row_id_gen)
+                            rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
+                            res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
+                            # reduce to requested dimension
+                            i = rowmodel.asindex(aggr[YIELDS_IDX])
+                            aggr_results.append(res[i])
             else:
                 raise ValueError("Invalid 'aggregation method': " + str(aggr_method))
 
