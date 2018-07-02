@@ -1743,10 +1743,10 @@ class Model:
                         subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
 
                     if(self.parallel_processing):
-                        #Open parallel environment
+                        # Opens parallel environment with mp
                         with mp.Pool() as p:
                             aggr_results = p.map(aggr_model.density, subframe.itertuples(index=False, name=None))
-                    else:
+                    else: # Non-parallel execution
                         for row in subframe.itertuples(index=False, name=None):
                             res = aggr_model.density(values=row)
                             aggr_results.append(res)
@@ -1756,10 +1756,10 @@ class Model:
                     # TODO: use DataFrame.apply instead? What is faster?
 
                     if(self.parallel_processing):
-                        #Open parallel environment
+                        # Opens parallel environment with mp
                         with mp.Pool() as p:
                             aggr_results = p.map(aggr_model.probability, subframe.itertuples(index=False, name=None))
-                    else:
+                    else: # Non-parallel execution
                         for row in subframe.itertuples(index=False, name=None):
                             res = aggr_model.probability(domains=row)
                             aggr_results.append(res)
@@ -1779,6 +1779,7 @@ class Model:
 
                     if(self.parallel_processing):
 
+                        # Define function for parallel execution of for loop
                         def pred_max(row, split_names=split_names, operator_list=operator_list, rowmodel_name=rowmodel_name, aggr_model=aggr_model, NAME_IDX=NAME_IDX, METHOD_IDX=METHOD_IDX, ARGS_IDX=ARGS_IDX, YIELDS_IDX=YIELDS_IDX):
 
                             pairs = zip(split_names, operator_list, row)
@@ -1787,10 +1788,13 @@ class Model:
                             i = rowmodel.asindex(aggr[YIELDS_IDX])
                             return res[i]
 
+                        # Open parallel environment with mp_dill, which allows to use a function which was defined in the same scope (here: pred_max)
+
                         with mp_dill.Pool() as p:
                             aggr_results = p.map(pred_max, input_frame.itertuples(index=False, name=None))
 
-                    else:
+                    else: # Non-parallel execution
+
                         for row in input_frame.itertuples(index=False, name=None):
                             pairs = zip(split_names, operator_list, row)
                             # derive model for these specific conditions
