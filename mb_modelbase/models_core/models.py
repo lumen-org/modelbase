@@ -1796,7 +1796,6 @@ class Model:
                         for row in input_frame.itertuples(index=False, name=None):
                             pairs = zip(split_names, operator_list, row)
                             # derive model for these specific conditions
-                            # rowmodel_name = aggr_model.name + next(row_id_gen)
                             rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
                             res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
                             # reduce to requested dimension
