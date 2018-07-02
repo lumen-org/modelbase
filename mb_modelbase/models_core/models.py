@@ -1777,8 +1777,6 @@ class Model:
                     row_id_gen = utils.linear_id_generator(prefix="_row")
                     rowmodel_name = aggr_model.name + next(row_id_gen)
 
-                    #print("split_names: ", split_names, "\noperator_list: ", operator_list, "\naggr_model: ", aggr_model, "\nname: ", name, "\nrow_id_gen: ", row_id_gen, "aggr: ", aggr, "\nNAME_IDX: ", NAME_IDX, "\nMETHOD_IDX", METHOD_IDX, "\nYIELDS_IDX: ", YIELDS_IDX)
-
                     if(self.parallel_processing):
 
                         def pred_max(row, split_names=split_names, operator_list=operator_list, rowmodel_name=rowmodel_name, aggr_model=aggr_model, NAME_IDX=NAME_IDX, METHOD_IDX=METHOD_IDX, ARGS_IDX=ARGS_IDX, YIELDS_IDX=YIELDS_IDX):
