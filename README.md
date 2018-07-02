@@ -8,15 +8,15 @@ Version: 0.2
 
 The `modelbase` repository contains a full-developed and installable python-package called `mb_modelbase` and the associated directory `scripts`. 
 
-The python-package `mb_modelbase` can be used for exploring all kinds of data sets with generic probabilistic modelling. The fitted models itself offer different types of operations such as prediction, conditionalization or marginalization. For using the Moo-Software, `mb_modelbase` has to be installed as a python-package (For instructions see below). An overview over the functions of `mb_modelbase` and a short introductory example how the package could be used can be found in the jupyter-notebook files `doc/Functions_overview.ipynb` and `doc/Intro_example.ipynb`. Here it is shown how the python-package `mb_modelbase` is applied.
+The python-package `mb_modelbase` can be used for exploring all kinds of data sets with generic probabilistic modelling. The fitted models itself offer different types of operations such as prediction, conditionalization or marginalization. For using Lumen, `mb_modelbase` has to be installed as a python-package (For instructions see below). An overview over the functions of `mb_modelbase` and a short introductory example how the package could be used can be found in the jupyter-notebook files `doc/Functions_overview.ipynb` and `doc/Intro_example.ipynb`. Here it is shown how the python-package `mb_modelbase` is applied.
 
-The script folder contains the important file `ajax.py` which is used for starting the backend of the Moo-Software (see below). 
+The script folder contains the important file `ajax.py` which is used for starting the backend of Lumen (see below). 
 
 ### Classification In The Project ###
 
-The `modelbase` repository is the kernel of the Moo-Software. Here all the central functions are located in the subdirectories such as the different models or utils. Combined with the `ajax.py` file in the script-folder, the backend of the Moo-Software is complete.
+The `modelbase` repository is the kernel of Lumen. Here all the central functions are located in the subdirectories such as the different models or utils. Combined with the `ajax.py` file in the script-folder, the backend of Lumen is complete.
 
-### Setup Moo ###
+### Setup Lumen ###
 
 For normal usage:
 
