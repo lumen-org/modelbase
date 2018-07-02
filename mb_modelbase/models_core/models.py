@@ -1780,7 +1780,7 @@ class Model:
                     if(self.parallel_processing):
 
                         # Define function for parallel execution of for loop
-                        def pred_max(row, split_names=split_names, operator_list=operator_list, rowmodel_name=rowmodel_name, aggr_model=aggr_model, NAME_IDX=NAME_IDX, METHOD_IDX=METHOD_IDX, ARGS_IDX=ARGS_IDX, YIELDS_IDX=YIELDS_IDX):
+                        def pred_max(row, split_names=split_names, operator_list=operator_list, rowmodel_name=rowmodel_name, aggr_model=aggr_model):
 
                             pairs = zip(split_names, operator_list, row)
                             rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
