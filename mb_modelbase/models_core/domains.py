@@ -1,5 +1,6 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 import math
+import logging
 
 # TODO: is it better to use immutable tuples instead of mutable lists for the internal representation of domains?
 
@@ -9,6 +10,9 @@ import math
 
 # TODO: performance improvement
 #  like above also cache a domains value() , values() and bounded()
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class Domain:
@@ -59,6 +63,7 @@ class NumericDomain(Domain):
 
     def _validate(self):
         if self._value[0] > self._value[1]:
+            # logger.warning("resulting domain is empty: " + str(self._value))
             raise ValueError("resulting domain is empty: " + str(self._value))
 
     def isempty(self):
@@ -188,6 +193,7 @@ class DiscreteDomain(Domain):
 
     def _validate(self):
         if len(self._value) == 0:
+            #logger.warning("resulting domain is empty: " + str(self._value))
             raise ValueError("domain must not be empty")
 
     def issingular(self):
