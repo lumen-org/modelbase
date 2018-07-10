@@ -18,8 +18,6 @@ setup(name='mb_modelbase',
 	  'flask',
 	  'flask-cors',
 	  'graphviz',
-	  'multiprocessing',
 	  'multiprocessing_on_dill'
-		
       ],
       zip_safe=False)
