@@ -13,10 +13,11 @@ import unittest
 import pandas as pd
 from random import shuffle
 
-from mb_modelbase.models_core.models import Model, Condition, Density, Aggregation, Split
+from mb_modelbase.models_core.models import Model, Condition, Density, Aggregation, Split, SplitTuple, AggregationTuple
 from mb_modelbase.models_core.mockup_model import MockUpModel
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
 from mb_modelbase.models_core.tests import test_crabs
+from mb_modelbase.models_core.tests import test_iris
 
 
 class TestDataSelect(unittest.TestCase):
@@ -327,6 +328,38 @@ class TestAllModels(unittest.TestCase):
             self.assertEqual(model.mode, 'model')
             model._generate_data()
             self.assertEqual(model.mode, 'both')
+
+
+class TestParallelProcessing(unittest.TestCase):
+
+    def setUp(self):
+        self.data = test_iris.mixed()
+        self.model = MixableCondGaussianModel("TestMod")
+        self.model.fit(df=self.data, fit_algo="map")
+        pass
+
+    def test_prob(self):
+        pred = ['sepal_width', 'sepal_length', Aggregation(['sepal_length', 'sepal_width'], method='probability', yields=None, args=None)]
+        split = [SplitTuple(name='sepal_width', method='equiinterval', args=[10]), SplitTuple(name='sepal_length', method='equiinterval', args=[10])]
+
+        self.model.parallel_processing = True
+        df_parallel = self.model.predict(predict=pred, splitby=split)
+
+        self.model.parallel_processing = False
+        df_serial = self.model.predict(predict=pred, splitby=split)
+        self.assertTrue(df_parallel.equals(df_serial))
+
+    def test_maximum(self):
+        pred = ['sepal_width', 'sepal_length', AggregationTuple(name=['species'], method='maximum', yields='species', args=[])]
+        split = [SplitTuple(name='sepal_width', method='equiinterval', args=[10]), SplitTuple(name='sepal_length', method='equiinterval', args=[10])]
+
+        self.model.parallel_processing = True
+        df_parallel = self.model.predict(predict=pred, splitby=split)
+
+        self.model.parallel_processing = False
+        df_serial = self.model.predict(predict=pred, splitby=split)
+
+        self.assertTrue(df_parallel.equals(df_serial))
 
 
 if __name__ == '__main__':

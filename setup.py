@@ -15,8 +15,11 @@ setup(name='mb_modelbase',
           'pandas',
           'scikit-learn',
           'scipy',
-		  'flask',
-		  'flask-cors',
-		  'graphviz',
+	  'flask',
+	  'flask-cors',
+	  'graphviz',
+	  'multiprocessing',
+	  'multiprocessing_on_dill'
+		
       ],
       zip_safe=False)

@@ -13,6 +13,8 @@ from collections import namedtuple
 from functools import reduce
 from operator import mul
 import pickle as pickle
+import multiprocessing as mp
+import multiprocessing_on_dill as mp_dill
 
 import numpy as np
 import pandas as pd
@@ -459,6 +461,7 @@ class Model:
         self._aggrMethods = None
         self.mode = None
         self.history = {}
+        self.parallel_processing = True
 
     def _setempty(self):
         self._update_remove_fields()
@@ -1739,14 +1742,27 @@ class Model:
                     for col_id in nonscalar_ids:
                         subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
 
-                    for row in subframe.itertuples(index=False, name=None):
-                        res = aggr_model.density(values=row)
-                        aggr_results.append(res)
+                    if(self.parallel_processing):
+                        # Opens parallel environment with mp
+                        with mp.Pool() as p:
+                            aggr_results = p.map(aggr_model.density, subframe.itertuples(index=False, name=None))
+                    else: # Non-parallel execution
+                        for row in subframe.itertuples(index=False, name=None):
+                            res = aggr_model.density(values=row)
+                            aggr_results.append(res)
+
+
                 else:  # aggr_method == 'probability'
                     # TODO: use DataFrame.apply instead? What is faster?
-                    for row in subframe.itertuples(index=False, name=None):
-                        res = aggr_model.probability(domains=row)
-                        aggr_results.append(res)
+
+                    if(self.parallel_processing):
+                        # Opens parallel environment with mp
+                        with mp.Pool() as p:
+                            aggr_results = p.map(aggr_model.probability, subframe.itertuples(index=False, name=None))
+                    else: # Non-parallel execution
+                        for row in subframe.itertuples(index=False, name=None):
+                            res = aggr_model.probability(domains=row)
+                            aggr_results.append(res)
 
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 if len(splitby) == 0:
@@ -1759,15 +1775,34 @@ class Model:
                     aggr_results.append(res[i])
                 else:
                     row_id_gen = utils.linear_id_generator(prefix="_row")
-                    for row in input_frame.itertuples(index=False, name=None):
-                        pairs = zip(split_names, operator_list, row)
-                        # derive model for these specific conditions
-                        rowmodel_name = aggr_model.name + next(row_id_gen)
-                        rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
-                        res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
-                        # reduce to requested dimension
-                        i = rowmodel.asindex(aggr[YIELDS_IDX])
-                        aggr_results.append(res[i])
+                    rowmodel_name = aggr_model.name + next(row_id_gen)
+
+                    if(self.parallel_processing):
+
+                        # Define function for parallel execution of for loop
+                        def pred_max(row, split_names=split_names, operator_list=operator_list, rowmodel_name=rowmodel_name, aggr_model=aggr_model):
+
+                            pairs = zip(split_names, operator_list, row)
+                            rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
+                            res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
+                            i = rowmodel.asindex(aggr[YIELDS_IDX])
+                            return res[i]
+
+                        # Open parallel environment with mp_dill, which allows to use a function which was defined in the same scope (here: pred_max)
+
+                        with mp_dill.Pool() as p:
+                            aggr_results = p.map(pred_max, input_frame.itertuples(index=False, name=None))
+
+                    else: # Non-parallel execution
+
+                        for row in input_frame.itertuples(index=False, name=None):
+                            pairs = zip(split_names, operator_list, row)
+                            # derive model for these specific conditions
+                            rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
+                            res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
+                            # reduce to requested dimension
+                            i = rowmodel.asindex(aggr[YIELDS_IDX])
+                            aggr_results.append(res[i])
             else:
                 raise ValueError("Invalid 'aggregation method': " + str(aggr_method))
 
