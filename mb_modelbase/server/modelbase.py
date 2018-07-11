@@ -13,6 +13,7 @@ import os
 import numpy
 
 from mb_modelbase.models_core import models as gm
+from mb_modelbase.models_core import pci_graph
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -334,10 +335,20 @@ class ModelBase:
                                     'models': [model[0] for model in loaded_models]})
             else:
                 raise ValueError("not implemented")
+
+        elif 'PCI_GRAPH.GET' in query:
+            model = self._extractFrom(query)
+            if model.pci_graph:
+                graph = pci_graph.to_json(model.pci_graph)
+            else:
+                graph = False
+            return _json_dumps({
+                'model': model.name,
+                'graph': graph
+                })
+
         else:
             raise QueryIncompleteError("Missing Statement-Type (e.g. DROP, PREDICT, SELECT)")
-
-
 
     ### _extract* functions are helpers to extract a certain part of a PQL query
     #   and do some basic syntax and semantic checks

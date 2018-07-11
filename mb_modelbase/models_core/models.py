@@ -25,6 +25,7 @@ from mb_modelbase.models_core import splitter as sp
 from mb_modelbase.utils import utils as utils
 from mb_modelbase.models_core import data_aggregation as data_aggr
 from mb_modelbase.models_core import data_operations as data_ops
+from mb_modelbase.models_core import pci_graph as pci_graph
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -523,6 +524,14 @@ class Model:
         Returns:
             self
         """
+        default_opts = {
+            'pci_graph': True,
+        }
+        valid_opts = {
+            'pci_graph': [True, False]
+        }
+        kwargs = utils.update_opts(kwargs, default_opts, valid_opts)
+
         # general clean up
         df = clean_dataframe(df)
 
@@ -537,6 +546,9 @@ class Model:
         self._update_all_field_derivatives()
         for callback in callbacks:
             callback()
+
+        if kwargs['pci_graph']:
+            self.pci_graph = pci_graph.create(self.data)
 
         return self
 

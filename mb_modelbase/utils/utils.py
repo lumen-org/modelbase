@@ -61,7 +61,7 @@ def numpy_to_xarray_params(p, mu, Sigma, cat_levels, cat, num):
 def validate_opts(opts, allowed):
     """Validates a dictionary of categorical options with respect to provided dictionary of allowed options and their values.
     Raises a ValueError if a set argument is not within the allowed values.
-    Does NOT raise if an argument key is not provided."""
+    Does NOT raise if a key of opts is not provided in allowed but instead silently ignored."""
     cpy = opts.copy()
     for opt_name, allowed_vals in allowed.items():
         if opt_name in cpy:
@@ -82,9 +82,9 @@ def update_opts(current_opts, updates, allowed_opts=None):
 
     Note: currently only categorical allowed_opts are supported.
     """
-    if allowed_opts is not None:
-        validate_opts(updates, allowed_opts)
     current_opts.update(updates)
+    if allowed_opts is not None:
+        validate_opts(current_opts, allowed_opts)
     return current_opts
 
 
