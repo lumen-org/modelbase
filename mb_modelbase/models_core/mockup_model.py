@@ -39,7 +39,7 @@ class MockUpModel(md.Model):
         }
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
-    def _set_data(self, df, drop_silently):
+    def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently)
         return self._unbound_updater,
 

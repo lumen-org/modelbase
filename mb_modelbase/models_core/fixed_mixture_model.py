@@ -166,7 +166,7 @@ class FixedMixtureModel(md.Model):
         # TODO: can be done generically!
         raise NotImplementedError("Implement it - this can be done generically!")
 
-    def _set_data(self, df, drop_silently):
+    def _set_data(self, df, drop_silently, **kwargs):
         # we need to link the set data to all components, hence we need to run _update_in_components after setting
         # data in all mixture models
         # the actual data setting, however, cannot be generically implemented

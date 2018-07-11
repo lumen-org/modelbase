@@ -201,7 +201,7 @@ class CgWmModel(md.Model):
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
     # base
-    def _set_data(self, df, drop_silently):
+    def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently)
         return ()
 

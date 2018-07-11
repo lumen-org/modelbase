@@ -38,7 +38,7 @@ class SPNModel(Model):
         self.numcomp = numcomp
         self.index = {}
 
-    def _set_data(self, df, drop_silently=False):
+    def _set_data(self, df, drop_silently, **kwargs):
       self._set_data_continuous(df, drop_silently)
       self.variables = len(self.fields)
       # creates a dict of name : index

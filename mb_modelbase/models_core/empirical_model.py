@@ -18,7 +18,7 @@ class EmpiricalModel(Model):
         }
         self._emp_data = None
 
-    def _set_data(self, df, drop_silently):
+    def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently)
         return ()
 

@@ -56,7 +56,7 @@ class MSPNModel(Model):
             'maximum': self._maximum,
         }
 
-    def _set_data(self, df, drop_silently=False):
+    def _set_data(self, df, drop_silently, **kwargs):
         _, cat_names, num_names = get_columns_by_dtype(df)
         self._set_data_mixed(df, drop_silently, num_names, cat_names)
         self.featureTypes = ["categorical"]*len(cat_names) + ['continuous']*len(num_names)

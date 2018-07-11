@@ -310,7 +310,7 @@ class MixableCondGaussianModel(md.Model):
 
         return self._unbound_updater,
 
-    def _set_data(self, df, drop_silently):
+    def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently)
         self._marginalized_mask = xr.DataArray(data=[False]*len(self._categoricals), dims='name', coords=[self._categoricals])
         return ()

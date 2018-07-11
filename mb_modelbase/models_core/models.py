@@ -355,7 +355,7 @@ class Model:
     """An abstract base model that provides an interface to derive submodels from it or query density and other
     aggregations of it. It also defines stubs for those methods that actual models are required to implement. The stubs are:
 
-      * _set_data(self, df, drop_silently)
+      * _set_data(self, df, drop_silently, **kwargs)
       * _fit(self)
       * _marginalizeout(self, keep, remove)
       * _conditionout(self, keep, remove)
@@ -501,7 +501,7 @@ class Model:
         """
         raise NotImplementedError("You have to implement the _set_model_params method in your model!")
 
-    def set_data(self, df, silently_drop=False):
+    def set_data(self, df, silently_drop=False, **kwargs):
         """Derives suitable, cleansed (and copied) data from df for a particular model, sets this as the models data
          and also sets up auxiliary data structures if necessary. This is however, only concerned with the data
          part of the model and does not do any fitting of the model.
@@ -532,7 +532,7 @@ class Model:
             raise ValueError("Cannot fit to data frame with no columns.")
 
         # model specific clean up, setting of data, models fields, and possible more model specific stuff
-        callbacks = self._set_data(df, silently_drop)
+        callbacks = self._set_data(df, silently_drop, **kwargs)
         self.mode = 'data'
         self._update_all_field_derivatives()
         for callback in callbacks:
@@ -544,7 +544,7 @@ class Model:
         for f in self.fields:
             self.history[f['name']] = {'conditioned': [], 'marginalized': None}
 
-    def _set_data(self, df, silently_drop):
+    def _set_data(self, df, silently_drop, **kwargs):
         """ This method sets the data for this model instance using the data frame df. After completion of this method
         the following attributes are set:
          * self.data
@@ -560,7 +560,7 @@ class Model:
         """
         raise NotImplementedError("your model must implement this method")
 
-    def _set_data_mixed(self, df, silently_drop, num_names=None, cat_names=None):
+    def _set_data_mixed(self, df, silently_drop, num_names=None, cat_names=None, **kwargs):
         """see Model._set_data"""
 
         # split in categorical and numeric columns
@@ -594,7 +594,7 @@ class Model:
 
         return self
 
-    def _set_data_continuous(self, df, silently_drop):
+    def _set_data_continuous(self, df, silently_drop, **kwargs):
         """see Model._set_data"""
 
         # split in categorical and numeric columns
@@ -615,7 +615,7 @@ class Model:
 
         return self
 
-    def _set_data_categorical(self, df, silently_drop):
+    def _set_data_categorical(self, df, silently_drop, **kwargs):
         """see Model._set_data"""
 
         # split in categorical and numeric columns
@@ -651,7 +651,7 @@ class Model:
         """
 
         if df is not None:
-            return self.set_data(df).fit(**kwargs)
+            return self.set_data(df,**kwargs).fit(**kwargs)
 
         if self.data is None and self.mode != 'data':
             raise ValueError(

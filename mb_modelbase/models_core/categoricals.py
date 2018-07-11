@@ -41,7 +41,7 @@ class CategoricalModel(md.Model):
         # smooth, normalize and return
         return (counts + k) / (counts.sum() + k * counts.size)
 
-    def _set_data(self, df, drop_silently):
+    def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_categorical(df, drop_silently)
         return ()
 
