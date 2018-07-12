@@ -338,10 +338,7 @@ class ModelBase:
 
         elif 'PCI_GRAPH.GET' in query:
             model = self._extractFrom(query)
-            if model.pci_graph:
-                graph = pci_graph.to_json(model.pci_graph)
-            else:
-                graph = False
+            graph = pci_graph.to_json(model.pci_graph) if model.pci_graph else False
             return _json_dumps({
                 'model': model.name,
                 'graph': graph

@@ -547,9 +547,7 @@ class Model:
         for callback in callbacks:
             callback()
 
-        if kwargs['pci_graph']:
-            self.pci_graph = pci_graph.create(self.data)
-
+        self.pci_graph = pci_graph.create(self.data) if kwargs['pci_graph'] else None
         return self
 
     def _init_history(self):
