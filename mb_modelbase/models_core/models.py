@@ -1787,7 +1787,7 @@ class Model:
                     row_id_gen = utils.linear_id_generator(prefix="_row")
                     rowmodel_name = aggr_model.name + next(row_id_gen)
 
-                    if(self.parallel_processing):
+                    if self.parallel_processing:
 
                         # Define function for parallel execution of for loop
                         def pred_max(row, split_names=split_names, operator_list=operator_list, rowmodel_name=rowmodel_name, aggr_model=aggr_model):
