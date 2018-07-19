@@ -2,6 +2,11 @@
 """
 @author: Philipp Lucas
 
+Automatically determines suitable extents of dimensions such that the
+extent covers the non-zero interval of the marginal model for that
+dimension.
+
+
 """
 
 from mb_modelbase.models_core import domains as dm
@@ -13,7 +18,7 @@ def print_extents(model):
         print(field['extent'])
 
 
-def auto_extent(model, dim_name, prec=1e-05, step=.02):
+def auto_extent(model, dim_name, prec=1e-03, step=.02):
     """Extends the extent of the quantitative dimension with name dim_name of model such that the range covers all non-zero values of the marginal model on dim_name.
     It returns the extended range for that dimension as a 2-element tuple (low, high)
 

@@ -26,6 +26,7 @@ from mb_modelbase.utils import utils as utils
 from mb_modelbase.models_core import data_aggregation as data_aggr
 from mb_modelbase.models_core import data_operations as data_ops
 from mb_modelbase.models_core import pci_graph as pci_graph
+from mb_modelbase.models_core import auto_extent as ae
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -673,6 +674,13 @@ class Model:
             #self._update_all_field_derivatives()
             for callback in callbacks:
                 callback()
+
+            # TODO: clean up later and add as parameter
+            if True:
+                # ae.print_extents(self)
+                ae.adopt_all_extents(self)
+                # ae.print_extents(self)
+
         except NameError:
             raise NotImplementedError("You have to implement the _fit method in your model!")
         return self
