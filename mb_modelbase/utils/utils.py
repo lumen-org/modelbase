@@ -42,9 +42,12 @@ def numpy_to_xarray_params(p, mu, Sigma, cat_levels, cat, num):
     # make sure shape is correct:
     # TODO: the shape of p sometimes doesn't match with cat_levels and cat ... BUG!?
     s = tuple(len(l) for l in cat_levels)
-    p = p.reshape(s)
     # now make it to xarray object
-    p = DataArray(data=p, coords=cat_levels, dims=cat)
+    if len(s) == 0:
+        p = DataArray([])
+    else:
+        p = p.reshape(s)
+        p = DataArray(data=p, coords=cat_levels, dims=cat)
 
     coords = cat_levels + [num]
     dims = cat + ['mean']
