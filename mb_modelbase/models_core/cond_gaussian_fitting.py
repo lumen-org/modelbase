@@ -54,7 +54,7 @@ def fit_map_mean (df):
     """
 
     meta = get_meta_data(df)
-    Y = df.as_matrix(meta['contnames'])
+    Y = df[meta['contnames']].values
 #    means, sigmas = standardizeContinuousData(Y) # required to avoid exp overflow
     D = prepare_cat_data(df[meta['catnames']], meta, method = 'flat')  # transform discrete variables to flat indices
     # TODO: split into training and test data? if so: see Franks code
