@@ -10,8 +10,8 @@ import logging
 import json
 import traceback
 
-from mb_modelbase.utils import utils
-from mb_modelbase.utils.activity_logger import ActivityLogger
+from mb_modelbase.utils import utils, ActivityLogger
+#from mb_modelbase.utils.activity_logger import ActivityLogger
 from mb_modelbase.server import modelbase as mbase
 
 #logging.getLogger('flask_cors').level = logging.DEBUG
