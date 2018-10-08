@@ -45,20 +45,22 @@ Note:
  * don't forget to activate your custom environment, *if you configured one in the process above*.
  * to actually use the backend, the frontend [PMV](https://ci.inf-i2.uni-jena.de/gemod/pmv) should be used. 
 
-### recommended Development Setup ###
+### (recommended) Development Setup ###
 
 1. setup public key authentification for repository 
 2. clone repository to local machine into <path>
 3. add <path> to pythonpath in .profile (Linux) or in your system environvent variables (windows). This way the package under development is found by Python with the need to install it.
-  * Linux: PYTHONPATH="<path>:$PYTHONPATH"
+  * Linux: `PYTHONPATH="<path>:$PYTHONPATH"`
   * Windows: similar
 4. install PyCharm IDE
 5. create python virtual environment for project 
-  1. using PyCharm IDE: open project -> settings -> project settings -> project interpreter -> add python interpreter
-  2. using pure virtual env: see [here](https://virtualenv.pypa.io/en/stable/userguide/#usage)
+  * using PyCharm IDE: open project -> settings -> project settings -> project interpreter -> add python interpreter
+  * using pure virtual env: see [here](https://virtualenv.pypa.io/en/stable/userguide/#usage)
 6. install package dependencies (but does not install the package):
-  1. activate virtual environment 
-  2. pip install -e .
+  * using PyCharm:
+  * manually in a shell:
+    1. `activate virtual environment`
+    2. `pip install -e .`
 
 ### Contact ###
 
