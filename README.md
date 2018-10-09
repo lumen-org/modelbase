@@ -73,11 +73,13 @@ Moreover, I recommend not installing it as a local package, but instead adding `
     2. activate previously virtual environment 
     3. `pip install -e .` to install depedencies of this package only
 7. install CGModelSelection from [here](https://ci.inf-i2.uni-jena.de/ra86ted/CGmodelselection)
-  * either install it locally or add the local repository directory to `PYTHONPATH` as above
+  * either install it as a python package locally or add the local repository directory to `PYTHONPATH` as above
 8. get data repository [from here](https://ci.inf-i2.uni-jena.de/gemod/mb_data)
-  * It provides prepared data and methods to preset configurations to learn models from the data. As you probably want to change this every now an then as well, I recommend to not install the package but add it to `PYTHONPATH`.
-9. get lumen front-end [from here](https://ci.inf-i2.uni-jena.de/gemod/pmv)
-
+  * either install it as a python package locally or add the local repository directory to `PYTHONPATH` as above.
+  * This repository provides prepared data and preset configurations to learn models from the data. As you probably want to change this every now an then as well, I recommend to not install the package but add it to `PYTHONPATH`, see above.
+9. get the lumen front-end [from here](https://ci.inf-i2.uni-jena.de/gemod/pmv)
+  * you probably want the front-end as well.  See the README of the repository for more details.
+  
 ### Contact ###
 
 For any questions, feedback, bug reports, feature requests, spam, etc please contact: [philipp.lucas@uni-jena.de](philipp.lucas@uni-jena.de) or come and see me in my office #3311.
