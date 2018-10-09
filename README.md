@@ -71,9 +71,10 @@ Moreover, I recommend not installing it as a local package, but instead adding `
   * manually in a shell:
     1. change into `<path>`
     2. activate previously virtual environment 
-    3. `pip install -e .` to install depedencies of this package only
+    3. `pip3 install -e .` to install depedencies of this package only
 7. install CGModelSelection from [here](https://ci.inf-i2.uni-jena.de/ra86ted/CGmodelselection)
   * either install it as a python package locally or add the local repository directory to `PYTHONPATH` as above
+  * if you do not install it as a python package, anyway install its dependencies using `pip3 install -e .` from the repo directory
 8. get data repository [from here](https://ci.inf-i2.uni-jena.de/gemod/mb_data)
   * either install it as a python package locally or add the local repository directory to `PYTHONPATH` as above.
   * This repository provides prepared data and preset configurations to learn models from the data. As you probably want to change this every now an then as well, I recommend to not install the package but add it to `PYTHONPATH`, see above.
