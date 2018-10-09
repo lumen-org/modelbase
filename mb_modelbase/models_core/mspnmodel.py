@@ -285,7 +285,7 @@ if __name__ == "__main__":
        ./fit_models.py -i 'mspn_titanic_jk1' -d './titanicjk'
        
     start ajax:
-       ./ajax.py -n 'mspn_titanic_jk1' -d '../../mb_data/titanicjk/'
+       ./webservice.py -n 'mspn_titanic_jk1' -d '../../mb_data/titanicjk/'
    
     model:
        mspn_titanic_jk1
