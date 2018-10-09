@@ -58,9 +58,13 @@ Note:
   * using pure virtual env: see [here](https://virtualenv.pypa.io/en/stable/userguide/#usage)
 6. install package dependencies (but does not install the package):
   * using PyCharm:
+    1. open up `setup.py` in PyCharm
+    2. a dialog should be shown: "Package requirements ... are not satisfied"
+    3. click "install requirements"
   * manually in a shell:
-    1. `activate virtual environment`
-    2. `pip install -e .`
+    1. change into `<path>`
+    2. activate previously virtual environment 
+    3. `pip install -e .` to install depedencies only
 
 ### Contact ###
 
