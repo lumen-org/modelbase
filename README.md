@@ -12,7 +12,7 @@ The python-package `mb_modelbase` can be used for exploring all kinds of data se
 
 The script folder contains the important file `ajax.py` which is used for starting the backend of Lumen (see below). 
 
-### Classification in the Project ###
+### Classification in the Lumen project ###
 
 The `modelbase` repository is the kernel of Lumen. Here all the central functions are located in the subdirectories such as the different models or utils. Combined with the `ajax.py` file in the script-folder, the backend of Lumen is complete.
 
@@ -49,7 +49,9 @@ Note:
  * don't forget to activate your custom environment, *if you configured one in the process above*.
  * to actually use the backend, the frontend [PMV](https://ci.inf-i2.uni-jena.de/gemod/pmv) should be used. 
 
-### (recommended) Development Setup ###
+### Development Setup ###
+
+This section describes the _recommended_ development setup. 
 
 I recommend using PyCharm as an IDE. You can set the virtual python environment to use (if any specific) in PyCharm like [this](https://docs.continuum.io/anaconda/ide_integration#pycharm).
 Moreover, I recommend not installing it as a local package, but instead adding `<root>` to the path of python, which is defined in the variable `$PYTHONPATH`. This make the workflow faster, because you do not need to update the local installation when you changed the code in the repository. See as follows:
@@ -80,6 +82,8 @@ Moreover, I recommend not installing it as a local package, but instead adding `
   * This repository provides prepared data and preset configurations to learn models from the data. As you probably want to change this every now an then as well, I recommend to not install the package but add it to `PYTHONPATH`, see above.
 9. get the lumen front-end [from here](https://ci.inf-i2.uni-jena.de/gemod/pmv)
   * you probably want the front-end as well.  See the README of the repository for more details.
+
+-----
   
 ### Contact ###
 
