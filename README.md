@@ -2,7 +2,7 @@
 
 A Probability Model Backend for Python and the Web.
 
-Version: 0.2
+Version: 0.9
 
 ### Content ###
 
@@ -12,7 +12,7 @@ The python-package `mb_modelbase` can be used for exploring all kinds of data se
 
 The script folder contains the important file `ajax.py` which is used for starting the backend of Lumen (see below). 
 
-### Classification In The Project ###
+### Classification in the Lumen project ###
 
 The `modelbase` repository is the kernel of Lumen. Here all the central functions are located in the subdirectories such as the different models or utils. Combined with the `ajax.py` file in the script-folder, the backend of Lumen is complete.
 
@@ -21,16 +21,20 @@ The `modelbase` repository is the kernel of Lumen. Here all the central function
 For normal usage:
 
 1. Clone this repository into a folder of your choice. Let's call it `<root>`.
-2. Install the `mb_modelbase` package locally, i.e, do `cd <root> && pip install .`
+2. Install the `mb_modelbase` package locally, i.e, do `cd <root> && pip3 install .`
+3. Install the `CGModelSelection` package. This provides a model selection capabilities for various types of multivariate Gaussian and Conditional Gaussian (CG) models.  [See here](https://ci.inf-i2.uni-jena.de/ra86ted/CGmodelselection) for the package.
 
-What happens here? The command `pip install` calls the `setup.py` script and copies the package to one of the python paths, therefore the python modules can be found by the `ajax.py` script. Consequently, if you want to update the package you have to install it again after pulling the latest version of the project. Otherwise the old installation is used. See below how to use the package without the manually update process. 
+What happens here? The command `pip3 install` calls the `setup.py` script and copies the package to one of the python paths, therefore the python modules can be found by the `ajax.py` script.
 
-For development:
+### Updating modelbase ###
 
- - I recommend using PyCharm as an IDE. You can set the environment to use (if any specific) in PyCharm like [this](https://docs.continuum.io/anaconda/ide_integration#pycharm).
- - I recommend not installing it as a local package, but instead adding `<root>` to the path of python, which is defined in the variable `$PYTHONPATH`. This make the workflow faster, because you do not need to update the local installation when you changed the code in the repository.
+Consequently, if you want to update the package you have to:
+1. uninstall the current version: `pip uninstall mb_modelbase`
+2. change into the local repository
+2. pull the latest version from the repo: `git pull origin master`
+3. install the latest version: `pip3 install .`
 
-### Running The ModelBase Backend ###
+### Running the modelbase backend ###
 
 The repository contains the code for the python package `mb_modelbase` (in the folder with identical name), and this is typically installed to your local python installation.
 It, however, also contains some scripts in the `scripts` directory. There, only `ajax.py` is of interest. 
@@ -45,10 +49,46 @@ Note:
  * don't forget to activate your custom environment, *if you configured one in the process above*.
  * to actually use the backend, the frontend [PMV](https://ci.inf-i2.uni-jena.de/gemod/pmv) should be used. 
 
+### Development Setup ###
+
+This section describes the _recommended_ development setup. 
+
+I recommend using PyCharm as an IDE. You can set the virtual python environment to use (if any specific) in PyCharm like [this](https://docs.continuum.io/anaconda/ide_integration#pycharm).
+Moreover, I recommend not installing it as a local package, but instead adding `<root>` to the path of python, which is defined in the variable `$PYTHONPATH`. This make the workflow faster, because you do not need to update the local installation when you changed the code in the repository. See as follows:
+
+1. setup public key authentification for repository. This way you do not need to provide passwords when pulling/pushing.
+2. clone repository to local machine into <path>
+3. add <path> to PYTHONPATH environment variable in .profile (Linux) or in your system environvent variables (windows). This way the package under development is found by Python with the need to install it.
+  * Linux: `export PYTHONPATH="<path>:$PYTHONPATH"`
+  * Windows: somewhere under advanced system settings ...
+4. install [PyCharm IDE](https://www.jetbrains.com/pycharm/)
+5. create python virtual environment for project 
+  * using PyCharm IDE: open project -> settings -> project settings -> project interpreter -> add python interpreter
+  * using pure virtual env: see [here](https://virtualenv.pypa.io/en/stable/userguide/#usage)
+6. install package dependencies (but does not install the package):
+  * using PyCharm:
+    1. open up `setup.py` in PyCharm
+    2. a dialog should be shown: "Package requirements ... are not satisfied"
+    3. click "install requirements"
+  * manually in a shell:
+    1. change into `<path>`
+    2. activate previously virtual environment 
+    3. `pip3 install -e .` to install depedencies of this package only
+7. install CGModelSelection from [here](https://ci.inf-i2.uni-jena.de/ra86ted/CGmodelselection)
+  * either install it as a python package locally or add the local repository directory to `PYTHONPATH` as above
+  * if you do not install it as a python package, anyway install its dependencies using `pip3 install -e .` from the repo directory
+8. get data repository [from here](https://ci.inf-i2.uni-jena.de/gemod/mb_data)
+  * either install it as a python package locally or add the local repository directory to `PYTHONPATH` as above.
+  * This repository provides prepared data and preset configurations to learn models from the data. As you probably want to change this every now an then as well, I recommend to not install the package but add it to `PYTHONPATH`, see above.
+9. get the lumen front-end [from here](https://ci.inf-i2.uni-jena.de/gemod/pmv)
+  * you probably want the front-end as well.  See the README of the repository for more details.
+
+-----
+  
 ### Contact ###
 
 For any questions, feedback, bug reports, feature requests, spam, etc please contact: [philipp.lucas@uni-jena.de](philipp.lucas@uni-jena.de) or come and see me in my office #3311.
 
 ### Copyright ###
 
-© 2016 Philipp Lucas (philipp.lucas@uni-jena.de) All Rights Reserved
+© 2016-2018 Philipp Lucas (philipp.lucas@uni-jena.de) All Rights Reserved
