@@ -22,7 +22,7 @@ For normal usage:
 
 1. Clone this repository into a folder of your choice. Let's call it `<root>`.
 2. Install the `mb_modelbase` package locally, i.e, do `cd <root> && pip3 install .`
-3. Install the `CGModelSelection` package. This provides a model selection capabilities for various types of multivariate Gaussian and Conditional Gaussian (CG) models.  [See here](https://ci.inf-i2.uni-jena.de/ra86ted/CGmodelselection) for the package.
+3. Install the `CGModelSelection` package. This provides a model selection capabilities for various types of multivariate Gaussian and Conditional Gaussian (CG) models. **currently this package is not publicly available and unfortunately lumen will not work without it**. Get in touch with me or Frank Nussbaum for access. The repository is hosted [here](https://ci.inf-i2.uni-jena.de/ra86ted/CGmodelselection).
 
 What happens here? The command `pip3 install` calls the `setup.py` script and copies the package to one of the python paths, therefore the python modules can be found by the `ajax.py` script.
 
