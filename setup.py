@@ -7,7 +7,7 @@ setup(name='mb_modelbase',
       url='https://github.com/lumen-org/lumen',
       author='Philip Lucas',
       author_email='philipp.lucas@uni-jena.de',
-      license='Public',
+      license='lgpl-3.0',
       packages=find_packages(exclude=['scripts']),
       install_requires=[
           'xarray',

@@ -1,8 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
-"""
-@author: Philipp Lucas
-"""
+# Copyright (C) 2014-2018 , Philipp Lucas, philipp.lucas@gmail.com
 
 from flask import Flask, request
 from flask_cors import cross_origin

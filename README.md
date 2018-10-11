@@ -84,11 +84,24 @@ Moreover, I recommend not installing it as a local package, but instead adding `
   * you probably want the front-end as well.  See the README of the repository for more details.
 
 -----
-  
+ 
 ### Contact ###
 
 For any questions, feedback, bug reports, feature requests, spam, etc please contact: [philipp.lucas@uni-jena.de](philipp.lucas@uni-jena.de) or come and see me in my office #3311.
 
-### Copyright ###
+### Copyright and Licence ###
 
-© 2016-2018 Philipp Lucas (philipp.lucas@uni-jena.de) All Rights Reserved
+© 2016-2018 Philipp Lucas (philipp.lucas@uni-jena.de)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
