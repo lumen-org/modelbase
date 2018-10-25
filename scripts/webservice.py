@@ -8,10 +8,7 @@ import json
 import traceback
 
 from mb_modelbase.utils import utils, ActivityLogger
-#from mb_modelbase.utils.activity_logger import ActivityLogger
 from mb_modelbase.server import modelbase as mbase
-
-#logging.getLogger('flask_cors').level = logging.DEBUG
 
 from mb_modelbase.utils.utils import is_running_in_debug_mode
 # if is_running_in_debug_mode():
@@ -19,6 +16,7 @@ from mb_modelbase.utils.utils import is_running_in_debug_mode
 #     import mb_modelbase.models_core.models_debug
 
 app = Flask(__name__, static_url_path='/static/')
+
 logger = None  # create module variable
 
 # the (static) start page
@@ -101,35 +99,7 @@ def playground():
         return result
 
 
-# trigger to start the web server if this script is run
-if __name__ == "__main__":
-    import argparse
-    # import pdb
-
-    description = """
-Starts a local web server that acts as an interface to a modelbase, i.e. the equivalent of a
-data base, but for graphical models. This interface provides various routes,
-as follows.
-
-  * '/': the index page
-  * '/webservice': a user can send PQL queries in a POST-request to this route
-  * '/webqueryclient': provides a simple website to sent PQL queries to this
-      model base (probably not functional at the moment)
-  * '/playground': just for debugging / testing / playground purposes
-
-Usage:
-    Run this script to start the server locally!
-"""
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("-n", "--name", help="A name for the modelbase to start. Defaults to 'my_mb'",
-                        type=str, default='my_mb')
-    parser.add_argument("-d", "--directory", help="directory that contains the models to be loaded initially. Defaults"
-                                                  " to 'data_models'", type=str, default='data_models')
-    parser.add_argument("-l", "--loglevel", help="loglevel for command line output. You can set it to: CRITICAL, "
-                                                 "ERROR, WARNING, INFO or DEBUG. Defaults to INFO",
-                        type=str, default='INFO')
-    args = parser.parse_args()
-
+def init(args):
     # setup root logger and local logger
     logging.basicConfig(
         level=args.loglevel,
@@ -146,7 +116,37 @@ Usage:
     mb = mbase.ModelBase(name=args.name, model_dir=args.directory)
     logger.info("... done (starting modelbase).")
 
-    logger.info("web server running...")
-    app.run()
 
-    #pdb.run('app.run()')
+# trigger to start the web server if this script is run
+if __name__ == "__main__":
+    import argparse
+    # import pdb
+
+    description = """
+    Starts a local web server that acts as an interface to a modelbase, i.e. the equivalent of a
+    data base, but for graphical models. This interface provides various routes,
+    as follows.
+    
+      * '/': the index page
+      * '/webservice': a user can send PQL queries in a POST-request to this route
+      * '/webqueryclient': provides a simple website to sent PQL queries to this
+          model base (probably not functional at the moment)
+      * '/playground': just for debugging / testing / playground purposes
+    
+    Usage:
+        Run this script to start the server locally!
+    """
+    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("-n", "--name", help="A name for the modelbase to start. Defaults to 'my_mb'",
+                        type=str, default='my_mb')
+    parser.add_argument("-d", "--directory", help="directory that contains the models to be loaded initially. Defaults"
+                                                  " to 'data_models'", type=str, default='data_models')
+    parser.add_argument("-l", "--loglevel", help="loglevel for command line output. You can set it to: CRITICAL, "
+                                                 "ERROR, WARNING, INFO or DEBUG. Defaults to INFO",
+                        type=str, default='INFO')
+
+    args = parser.parse_args()
+    init(args)
+    app.run()
+    logger.info("web server running...")
+    # pdb.run('app.run()')
