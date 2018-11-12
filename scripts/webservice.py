@@ -3,6 +3,7 @@
 
 from flask import Flask, request
 from flask_cors import cross_origin
+from OpenSSL import SSL
 import logging
 import json
 import traceback
@@ -76,7 +77,7 @@ def webquery_service():
 
 
 # route that returns a valid sample query
-@app.route('/sample_query', methods=['GET', 'POST'])
+"""@app.route('/sample_query', methods=['GET', 'POST'])
 @cross_origin()  # allows cross origin requests
 def sample_query():
     if request.method == 'GET':
@@ -87,10 +88,10 @@ def sample_query():
         query = json.load(open(filepath))
         # serialize to string and return
         return json.dumps(query)
-
+"""
 
 # a "playground" webservice interface
-@app.route('/playground', methods=['GET', 'POST'])
+"""@app.route('/playground', methods=['GET', 'POST'])
 def playground():
     # return usage information
     if request.method == 'GET':
@@ -99,7 +100,7 @@ def playground():
     else:
         result = '{"age":[0,5,2,3,2,561,0], "income":[1,2,3,4,5,6,7]}'
         return result
-
+"""
 
 # trigger to start the web server if this script is run
 if __name__ == "__main__":
@@ -146,7 +147,12 @@ Usage:
     mb = mbase.ModelBase(name=args.name, model_dir=args.directory)
     logger.info("... done (starting modelbase).")
 
+    # enable https / ssl certifacte support
+    context = ('/opt/lumen/ssl/modelvalidation.mooo.com/fullchain.pem', '/opt/lumen/ssl/modelvalidation.mooo.com/privkey.pem')
+    # context = ('/opt/lumen/ssl/lumen.inf-i2.uni-jena.de.ca', '/opt/lumen/ssl/lumen.inf-i2.uni-jena.de.key')
     logger.info("web server running...")
-    app.run()
+    app.run(host='0.0.0.0', port=8080, ssl_context=context, threaded=True)
 
+    #logger.info("web server running...")
+    #app.run()
     #pdb.run('app.run()')
