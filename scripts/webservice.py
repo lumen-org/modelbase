@@ -46,12 +46,13 @@ def add_root_module():
 def add_modelbase_module():
     # webservice interface to the model base
 
+    c = cfg['modules']['modelbase']
+
     # start ModelBase
     logger.info("starting modelbase ... ")
-    mb = mbase.ModelBase(name=args.name, model_dir=args.directory)
+    mb = mbase.ModelBase(name=c['name'], model_dir=c['directory'])
     logger.info("... done (starting modelbase).")
 
-    c = cfg['modules']['modelbase']
     @app.route(c['route'], methods=['GET', 'POST'])
     @cross_origin()  # allows cross origin requests
     def modebase_service():

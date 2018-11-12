@@ -18,6 +18,7 @@ setup(name='mb_modelbase',
           'flask',
           'flask-cors',
           'graphviz',
-          'multiprocessing_on_dill'
+          'multiprocessing_on_dill',
+          'pyopenssl'
       ],
       zip_safe=False)
