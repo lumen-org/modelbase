@@ -40,7 +40,7 @@ def add_root_module():
     @app.route(c['route'])
     @cross_origin()  # allows cross origin requests
     def index():
-        return app.send_static_file('index.html')
+        return "webservice up an running!"
 
 
 def add_modelbase_module():
