@@ -11,6 +11,7 @@ from functools import wraps, reduce
 from numpy import matrix, ix_, isfinite, linalg
 from xarray import DataArray
 import numpy as np
+import collections
 
 
 def assert_all_psd(S, len_num):
@@ -347,5 +348,11 @@ def inverse_transform_sampling(cumulative_dens):
     return np.searchsorted(cumulative_dens, np.random.uniform())
 
 
-if __name__ == '__main__':
-    pass
+def deep_update(d, u):
+    """Deep-update dict d with dict u and return d."""
+    for k, v in u.items():
+        if isinstance(v, collections.Mapping):
+            d[k] = deep_update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d

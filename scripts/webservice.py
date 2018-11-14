@@ -3,7 +3,6 @@
 
 from flask import Flask, request
 from flask_cors import cross_origin
-from OpenSSL import SSL
 import logging
 import json
 import traceback
@@ -29,9 +28,16 @@ def add_path_of_file_to_python_path():
     sys.path.insert(0, path)
 
 
-# load config
+# load config. user config overrides default config.
 add_path_of_file_to_python_path()
-from config import cfg
+from run_conf_defaults import cfg
+try:
+    from run_conf import cfg as user_cfg
+except ModuleNotFoundError:
+    # user config may not exist, but that is ok
+    pass
+else:
+    cfg = utils.deep_update(cfg, user_cfg)
 
 
 def add_root_module():
@@ -158,7 +164,8 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--loglevel", help="loglevel for command line output. You can set it to: CRITICAL, ERROR,"
                                                  " WARNING, INFO or DEBUG. Defaults to {}".format(cfg['loglevel']),
                         type=str, default=cfg['loglevel'])
-    # overwrite config of config.py
+
+    # overwrite config of run_conf.py
     args = parser.parse_args()
     cfg['modules']['modelbase']['directory'] = args.directory
     cfg['modules']['modelbase']['name'] = args.name
@@ -167,6 +174,7 @@ if __name__ == "__main__":
     init()
 
     if cfg['ssl']['enable']:
+        from OpenSSL import SSL
         context = (cfg['ssl']['cert_chain_path'], cfg['ssl']['cert_priv_key_path'])
         app.run(host='0.0.0.0', port=8080, ssl_context=context, threaded=True)
     else:

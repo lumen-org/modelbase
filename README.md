@@ -36,18 +36,26 @@ Consequently, if you want to update the package you have to:
 
 ### Running the modelbase backend ###
 
-The repository contains the code for the python package `mb_modelbase` (in the folder with identical name), and this is typically installed to your local python installation.
-It, however, also contains some scripts in the `scripts` directory. There, only `ajax.py` is of interest. 
+The repository contains the code for the python package `mb_modelbase` (in the folder with identical name). If you 
+ followed the setup steps above this package is installed to your python environment. Apart from the package 
+ the repo also contains the `scripts` directory, which we will use to run the backend. 
 
-To actually run the backend, just run the python script `ajax.py`, i.e. execute `ajax.py` on a systems shell. On windows/anaconda you might need to run it from an Anaconda prompt.
-Note that it requires some command line parameters in order to select the models to load. Run  `ajax.py --help` for more information or check the helptext in the script.
+There is two intended ways to run the modelbase backend.
+1. execute `webservice.py`. This starts a simple Flask web server locally. Note that this should not be used for
+    production environments.
+2. run it as an WSGI application with (for example) apache2. For this end, the `modelbase.wsgi` file is provided.
 
-`ajax.py` will start a local Flask Webserver that accepts and answers PQL-queries. See `ajax.py` for more information.
+There is three ways to configure the backend. In order of precedence (highest to lowest):
+  * use command line arguments to `webservice.py`. Obviously, this cannot be used if you run modelbase as a WSGI
+    application. See `webservice.py --help` for options
+  * set options in `run_conf.py`. this is respected by both ways of running modelbase. See `default_run_conf.py` for
+    available options. Note that `run_conf.py` may not exists yet.
+  * set options in `default_run_conf.py`. Changing settings here is not recommended.
 
 Note:
  * once run the server doesn't immediatly necessarly produce any output on the command line. *that is normal*
  * don't forget to activate your custom environment, *if you configured one in the process above*.
- * to actually use the backend, the frontend [PMV](https://ci.inf-i2.uni-jena.de/gemod/pmv) should be used. 
+ * to actually use the backend, the frontend [Lumen](https://ci.inf-i2.uni-jena.de/gemod/pmv) can be used. 
 
 ### Development Setup ###
 
@@ -59,29 +67,29 @@ Moreover, I recommend not installing it as a local package, but instead adding `
 1. setup public key authentification for repository. This way you do not need to provide passwords when pulling/pushing.
 2. clone repository to local machine into <path>
 3. add <path> to PYTHONPATH environment variable in .profile (Linux) or in your system environvent variables (windows). This way the package under development is found by Python with the need to install it.
-  * Linux: `export PYTHONPATH="<path>:$PYTHONPATH"`
-  * Windows: somewhere under advanced system settings ...
+   * Linux: `export PYTHONPATH="<path>:$PYTHONPATH"`
+   * Windows: somewhere under advanced system settings ...
 4. install [PyCharm IDE](https://www.jetbrains.com/pycharm/)
 5. create python virtual environment for project 
-  * using PyCharm IDE: open project -> settings -> project settings -> project interpreter -> add python interpreter
-  * using pure virtual env: see [here](https://virtualenv.pypa.io/en/stable/userguide/#usage)
+   * using PyCharm IDE: open project -> settings -> project settings -> project interpreter -> add python interpreter
+   * using pure virtual env: see [here](https://virtualenv.pypa.io/en/stable/userguide/#usage)
 6. install package dependencies (but does not install the package):
-  * using PyCharm:
+   * using PyCharm:
     1. open up `setup.py` in PyCharm
     2. a dialog should be shown: "Package requirements ... are not satisfied"
     3. click "install requirements"
-  * manually in a shell:
+   * manually in a shell:
     1. change into `<path>`
     2. activate previously virtual environment 
     3. `pip3 install -e .` to install depedencies of this package only
 7. install CGModelSelection from [here](https://ci.inf-i2.uni-jena.de/ra86ted/CGmodelselection)
-  * either install it as a python package locally or add the local repository directory to `PYTHONPATH` as above
-  * if you do not install it as a python package, anyway install its dependencies using `pip3 install -e .` from the repo directory
+   * either install it as a python package locally or add the local repository directory to `PYTHONPATH` as above
+   * if you do not install it as a python package, anyway install its dependencies using `pip3 install -e .` from the repo directory
 8. get data repository [from here](https://ci.inf-i2.uni-jena.de/gemod/mb_data)
-  * either install it as a python package locally or add the local repository directory to `PYTHONPATH` as above.
-  * This repository provides prepared data and preset configurations to learn models from the data. As you probably want to change this every now an then as well, I recommend to not install the package but add it to `PYTHONPATH`, see above.
+   * either install it as a python package locally or add the local repository directory to `PYTHONPATH` as above.
+   * This repository provides prepared data and preset configurations to learn models from the data. As you probably want to change this every now an then as well, I recommend to not install the package but add it to `PYTHONPATH`, see above.
 9. get the lumen front-end [from here](https://ci.inf-i2.uni-jena.de/gemod/pmv)
-  * you probably want the front-end as well.  See the README of the repository for more details.
+   * you probably want the front-end as well.  See the README of the repository for more details.
 
 -----
  
