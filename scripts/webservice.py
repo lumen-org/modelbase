@@ -176,9 +176,9 @@ if __name__ == "__main__":
     if cfg['ssl']['enable']:
         from OpenSSL import SSL
         context = (cfg['ssl']['cert_chain_path'], cfg['ssl']['cert_priv_key_path'])
-        app.run(host='0.0.0.0', port=8080, ssl_context=context, threaded=True)
+        app.run(host='0.0.0.0', port=cfg['port'], ssl_context=context, threaded=True)
     else:
-        app.run()
+        app.run(host='0.0.0.0', port=cfg['port'], threaded=True)
 
     logger.info("web server running...")
     # pdb.run('app.run()')

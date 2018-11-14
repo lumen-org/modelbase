@@ -24,6 +24,7 @@ cfg = {
         }
     },
 
+    # this setting only has an effect if the built-in flask web server is used
     'ssl': {
         'enable': False,
         'cert_chain_path': '../ssl/fullchain.pem',
@@ -33,6 +34,8 @@ cfg = {
         # 'cert_chain_path': '/opt/lumen/ssl/lumen.inf-i2.uni-jena.de.ca',
         # 'cert_priv_key_path': '/opt/lumen/ssl/lumen.inf-i2.uni-jena.de.key',
     },
+
+    'port': 52104,
 
     'loglevel': 'INFO',
 }
