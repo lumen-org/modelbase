@@ -11,7 +11,16 @@ DEFAULT_BIN_NUMBER = 10
 
 
 def aggregate_data(df, method, opts=None):
-    """Aggregate the models data according to given method and options, and returns this aggregation."""
+    """Aggregate the models data according to given method and options, and returns this aggregation.
+
+    Args:
+        df: pd.DataFrame
+            A pandas data frame.
+        method: string
+            Either 'maximum' or 'average'
+        opt: dict, Optional
+            currently unused.
+    """
     row_cnt, col_cnt = df.shape
     if row_cnt == 0:
         # can not compute any aggregation. return nan
