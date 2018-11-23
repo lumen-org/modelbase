@@ -407,15 +407,15 @@ class Model:
         Models also provide a 'history', i.e. information about what operations (condition, marginalize) have been
         applied in order to arrive to the current model. This information is stored under the .history attribute and
         is a organized as a dictionary. The key is the name of the dimension that was changed. The value is a dict
-        with these keys: * 'conditioned': a list of conditions applied in that order * 'marginalized': a string:
-        either None ( if not marginalized in any way), or 'marginalized_out' (if marginalized over the full domain)
-        or 'conditioned_out' (if marginalized after conditioning).
+        with these keys:
+            * 'conditioned': a list of conditions applied in that order
+            * 'marginalized': a string:
+                either None ( if not marginalized in any way), or 'marginalized_out' (if marginalized over the full
+                domain) or 'conditioned_out' (if marginalized after conditioning).
 
     Storing / Loading:
 
         An instance of a model can be loaded from and stored in a file using `Model.load()` and `Model.store()`.
-
-
 
     """
 
