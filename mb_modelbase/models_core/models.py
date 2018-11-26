@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2017-2018 Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 @author: Philipp Lucas
 
@@ -36,33 +36,61 @@ logger.setLevel(logging.DEBUG)
 https://github.com/rasbt/pattern_classification/blob/master/resources/python_data_libraries.md !!!
 """
 
+
 AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'yields', 'args'])
+"""An aggregation tuple describes an aggregation.
+
+Note that is is optional to used these named tuples. Normal tuples may also be use to represent aggregations.  
+
+Attributes:
+    name : sequence of string 
+        The names of the fields that is aggregated over.
+    method : string
+        The method to use for aggregation. Available methods depend on the model class.
+    yields : string
+        The name of the field that the resulting value will be of. 
+    args 
+        Additional arguments passed to the aggregation function.
+"""
 
 SplitTuple = namedtuple('SplitTuple', ['name', 'method', 'args'])
+"""An split tuple details how a field of a model is split by.
+
+Attributes:
+    name : string
+        The  name of the field to split.
+    method : string
+        The method to use to split. Available methods depend on the model class and the data type.
+    args
+        Additional arguments passed to the split function.
+"""
 NAME_IDX = 0
 METHOD_IDX = 1
 YIELDS_IDX = 2
 ARGS_IDX = 2
 
 ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
+"""A condition tuple describes the details of how a field of model is conditioned.
+
+Attributes:
+    name : string
+        The name of field to condition.
+    operator : ['in', 'equals', '==', 'greater', 'less']
+        The operator of the condition.
+    value : its allowed values depend on the value of operator        
+        operator is 'in': A single element (to set the domain singular) or a sequence of elements (if the field is 
+            discrete), or a two-element list [min, max] if the field is continuous. 
+        operator is 'equals' or '==': a single element
+        operator == 'greater': a single element that is set to be the new upper bound of the domain.
+        operator == 'less': a single element that is set to be the new lower bound of the domain.
+"""
 OP_IDX = 1
 VALUE_IDX = 2
-""" A condition tuple describes the details of how a field of model is
-    conditioned.
 
-    Attributes:
-        name: the name of field to condition
-        operator: may take be one of ['in', 'equals', '==', 'greater', 'less']
-        value: its allowed values depend on the value of operator
-            operator is one of: 'in': A single element (to set the domain singular) or a sequence
-                of elements (if the field is discrete), or a two-element list [min, max] if the
-                field is continuous.
-            operator is 'equals' or '==': a single element
-            operator == 'greater': a single element that is set to be the new upper bound of the domain.
-            operator == 'less': a single element that is set to be the new lower bound of the domain.
+"""Internal utility functions: 
+For a number of interfaces we want to allow both: single name of fields or single fields, and sequences of these. 
+These function help to get them in a uniform way internally: sequences of names. 
 """
-
-"""Internal utility functions: For a number of interfaces we want to allow both: single name of fields or single fields, and sequences of these. These function help to get them in a uniform way internally: sequences of names."""
 
 
 def _name_from_field(base):
@@ -88,13 +116,32 @@ def _to_name_sequence(obj):
 
 
 def Field(name, domain, extent, dtype='numerical'):
-    """ A constructor that returns 'Field'-dicts, i.e. a dict with three components
-        as passed in:
-            'name': the name of the field
-            'domain': the domain of the field,
-            'extent': the extent of the field that will be used as a fallback for domain if domain is unbounded but a
-                value for domain is required
-            'dtype': the data type that the field represents. Possible values are: 'numerical' and 'string'
+    """ A factory for 'Field'-dicts.
+
+    Fields represent the dimensions, random variables or attributes of models that are accessible by and exposed to
+    the outside.
+
+    Attributes: a field has the following attributes:
+        'name': Same as the argument to this function.
+        'domain': Same as the argument to this function.
+        'extent': Same as the argument to this function.
+        'dtype': Same as the argument to this function.
+        'default_value': See `Model`.
+        'default_subset': See `Model`.
+
+    Args:
+        name : string
+            The name of the field.
+        domain : `dm.Domain`
+            The domain of the field.
+        extent : `dm.Domain`
+            The extent of the field. May not be unbounded. The extent of the field that will be used as a fallback
+            for domain if domain is unbounded but a value for domain is required
+        dtype : ['numerical', 'string'] , optional.
+            A string identifier of the data type of this field.
+
+    Returns : dict
+        The constructed 'field dictionary'.
     """
     if not extent.isbounded():
         raise ValueError("extents must not be unbounded")
@@ -106,6 +153,25 @@ def Field(name, domain, extent, dtype='numerical'):
 
 
 def Aggregation(base, method='maximum', yields=None, args=None):
+    """A factory for 'AggregationTuples'.
+
+    This is the preferred way to construct `AggregationTuple`s as it provides some convenience over the raw
+    method, such as filling in missing values, deriving suitable defaults and some value/type checking.
+
+    See also `AggregationTuple`.
+
+    Arguments:
+        base : A single or a sequence of field names or fields
+            The fields to aggregate over.
+        method : string, optional.
+            The method to use for aggregation. Available methods depend on the model class, however 'maximum' should
+            always be available.
+        yields : string, optional
+            The name of the field that the resulting value will be of. Needs not to be provided for methods
+            'probability' and 'density'.
+        args : Any, optional.
+            Additional arguments passed to the aggregation function. Defaults to None
+    """
     name = _to_name_sequence(base)
     if yields is None:
         yields = "" if method == 'density' or method == 'probability' else name[0]
@@ -117,18 +183,76 @@ def Aggregation(base, method='maximum', yields=None, args=None):
 
 
 def Condition(base, operator, value):
+    """A factory for 'ConditionTuple's
+
+    This is the preferred way to construct `ConditionTuple`s as it provides some convenience over the raw
+    method, such as filling in missing values, deriving suitable defaults and some value/type checking.
+
+    See also `ConditionTuple`.
+
+    Args:
+        base : Field or string
+            The field to condition on.
+        operator : string
+            The operator of the condition.
+        value : Any
+            See `ConditionTuple`.
+    """
     return ConditionTuple(_name_from_field(base), operator, value)
 
 
 def Density(base):
+    """A factory for density aggregations.
+
+    This is the preferred way to construct an `AggregationTuple` that encodes a density query.
+
+    See also `AggregationTuple`.
+
+    base : a single or a sequence of `Field` or string
+            The names to query density over.
+    """
     return Aggregation(base, method='density')
 
 
 def Probability(base):
+    """A factory for probability aggregations.
+
+    This is the preferred way to construct an `AggregationTuple` that encodes a probability query.
+
+    See also `AggregationTuple`.
+
+    Args:
+        base : a single or a sequence of `Field` or string
+            The names to query probability over.
+    """
     return Aggregation(base, method='probability')
 
 
 def Split(base, method=None, args=None):
+    """A factory for splits.
+
+    This is the preferred way to create `SplitTuple`s as it provides some convenience over the raw
+    method, such as filling in missing values, deriving suitable defaults and some value/type checking.
+
+    There is some auto-completion available, where meaningfully possible, as follows:
+
+        default methods by data type (dtype)
+            * 'elements' for 'string' dtype
+            * 'equiinterval' for 'numerical' dtype
+
+        default arguments by method:
+            * [25] for 'equiinterval' and 'equidist'
+            * [] for 'identity' and 'elements'
+
+    Args:
+        base : a single or a sequence of `Field` or string
+            The names to query probability over.
+        method : string, optional.
+            The method to use to split. Available methods depend on the model class and the data type.
+        args : any, optional
+            Additional arguments passed to the split function. Default
+
+    """
     if isinstance(base, str):
         name = base
         if method is None:
@@ -236,6 +360,11 @@ def _tuple2str(tuple_):
 
 
 def split_training_test_data(df):
+    """Split data frame `df` into two parts and return them as a 2-tuple.
+
+    The first returned data frame will contain 5% of the data, but not less than 25 item and not more than 50 items,
+    and not more than 50% items.
+    """
     n = df.shape[0]
 
     # select training and test data
@@ -341,7 +470,8 @@ def get_numerical_fields(df, colnames):
 
 
 def to_category_cols(df, colnames):
-    """Returns df where all columns with names in colnames have been converted to the category type using pd.astype('category'.
+    """Returns df where all columns with names in colnames have been converted to the category type using pd.astype(
+    'category').
     """
     # df.loc[:,colnames].apply(lambda c: c.astype('category'))  # also works, but more tedious merge with not converted df part
     for c in colnames:
@@ -354,9 +484,133 @@ class Model:
     """An abstract base model that provides an interface to derive submodels from it or query density and other
     aggregations of it.
 
-    Implementing a Model Class:
+    Attributes:
 
-        This class defines stubs for those methods that actual models are required to implement. The stubs are:
+        .data : pd.DataFrame
+
+            The data that is assigned to the model. When `.fit()` is called this data is used to learn the model
+            parameters for this model instance. `.data` should only be set using `Model.set_data()`. See also the Data
+            section below.
+
+        .dim : int
+
+            The current dimension of the model, i.e. the number of fields in `.fields`.
+
+        .extents : sequence of sequences.
+
+            The sequence of extents of the current fields of the model. Is in the same order like in `.fields`. An
+            extent is a 'typical' set of values for a field. It is used, for example, if a bounded set of values is
+            required as input from a field. E.g. if we split a quantitative dimension into k intervals,
+            we need a bounded initial interval to split. Here, the extent would be used.
+
+        .fields : sequence of `Field`s
+
+            The See the Fields and Order of Fields sections below.
+
+        .history : dict
+
+            See the History section below.
+
+        .mode : [None, 'model', 'data', 'both']
+
+            The mode holds the current state of the model, and it represents it 'position' in the life-cycle of a model:
+
+                * mode is None: the model was instantiated using the class constructor. The model instance now exists,
+                but is not fitted to any data or otherwise even filled it's internal parameter to represent a valid
+                model at all.
+
+                * mode == 'data': Data was assigned to the model using `.set_data()`, but the no model to represent
+                that data has yet been learned. Hence, it is not possible to query the model with `.predict()` or the
+                like. Anyway, queries against that data alone are possible.
+
+                * mode == 'model: In contrast to ``mode == 'data'`` no data was assigned to the model,
+                but it nevertheless represents a distribution of its class and queries such as `.predict()` can be
+                made. This is typcially the case if the model class provides a way of (randomly) generating instances
+                of it, see `.generate_model`.
+
+                * mode == 'both': Data was assigned to the model AND the models parameters were fit to that data.
+                This is most common state of a model and holds for example after you call `.set_data()` and
+                thereafter `.fit()`. In
+
+        .name : string
+
+            A (not necessarily unique) name of the model.
+
+        .names : sequence of strings
+
+            The sequence of names of the current fields of the model.  Is in the same order like `.fields`.
+
+        .parallel_processing : bool
+
+            A flag that indicates whether certain queries should be executed in parallel on multiple available cores
+            or not.
+
+        .pci_graph : None or something
+
+
+        .test_data : pd.DataFrame
+
+            When data is set to a model using `.set_data()` or indirectly by using `.fit()` it will split the data
+            into a training data set and test data set. This is the test data set.
+
+    Methods:
+
+        See the documentation at the method level.
+
+    Concepts:
+
+        Fields:
+
+            A model has a number of fields (aka dimensions or random variables). The model models a probability
+            density function on these fields and allows various queries against this density. The fields of a model
+            are accessible by the attribute `fields`. Alternatively, you may access fields by name with
+            `Model.byname()`. There is other conversion routines, like `Model.asindex()`, `Model.inverse_names()`,
+            `Model.isfieldname()`. Note that when a model shrinks due to marginalization the marginalized fields are
+            removed.
+
+        Order of Fields:
+
+            The fields of a model have a particular order that does not change during lifetime. This is the order of
+            fields in the attribute `Model.fields`. Whenever the model returns a list of values or objects related to
+            fields, they are in the same order like the fields of the model (unless noted otherwise).
+
+        Data:
+
+            The model is based on data (evidence), and the data can be queried in the same way like the model. The
+
+        Hiding/Revealing fields:
+
+            Fields of the model may be hidden, i.e. the values of hidden fields are removed from any output generated
+            by a query against the model. See `Model.hide()`
+
+        Default values and Default subset:
+
+            Default values and default subsets (i.e. ranged) are used whenever a query against the model requires
+            scalar and range input, respectively, but non is provided in the queries arguments. In these cases the
+            set default values or subsets are used.
+
+            The combination of hiding and setting a default value it provides you with a view on a slice of the
+            model, where hidden dimensions are fixed to their default values / subsets.
+
+        History:
+
+            Models also provide a 'history', i.e. information about what operations (condition, marginalize) have
+            been applied in order to arrive to the current model. This information is stored under the .history
+            attribute and is a organized as a dictionary. The key is the name of the dimension that was changed. The
+            value is a dict with these keys:
+                * 'conditioned': a list of conditions applied in that order
+                * 'marginalized': a string:
+                    either None ( if not marginalized in any way), or 'marginalized_out' (if marginalized over the full
+                    domain) or 'conditioned_out' (if marginalized after conditioning).
+
+        Storing / Loading:
+
+            An instance of a model can be loaded from and stored in a file using `Model.load()` and `Model.store()`.
+
+    Implementing a concrete Model Class:
+
+        The abstract `Model` class defines stubs for those methods that actual models are required to implement. The
+        stubs are:
 
           * _set_data(self, df, drop_silently, **kwargs)
           * _fit(self)
@@ -370,52 +624,20 @@ class Model:
         when the stub implementation is called) and responsibilities (i.e. properties and tasks that the stub has to
         fulfill). It furthermore gives hints for implementation, as often existing routines may be reused.
 
-    Fields:
 
-        A model has a number of fields (aka dimensions). The model models a probability density function on these
-        fields and allows various queries against this density. The fields of a model are accessible by the attribute
-        `fields`. Alternatively, you may access fields by name with `Model.byname()`. There is other conversion
-        routines, like `Model.asindex()`, `Model.inverse_names()`, `Model.isfieldname()`. Note that when a model
-        shrinks due to marginalization the marginalized fields are removed.
+        Each class must also fill the `._aggrMethods` dictionary. See the section Private Attributes:_aggrMethods.
 
-    Order of Fields:
+        Each class may additionally implement a number of other methods:
 
-        The fields of a model have a particular order that does not change during lifetime. This is the order of
-        fields in the attribute `Model.fields`. Whenever the model returns a list of values or objects related to
-        fields, they are in the same order like the fields of the model (unless noted otherwise).
+          * _probability()
+          * _generate_model()
 
-    Data:
+     Private Attributes:
 
-        The model is based on data (evidence), and the data can be queried in the same way like the model.
+           _aggrMethods : dict
 
-    Hiding/Revealing fields:
-
-        Fields of the model may be hidden, i.e. the values of hidden fields are removed from any output generated by
-        a query against the model. See `Model.hide()`
-
-    Default values and Default subset:
-
-        Default values and default subsets (i.e. ranged) are used whenever a query against the model requires scalar
-        and range input, respectively, but non is provided in the queries arguments. In these cases the set default
-        values or subsets are used.
-
-        The combination of hiding and setting a default value it provides you with a view on a slice of the model,
-        where hidden dimensions are fixed to their default values / subsets.
-
-    History:
-
-        Models also provide a 'history', i.e. information about what operations (condition, marginalize) have been
-        applied in order to arrive to the current model. This information is stored under the .history attribute and
-        is a organized as a dictionary. The key is the name of the dimension that was changed. The value is a dict
-        with these keys:
-            * 'conditioned': a list of conditions applied in that order
-            * 'marginalized': a string:
-                either None ( if not marginalized in any way), or 'marginalized_out' (if marginalized over the full
-                domain) or 'conditioned_out' (if marginalized after conditioning).
-
-    Storing / Loading:
-
-        An instance of a model can be loaded from and stored in a file using `Model.load()` and `Model.store()`.
+                This dictionary maps string identifier of aggregation methods to the actual method implementation,
+                i.e. a function.
 
     """
 
@@ -609,7 +831,7 @@ class Model:
             self.history[f['name']] = {'conditioned': [], 'marginalized': None}
 
     def _set_data(self, df, silently_drop, **kwargs):
-        """ Set the data for this model instance using the data frame *df*. After completion of this method
+        """Set the data for this model instance using the data frame `df`. After completion of this method
         the following attributes are set:
 
          * self.data
@@ -617,18 +839,18 @@ class Model:
          * self.mode
          * self._history (initialized)
 
-        See also model.set_data.
+        See also `.set_data()`.
 
         This method must be implemented by all actual model classes. For this purpose you might just want to use one
         of the following:
-         * Model._set_data_mixed: for continuous and categorical data
-         * Model._set_data_continuous: for continuous data
-         * Model._set_data_categorical: for categorical data
+         * `._set_data_mixed()`: for continuous and categorical data
+         * `._set_data_continuous()`: for continuous data
+         * `._set_data_categorical()`: for categorical data
         """
         raise NotImplementedError("your model must implement this method")
 
     def _set_data_mixed(self, df, silently_drop, num_names=None, cat_names=None, **kwargs):
-        """see Model._set_data"""
+        """See Model._set_data"""
 
         # split in categorical and numeric columns
         if num_names is None or cat_names is None:
@@ -706,17 +928,18 @@ class Model:
     def fit(self, df=None, **kwargs):
         """Fit the model. The model is fit:
         * to the optionally passed DataFrame `df`,
-        * or to the previously set data (using .set_data)
+        * or to the previously set data (using `.set_data()`)
 
-        On return of this method the attribute .data is filled with the appropriate data that
-        was used to fit the model, i.e. if `df` is given it is set using .set_data
+        On return of this method the attribute `.data` is filled with the appropriate data that
+        was used to fit the model, i.e. if `df` is given it is set using `.set_data()`
 
         Args:
-            df [pd.DataFrame]: Optional. A pandas data frame that holds the data to fit the model to. You can also
+            df: pd.DataFrame, optional
+                The pandas data frame that holds the data to fit the model to. You can also
                 previously set the data to fit to using the set_data method.
 
         Returns:
-            The fitted model.
+            The modified, fitted model.
         """
         if df is not None:
             return self.set_data(df, **kwargs).fit(**kwargs)
@@ -876,8 +1099,8 @@ class Model:
         return self
 
     def _marginalizeout(self, keep, remove):
-        """Marginalizes the model such that only random variables with names in keep remain and
-        variables with name in remove are removed.
+        """Marginalize the model such that only fields with names in `keep` remain and
+        fields with name in `remove` are removed.
 
         This method must be implemented by any actual model that derived from the abstract Model class.
 
@@ -888,12 +1111,13 @@ class Model:
           * keep contains all names of the model
           * remove is anything but the inverse list of names of fields with respect to keep
 
-        Moreover keep and remove are guaranteed to be in the same order than the random variables of this model
+        Moreover if `._marginalizeout()`is called, keep and remove are guaranteed to be in the same order than the
+        fields of this model
         """
         raise NotImplementedError("Implement this method in your model!")
 
     def condition(self, conditions=None, is_pure=False):
-        """Conditions this model according to the list of three-tuples
+        """Condition this model according to the list of three-tuples
         (<name-of-random-variable>, <operator>, <value(s)>). In particular
         objects of type ConditionTuples are accepted and see there for allowed values.
 
@@ -902,7 +1126,8 @@ class Model:
         with the appropriate parameters.
         TODO: this is actually a conceptual error. It should NOT only restrict the domain, but actually compute a conditional model. See  https://ci.inf-i2.uni-jena.de/gemod/modelbase/issues/4
 
-        Hidden dimensions: Whether or not any dimension of the model is hidden makes no difference to the result of this method. In particular you may condition on hidden dimensions.
+        Hidden dimensions: Whether or not any dimension of the model is hidden makes no difference to the result of
+        this method. In particular you may condition on hidden dimensions.
 
         Default values: Default values for dimensions are not taken into consideration in any way.
 
@@ -945,19 +1170,19 @@ class Model:
         return self
 
     def _conditionout(self, keep, remove):
-        """Conditions the random variables with name in remove on their available, //not unbounded// domain and
+        """Condition the field with name in `remove` on their available, //not unbounded// domain and
         marginalizes them out.
 
         This method must be implemented by any actual model that derived from the abstract Model class.
 
         This method is guaranteed to be _not_ called if any of the following conditions apply:
-          * remove is anything but a list of names of random-variables of this model
+          * remove is anything but a list of names of fields of this model
           * remove is empty
           * the model itself is empty
           * remove contains all names of the model
           * keep is anything but the inverse list of names of fields with respect to remove
 
-        Moreover keep and remove are guaranteed to be in the same order than the random variables of this model
+        Moreover keep and remove are guaranteed to be in the same order than the fields of this model
 
         Note that we don't know yet how to condition on a non-singular domain (i.e. condition on interval or sets).
         As a work around we therefore:
@@ -1630,22 +1855,28 @@ class Model:
 
     def model(self, model='*', where=None, as_=None, default_values=None, default_subsets=None, hide=None):
         """Return a model with name `as_` that models the random variables in `model` respecting conditions in
-        `where`. Moreover, dimensions in hide will be hidden/unhidden (depending on the passed boolean) and default
-        values will be set.
+        `where`. Moreover, fields in hide will be hidden/unhidden (depending on the passed boolean) and default
+        values and/or default subsets will be set.
 
         It does NOT create a copy, but MODIFIES this model.
 
         Args:
-            model: A list of strings, representing the names of random variables to
-                model. Its value may also be "*" or ["*"], meaning all random variables
-                of this model.
-            where: A list of 'conditiontuple's, representing the conditions to
-                model.
-            as_: An optional string. The name for the model to derive. If set
-                to None the name of the base model is used. Defaults to None.
-            default_values: An optional dict of <name>:<value>, where <name> is the name of a dimension of this model and <value> the default value to be set. Pass None to remove the default.
-            default_subsets: An optional dict of <name>:<subset>, where <name> is the name of a dimension of this model and <subset> the default subset to be set. Pass None to remove the default.
-            hide: Optional. Either a string or list of strings, where each string is the name of a dimension of this model that will be hidden. Or a <name>:<bool>-dict where name is a dimensions name and bool is True iff the dimension will be hidden, or False if it is unhidden.
+            model: sequence of strings or "*", optional.
+                Each string is the name of a field to model. Its value may also be "*" or ["*"], meaning all random
+                variables of this model. Defaults to '*'.
+            where: sequence of tuples, optional.
+                The sequence of conditions to model. Defaults to None.
+            as_: string, optional
+                The name for the model to derive. If set to None the name of the base model is used. Defaults to None.
+            default_values: dict, optional
+                 A dict of <name>:<value>, where <name> is the name of a dimension of this model and <value> the
+                 default value to be set. Pass None to remove a already set default.
+            default_subsets: dict, optional.
+                An dict of <name>:<subset>, where <name> is the name of a dimension of this model and <subset> the
+                default subset to be set. Pass None to remove the default.
+            hide: string or sequence of strings, optional.
+                Each name refers to a field of this model that will be hidden. Or a <name>:<bool>-dict where name is
+                a dimensions name and bool is True iff the dimension will be hidden, or False if it is unhidden.
 
         Returns:
             The modified model.
@@ -1658,18 +1889,18 @@ class Model:
             .marginalize(keep=model)
 
     def predict(self, predict, where=None, splitby=None, returnbasemodel=False):
-        """Calculate the prediction against the model and returns its result
-        by means of a data frame.
+        """Calculate the prediction against the model and returns its result by means of a data frame.
 
-        The data frame contains exactly those columns/random variables which
-        are specified in 'predict'. Its order is preserved.
+        The data frame contains exactly those fields which are specified in 'predict'. Its order is preserved.
 
         It does NOT modify the model it is called on.
 
         Args:
-            predict: A list of names of fields (strings) and 'AggregationTuple's.
-                This is the list of fields to be included in the returned dataframe.
-            where: A list of 'conditiontuple's, representing the conditions to
+            predict: A sequence of strings and
+
+                This is list of fields (either by name ornames of fields (strings) and 'AggregationTuple's.
+                This is the list of fields and aggregations to be included in the returned data frame. They are referenced either by their nam
+            where: A list of `ConditionTuple`s, representing the conditions to
                 adhere.
             splitby: A list of 'SplitTuple's, i.e. a list of fields on which to
                 split the model and the method how to do the split.
@@ -1682,7 +1913,8 @@ class Model:
 
         Hidden dimensions:
             TODO: fix?
-            You may not include any hidden dimension in the predict-clause, and such queries will result in a ValueError().
+            You may not include any hidden dimension in the predict-clause, and such queries will result in a
+            ValueError().
             TODO: raise error
 
         Default Values:
@@ -1691,14 +1923,14 @@ class Model:
                 # let model be a model with the default value of X set to 1.
                 model.predict(Density('X','Y'), splitby=Split('Y', 'equidist, 10))
 
-            This will NOT result in an error, since the - normally required - split for X is automatically generated, due to
-            the information that X defaults to 1.
+            This will NOT result in an error, since the - normally required - split for X is automatically generated,
+            due to the information that X defaults to 1.
 
-            You may, at the same time, include the defaulting dimensions in the result table. A slight variation of the example above:
+            You may, at the same time, include the defaulting dimensions in the result table. A slight variation of
+            the example above:
 
                 # let model be a model with the default value of X set to 1.
                 model.predict(X, Y, Density('X','Y'), splitby=Split('Y', 'equidist, 10))
-
         """
         # TODO: add default splits for each data type?
 
@@ -1737,11 +1969,10 @@ class Model:
         basenames = set(split_names)  # set of names of fields needed for basemodel of this query
 
         def add_split_for_defaulting_dimension(dim):
-            """ Dimensions that have defaults may be left out when specifying the query.
-            This method will add a filter and identity split for such provided defaulting dimension, if possible.
+            """ A add a filter and identity split for the defaulting field `dim`, if possible.
 
             Returns:
-                the value/subset dim defaults to.
+                the value/subset `dim` defaults to.
             """
             if dim['default_value'] is not None:
                 def_ = dim['default_value']
@@ -2022,7 +2253,25 @@ class Model:
 
         return (data_frame, basemodel) if returnbasemodel else data_frame
 
-    def select_data(self, what, where=None, **kwargs):
+    def _select_data(self, what, where=None, **kwargs):
+        """Select and return that subset of the models data in `self.data` that respect the conditions in `where` and the columns
+        selection in `what`.
+
+        Args:
+            what : string or sequence of strings.
+            where : tuple or sequence of tuples or None
+                The condition tuple to restrict the data by. Defaults to None.
+            kwargs : dict, optional.
+                Options dictionary. Available options are:
+                    'data_category', with values:
+                        'training data': return selection of training data
+                        'test data': return selection of test data
+                        defaults to: 'training data'
+
+        Returns : pd.DataFrame
+            The selected data as a data frame.
+        """
+
         # todo: use update_opts also at other places where appropiate (search for validate_opts)
         opts = utils.update_opts({'data_category': 'training data'}, kwargs)
         # TODO: use validation argument for update_opts again, i.e. implement numerical ranges or such
@@ -2054,14 +2303,23 @@ class Model:
             raise KeyError('at least on of ' + str(what) + ' is not a column label of the data.')
 
         # select data
-        data = self.select_data(what, where, **kwargs)
+        data = self._select_data(what, where, **kwargs)
 
         # return reordered
         return data.loc[:, what]
 
     def generate_model(self, opts={}):
-        # call specific class method
-        callbacks = self._generate_model(opts)
+        """Generate a model from no_data.
+
+        Generate a random instance of a model class. It will replace the current model.
+
+        This is mainly meant for testing and debugging purposes. It is not strictly required that every model class
+        implements the corresponding private method `._generate_model()`.
+
+        See the documentation of the `._generate_model()` method to learn more.
+        """
+
+        callbacks = self._generate_model(opts)  # call specific class method
         self._init_history()
         self._update_all_field_derivatives()
         for callback in callbacks:
@@ -2069,10 +2327,15 @@ class Model:
         return self
 
     def _generate_data(self, opts=None):
-        """Provided that self is a functional model, this method it samples opts['n'] many samples from it
-        and sets it as the models data. It also sets the 'mode' of this model to 'both'. If not n is given 1000
-        samples will be created
+        """Sample `opts['n']` many samples and set it as the models data.
 
+        When called this must be a model with `self.mode == "model or self.mode == "both"`.
+
+        Args:
+            opts : dict, optional.
+                Options. Allows values are:
+                    'n': int, optional.
+                        The number of data items to generate. Defaults to 1000.
         """
         if opts is None:
             opts = {}
@@ -2086,8 +2349,17 @@ class Model:
         return self
 
     def loglikelihood(self, data=None):
+        """Calculate the log-likelihood of set of data points.
+
+        Args:
+            data : pd.DataFrame or object other that np.array accepts.
+
+        """
         if data == None:
             data = self.data
+        # TODO: why is there np.array ? isn't that slow?
+        # TODO: why pass data in the first place?
+        # TODO: why sum over it?
         return sum([np.log(self._density(x)) for x in np.array(data)])
 
 
