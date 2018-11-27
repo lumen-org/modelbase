@@ -13,7 +13,8 @@ import unittest
 import pandas as pd
 from random import shuffle
 
-from mb_modelbase.models_core.models import Model, Condition, Density, Aggregation, Split, SplitTuple, AggregationTuple
+from mb_modelbase.models_core.models import Model
+from mb_modelbase.models_core.base import Aggregation, Split, Condition
 from mb_modelbase.models_core.mockup_model import MockUpModel
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
 from mb_modelbase.models_core.tests import test_crabs
@@ -340,6 +341,7 @@ class TestParallelProcessing(unittest.TestCase):
 
     def test_prob(self):
         pred = ['sepal_width', 'sepal_length', Aggregation(['sepal_length', 'sepal_width'], method='probability', yields=None, args=None)]
+        # TODO: use Split instead of SplitTuple
         split = [SplitTuple(name='sepal_width', method='equiinterval', args=[10]), SplitTuple(name='sepal_length', method='equiinterval', args=[10])]
 
         self.model.parallel_processing = True
@@ -350,6 +352,7 @@ class TestParallelProcessing(unittest.TestCase):
         self.assertTrue(df_parallel.equals(df_serial))
 
     def test_maximum(self):
+        # TODO: use Split instead of SplitTuple, and Aggregation instead of AggregationTuple
         pred = ['sepal_width', 'sepal_length', AggregationTuple(name=['species'], method='maximum', yields='species', args=[])]
         split = [SplitTuple(name='sepal_width', method='equiinterval', args=[10]), SplitTuple(name='sepal_length', method='equiinterval', args=[10])]
 

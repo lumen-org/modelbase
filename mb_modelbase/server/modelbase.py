@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2017-2018 Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 @author: Philipp Lucas
 
@@ -13,6 +13,7 @@ import os
 import numpy
 
 from mb_modelbase.models_core import models as gm
+from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import pci_graph
 
 logger = logging.getLogger(__name__)
@@ -95,19 +96,19 @@ def PQL_parse_json(query):
                 args = e["args"] if "args" in e else None
                 yields = e["yields"] if "yields" in e else None
                 try:
-                    return gm.AggregationTuple(names, e["aggregation"], yields, args)
+                    return base.AggregationTuple(names, e["aggregation"], yields, args)
                 except KeyError:
                     raise ValueError("unsupported aggregation method: " + str(e))
 
         return list(map(_aggrSplit, clause))
 
     def _where(clause):
-        return [gm.Condition(e["name"], e["operator"], e["value"]) for e in clause]
+        return [base.Condition(e["name"], e["operator"], e["value"]) for e in clause]
 
     def _splitby(clause):
         def _mapSplit(e):
             args = e["args"] if "args" in e else None
-            return gm.SplitTuple(e["name"], e["split"], args)
+            return base.SplitTuple(e["name"], e["split"], args)
 
         return list(map(_mapSplit, clause))
 

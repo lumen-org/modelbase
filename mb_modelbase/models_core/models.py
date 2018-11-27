@@ -9,286 +9,31 @@ This module defines:
    * Condition, Split, Aggregation: convenience constructor functions to easily make suitable clauses for PQL queries
 """
 import copy as cp
-from collections import namedtuple
-from functools import reduce
-from operator import mul
+import functools
+import operator
 import pickle as pickle
 import multiprocessing as mp
 import multiprocessing_on_dill as mp_dill
-
 import numpy as np
 import pandas as pd
 import logging
 
-from mb_modelbase.models_core import domains as dm
+from mb_modelbase.models_core import base
+from mb_modelbase.models_core.base import Field, Aggregation, Density, Probability, Split, Condition
+from mb_modelbase.models_core.base import NAME_IDX, METHOD_IDX, YIELDS_IDX, ARGS_IDX, OP_IDX, VALUE_IDX
 from mb_modelbase.models_core import splitter as sp
-from mb_modelbase.utils import utils as utils
-from mb_modelbase.models_core import data_aggregation as data_aggr
-from mb_modelbase.models_core import data_operations as data_ops
-from mb_modelbase.models_core import pci_graph as pci_graph
-from mb_modelbase.models_core import auto_extent as ae
+from mb_modelbase.utils import utils
+from mb_modelbase.utils import data_import_utils
+from mb_modelbase.models_core import data_aggregation
+from mb_modelbase.models_core import data_operations
+from mb_modelbase.models_core import pci_graph
+from mb_modelbase.models_core import auto_extent
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-""" Development Notes (Philipp)
-# interesting links
-https://github.com/rasbt/pattern_classification/blob/master/resources/python_data_libraries.md !!!
-"""
-
-
-AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'yields', 'args'])
-"""An aggregation tuple describes an aggregation.
-
-Note that is is optional to used these named tuples. Normal tuples may also be use to represent aggregations.  
-
-Attributes:
-    name : sequence of string 
-        The names of the fields that is aggregated over.
-    method : string
-        The method to use for aggregation. Available methods depend on the model class.
-    yields : string
-        The name of the field that the resulting value will be of. 
-    args 
-        Additional arguments passed to the aggregation function.
-"""
-
-SplitTuple = namedtuple('SplitTuple', ['name', 'method', 'args'])
-"""An split tuple details how a field of a model is split by.
-
-Attributes:
-    name : string
-        The  name of the field to split.
-    method : string
-        The method to use to split. Available methods depend on the model class and the data type.
-    args
-        Additional arguments passed to the split function.
-"""
-NAME_IDX = 0
-METHOD_IDX = 1
-YIELDS_IDX = 2
-ARGS_IDX = 2
-
-ConditionTuple = namedtuple('ConditionTuple', ['name', 'operator', 'value'])
-"""A condition tuple describes the details of how a field of model is conditioned.
-
-Attributes:
-    name : string
-        The name of field to condition.
-    operator : ['in', 'equals', '==', 'greater', 'less']
-        The operator of the condition.
-    value : its allowed values depend on the value of operator        
-        operator is 'in': A single element (to set the domain singular) or a sequence of elements (if the field is 
-            discrete), or a two-element list [min, max] if the field is continuous. 
-        operator is 'equals' or '==': a single element
-        operator == 'greater': a single element that is set to be the new upper bound of the domain.
-        operator == 'less': a single element that is set to be the new lower bound of the domain.
-"""
-OP_IDX = 1
-VALUE_IDX = 2
-
-"""Internal utility functions: 
-For a number of interfaces we want to allow both: single name of fields or single fields, and sequences of these. 
-These function help to get them in a uniform way internally: sequences of names. 
-"""
-
-
-def _name_from_field(base):
-    """Base may either be a field name or a Field. It returns the fields name in either cases."""
-    if isinstance(base, str):
-        return base
-    try:
-        return base['name']
-    except KeyError:
-        raise TypeError('Base must be a Field-dict or a name')
-
-
-def _is_single_name_or_field(obj):
-    return isinstance(obj, (str, dict))
-
-
-def _to_sequence(obj):
-    return [obj] if _is_single_name_or_field(obj) else obj
-
-
-def _to_name_sequence(obj):
-    return list(map(_name_from_field, _to_sequence(obj)))
-
-
-def Field(name, domain, extent, dtype='numerical'):
-    """ A factory for 'Field'-dicts.
-
-    Fields represent the dimensions, random variables or attributes of models that are accessible by and exposed to
-    the outside.
-
-    Attributes: a field has the following attributes:
-        'name': Same as the argument to this function.
-        'domain': Same as the argument to this function.
-        'extent': Same as the argument to this function.
-        'dtype': Same as the argument to this function.
-        'default_value': See `Model`.
-        'default_subset': See `Model`.
-
-    Args:
-        name : string
-            The name of the field.
-        domain : `dm.Domain`
-            The domain of the field.
-        extent : `dm.Domain`
-            The extent of the field. May not be unbounded. The extent of the field that will be used as a fallback
-            for domain if domain is unbounded but a value for domain is required
-        dtype : ['numerical', 'string'] , optional.
-            A string identifier of the data type of this field.
-
-    Returns : dict
-        The constructed 'field dictionary'.
-    """
-    if not extent.isbounded():
-        raise ValueError("extents must not be unbounded")
-    if dtype not in ['numerical', 'string']:
-        raise ValueError("dtype must be 'string' or 'numerical'")
-    field = {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype, 'hidden': False, 'default_value': None,
-             'default_subset': None}
-    return field
-
-
-def Aggregation(base, method='maximum', yields=None, args=None):
-    """A factory for 'AggregationTuples'.
-
-    This is the preferred way to construct `AggregationTuple`s as it provides some convenience over the raw
-    method, such as filling in missing values, deriving suitable defaults and some value/type checking.
-
-    See also `AggregationTuple`.
-
-    Arguments:
-        base : A single or a sequence of field names or fields
-            The fields to aggregate over.
-        method : string, optional.
-            The method to use for aggregation. Available methods depend on the model class, however 'maximum' should
-            always be available.
-        yields : string, optional
-            The name of the field that the resulting value will be of. Needs not to be provided for methods
-            'probability' and 'density'.
-        args : Any, optional.
-            Additional arguments passed to the aggregation function. Defaults to None
-    """
-    name = _to_name_sequence(base)
-    if yields is None:
-        yields = "" if method == 'density' or method == 'probability' else name[0]
-    if args is None:
-        args = []
-    if method not in set(['density', 'probability', 'maximum', 'average']):
-        raise ValueError('invalid aggregation method: ' + str(method))
-    return AggregationTuple(name, method, yields, args)
-
-
-def Condition(base, operator, value):
-    """A factory for 'ConditionTuple's
-
-    This is the preferred way to construct `ConditionTuple`s as it provides some convenience over the raw
-    method, such as filling in missing values, deriving suitable defaults and some value/type checking.
-
-    See also `ConditionTuple`.
-
-    Args:
-        base : Field or string
-            The field to condition on.
-        operator : string
-            The operator of the condition.
-        value : Any
-            See `ConditionTuple`.
-    """
-    return ConditionTuple(_name_from_field(base), operator, value)
-
-
-def Density(base):
-    """A factory for density aggregations.
-
-    This is the preferred way to construct an `AggregationTuple` that encodes a density query.
-
-    See also `AggregationTuple`.
-
-    base : a single or a sequence of `Field` or string
-            The names to query density over.
-    """
-    return Aggregation(base, method='density')
-
-
-def Probability(base):
-    """A factory for probability aggregations.
-
-    This is the preferred way to construct an `AggregationTuple` that encodes a probability query.
-
-    See also `AggregationTuple`.
-
-    Args:
-        base : a single or a sequence of `Field` or string
-            The names to query probability over.
-    """
-    return Aggregation(base, method='probability')
-
-
-def Split(base, method=None, args=None):
-    """A factory for splits.
-
-    This is the preferred way to create `SplitTuple`s as it provides some convenience over the raw
-    method, such as filling in missing values, deriving suitable defaults and some value/type checking.
-
-    There is some auto-completion available, where meaningfully possible, as follows:
-
-        default methods by data type (dtype)
-            * 'elements' for 'string' dtype
-            * 'equiinterval' for 'numerical' dtype
-
-        default arguments by method:
-            * [25] for 'equiinterval' and 'equidist'
-            * [] for 'identity' and 'elements'
-
-    Args:
-        base : a single or a sequence of `Field` or string
-            The names to query probability over.
-        method : string, optional.
-            The method to use to split. Available methods depend on the model class and the data type.
-        args : any, optional
-            Additional arguments passed to the split function. Default
-
-    """
-    if isinstance(base, str):
-        name = base
-        if method is None:
-            raise ValueError('Cannot infer suitable split method if only a name (but not a Field) is provided.')
-    else:
-        try:
-            name = base['name']
-        except KeyError:
-            raise TypeError('Base must be a Field-dict or a name')
-        if method is None:
-            if base['dtype'] == 'string':
-                method = 'elements'
-            elif base['dtype'] == 'numerical':
-                method = 'equiinterval'
-            else:
-                raise ValueError('unknown dtype: ' + str(base['dtype']))
-    if args is None:
-        if method == 'equiinterval' or method == 'equidist':
-            args = [25]
-        elif method == 'identity' or method == 'elements':
-            args = []
-        else:
-            raise ValueError('unknown method type: ' + str(method))
-    else:
-        # TODO: this whole way of handling args sucks... I should replace it with a default of None and a dict for actual values...
-        # promote non-iterable to sequences
-        if not isinstance(args, str):
-            try:
-                iter(args)  # if that did fail it's not iterable and we don't need to promote it
-            except TypeError:
-                args = [args]
-    return SplitTuple(name, method, args)
-
 
 """ Utility functions for converting models and parts / components of models to strings. """
-
 
 def field_tojson(field):
     """Returns an adapted version of a field that in any case is JSON serializable. A fields domain may contain the
@@ -354,130 +99,6 @@ def _tuple2str(tuple_):
     is_aggr_tuple = len(tuple_) == 4 and not tuple_[METHOD_IDX] == 'density'
     prefix = (str(tuple_[YIELDS_IDX]) + '@') if is_aggr_tuple else ""
     return prefix + str(tuple_[METHOD_IDX]) + '(' + str(tuple_[NAME_IDX]) + ')'
-
-
-""" Utility functions for data import. """
-
-
-def split_training_test_data(df):
-    """Split data frame `df` into two parts and return them as a 2-tuple.
-
-    The first returned data frame will contain 5% of the data, but not less than 25 item and not more than 50 items,
-    and not more than 50% items.
-    """
-    n = df.shape[0]
-
-    # select training and test data
-    limit = int(min(max(n * 0.05, 25), 50,
-                    n))  # 5% of the data, but not less than 25 and not more than 50, and not more than 50% test
-    if limit > n / 2:
-        limit = n // 2
-
-    test_data = df.iloc[:limit, :]
-    data = df.iloc[limit:, :]
-    return test_data, data
-
-
-def normalize_dataframe(df, numericals):
-    """Normalizes all columns in data frame df. It uses z-score normalization and applies it per column. Returns the normalization parameters and the normalized dataframe,  as a tuple of (df, means, sigma). It expects only numercial columns in given dataframe.
-
-    Args:
-        df: dataframe to normalize.
-    Returns:
-        (df, means, sigmas): the normalized data frame, and the mean and sigma as np.ndarray
-    """
-    df = df.copy()
-    numdf = df.loc[:, numericals]
-
-    (n, dg) = numdf.shape
-    means = numdf.sum(axis=0) / n
-    sigmas = np.sqrt((numdf ** 2).sum(axis=0) / n - means ** 2)
-
-    df.loc[:, numericals] = (numdf - means) / sigmas
-
-    return df, means.values, sigmas.values
-
-
-def clean_dataframe(df):
-    # check that there are no NaNs or Nones
-    if df.isnull().any().any():
-        raise ValueError("DataFrame contains NaNs or Nulls.")
-
-    # convert any categorical columns that have numbers into strings
-    # and raise errors for unsupported dtypes
-    for colname in df.columns:
-        col = df[colname]
-        dtype = col.dtype
-        if dtype.name == 'category':
-            # categories must have string levels
-            cat_dtype = col.cat.categories.dtype
-            if cat_dtype != 'str' and cat_dtype != 'object':
-                logger.warning('Column "' + str(colname) +
-                               '" is categorical, however the categories levels are not of type "str" or "object" '
-                               'but of type "' + str(cat_dtype) +
-                               '". I\'m converting the column to dtype "object" (i.e. strings)!')
-                df[colname] = col.astype(str)
-
-    return df
-
-
-def get_columns_by_dtype(df):
-    """Returns a triple of colnames (all, cat, num) where:
-      * all is all names of columns in df,
-      * cat is the names of all categorical columns in df, and
-      * num is the names of all numerical columns in df.
-      Any column in df that is not recognized as either categorical or numerical will raise a TypeError.
-      """
-    all = []
-    categoricals = []
-    numericals = []
-    for colname in df:
-        column = df[colname]
-        if column.dtype.name == "category" or column.dtype.name == "object":
-            categoricals.append(colname)
-        elif np.issubdtype(column.dtype, np.number):
-            numericals.append(colname)
-        else:
-            raise TypeError("unsupported column dtype : " + str(column.dtype.name) + " of column " + str(colname))
-        all.append(colname)
-    return all, categoricals, numericals
-
-
-def get_discrete_fields(df, colnames):
-    """Returns discrete fields constructed from the columns in colname of dataframe df.
-    This assumes colnames only contains names of discrete columns of df."""
-    fields = []
-    for colname in colnames:
-        column = df[colname]
-        domain = dm.DiscreteDomain()
-        extent = dm.DiscreteDomain(sorted(column.unique()))
-        field = Field(colname, domain, extent, 'string')
-        fields.append(field)
-    return fields
-
-
-def get_numerical_fields(df, colnames):
-    """Returns numerical fields constructed from the columns in colname of dataframe df.
-    This assumes colnames only contains names of numerical columns of df."""
-    fields = []
-    for colname in colnames:
-        column = df[colname]
-        mi, ma = column.min(), column.max()
-        d = (ma - mi) * 0.1
-        field = Field(colname, dm.NumericDomain(), dm.NumericDomain(mi - d, ma + d), 'numerical')
-        fields.append(field)
-    return fields
-
-
-def to_category_cols(df, colnames):
-    """Returns df where all columns with names in colnames have been converted to the category type using pd.astype(
-    'category').
-    """
-    # df.loc[:,colnames].apply(lambda c: c.astype('category'))  # also works, but more tedious merge with not converted df part
-    for c in colnames:
-        # .cat.codes access the integer codes that encode the actual categorical values. Here, however, we want such integer values.
-        df[c] = df[c].astype('category').cat.codes
-    return df
 
 
 class Model:
@@ -561,22 +182,22 @@ class Model:
 
         Fields:
 
-            A model has a number of fields (aka dimensions or random variables). The model models a probability
-            density function on these fields and allows various queries against this density. The fields of a model
-            are accessible by the attribute `fields`. Alternatively, you may access fields by name with
-            `Model.byname()`. There is other conversion routines, like `Model.asindex()`, `Model.inverse_names()`,
-            `Model.isfieldname()`. Note that when a model shrinks due to marginalization the marginalized fields are
-            removed.
+            A model has a number of fields (aka dimensions or random variables or attributes). The model models a
+            probability density function on these fields and allows various queries against this density function.
+            The fields of a model are accessible by the attribute `fields`. Alternatively, you may access fields by
+            name with `Model.byname()`. There is other conversion routines, like `Model.asindex()`,
+            `Model.inverse_names()`, `Model.isfieldname()`. Note that when a model shrinks due to marginalization the
+            marginalized fields are removed. Hence, `.fields` always represents the 'current' Fields.
 
         Order of Fields:
 
-            The fields of a model have a particular order that does not change during lifetime. This is the order of
-            fields in the attribute `Model.fields`. Whenever the model returns a list of values or objects related to
-            fields, they are in the same order like the fields of the model (unless noted otherwise).
+            The fields of a model have a particular order that does not change during its lifetime. This is the order
+            of fields in the attribute `Model.fields`. Whenever the model returns a list of values or objects related
+            to fields, they are in the same order like the fields of the model (unless noted otherwise).
 
         Data:
 
-            The model is based on data (evidence), and the data can be queried in the same way like the model. The
+            The model is based on data (evidence), and the data can be queried in the same way like the model.
 
         Hiding/Revealing fields:
 
@@ -602,6 +223,23 @@ class Model:
                 * 'marginalized': a string:
                     either None ( if not marginalized in any way), or 'marginalized_out' (if marginalized over the full
                     domain) or 'conditioned_out' (if marginalized after conditioning).
+
+        Model Queries:
+
+            Once the model is initialized (i.e. its `.mode` equals 'model' or 'both') you may run model queries
+            against it. There is two types of queries:
+                1. modelling queries, i.e. queries that result in an modified model. These are:
+                    * marginalization: `.marginalize()`,
+                    * conditioning: `.condition()`, and
+                    * a complex query method that combines both above (and more): `.model()`
+                2. 'execution' queries, i.e. queries that return a specific characterization of the model. These are:
+                    * query density: `.density()` which returns the density at a certain point in the domain of the
+                        model,
+                    * query probability: `.probability()` which returns the probability of a certain event,
+                    * sampling: `.sample()` which draws samples according to the distribution,
+                    * aggregations: `.aggregate()` which aggregates the model using to chosen method, and
+                    * a complex query method that combines (almost) all of the above (and more): `.predict()`
+            There is some other methods that change the 'default' behaviour of the model, but do not actually change the model. See secition 'Default Values and Default Subsets'.
 
         Storing / Loading:
 
@@ -650,8 +288,8 @@ class Model:
         # "fields: " + str([str(field) for field in self.fields]))
 
     def __short_str__(self, max_fields=5):
-        """Return a short string representation. By default return the first 5 fields. Set the max_fields parameter
-        to change that.
+        """Return a short string representation. By default return a string representation of the first 5 fields. Set
+        the max_fields parameter to change that.
         """
         fields = self.fields[:max_fields]
         field_strs = [('#' if field.dtype == 'string' else '±') + field.name for field in fields]
@@ -808,7 +446,7 @@ class Model:
         kwargs = utils.update_opts(kwargs, default_opts, valid_opts)
 
         # general clean up
-        df = clean_dataframe(df)
+        df = data_import_utils.clean_dataframe(df)
 
         if df.shape[0] == 0:
             raise ValueError("Cannot fit to data frame with no rows.")
@@ -854,7 +492,7 @@ class Model:
 
         # split in categorical and numeric columns
         if num_names is None or cat_names is None:
-            _, cat_names, num_names = get_columns_by_dtype(df)
+            _, cat_names, num_names = data_import_utils.get_columns_by_dtype(df)
         self._categoricals = cat_names
         self._numericals = num_names
 
@@ -867,11 +505,11 @@ class Model:
 
         # shuffle and set data frame
         df = df.sample(frac=1, random_state=42).reset_index(drop=True)
-        self.test_data, self.data = split_training_test_data(df)
+        self.test_data, self.data = data_import_utils.split_training_test_data(df)
 
         # derive and set fields
-        self.fields = get_discrete_fields(df, self._categoricals) + \
-                      get_numerical_fields(df, self._numericals)
+        self.fields = data_import_utils.get_discrete_fields(df, self._categoricals) + \
+                      data_import_utils.get_numerical_fields(df, self._numericals)
 
         # normalize numerical part of data frame. For better numerical performance.
         # this is done at model level
@@ -887,7 +525,7 @@ class Model:
         """see Model._set_data"""
 
         # split in categorical and numeric columns
-        all, categoricals, numericals = get_columns_by_dtype(df)
+        all, categoricals, numericals = data_import_utils.get_columns_by_dtype(df)
 
         # check if dtype are ok
         if len(categoricals) > 0:
@@ -895,10 +533,10 @@ class Model:
 
         # shuffle and set data frame
         df = pd.DataFrame(df, columns=numericals).sample(frac=1, random_state=42).reset_index(drop=True)
-        self.test_data, self.data = split_training_test_data(df)
+        self.test_data, self.data = data_import_utils.split_training_test_data(df)
 
         # derive and set fields
-        self.fields = get_numerical_fields(self.data, numericals)
+        self.fields = data_import_utils.get_numerical_fields(self.data, numericals)
 
         self._init_history()
 
@@ -908,7 +546,7 @@ class Model:
         """see Model._set_data"""
 
         # split in categorical and numeric columns
-        all, categoricals, numericals = get_columns_by_dtype(df)
+        all, categoricals, numericals = data_import_utils.get_columns_by_dtype(df)
 
         # check if dtype are ok
         if len(numericals) > 0:
@@ -916,10 +554,10 @@ class Model:
 
         # shuffle and set data frame
         df = pd.DataFrame(df, columns=categoricals).sample(frac=1, random_state=42).reset_index(drop=True)
-        self.test_data, self.data = split_training_test_data(df)
+        self.test_data, self.data = data_import_utils.split_training_test_data(df)
 
         # derive and set fields
-        self.fields = get_discrete_fields(self.data, categoricals)
+        self.fields = data_import_utils.get_discrete_fields(self.data, categoricals)
 
         self._init_history()
 
@@ -957,9 +595,9 @@ class Model:
 
             # TODO: clean up and add as parameter for `fit`
             if True:
-                # ae.print_extents(self)
-                ae.adopt_all_extents(self)
-                # ae.print_extents(self)
+                # auto_extent.print_extents(self)
+                auto_extent.adopt_all_extents(self)
+                # auto_extent.print_extents(self)
 
         except NameError:
             raise NotImplementedError("You have to implement the _fit method in your model!")
@@ -1003,13 +641,13 @@ class Model:
         if keep is not None:
             if keep == '*':
                 return self
-            keep = _to_name_sequence(keep)
+            keep = base.to_name_sequence(keep)
             if self._hidden_count != 0:
                 keep = keep + [f['name'] for f in self.fields if f['hidden']]  # keep hidden dims
             if not self.isfieldname(keep):
                 raise ValueError("invalid random variables names in argument 'keep': " + str(keep))
         elif remove is not None:
-            remove = _to_name_sequence(remove)
+            remove = base.to_name_sequence(remove)
             if not self.isfieldname(remove):
                 raise ValueError("invalid random variable names in argument 'remove': " + str(remove))
             keep = set(self.names) - set(remove)
@@ -1163,8 +801,8 @@ class Model:
         # TODO: if conditions is a zip: how can it be reused a 2nd and 3rd time below!??
         # condition data
         if self.mode == 'data' or self.mode == 'both':
-            self.data = data_ops.condition_data(self.data, conditions)
-            self.test_data = data_ops.condition_data(self.test_data, conditions)
+            self.data = data_operations.condition_data(self.data, conditions)
+            self.test_data = data_operations.condition_data(self.test_data, conditions)
 
         self._update_extents(names)
         return self
@@ -1236,7 +874,7 @@ class Model:
 
         # normalize to dict
         if not isinstance(dims, dict):
-            dims = _to_name_sequence(dims)
+            dims = base.to_name_sequence(dims)
             dims = dict(zip(dims, [val] * len(dims)))
 
         for name, flag in dims.items():
@@ -1347,7 +985,7 @@ class Model:
         return self
 
     @staticmethod
-    def has_default(self, dims):
+    def has_default(dims):
         """Given a single dimension name or a sequence of dimension names returns a single or a sequence of booleans,
         each indicating whether or not the dimension with that name has any defaulting value/subset.
         """
@@ -1372,10 +1010,10 @@ class Model:
     def aggregate_data(self, method, opts=None):
         """Aggregate the models data according to given method and options, and return this aggregation.
 
-        See `data_aggr.aggregate_data()`.
+        See `data_aggregation.aggregate_data()`.
         """
         # TODO: should I add the option to compute aggregations on a selectable part of the data
-        return data_aggr.aggregate_data(self.data, method, opts)
+        return data_aggregation.aggregate_data(self.data, method, opts)
 
     def aggregate_model(self, method, opts=None):
         """Aggregate the model according to given method and options and return the aggregation value.
@@ -1666,7 +1304,7 @@ class Model:
                 If [l,h] is the interval, then neither l nor h may be +-infinity and it must hold l <= h
         """
         # volume of all combined each quantitative domains
-        vol = reduce(mul, [high - low for low, high in num_domains], 1)
+        vol = functools.reduce(operator.mul, [high - low for low, high in num_domains], 1)
         # map quantitative domains to their mid
         y = [(high + low) / 2 for low, high in num_domains]
 
@@ -2069,7 +1707,7 @@ class Model:
             # all splits are non-data splits
             if len(data_splits) == 0:
                 group_frames = map(_get_group_frame, splitby, split_ids)
-                input_frame = reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
+                input_frame = functools.reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
 
             # all splits are data and/or identity splits
             elif len(data_splits) + len(identity_splits) == len(splitby):
@@ -2278,7 +1916,7 @@ class Model:
         # opts = utils.update_opts({'data_category': 'training data'}, kwargs, {'data_category': ['training data', 'test data']})
         df = self.data if opts['data_category'] == 'training data' else self.test_data
 
-        selected_data = data_ops.condition_data(df, where).loc[:, what]
+        selected_data = data_operations.condition_data(df, where).loc[:, what]
 
         # limit number of returned data points if requested
         if 'data_point_limit' in kwargs:
@@ -2367,9 +2005,9 @@ if __name__ == '__main__':
     import pandas as pd
     import mb_modelbase as mb
 
-    df = pd.read_csv('../../../mb_data/mb_data/iris/iris.csv')
+    df_ = pd.read_csv('../../../mb_data/mb_data/iris/iris.csv')
     m = mb.MixableCondGaussianModel()
-    m.fit(df)
+    m.fit(df_)
     res = m.predict(predict=['sepal_width', mb.Aggregation('sepal_length')],
                     splitby=mb.SplitTuple('sepal_width', 'data', [5]))
     print(res)

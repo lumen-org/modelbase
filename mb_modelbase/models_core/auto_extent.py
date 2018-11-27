@@ -18,7 +18,7 @@ def print_extents(model):
         print(field['extent'])
 
 
-def auto_extent(model, dim_name, prec=1e-03, step=.02):
+def field_to_auto_extent(model, dim_name, prec=1e-03, step=.02):
     """Extends the extent of the quantitative dimension with name dim_name of model such that the range covers all non-zero values of the marginal model on dim_name.
     It returns the extended range for that dimension as a 2-element tuple (low, high)
 
@@ -59,7 +59,7 @@ def auto_range_by_sample(**kwargs):
     raise NotImplementedError
 
 
-def adopt_all_extents(model, how=auto_extent):
+def adopt_all_extents(model, how=field_to_auto_extent):
 
     for field in model.fields:
         if field['dtype'] != 'string':

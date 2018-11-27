@@ -2,20 +2,18 @@
 import functools
 import logging
 import math
+
 import numpy as np
-from numpy import nan, pi, exp, dot, abs
-from numpy.linalg import inv, det
-from math import isnan
 import xarray as xr
+from numpy import pi, exp, abs
+from numpy.linalg import inv, det
 from scipy.optimize import minimize
 
-
-import mb_modelbase.utils
-
-from mb_modelbase.models_core import domains as dm
-from mb_modelbase.utils import no_nan, validate_opts
-from mb_modelbase.models_core import models as md
 from mb_modelbase.models_core import cond_gaussian_wm as cgwm
+from mb_modelbase.models_core import domains as dm
+from mb_modelbase.models_core import models as md
+from mb_modelbase.utils import data_import_utils
+from mb_modelbase.utils import no_nan, validate_opts
 from mb_modelbase.utils import utils
 
 # setup logger
@@ -321,7 +319,7 @@ class MixableCondGaussianModel(md.Model):
         self.opts.update(kwargs)
 
         if self.opts['normalized']:
-            df_norm, data_mean, data_stddev = md.normalize_dataframe(self.data, self._numericals)
+            df_norm, data_mean, data_stddev = data_import_utils.normalize_dataframe(self.data, self._numericals)
             self._normalizer = Normalizer(self, data_mean, data_stddev)
         else:
             df_norm = self.data
