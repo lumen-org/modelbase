@@ -31,13 +31,11 @@ def field_to_auto_extent(model, dim_name, prec=1e-03, step=.02):
 
     # check if dim_name is in model
     field = model.byname(dim_name)
-
     if field['dtype'] == 'string':
         raise ValueError("dimension may not be categorical")
 
     # compute marginal model
     mm = model.marginalize(keep=dim_name)
-
     # get current extent
     extent = mm.byname(dim_name)['extent'].values()
     # go in steps of step-%

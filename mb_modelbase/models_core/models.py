@@ -712,7 +712,9 @@ class Model:
         # Data marginalization
         if self.mode == 'both' or self.mode == 'data':
             # Note: we never need to copy data, since we never change data. creating views is enough
-            self.data = self.data.loc[:, keep]
+            # Set up an adjusted keep variable that only contains names of data dimensions
+            keep_data = [name for name in keep if name in self.data.columns]
+            self.data = self.data.loc[:, keep_data]
             self.test_data = self.test_data.loc[:, keep]
             if self.mode == 'data':
                 # need to call this, since it will not be called later in this particular case
