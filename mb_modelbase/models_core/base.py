@@ -20,6 +20,10 @@ This module provides basic types required for describing and working with models
 """
 from collections import namedtuple
 
+
+AggregationMethods = {'maximum', 'average', 'density', 'probability'}  # possible method of an aggregation
+SplitMethods = {'elements', 'identity', 'equiinterval', 'equidist'}  # possible method of a split
+
 AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'yields', 'args'])
 """An aggregation tuple describes an aggregation.
 
@@ -31,8 +35,8 @@ Note that is is optional to used these named tuples. Normal tuples may also be u
 Attributes:
     name : sequence of string 
         The names of the fields that is aggregated over.
-    method : string
-        The method to use for aggregation. Available methods depend on the model class.
+    method : string, see `AggregationMethods`
+        The method to use for aggregation.
     yields : string
         The name of the field that the resulting value will be of. 
     args 
@@ -47,8 +51,8 @@ See also `Split` for the recommended and more convenient way of creating split t
 Attributes:
     name : string
         The  name of the field to split.
-    method : string
-        The method to use to split. Available methods depend on the model class and the data type.
+    method : string, see `SplitMethods`
+        The method to use to split.
     args
         Additional arguments passed to the split function.
 """
@@ -76,11 +80,6 @@ Attributes:
 """
 OP_IDX = 1
 VALUE_IDX = 2
-
-"""Internal utility functions: 
-For a number of interfaces we want to allow both: single name of fields or single fields, and sequences of these. 
-These function help to get them in a uniform way internally: sequences of names. 
-"""
 
 
 def Field(name, domain, extent, dtype='numerical'):
@@ -130,9 +129,8 @@ def Aggregation(base, method='maximum', yields=None, args=None):
     Arguments:
         base : A single or a sequence of field names or fields
             The fields to aggregate over.
-        method : string, optional.
-            The method to use for aggregation. Available methods depend on the model class, however 'maximum' should
-            always be available.
+        method : string, see `AggregationMethods`, optional.
+            The method to use for aggregation. Defaults to 'maximum'.
         yields : string, optional
             The name of the field that the resulting value will be of. Needs not to be provided for methods
             'probability' and 'density'.
@@ -144,7 +142,7 @@ def Aggregation(base, method='maximum', yields=None, args=None):
         yields = "" if method == 'density' or method == 'probability' else name[0]
     if args is None:
         args = []
-    if method not in set(['density', 'probability', 'maximum', 'average']):
+    if method not in AggregationMethods:
         raise ValueError('invalid aggregation method: ' + str(method))
     return AggregationTuple(name, method, yields, args)
 
@@ -195,8 +193,8 @@ def Split(base, method=None, args=None):
     Args:
         base : a single or a sequence of `Field` or string
             The names to query probability over.
-        method : string, optional.
-            The method to use to split. Available methods depend on the model class and the data type.
+        method : string, see `SplitMethods`, optional.
+            The method to use to split.
         args : any, optional
             Additional arguments passed to the split function. Default
 

@@ -22,7 +22,7 @@ The `docs` directory contains documentation and examples.
 
 ### The Lumen Project ###
 
-`modelbase` is part of a larger project, namely [Lumen](https://github.com/lumen-org). Within `Lumen` there exist to main projects: the back-end [modelbase](https://github.com/lumen-org/modelbase) and the front-end [lumen](https://github.com/lumen-org/lumen) (yeah, there is some name clash... :-p).
+`modelbase` is part of a larger project, namely [Lumen](https://github.com/lumen-org). Within `Lumen` there exist two main projects: the back-end [modelbase](https://github.com/lumen-org/modelbase) and the front-end [lumen](https://github.com/lumen-org/lumen) (yeah, there is some name clash... :-p).
 
 The `modelbase` package is the kernel of Lumen. It provides a generic modelling and querying backend, similar to what data base management systems are for tabular data alone. 
 

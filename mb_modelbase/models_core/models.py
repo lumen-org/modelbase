@@ -249,7 +249,7 @@ class Model:
 
             An instance of a model can be loaded from and stored in a file using `Model.load()` and `Model.store()`.
 
-    Implementing a concrete Model Class:
+    Implementing a concrete subclass of the Model class:
 
         The abstract `Model` class defines stubs for those methods that actual models are required to implement. The
         stubs are:
@@ -262,12 +262,13 @@ class Model:
           * _sample(self)
           * copy(self, name=None)
 
-        Each stub also contains documentation that provides information about guaranties (i.e. properties that hold
-        when the stub implementation is called) and responsibilities (i.e. properties and tasks that the stub has to
-        fulfill). It furthermore gives hints for implementation, as often existing routines may be reused.
+        Each stub also contains documentation that provides information about guarantees (i.e. properties that hold
+        when the stub's implementation is called) and responsibilities (i.e. properties and tasks that the stub has
+        to fulfill). It furthermore gives hints for implementation because often existing methods and functions may
+        be reused.
 
-
-        Each class must also fill the `._aggrMethods` dictionary. See the section Private Attributes:_aggrMethods.
+        Each concrete subclass must also fill the `._aggrMethods` dictionary. See the section 'Private
+        Attributes:_aggrMethods'.
 
         Each class may additionally implement a number of other methods:
 
@@ -279,7 +280,13 @@ class Model:
            _aggrMethods : dict
 
                 This dictionary maps string identifier of aggregation methods to the actual method implementation,
-                i.e. a function.
+                i.e. a class method that returns the desired aggregation. See for example `Gaussian.py`, and there the
+                 __init__ method where `.aggrMethods` is assigned the method `.maximum` as well as the implementation
+                 of that method which simply returns the mean of the Gaussian.
+
+                The possible aggregation methods are listed in `base.AggregationMethods`. Of these, 'density' and
+                'probability' are treated elsewhere (i.e. by `._density()` and `._probability()`. Hence, in your class
+                you must set class methods to the keys 'maximum' and 'average'.
 
     """
 
