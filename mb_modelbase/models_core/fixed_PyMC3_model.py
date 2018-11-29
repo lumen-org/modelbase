@@ -12,7 +12,7 @@ from mb_modelbase.models_core import data_operations as data_op
 from sklearn.neighbors.kde import KernelDensity
 
 #Specify the example model here
-data = pd.read_csv('/home/philipp/Desktop/Master_Thesis_CDS/fixed_PyMC3_example_data.csv')
+data = pd.read_csv('/home/luca_ph/Documents/projects/graphical_models/code/lumen_data/mb_data/fixed_PyMC3_example_data.csv')
 
 basic_model = pm.Model()
 with basic_model:
