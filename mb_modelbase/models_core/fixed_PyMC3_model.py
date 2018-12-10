@@ -10,32 +10,16 @@ import pandas as pd
 from mb_modelbase.models_core.empirical_model import EmpiricalModel
 from mb_modelbase.models_core import data_operations as data_op
 from sklearn.neighbors.kde import KernelDensity
-
-#Specify the example model here
-data = pd.read_csv('/home/philipp/Desktop/code/mb_data/mb_data/jonas_guetter/fixed_PyMC3_example_data.csv')
-
-basic_model = pm.Model()
-with basic_model:
-    # describe prior distributions of model parameters.
-    alpha = pm.Normal('alpha', mu=0, sd=10)
-    beta1 = pm.Normal('beta1', mu=1, sd=5)
-    beta2 = pm.Normal('beta2', mu=2, sd=10)
-    sigma = pm.HalfNormal('sigma', sd=1)
-    X1 = pm.Normal('X1',mu=0, sd=1, observed=data['X1'])
-    X2 = pm.Normal('X2', mu=0, sd=0.2, observed=data['X2'])
-    # specify model for the output parameter.
-    mu = alpha + beta1 * X1 + beta2 * X2
-    # likelihood of the observations. Observed stochastic variable
-    Y = pm.Normal('Y', mu=mu, sd=sigma, observed= data['Y'])
-
+import copy as cp
 
 class FixedProbabilisticModel(Model):
     """
     A Bayesian model built by the PyMC3 library is treated here.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, model_structure):
         super().__init__(name)
+        self.model_structure = model_structure
 
 
     def _set_data(self, df, drop_silently, **kwargs):
@@ -44,9 +28,9 @@ class FixedProbabilisticModel(Model):
         return ()
 
     def _fit(self):
-        with basic_model:
+        with self.model_structure:
             # Draw samples
-            colnames = [str(name) for name in basic_model.observed_RVs] + [str(name) for name in basic_model.unobserved_RVs]
+            colnames = [str(name) for name in self.model_structure.observed_RVs] + [str(name) for name in self.model_structure.unobserved_RVs]
             self.samples = pd.DataFrame(columns=colnames)
             nr_of_samples = 500
             trace = pm.sample(nr_of_samples)
@@ -54,8 +38,8 @@ class FixedProbabilisticModel(Model):
                 self.samples[varname] = trace[varname]
             # samples above were drawn for 4 chains by default.
             # ppc samples are drawn 100 times for each sample by default
-            ppc = pm.sample_ppc(trace, samples=int(nr_of_samples*4/100), model=basic_model)
-            for varname in basic_model.observed_RVs:
+            ppc = pm.sample_ppc(trace, samples=int(nr_of_samples*4/100), model=self.model_structure)
+            for varname in self.model_structure.observed_RVs:
                 self.samples[str(varname)] = np.asarray(ppc[str(varname)].flatten())
             self.test_data = self.samples
             # Add parameters to fields
@@ -63,9 +47,6 @@ class FixedProbabilisticModel(Model):
             self._update_all_field_derivatives()
             self._init_history()
         return ()
-
-# Achtung: _marginalizeout is currently only for parameters possible,
-# whereas _conditionout is only for data points possible
 
     def _marginalizeout(self, keep, remove):
         # Remove all variables in remove
@@ -96,12 +77,46 @@ class FixedProbabilisticModel(Model):
         return (np.exp(logdensity))
 
     def _sample(self):
-        with basic_model:
+        with self.model_structure:
             trace = pm.sample(1)
             point = trace.point(0)
         return (point)
 
     def copy(self, name=None):
-        mycopy = self._defaultcopy(name)
+        name = self.name if name is None else name
+        mycopy = self.__class__(name, self.model_structure)
+        mycopy.data = self.data  # .copy()
+        mycopy.test_data = self.test_data.copy()
+        mycopy.fields = cp.deepcopy(self.fields)
+        mycopy.mode = self.mode
+        mycopy._update_all_field_derivatives()
+        mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples
+        #mycopy.model_structure = self.model_structure
         return (mycopy)
+
+if __name__ == '__main__':
+    from mb_modelbase.models_core.fixed_PyMC3_model import *
+    from mb_modelbase.models_core import auto_extent
+    import copy as cp
+
+    data = pd.read_csv('/home/philipp/Desktop/code/mb_data/mb_data/jonas_guetter/fixed_PyMC3_example_data.csv')
+
+    basic_model = pm.Model()
+    with basic_model:
+        # describe prior distributions of model parameters.
+        alpha = pm.Normal('alpha', mu=0, sd=10)
+        beta1 = pm.Normal('beta1', mu=1, sd=5)
+        beta2 = pm.Normal('beta2', mu=2, sd=10)
+        sigma = pm.HalfNormal('sigma', sd=1)
+        X1 = pm.Normal('X1',mu=0, sd=1, observed=data['X1'])
+        X2 = pm.Normal('X2', mu=0, sd=0.2, observed=data['X2'])
+        # specify model for the output parameter.
+        mu = alpha + beta1 * X1 + beta2 * X2
+        # likelihood of the observations. Observed stochastic variable
+        Y = pm.Normal('Y', mu=mu, sd=sigma, observed= data['Y'])
+
+    modelname = 'my_pymc3_model'
+    m = FixedProbabilisticModel(modelname,basic_model)
+    m.fit(data)
+    Model.save(m, '../../../mb_data/data_models/{}.mdl'.format(modelname))
