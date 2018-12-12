@@ -98,23 +98,38 @@ class FixedProbabilisticModel(Model):
 if __name__ == '__main__':
     from mb_modelbase.models_core.fixed_PyMC3_model import *
     from mb_modelbase.models_core import auto_extent
-    import copy as cp
 
-    data = pd.read_csv('/home/philipp/Desktop/code/mb_data/mb_data/jonas_guetter/fixed_PyMC3_example_data.csv')
+    # Generate data
+    np.random.seed(1)
+    mu = 0
+    sigma = 1
+    size = 100
+    data = pd.DataFrame(np.random.normal(mu,sigma,size),columns=['X'])
 
+    # Build model
     basic_model = pm.Model()
     with basic_model:
-        # describe prior distributions of model parameters.
-        alpha = pm.Normal('alpha', mu=0, sd=10)
-        beta1 = pm.Normal('beta1', mu=1, sd=5)
-        beta2 = pm.Normal('beta2', mu=2, sd=10)
+        # describe prior distributions of model parameters
+        mu = pm.Normal('mu', mu=0, sd=1)
         sigma = pm.HalfNormal('sigma', sd=1)
-        X1 = pm.Normal('X1',mu=0, sd=1, observed=data['X1'])
-        X2 = pm.Normal('X2', mu=0, sd=0.2, observed=data['X2'])
-        # specify model for the output parameter.
-        mu = alpha + beta1 * X1 + beta2 * X2
-        # likelihood of the observations. Observed stochastic variable
-        Y = pm.Normal('Y', mu=mu, sd=sigma, observed= data['Y'])
+        # observed variable
+        X = pm.Normal('X', mu=mu, sd=sigma, observed=data['X'])
+
+    #data = pd.read_csv('/home/philipp/Desktop/code/mb_data/mb_data/jonas_guetter/fixed_PyMC3_example_data.csv')
+
+    # basic_model = pm.Model()
+    # with basic_model:
+    #     # describe prior distributions of model parameters.
+    #     alpha = pm.Normal('alpha', mu=0, sd=10)
+    #     beta1 = pm.Normal('beta1', mu=1, sd=5)
+    #     beta2 = pm.Normal('beta2', mu=2, sd=10)
+    #     sigma = pm.HalfNormal('sigma', sd=1)
+    #     X1 = pm.Normal('X1',mu=0, sd=1, observed=data['X1'])
+    #     X2 = pm.Normal('X2', mu=0, sd=0.2, observed=data['X2'])
+    #     # specify model for the output parameter.
+    #     mu = alpha + beta1 * X1 + beta2 * X2
+    #     # likelihood of the observations. Observed stochastic variable
+    #     Y = pm.Normal('Y', mu=mu, sd=sigma, observed= data['Y'])
 
     modelname = 'my_pymc3_model'
     m = FixedProbabilisticModel(modelname,basic_model)
