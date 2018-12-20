@@ -1,4 +1,7 @@
 # Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de), Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
+import os
+path = '/home/guet_jn/Desktop/modelbase'
+os.chdir(path)
 
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.utils.data_import_utils import get_numerical_fields
@@ -11,6 +14,7 @@ from mb_modelbase.models_core.empirical_model import EmpiricalModel
 from mb_modelbase.models_core import data_operations as data_op
 from sklearn.neighbors.kde import KernelDensity
 import copy as cp
+
 
 class FixedProbabilisticModel(Model):
     """
@@ -30,7 +34,7 @@ class FixedProbabilisticModel(Model):
     def _fit(self):
         with self.model_structure:
             # Draw samples
-            colnames = [str(name) for name in self.model_structure.observed_RVs] + [str(name) for name in self.model_structure.unobserved_RVs]
+            colnames = ['mu', 'X']
             self.samples = pd.DataFrame(columns=colnames)
             nr_of_samples = 500
             trace = pm.sample(nr_of_samples)
@@ -38,9 +42,11 @@ class FixedProbabilisticModel(Model):
                 self.samples[varname] = trace[varname]
             # samples above were drawn for 4 chains by default.
             # ppc samples are drawn 100 times for each sample by default
-            ppc = pm.sample_ppc(trace, samples=int(nr_of_samples*4/100), model=self.model_structure)
-            for varname in self.model_structure.observed_RVs:
-                self.samples[str(varname)] = np.asarray(ppc[str(varname)].flatten())
+            #ppc = pm.sample_ppc(trace, samples=int(nr_of_samples*4/100), model=self.model_structure)
+            #for varname in self.model_structure.observed_RVs:
+            #    self.samples[str(varname)] = np.asarray(ppc[str(varname)].flatten())
+            size_ppc = len(trace['mu'])
+            self.samples['X'] = np.random.normal(self.samples['mu'], 1, size=size_ppc)
             self.test_data = self.samples
             # Add parameters to fields
             self.fields = self.fields + get_numerical_fields(self.samples, trace.varnames)
@@ -98,21 +104,22 @@ class FixedProbabilisticModel(Model):
 if __name__ == '__main__':
     from mb_modelbase.models_core.fixed_PyMC3_model import *
     from mb_modelbase.models_core import auto_extent
+    import os
 
     # Generate data
-    np.random.seed(1)
-    mu = 0
-    sigma = 1
+    np.random.seed(2)
     size = 100
-    data = pd.DataFrame(np.random.normal(mu,sigma,size),columns=['X'])
+    mu = np.random.normal(0, 1, size=size)
+    sigma = 1
+    X = np.random.normal(mu, sigma, size=size)
+    data = pd.DataFrame({'X': X})
 
-    # Build model
+
+    # Specify model
     basic_model = pm.Model()
     with basic_model:
-        # describe prior distributions of model parameters
-        mu = pm.Normal('mu', mu=0, sd=1)
-        sigma = pm.HalfNormal('sigma', sd=1)
-        # observed variable
+        sigma = 1
+        mu = pm.Normal('mu', mu=0, sd=sigma)
         X = pm.Normal('X', mu=mu, sd=sigma, observed=data['X'])
 
     #data = pd.read_csv('/home/philipp/Desktop/code/mb_data/mb_data/jonas_guetter/fixed_PyMC3_example_data.csv')
@@ -134,4 +141,5 @@ if __name__ == '__main__':
     modelname = 'my_pymc3_model'
     m = FixedProbabilisticModel(modelname,basic_model)
     m.fit(data)
-    Model.save(m, '../../../mb_data/data_models/{}.mdl'.format(modelname))
+    print(os.getcwd())
+    Model.save(m, '../mb_data/data_models/{}.mdl'.format(modelname))
