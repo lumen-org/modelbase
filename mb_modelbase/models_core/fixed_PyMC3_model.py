@@ -30,7 +30,7 @@ class FixedProbabilisticModel(Model):
     def _fit(self):
         with self.model_structure:
             # Draw samples
-            colnames = self.names  
+            colnames = self.names
             self.samples = pd.DataFrame(columns=colnames)
             nr_of_samples = 500
             trace = pm.sample(nr_of_samples)
@@ -73,7 +73,6 @@ class FixedProbabilisticModel(Model):
 
     # First column of self.samples.values is mu, second column is x
     # Currently only works for a single point
-    # Implement test if order of variables is in the correct order
     def _density(self, x):
         X = self.samples.values
         kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(X)
