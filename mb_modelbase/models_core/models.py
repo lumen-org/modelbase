@@ -1943,7 +1943,7 @@ class Model:
                 raise KeyError('at least one of ' + str(what) + ' is not a column label of the data.')
             else:
                 warnings.warn('at least one of ' + str(what) + ' is not a column label of the data.  There might be latent variables among' + str(what) + 'for which no data was observed.' )
-                # Remove labels from what that are not in self.data.columns
+                # Remove labels from selection that are not in the data
                 what = list(compress(what, [element in self.data.columns for element in what]))
 
 
