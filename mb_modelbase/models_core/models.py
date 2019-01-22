@@ -18,6 +18,8 @@ import multiprocessing_on_dill as mp_dill
 import numpy as np
 import pandas as pd
 import logging
+import warnings
+from itertools import compress
 
 from mb_modelbase.models_core import base
 from mb_modelbase.models_core.base import Field, Aggregation, Density, Probability, Split, Condition
@@ -1937,7 +1939,13 @@ class Model:
 
         # check that all columns to select are in data
         if any((label not in self.data.columns for label in what)):
-            raise KeyError('at least on of ' + str(what) + ' is not a column label of the data.')
+            if any((label not in self.names for label in what)):
+                raise KeyError('at least one of ' + str(what) + ' is not a column label of the data.')
+            else:
+                warnings.warn('at least one of ' + str(what) + ' is not a column label of the data.  There might be latent variables among' + str(what) + 'for which no data was observed.' )
+                # Remove labels from what that are not in self.data.columns
+                what = list(compress(what, [element in self.data.columns for element in what]))
+
 
         # select data
         data = self._select_data(what, where, **kwargs)
