@@ -75,7 +75,7 @@ class FixedProbabilisticModel(Model):
     # Currently only works for a single point
     def _density(self, x):
         X = self.samples.values
-        kde = KernelDensity(kernel='gaussian', bandwidth=0.2).fit(X)
+        kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(X)
         x = np.reshape(x,(1,len(x)))
         logdensity = kde.score_samples(x)
         return (np.exp(logdensity))
