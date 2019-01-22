@@ -1942,10 +1942,12 @@ class Model:
             if any((label not in self.names for label in what)):
                 raise KeyError('at least one of ' + str(what) + ' is not a column label of the data.')
             else:
-                warnings.warn('at least one of ' + str(what) + ' is not a column label of the data.  There might be latent variables among' + str(what) + 'for which no data was observed.' )
-                # Remove labels from selection that are not in the data
-                what = list(compress(what, [element in self.data.columns for element in what]))
-
+                opts = utils.update_opts({'data_category': 'training data'}, kwargs)
+                if opts['data_category'] == 'training data':
+                    warnings.warn('at least one of ' + str(what) + ' is not a column label of the data.  '
+                        'There might be latent variables among' + str(what) + 'for which no data was observed.')
+                    # Remove labels from selection that are not in the data
+                    what = list(compress(what, [element in self.data.columns for element in what]))
 
         # select data
         data = self._select_data(what, where, **kwargs)
