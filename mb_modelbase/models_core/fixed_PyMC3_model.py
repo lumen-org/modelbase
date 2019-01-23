@@ -24,6 +24,9 @@ class FixedProbabilisticModel(Model):
     def __init__(self, name, model_structure):
         super().__init__(name)
         self.model_structure = model_structure
+        self._aggrMethods = {
+            'maximum': self._maximum
+        }
 
 
     def _set_data(self, df, drop_silently, **kwargs):
@@ -69,10 +72,11 @@ class FixedProbabilisticModel(Model):
         for field in fields:
             # filter out values smaller than domain minimum
             filter = self.samples.loc[:,str(field['name'])] > field['domain'].value()[0]
-            self.samples.loc[:,str(field['name'])].where(filter, inplace = True)
+            self.samples.where(filter, inplace = True)
             # filter out values bigger than domain maximum
             filter = self.samples.loc[:,str(field['name'])] < field['domain'].value()[1]
-            self.samples.loc[:,str(field['name'])].where(filter, inplace = True)
+            self.samples.where(filter, inplace = True)
+        self.samples.dropna(inplace=True)
         return ()
 
     # First column of self.samples.values is mu, second column is x
@@ -103,6 +107,11 @@ class FixedProbabilisticModel(Model):
         #mycopy.model_structure = self.model_structure
         return (mycopy)
 
+    def _maximum(self):
+        """Returns the point of the maximum density in this model"""
+        point = self.samples.values[1]
+        return(point)
+
 if __name__ == '__main__':
     from mb_modelbase.models_core.fixed_PyMC3_model import *
     from mb_modelbase.models_core import auto_extent
@@ -130,7 +139,7 @@ if __name__ == '__main__':
     modelname = 'my_pymc3_model'
     m = FixedProbabilisticModel(modelname,basic_model)
     m.fit(data)
-    Model.save(m, '../../../mb_data/data_models/{}.mdl'.format(modelname))
+    Model.save(m, '../mb_data/data_models/{}.mdl'.format(modelname))
 
     # traceplot of mu from basic example to generate traceplot_basic_pymc3_example_tocomparemuwithgroundtruth.png
 
