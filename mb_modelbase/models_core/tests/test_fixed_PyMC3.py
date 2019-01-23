@@ -33,5 +33,14 @@ mymod.copy().condition([mbase.Condition("X", "==", 0)])
 mymod.copy().condition([mbase.Condition("mu", "==", 0)])
 
 mymod_2 = mymod.copy()
+mymod_2 = mymod_2.condition([mbase.Condition("X", "<", 0)])
+
 mymod_2.fields[0]['domain'].value()
 mymod_2.fields[1]['domain'].value()
+
+mymod_2._conditionout(keep=['mu'],remove=['X'])
+mymod_2.samples
+
+
+mymod_2 = mymod.copy()
+mymod_2 = mymod_2.marginalize(keep=['mu'])
