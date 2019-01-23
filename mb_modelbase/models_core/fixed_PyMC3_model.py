@@ -34,7 +34,7 @@ class FixedProbabilisticModel(Model):
     def _fit(self):
         with self.model_structure:
             # Draw samples
-            colnames = ['mu', 'X']
+            colnames = self.names
             self.samples = pd.DataFrame(columns=colnames)
             nr_of_samples = 500
             trace = pm.sample(nr_of_samples)
@@ -75,9 +75,11 @@ class FixedProbabilisticModel(Model):
             self.samples.loc[:,str(field['name'])].where(filter, inplace = True)
         return ()
 
+    # First column of self.samples.values is mu, second column is x
+    # Currently only works for a single point
     def _density(self, x):
         X = self.samples.values
-        kde = KernelDensity(kernel='gaussian', bandwidth=0.2).fit(X)
+        kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(X)
         x = np.reshape(x,(1,len(x)))
         logdensity = kde.score_samples(x)
         return (np.exp(logdensity))
@@ -104,7 +106,7 @@ class FixedProbabilisticModel(Model):
 if __name__ == '__main__':
     from mb_modelbase.models_core.fixed_PyMC3_model import *
     from mb_modelbase.models_core import auto_extent
-    import os
+    import matplotlib.pyplot as plt
 
     # Generate data
     np.random.seed(2)
@@ -122,24 +124,34 @@ if __name__ == '__main__':
         mu = pm.Normal('mu', mu=0, sd=sigma)
         X = pm.Normal('X', mu=mu, sd=sigma, observed=data['X'])
 
-    #data = pd.read_csv('/home/philipp/Desktop/code/mb_data/mb_data/jonas_guetter/fixed_PyMC3_example_data.csv')
-
-    # basic_model = pm.Model()
-    # with basic_model:
-    #     # describe prior distributions of model parameters.
-    #     alpha = pm.Normal('alpha', mu=0, sd=10)
-    #     beta1 = pm.Normal('beta1', mu=1, sd=5)
-    #     beta2 = pm.Normal('beta2', mu=2, sd=10)
-    #     sigma = pm.HalfNormal('sigma', sd=1)
-    #     X1 = pm.Normal('X1',mu=0, sd=1, observed=data['X1'])
-    #     X2 = pm.Normal('X2', mu=0, sd=0.2, observed=data['X2'])
-    #     # specify model for the output parameter.
-    #     mu = alpha + beta1 * X1 + beta2 * X2
-    #     # likelihood of the observations. Observed stochastic variable
-    #     Y = pm.Normal('Y', mu=mu, sd=sigma, observed= data['Y'])
+        nr_of_samples = 10000
+        trace = pm.sample(nr_of_samples, tune=1000, cores=4)
 
     modelname = 'my_pymc3_model'
     m = FixedProbabilisticModel(modelname,basic_model)
     m.fit(data)
-    print(os.getcwd())
-    Model.save(m, '../mb_data/data_models/{}.mdl'.format(modelname))
+    Model.save(m, '../../../mb_data/data_models/{}.mdl'.format(modelname))
+
+    # traceplot of mu from basic example to generate traceplot_basic_pymc3_example_tocomparemuwithgroundtruth.png
+
+    # Generate data
+    # np.random.seed(2)
+    # size = 100
+    # mu = np.random.normal(0, 1, size=size)
+    # sigma = 1
+    # X = np.random.normal(mu, sigma, size=size)
+    #
+    # data = pd.DataFrame({'X': X})
+    #
+    # # Create model
+    # basic_model = pm.Model()
+    # with basic_model:
+    #     mu = pm.Normal('mu', mu=0, sd=1)
+    #     X = pm.Normal('X', mu=mu, sd=1, observed=X)
+    #
+    #     nr_of_samples = 10000
+    #     trace = pm.sample(nr_of_samples, tune=10000, cores=4)
+    #
+    # pm.traceplot(trace)
+    # plt.show()
+
