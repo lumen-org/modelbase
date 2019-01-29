@@ -1,6 +1,6 @@
 # Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de), Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
 import os
-path = '/home/guet_jn/Desktop/modelbase'
+path = '/home/philipp/Desktop/code/modelbase'
 os.chdir(path)
 
 from mb_modelbase.models_core.models import Model
@@ -13,6 +13,7 @@ import pandas as pd
 from mb_modelbase.models_core.empirical_model import EmpiricalModel
 from mb_modelbase.models_core import data_operations as data_op
 from sklearn.neighbors.kde import KernelDensity
+import scipy.optimize as sciopt
 import copy as cp
 
 
@@ -27,6 +28,7 @@ class FixedProbabilisticModel(Model):
         self._aggrMethods = {
             'maximum': self._maximum
         }
+        self.parallel_processing = False
 
 
     def _set_data(self, df, drop_silently, **kwargs):
@@ -71,12 +73,17 @@ class FixedProbabilisticModel(Model):
         # Here: Konditioniere auf die Domäne der Variablen in remove
         for field in fields:
             # filter out values smaller than domain minimum
+            # print(field['domain'].value())
+            # print('samples: {}'.format(self.samples))
+            # print('data: {}'.format(self.data))
+            # print(str(field))
             filter = self.samples.loc[:,str(field['name'])] > field['domain'].value()[0]
             self.samples.where(filter, inplace = True)
             # filter out values bigger than domain maximum
             filter = self.samples.loc[:,str(field['name'])] < field['domain'].value()[1]
             self.samples.where(filter, inplace = True)
         self.samples.dropna(inplace=True)
+        self._marginalizeout(keep, remove)
         return ()
 
     # First column of self.samples.values is mu, second column is x
@@ -87,6 +94,9 @@ class FixedProbabilisticModel(Model):
         x = np.reshape(x,(1,len(x)))
         logdensity = kde.score_samples(x)
         return (np.exp(logdensity))
+
+    def _negdensity(self,x):
+        return -self._density(x)
 
     def _sample(self):
         with self.model_structure:
@@ -109,13 +119,17 @@ class FixedProbabilisticModel(Model):
 
     def _maximum(self):
         """Returns the point of the maximum density in this model"""
-        point = self.samples.values[1]
-        return(point)
+        x0 = np.zeros(len(self.fields))
+        maximum = sciopt.minimize(self._negdensity,x0,method='nelder-mead',options={'xtol': 1e-8, 'disp': False}).x
+        return maximum
 
 if __name__ == '__main__':
     from mb_modelbase.models_core.fixed_PyMC3_model import *
-    from mb_modelbase.models_core import auto_extent
     import matplotlib.pyplot as plt
+    import numpy as np
+    import pandas as pd
+    import pymc3 as pm
+    import mb_modelbase as mbase
 
     # Generate data
     np.random.seed(2)
@@ -141,26 +155,15 @@ if __name__ == '__main__':
     m.fit(data)
     Model.save(m, '../mb_data/data_models/{}.mdl'.format(modelname))
 
-    # traceplot of mu from basic example to generate traceplot_basic_pymc3_example_tocomparemuwithgroundtruth.png
+    mymod = mbase.Model.load('/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/my_pymc3_model.mdl')
+    mymod.parallel_processing = False
+    mymod._maximum()
 
-    # Generate data
-    # np.random.seed(2)
-    # size = 100
-    # mu = np.random.normal(0, 1, size=size)
-    # sigma = 1
-    # X = np.random.normal(mu, sigma, size=size)
-    #
-    # data = pd.DataFrame({'X': X})
-    #
-    # # Create model
-    # basic_model = pm.Model()
-    # with basic_model:
-    #     mu = pm.Normal('mu', mu=0, sd=1)
-    #     X = pm.Normal('X', mu=mu, sd=1, observed=X)
-    #
-    #     nr_of_samples = 10000
-    #     trace = pm.sample(nr_of_samples, tune=10000, cores=4)
-    #
-    # pm.traceplot(trace)
-    # plt.show()
-
+    #mymod.fit(data)
+    #mymod_2 = mymod.copy()
+    #mymod_2 = mymod_2.condition([mbase.Condition("X", "<", 0)])
+    #mymod_2 = mymod_2.condition([mbase.Condition("X", ">", -2)])
+    #mymod_2.marginalize(remove=["X"])
+    #mymod_2._conditionout(keep=['mu'],remove=['X'])
+    #res = mymod_2.aggregate("maximum")
+    #print(res)
