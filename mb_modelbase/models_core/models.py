@@ -1078,6 +1078,7 @@ class Model:
                 raise ValueError("Your model does not provide the requested aggregation: '" + method + "'")
             other_res = aggr_function()
 
+
             # 4. clamp to values within domain
             # TODO bug/mistake: should we really clamp?
             for (idx, field) in enumerate(model.fields):
@@ -1845,7 +1846,6 @@ class Model:
                             return res[i]
 
                         # Open parallel environment with mp_dill, which allows to use a function which was defined in the same scope (here: pred_max)
-
                         with mp_dill.Pool() as p:
                             aggr_results = p.map(pred_max, input_frame.itertuples(index=False, name=None))
 
