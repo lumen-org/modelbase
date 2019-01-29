@@ -19,28 +19,17 @@ with basic_model:
     mu = pm.Normal('mu', mu=0, sd=sigma)
     X = pm.Normal('X', mu=mu, sd=sigma, observed=data['X'])
 
-    nr_of_samples = 10000
+    nr_of_samples = 2000
     trace = pm.sample(nr_of_samples, tune=1000, cores=4)
 
 modelname = 'my_pymc3_model'
 mymod = mbase.FixedProbabilisticModel(modelname, basic_model)
+mymod.parallel_processing = False
+
 mymod.fit(data)
-mymod.aggregate("maximum")
-mymod.copy().marginalize(keep=['X']) .aggregate("maximum")
-mymod.copy().marginalize(keep=['mu']) .aggregate("maximum")
-
-mymod.copy().condition([mbase.Condition("X", "==", 0)])
-mymod.copy().condition([mbase.Condition("mu", "==", 0)])
-
 mymod_2 = mymod.copy()
 mymod_2 = mymod_2.condition([mbase.Condition("X", "<", 0)])
+mymod_2.marginalize(remove=["X"])
+res = mymod_2.aggregate("maximum")
 
-mymod_2.fields[0]['domain'].value()
-mymod_2.fields[1]['domain'].value()
-
-mymod_2._conditionout(keep=['mu'],remove=['X'])
-mymod_2.samples
-
-
-mymod_2 = mymod.copy()
-mymod_2 = mymod_2.marginalize(keep=['mu'])
+print(res)
