@@ -87,8 +87,6 @@ class FixedProbabilisticModel(Model):
         self._marginalizeout(keep, remove)
         return ()
 
-    # First column of self.samples.values is mu, second column is x
-    # Currently only works for a single point
     def _density(self, x):
         X = self.samples.values
         kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(X)
