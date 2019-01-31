@@ -1,6 +1,7 @@
 # Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de), Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
 import os
-path = '/home/philipp/Desktop/code/modelbase'
+#path = '/home/philipp/Desktop/code/modelbase'
+path = '/home/guet_jn/Desktop/modelbase'
 os.chdir(path)
 
 from mb_modelbase.models_core.models import Model
