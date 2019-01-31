@@ -88,11 +88,14 @@ class FixedProbabilisticModel(Model):
         return ()
 
     def _density(self, x):
-        X = self.samples.values
-        kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(X)
-        x = np.reshape(x,(1,len(x)))
-        logdensity = kde.score_samples(x)
-        return (np.exp(logdensity))
+        if not self.samples.empty:
+            X = self.samples.values
+            kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(X)
+            x = np.reshape(x,(1,len(x)))
+            logdensity = kde.score_samples(x)
+            return (np.exp(logdensity))
+        else:
+            return 0
 
     def _negdensity(self,x):
         return -self._density(x)
@@ -154,9 +157,9 @@ if __name__ == '__main__':
     m.fit(data)
     Model.save(m, '../mb_data/data_models/{}.mdl'.format(modelname))
 
-    mymod = mbase.Model.load('/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/my_pymc3_model.mdl')
-    mymod.parallel_processing = False
-    mymod._maximum()
+    #mymod = mbase.Model.load('/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/my_pymc3_model.mdl')
+    #mymod.parallel_processing = False
+    #mymod._maximum()
 
     #mymod.fit(data)
     #mymod_2 = mymod.copy()
