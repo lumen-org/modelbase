@@ -70,14 +70,9 @@ class FixedProbabilisticModel(Model):
     def _conditionout(self, keep, remove):
         names = remove
         fields = self.fields if names is None else self.byname(names)
-        cond_domains = [field['domain'] for field in fields]
         # Here: Konditioniere auf die Domäne der Variablen in remove
         for field in fields:
             # filter out values smaller than domain minimum
-            # print(field['domain'].value())
-            # print('samples: {}'.format(self.samples))
-            # print('data: {}'.format(self.data))
-            # print(str(field))
             filter = self.samples.loc[:,str(field['name'])] > field['domain'].value()[0]
             self.samples.where(filter, inplace = True)
             # filter out values bigger than domain maximum
@@ -115,15 +110,21 @@ class FixedProbabilisticModel(Model):
         mycopy.mode = self.mode
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
-        mycopy.samples = self.samples
+        mycopy.samples = self.samples.copy()
         #mycopy.model_structure = self.model_structure
-        return (mycopy)
+        return mycopy
 
     def _maximum(self):
         """Returns the point of the maximum density in this model"""
+        row_cnt, col_cnt = self.samples.shape
+        if row_cnt == 0:
+            # can not compute any aggregation. return nan
+            return [None] * col_cnt
         x0 = np.zeros(len(self.fields))
         maximum = sciopt.minimize(self._negdensity,x0,method='nelder-mead',options={'xtol': 1e-8, 'disp': False}).x
         return maximum
+        #return data_aggr.aggregate_data(self._emp_data, 'maximum')
+
 
 if __name__ == '__main__':
     from mb_modelbase.models_core.fixed_PyMC3_model import *
