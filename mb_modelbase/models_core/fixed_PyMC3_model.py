@@ -1,7 +1,7 @@
 # Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de), Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
 import os
-#path = '/home/philipp/Desktop/code/modelbase'
-path = '/home/guet_jn/Desktop/modelbase'
+path = '/home/philipp/Desktop/code/modelbase'
+#path = '/home/guet_jn/Desktop/modelbase'
 os.chdir(path)
 
 from mb_modelbase.models_core.models import Model
@@ -26,6 +26,7 @@ class FixedProbabilisticModel(Model):
     def __init__(self, name, model_structure):
         super().__init__(name)
         self.model_structure = model_structure
+        self.samples = pd.DataFrame()
         self._aggrMethods = {
             'maximum': self._maximum
         }
@@ -43,16 +44,13 @@ class FixedProbabilisticModel(Model):
             colnames = self.names
             self.samples = pd.DataFrame(columns=colnames)
             nr_of_samples = 500
-            trace = pm.sample(nr_of_samples)
+            trace = pm.sample(nr_of_samples,chains=1,cores=1)
             for varname in trace.varnames:
                 self.samples[varname] = trace[varname]
-            # samples above were drawn for 4 chains by default.
-            # ppc samples are drawn 100 times for each sample by default
-            #ppc = pm.sample_ppc(trace, samples=int(nr_of_samples*4/100), model=self.model_structure)
-            #for varname in self.model_structure.observed_RVs:
-            #    self.samples[str(varname)] = np.asarray(ppc[str(varname)].flatten())
-            size_ppc = len(trace['mu'])
-            self.samples['X'] = np.random.normal(self.samples['mu'], 1, size=size_ppc)
+            ppc = pm.sample_ppc(trace)
+            for varname in self.model_structure.observed_RVs:
+                # each sample has 100 draws in the ppc, so take only the first one for each sample
+                self.samples[str(varname)] = [samples[0] for samples in np.asarray(ppc[str(varname)])]
             self.test_data = self.samples
             # Add parameters to fields
             self.fields = self.fields + get_numerical_fields(self.samples, trace.varnames)
@@ -158,15 +156,4 @@ if __name__ == '__main__':
     m.fit(data)
     Model.save(m, '../mb_data/data_models/{}.mdl'.format(modelname))
 
-    #mymod = mbase.Model.load('/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/my_pymc3_model.mdl')
-    #mymod.parallel_processing = False
-    #mymod._maximum()
 
-    #mymod.fit(data)
-    #mymod_2 = mymod.copy()
-    #mymod_2 = mymod_2.condition([mbase.Condition("X", "<", 0)])
-    #mymod_2 = mymod_2.condition([mbase.Condition("X", ">", -2)])
-    #mymod_2.marginalize(remove=["X"])
-    #mymod_2._conditionout(keep=['mu'],remove=['X'])
-    #res = mymod_2.aggregate("maximum")
-    #print(res)
