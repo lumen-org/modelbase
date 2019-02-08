@@ -94,10 +94,19 @@ class FixedProbabilisticModel(Model):
         return -self._density(x)
 
     def _sample(self):
+        sample = []
         with self.model_structure:
-            trace = pm.sample(1)
-            point = trace.point(0)
-        return (point)
+            trace = pm.sample(1,chains=1,cores=1)
+            ppc = pm.sample_ppc(trace)
+            for varname in self.names:
+                if varname in [str(name) for name in self.model_structure.free_RVs]:
+                    sample.append(trace[varname][0])
+                elif varname in [str(name) for name in self.model_structure.observed_RVs]:
+                    sample.append(ppc[str(varname)][0][0])
+                else:
+                    raise ValueError("Unexpected error: variable name " + varname +  " is not found in the PyMC3 model")
+
+        return (sample)
 
     def copy(self, name=None):
         name = self.name if name is None else name
