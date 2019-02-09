@@ -20,6 +20,7 @@ class Test_methods_on_fresh_model(unittest.TestCase):
         self.assertEqual(mymod.data.empty,1,"There should be no data")
         self.assertEqual(mymod.test_data.empty, 1, "There should be no test data")
         self.assertEqual(mymod.samples.empty, 1, "There should be no samples")
+        self.assertIsNone(mymod.mode, "Mode of just instantiated model should be None")
 
     def testcopy(self):
         """
@@ -46,6 +47,7 @@ class Test_methods_on_fresh_model(unittest.TestCase):
         mymod.set_data(data)
         self.assertEqual(mymod.data.empty,0, "There is no data in the model")
         self.assertEqual(mymod.data.columns.equals(data.columns),1, "model data has different columns than the original data")
+        self.assertEqual(mymod.mode,'data', "model mode should be data")
 
     def test_fit(self):
         mymod = mbase.Model.load(testcasemodel_path)
