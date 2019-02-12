@@ -44,7 +44,7 @@ class FixedProbabilisticModel(Model):
             colnames = self.names
             self.samples = pd.DataFrame(columns=colnames)
             nr_of_samples = 500
-            trace = pm.sample(nr_of_samples,chains=1,cores=1)
+            trace = pm.sample(nr_of_samples,chains=1,cores=1,progressbar=False)
             for varname in trace.varnames:
                 self.samples[varname] = trace[varname]
             ppc = pm.sample_ppc(trace)
@@ -97,10 +97,10 @@ class FixedProbabilisticModel(Model):
             X = self.samples.values
             kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(X)
             x = np.reshape(x,(1,len(x)))
-            logdensity = kde.score_samples(x)
-            return (np.exp(logdensity))
+            logdensity = kde.score_samples(x)[0]
+            return np.exp(logdensity).item()
         else:
-            return 0
+            raise ValueError("There are no samples in the model")
 
     def _negdensity(self,x):
         return -self._density(x)
