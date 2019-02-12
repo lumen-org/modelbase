@@ -239,11 +239,11 @@ class Test_methods_on_fitted_model(unittest.TestCase):
         keep = mymod.names[1:]
         remove = [mymod.names[0]]
 
-        sample_size = len(mymod.samples)
+        sample_size_all_values = len(mymod.samples)
         mymod.fields[0]['domain'].setupperbound(np.mean(mymod.samples.iloc[:, 0]))
         isBiggerThanUpperBound = mymod.samples.iloc[:,0] >= np.mean(mymod.samples.iloc[:, 0])
         big_samples = mymod.samples.iloc[:, 0] [isBiggerThanUpperBound]
-        big_sample_size = len(big_samples)
+        sample_size_big_values = len(big_samples)
 
         mymod._conditionout(keep= keep, remove=remove)
         self.assertEqual(mymod.data.empty,0,"There should be data")
@@ -254,8 +254,8 @@ class Test_methods_on_fitted_model(unittest.TestCase):
                          str(remove) + " should be marginalized out and not be present in the samples")
         self.assertTrue(all([name in mymod.samples.columns for name in keep]),
                         str(keep) + "should be still present in the samples")
-        small_sample_size = len(mymod.samples)
-        self.assertEqual(sample_size-big_sample_size,small_sample_size,
+        sample_size_small_values = len(mymod.samples)
+        self.assertEqual(sample_size_all_values-sample_size_big_values,sample_size_small_values,
                          "numbers of removed samples and kept samples do not add up to previous number of samples")
 
     def test_density(self):
@@ -287,8 +287,18 @@ class Test_more_combinations_on_model(unittest.TestCase):
     data = pd.DataFrame({'X': X})
 
     # More combinations of marginalization and conditionalization cannot be applid to the simple model since it only has two variables
-    # What happens when each variable is marginalized out?
-    # density and maximum of a marginalized model have to be also marginalized
+    # TODO: What happens when each variable is marginalized out?
+
+    def test_maximum_marginalized(self):
+        """
+        Check if the density maximum of a marginalized model has the same dimensions as the model variables
+        """
+        mymod = mbase.Model.load(testcasemodel_path)
+        mymod.fit(self.data)
+        keep = mymod.names[1:]
+        remove = mymod.names[0]
+        mymod._marginalizeout(keep= keep, remove=remove)
+        self.assertEqual(len(mymod._maximum()),len(mymod.names),"Dimensions of the maximum and the model variables do not match")
 
 if __name__ == "__main__":
     unittest.main()
