@@ -59,6 +59,12 @@ class FixedProbabilisticModel(Model):
         return ()
 
     def _marginalizeout(self, keep, remove):
+        keep_not_in_names = [name for name in keep if name not in self.names]
+        if len(keep_not_in_names) > 0:
+            raise ValueError('The following variables in keep do not appear in the model: ' + str(keep_not_in_names) )
+        remove_not_in_names = [name for name in remove if name not in self.names]
+        if len(remove_not_in_names) > 0:
+            raise ValueError('The following variables in remove do not appear in the model: ' + str(remove_not_in_names))
         # Remove all variables in remove
         for varname in remove:
             if varname in list(self.samples.columns):
@@ -66,6 +72,12 @@ class FixedProbabilisticModel(Model):
         return ()
 
     def _conditionout(self, keep, remove):
+        keep_not_in_names = [name for name in keep if name not in self.names]
+        if len(keep_not_in_names) > 0:
+            raise ValueError('The following variables in keep do not appear in the model: ' + str(keep_not_in_names) )
+        remove_not_in_names = [name for name in remove if name not in self.names]
+        if len(remove_not_in_names) > 0:
+            raise ValueError('The following variables in remove do not appear in the model: ' + str(remove_not_in_names))
         names = remove
         fields = self.fields if names is None else self.byname(names)
         # Here: Konditioniere auf die Domäne der Variablen in remove
