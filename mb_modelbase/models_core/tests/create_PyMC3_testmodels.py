@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pymc3 as pm
 from mb_modelbase.models_core.models import Model
-from mb_modelbase.models_core.fixed_PyMC3_model import FixedProbabilisticModel
+from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 
 testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/'
 # testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/'
@@ -27,7 +27,7 @@ with basic_model:
 
     nr_of_samples = 10000
     trace = pm.sample(nr_of_samples, tune=1000, cores=4)
-m = FixedProbabilisticModel(modelname, basic_model)
+m = ProbabilisticPymc3Model(modelname, basic_model)
 Model.save(m, testcasemodel_path + modelname + '.mdl')
 
 ######################################
@@ -58,6 +58,6 @@ with basic_model:
     # Likelihood (sampling distribution) of observations
     Y_obs = pm.Normal('Y_obs', mu=mu, sd=sigma, observed=Y)
 
-m = FixedProbabilisticModel(modelname, basic_model)
+m = ProbabilisticPymc3Model(modelname, basic_model)
 m.fit(data)
 Model.save(m, testcasemodel_path + modelname + '.mdl')
