@@ -1,7 +1,7 @@
 # Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de), Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
 import os
-#path = '/home/philipp/Desktop/code/modelbase'
-path = '/home/guet_jn/Desktop/modelbase'
+path = '/home/philipp/Desktop/code/modelbase'
+#path = '/home/guet_jn/Desktop/modelbase'
 os.chdir(path)
 
 from mb_modelbase.models_core.models import Model
@@ -142,11 +142,9 @@ class ProbabilisticPymc3Model(Model):
         x0 = np.zeros(len(self.fields))
         maximum = sciopt.minimize(self._negdensity,x0,method='nelder-mead',options={'xtol': 1e-8, 'disp': False}).x
         return maximum
-        #return data_aggr.aggregate_data(self._emp_data, 'maximum')
 
 
 if __name__ == '__main__':
-    from mb_modelbase.models_core.fixed_PyMC3_model import *
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
