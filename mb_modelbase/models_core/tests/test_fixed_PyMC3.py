@@ -5,8 +5,8 @@ import mb_modelbase as mbase
 import unittest
 
 
-testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_testcase_model.mdl'
-#testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_testcase_model.mdl'
+#testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_testcase_model.mdl'
+testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_testcase_model.mdl'
 
 class Test_methods_on_initialized_model(unittest.TestCase):
     """
@@ -295,9 +295,8 @@ class Test_more_combinations_on_model(unittest.TestCase):
         """
         mymod = mbase.Model.load(testcasemodel_path)
         mymod.fit(self.data)
-        keep = mymod.names[1:]
         remove = mymod.names[0]
-        mymod._marginalizeout(keep= keep, remove=remove)
+        mymod.marginalize(remove=remove)
         self.assertEqual(len(mymod._maximum()),len(mymod.names),"Dimensions of the maximum and the model variables do not match")
 
 if __name__ == "__main__":
