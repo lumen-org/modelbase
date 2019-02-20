@@ -9,7 +9,17 @@ class Test_methods_on_initialized_model(unittest.TestCase):
     """
     Test the ProbabilisticPymc3Model methods on a model that has just been initialized
     """
-    testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_testcase_model.mdl'
+    testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl'
+
+    np.random.seed(123)
+    alpha, sigma = 1, 1
+    beta_0 = 1
+    beta_1 = 2.5
+    size = 100
+    X1 = np.random.randn(size)
+    X2 = np.random.randn(size) * 0.2
+    Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
+    data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
 
     def testinit(self):
         """
@@ -40,13 +50,7 @@ class Test_methods_on_initialized_model(unittest.TestCase):
         and if the model data has the same columns as the input data and if mode is set to data
         """
         mymod = mbase.Model.load(self.testcasemodel_path)
-        np.random.seed(2)
-        size = 100
-        mu = np.random.normal(0, 1, size=size)
-        sigma = 1
-        X = np.random.normal(mu, sigma, size=size)
-        data = pd.DataFrame({'X': X})
-        mymod.set_data(data)
+        mymod.set_data(self.data)
         self.assertEqual(mymod.data.empty,0, "There is no data in the model")
         self.assertEqual(mymod.data.columns.equals(data.columns),1, "model data has different columns than the original data")
         self.assertEqual(mymod.mode,'data', "model mode should be set to data")
@@ -110,13 +114,16 @@ class Test_methods_on_model_with_data(unittest.TestCase):
     """
     Test the ProbabilisticPymc3Model methods on a model that has been initialized and given data
     """
-    testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_testcase_model.mdl'
-    np.random.seed(2)
+    testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl'
+    np.random.seed(123)
+    alpha, sigma = 1, 1
+    beta_0 = 1
+    beta_1 = 2.5
     size = 100
-    mu = np.random.normal(0, 1, size=size)
-    sigma = 1
-    X = np.random.normal(mu, sigma, size=size)
-    data = pd.DataFrame({'X': X})
+    X1 = np.random.randn(size)
+    X2 = np.random.randn(size) * 0.2
+    Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
+    data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
 
     def testcopy(self):
         """
@@ -191,13 +198,16 @@ class Test_methods_on_fitted_model(unittest.TestCase):
     """
     Test the ProbabilisticPymc3Model methods on a model that has been initialized, given data and fitted
     """
-    testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_testcase_model.mdl'
-    np.random.seed(2)
+    testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl'
+    np.random.seed(123)
+    alpha, sigma = 1, 1
+    beta_0 = 1
+    beta_1 = 2.5
     size = 100
-    mu = np.random.normal(0, 1, size=size)
-    sigma = 1
-    X = np.random.normal(mu, sigma, size=size)
-    data = pd.DataFrame({'X': X})
+    X1 = np.random.randn(size)
+    X2 = np.random.randn(size) * 0.2
+    Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
+    data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
 
     def testcopy(self):
         """
@@ -219,13 +229,13 @@ class Test_methods_on_fitted_model(unittest.TestCase):
         mymod = mbase.Model.load(self.testcasemodel_path)
         mymod.fit(self.data)
         keep = mymod.names[1:]
-        remove = mymod.names[0]
+        remove = [mymod.names[0]]
         mymod._marginalizeout(keep= keep, remove=remove)
         self.assertEqual(mymod.data.empty,0,"There should be data")
         self.assertEqual(mymod.test_data.empty, 0, "There should be test data")
         self.assertEqual(mymod.samples.empty, 0, "There should be samples")
         self.assertEqual(mymod.mode,"both", "Mode of just instantiated model should be set to both")
-        self.assertFalse(remove in mymod.samples.columns,
+        self.assertFalse(remove[0] in mymod.samples.columns,
                          str(remove) + " should be marginalized out and not be present in the samples")
         self.assertTrue(all([name in mymod.samples.columns for name in keep]),
                         str(keep) + "should be still present in the samples")
@@ -280,13 +290,16 @@ class Test_more_combinations_on_model(unittest.TestCase):
     """
     Test more complex cases, with more combinations of methods being applied to a already fitted model
     """
-    testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_testcase_model.mdl'
-    np.random.seed(2)
+    testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl'
+    np.random.seed(123)
+    alpha, sigma = 1, 1
+    beta_0 = 1
+    beta_1 = 2.5
     size = 100
-    mu = np.random.normal(0, 1, size=size)
-    sigma = 1
-    X = np.random.normal(mu, sigma, size=size)
-    data = pd.DataFrame({'X': X})
+    X1 = np.random.randn(size)
+    X2 = np.random.randn(size) * 0.2
+    Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
+    data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
 
     # More combinations of marginalization and conditionalization cannot be applid to the simple model since it only has two variables
     # TODO: What happens when each variable is marginalized out?
@@ -305,6 +318,14 @@ if __name__ == "__main__":
 
     # testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_testcase_model.mdl'
     #testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_testcase_model.mdl'
+
+    # np.random.seed(2)
+    # size = 100
+    # mu = np.random.normal(0, 1, size=size)
+    # sigma = 1
+    # X = np.random.normal(mu, sigma, size=size)
+    # data = pd.DataFrame({'X': X})
+
     unittest.main()
 
 
