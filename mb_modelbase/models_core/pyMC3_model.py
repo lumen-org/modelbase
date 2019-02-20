@@ -146,7 +146,7 @@ class ProbabilisticPymc3Model(Model):
 
 
 if __name__ == '__main__':
-    from mb_modelbase.models_core.fixed_PyMC3_model import *
+    from mb_modelbase.models_core.pyMC3_model import *
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
