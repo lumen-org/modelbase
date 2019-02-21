@@ -11,30 +11,30 @@ testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/'
 # pymc3_testcase_model
 #####################################
 
-modelname = 'pymc3_testcase_model'
-np.random.seed(2)
-size = 100
-mu = np.random.normal(0, 1, size=size)
-sigma = 1
-X = np.random.normal(mu, sigma, size=size)
-data = pd.DataFrame({'X': X})
-
-basic_model = pm.Model()
-with basic_model:
-    sigma = 1
-    mu = pm.Normal('mu', mu=0, sd=sigma)
-    X = pm.Normal('X', mu=mu, sd=sigma, observed=data['X'])
-
-    nr_of_samples = 10000
-    trace = pm.sample(nr_of_samples, tune=1000, cores=4)
-m = ProbabilisticPymc3Model(modelname, basic_model)
-Model.save(m, testcasemodel_path + modelname + '.mdl')
+# modelname = 'pymc3_testcase_model'
+# np.random.seed(2)
+# size = 100
+# mu = np.random.normal(0, 1, size=size)
+# sigma = 1
+# X = np.random.normal(mu, sigma, size=size)
+# data = pd.DataFrame({'X': X})
+#
+# basic_model = pm.Model()
+# with basic_model:
+#     sigma = 1
+#     mu = pm.Normal('mu', mu=0, sd=sigma)
+#     X = pm.Normal('X', mu=mu, sd=sigma, observed=data['X'])
+#
+#     nr_of_samples = 10000
+#     trace = pm.sample(nr_of_samples, tune=1000, cores=4)
+# m = ProbabilisticPymc3Model(modelname, basic_model)
+# Model.save(m, testcasemodel_path + modelname + '.mdl')
 
 ######################################
 # pymc3_getting_started_model
 #####################################
 
-modelname = 'pymc3_getting_started_model'
+modelname = 'pymc3_getting_started_model_fitted'
 np.random.seed(123)
 alpha, sigma = 1, 1
 beta_0 = 1
@@ -64,4 +64,5 @@ with basic_model:
     X2 = pm.Normal('X2', mu=data['X2'], sd=sigma, observed=data['X2'])
 
 m = ProbabilisticPymc3Model(modelname, basic_model)
+m.fit(data)
 Model.save(m, testcasemodel_path + modelname + '.mdl')
