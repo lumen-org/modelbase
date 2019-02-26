@@ -41,8 +41,8 @@ class ProbabilisticPymc3Model(Model):
     def _fit(self):
         with self.model_structure:
             # Draw samples
-            colnames = self.names
-            self.samples = pd.DataFrame(columns=colnames)
+            #colnames = self.names
+            #self.samples = pd.DataFrame(columns=colnames)
             nr_of_samples = 500
             trace = pm.sample(nr_of_samples,chains=1,cores=1,progressbar=False)
             for varname in trace.varnames:
@@ -51,11 +51,16 @@ class ProbabilisticPymc3Model(Model):
             for varname in self.model_structure.observed_RVs:
                 # each sample has 100 draws in the ppc, so take only the first one for each sample
                 self.samples[str(varname)] = [samples[0] for samples in np.asarray(ppc[str(varname)])]
-            self.test_data = self.samples
+
+
             # Add parameters to fields
             self.fields = self.fields + get_numerical_fields(self.samples, trace.varnames)
             self._update_all_field_derivatives()
             self._init_history()
+
+            # Change order of sample columns so that it matches order of fields
+            self.samples = self.samples[self.names]
+            self.test_data = self.samples
         return ()
 
     def _marginalizeout(self, keep, remove):
@@ -145,6 +150,7 @@ class ProbabilisticPymc3Model(Model):
 
 
 if __name__ == '__main__':
+    from mb_modelbase.models_core.pyMC3_model import *
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
