@@ -4,9 +4,11 @@ import pymc3 as pm
 import mb_modelbase as mbase
 import unittest
 
-# testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_testcase_model.mdl'
+#testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_testcase_model.mdl'
+testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_getting_started_model.mdl'
+
 #testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_testcase_model.mdl'
-testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl'
+#testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl'
 
 # np.random.seed(2)
 # size = 100
@@ -145,6 +147,8 @@ class Test_methods_on_model_with_data(unittest.TestCase):
         self.assertEqual(mymod.test_data.empty, 0, "There is no test data in the model")
         self.assertEqual(mymod.samples.empty, 0, "There are no samples in the model")
         self.assertEqual(mymod.mode, 'both', "mode should be set to both")
+        self.assertEqual(mymod.names,list(mymod.samples.columns.values), "names and samples should hold the same variables in the same order")
+        self.assertEqual(mymod.names,[field['name'] for field in mymod.fields], "names and fields should hold the same variables in the same order")
 
     def test_marginalizeout(self):
         """
