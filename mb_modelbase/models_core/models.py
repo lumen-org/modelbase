@@ -138,7 +138,7 @@ class Model:
             The mode holds the current state of the model, and it represents it 'position' in the life-cycle of a model:
 
                 * mode is None: the model was instantiated using the class constructor. The model instance now exists,
-                but is not fitted to any data or otherwise even filled it's internal parameter to represent a valid
+                but is not fitted to any data or otherwise even filled its internal parameter to represent a valid
                 model at all.
 
                 * mode == 'data': Data was assigned to the model using `.set_data()`, but the no model to represent
@@ -152,11 +152,11 @@ class Model:
 
                 * mode == 'both': Data was assigned to the model AND the models parameters were fit to that data.
                 This is most common state of a model and holds for example after you call `.set_data()` and
-                thereafter `.fit()`. In
+                thereafter `.fit()`.
 
         .name : string
 
-            A (not necessarily unique) name of the model.
+            A unique (not enforced) name of the model.
 
         .names : sequence of strings
 
@@ -211,7 +211,7 @@ class Model:
             `.set_default_value()` and `.set_default_subset()`, respectively.
 
             Default values and default subsets (i.e. ranged) are used whenever a query against the model requires
-            scalar and range input, respectively, but non is provided in the queries arguments. In these cases the
+            scalar or range input, respectively, but non is provided in the queries arguments. In these cases the
             set default values or subsets are used.
 
             The combination of hiding and setting a default value it provides you with a view on a slice of the
@@ -225,14 +225,14 @@ class Model:
             value is a dict with these keys:
                 * 'conditioned': a list of conditions applied in that order
                 * 'marginalized': a string:
-                    either None ( if not marginalized in any way), or 'marginalized_out' (if marginalized over the full
+                    either None (if not marginalized in any way), or 'marginalized_out' (if marginalized over the full
                     domain) or 'conditioned_out' (if marginalized after conditioning).
 
         Model Queries:
 
             Once the model is initialized (i.e. its `.mode` equals 'model' or 'both') you may run model queries
             against it. There is two types of queries:
-                1. modelling queries, i.e. queries that result in an modified model. These are:
+                1. modeling queries, i.e. queries that result in an modified model. These are:
                     * marginalization: `.marginalize()`,
                     * conditioning: `.condition()`, and
                     * a complex query method that combines both above (and more): `.model()`
@@ -279,14 +279,15 @@ class Model:
 
            _aggrMethods : dict
 
-                This dictionary maps string identifier of aggregation methods to the actual method implementation,
+                This dictionary maps a string identifie of an aggregation method to the actual method implementation,
                 i.e. a class method that returns the desired aggregation. See for example `Gaussian.py`, and there the
                  __init__ method where `.aggrMethods` is assigned the method `.maximum` as well as the implementation
                  of that method which simply returns the mean of the Gaussian.
 
                 The possible aggregation methods are listed in `base.AggregationMethods`. Of these, 'density' and
-                'probability' are treated elsewhere (i.e. by `._density()` and `._probability()`. Hence, in your class
-                you must set class methods to the keys 'maximum' and 'average'.
+                'probability' are treated elsewhere (i.e. by `._density()` and `._probability()` and your model
+                 implementation must not supply its own implementation of it.
+                 Hence, in your class you should set class methods to the keys 'maximum' and 'average'.
 
     """
 
@@ -768,17 +769,17 @@ class Model:
         raise NotImplementedError("Implement this method in your model!")
 
     def condition(self, conditions=None, is_pure=False):
-        """Condition this model according to the list of three-tuples
-        (<name-of-random-variable>, <operator>, <value(s)>). In particular
-        objects of type ConditionTuples are accepted and see there for allowed values.
+        """Condition this model according to the list of three-tuples (<name-of-random-variable>, <operator>,
+        <value(s)>). In particular objects of type ConditionTuples are accepted and see there for allowed values.
 
-        Note: This only restricts the domains of the fields. To
-        remove the conditioned field you need to call marginalize
-        with the appropriate parameters.
-        TODO: this is actually a conceptual error. It should NOT only restrict the domain, but actually compute a conditional model. See  https://ci.inf-i2.uni-jena.de/gemod/modelbase/issues/4
+        Note: This only restricts the domains of the fields. To remove the conditioned field you need to call
+        marginalize with the appropriate parameters.
 
-        Hidden fields: Whether or not any field of the model is hidden makes no difference to the result of
-        this method. In particular you may condition on hidden fields.
+        TODO: this is actually a conceptual error. It should NOT only restrict the domain, but actually compute a
+          conditional model. See  https://ci.inf-i2.uni-jena.de/gemod/modelbase/issues/4
+
+        Hidden fields: Whether or not any field of the model is hidden makes no difference to the result of this
+        method. In particular you may condition on hidden fields.
 
         Default values: Default values for fields are not taken into consideration in any way.
 
@@ -1102,7 +1103,7 @@ class Model:
             Any value of a field that is hidden will be removed from the resulting aggregation before returning.
 
         Default values:
-            Instead of the aggregation of a model, the aggregation of the conditional model on all defaulting
+            Instead of the aggregation of the model, the aggregation of the conditional model on all defaulting
             fields is returned. For example:
 
                 Let p(sex,age) be a bivariate model and let its maximum be at argmax(p(sex,age)) = ('Female',
@@ -1530,7 +1531,7 @@ class Model:
             .hide(hide).condition(where) \
             .marginalize(keep=model)
 
-    def predict(self, predict, where=None, splitby=None, returnbasemodel=False):
+    def predict(self, predict, where=None, splitby=None, evidence=None, returnbasemodel=False):
         """Calculate the prediction against the model and returns its result by means of a data frame.
 
         The data frame contains exactly those fields which are specified in 'predict'. Its order is preserved.
@@ -1546,6 +1547,8 @@ class Model:
                 adhere.
             splitby: A list of 'SplitTuple's, i.e. a list of fields on which to
                 split the model and the method how to do the split.
+            evidence: pd.DataFrame, optional.
+                May currently not be used together with splitby.
             returnbasemodel: A boolean flag. If set this method will return the
                 pair (result-dataframe, basemodel-for-the-prediction).
                 Defaults to False.
@@ -1575,6 +1578,11 @@ class Model:
                 model.predict(X, Y, Density('X','Y'), splitby=Split('Y', 'equidist, 10))
         """
         # TODO: add default splits for each data type?
+        if evidence is not None:
+            if splitby is not None:
+                raise ValueError('you may not use both arguments at the same time: evidence and splitby')
+            if not self.isfieldname(evidence.colnames):
+                raise ValueError('evidence containts data dimensions that are not modelled by this model')
 
         if isinstance(predict, (str, tuple)):
             predict = [predict]
@@ -1608,7 +1616,11 @@ class Model:
         aggrs = []  # list of aggregation tuples, in same order as in the predict-clause
         aggr_ids = []  # ids for columns of fields to aggregate. Same order as in predict-clause
 
-        basenames = set(split_names)  # set of names of fields needed for basemodel of this query
+        evidence_names = evidence.colnames if evidence is not None else []
+        evidence_ids = [name + next(idgen) for name in evidence_names]
+        evidence_name2id = dict(zip(evidence_names, evidence_ids))
+
+        basenames = set(split_names + evidence_names)  # set of names of fields needed for basemodel of this query
 
         def add_split_for_defaulting_field(dim):
             """ A add a filter and identity split for the defaulting field `dim`, if possible.
@@ -1659,7 +1671,19 @@ class Model:
                 aggr_ids.append(id_)
                 predict_names.append(_tuple2str(t))  # generate column name to return
                 predict_ids.append(id_)
-                basenames.update(t[NAME_IDX])
+                aggr_input_dim_names = t[NAME_IDX]
+                basenames.update(aggr_input_dim_names)
+
+                # all dimensions that are required as input by the aggregation/density must be available somehow:
+                #  * as a split (i.e. splitby), or
+                #  * from data (i.e. evidence)
+                # if that is not the case: add a default split for it
+                # TODO: this is not tested
+                for name in aggr_input_dim_names:
+                    if name not in evidence_names and name not in split_names:
+                        add_split_for_defaulting_field(self.byname(name))
+                #TODO: just an idea: couldn't I merge the evidence given (takes higher priority) with all default of all variables and use this as a starting point for the input frame??
+
 
         basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
@@ -1684,7 +1708,10 @@ class Model:
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
         if len(splitby) == 0:
-            input_frame = pd.DataFrame()
+            if evidence is not None:
+                input_frame = evidence
+            else:
+                input_frame = pd.DataFrame()
         else:
             def _get_group_frame(split, column_id):
                 field = basemodel.byname(split[NAME_IDX])
@@ -1761,7 +1788,20 @@ class Model:
             "elements": "in",
             "data": "in",
         }
-        operator_list = [method2operator[method] for (_, method, __) in splitby]
+
+        # unified handling of
+        if len(splitby) > 0:
+            operator_list = [method2operator[method] for (_, method, __) in splitby]
+            input_names = split_names
+            input_ids = split_ids
+            input_name2id = split_name2id
+        elif len(input_frame) > 0 and len(splitby) == 0:
+            operator_list = ["=="] * evidence.shape[1]
+            input_names = evidence_names
+            input_ids = evidence_ids
+            input_name2id = evidence_name2id
+        else:
+            raise NotImplementedError("yet to implement mixed use of splits and evidence")
 
         result_list = [pd.DataFrame()]
         for idx, aggr in enumerate(aggrs):
@@ -1778,12 +1818,13 @@ class Model:
                 ids = []
                 for name in names:
                     try:
-                        id_ = split_name2id[name]
+                        id_ = input_name2id[name]
                     except KeyError as err:
-                        dim = self.byname(name)
-                        default_ = add_split_for_defaulting_field(dim)
-                        id_ = split_name2id[name]  # try again
-                        input_frame[id_] = [default_] * len(input_frame)  # add a column with the default to input_frame
+                        raise RuntimeError("you should no get here anymore, because we create default splits above already")
+                        # dim = self.byname(name)
+                        # default_ = add_split_for_defaulting_field(dim)
+                        # id_ = input_name2id[name]  # try again
+                        # input_frame[id_] = [default_] * len(input_frame)  # add a column with the default to input_frame
                     ids.append(id_)
 
                 subframe = input_frame.loc[:, ids]
@@ -1792,7 +1833,7 @@ class Model:
                     # when splitting by elements or identity we get single element lists instead of scalars.
                     # However, density() requires scalars.
                     # TODO: I believe this issue should be handled in a conceptually better and faster way...
-                    nonscalar_ids = [split_name2id[name] for (name, method, __) in splitby if
+                    nonscalar_ids = [input_name2id[name] for (name, method, __) in splitby if
                                      method == 'elements' or method == 'identity' and name in names]
                     for col_id in nonscalar_ids:
                         subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
@@ -1805,7 +1846,6 @@ class Model:
                         for row in subframe.itertuples(index=False, name=None):
                             res = aggr_model.density(values=row)
                             aggr_results.append(res)
-
 
                 else:  # aggr_method == 'probability'
                     # TODO: use DataFrame.apply instead? What is faster?
@@ -1820,7 +1860,10 @@ class Model:
                             aggr_results.append(res)
 
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
-                if len(splitby) == 0:
+                #assert ((len(input_frame) == 0 and len(splitby) == 0) or (len(input_frame) != 0 and len(splitby) != 0))
+                #if len(splitby) == 0:
+                if len(input_frame) == 0:
+                    assert len(splitby) == 0
                     # there is no fields to split by, hence only a single value will be aggregated
                     # i.e. marginalize all other fields out
                     singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
@@ -1835,10 +1878,10 @@ class Model:
                     if self.parallel_processing:
 
                         # Define function for parallel execution of for loop
-                        def pred_max(row, split_names=split_names, operator_list=operator_list,
+                        def pred_max(row, input_names=input_names, operator_list=operator_list,
                                      rowmodel_name=rowmodel_name, aggr_model=aggr_model):
 
-                            pairs = zip(split_names, operator_list, row)
+                            pairs = zip(input_names, operator_list, row)
                             rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(
                                 keep=aggr[NAME_IDX])
                             res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
@@ -1853,7 +1896,7 @@ class Model:
                     else:  # Non-parallel execution
 
                         for row in input_frame.itertuples(index=False, name=None):
-                            pairs = zip(split_names, operator_list, row)
+                            pairs = zip(input_names, operator_list, row)
                             # derive model for these specific conditions
                             rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(
                                 keep=aggr[NAME_IDX])
