@@ -294,6 +294,9 @@ def _test_all(models, models_setup, data, depth):
 
 
 if __name__ == '__main__':
+
+    from mb_modelbase.utils import data_import_utils
+
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     logger.addHandler(ch)
@@ -305,8 +308,8 @@ if __name__ == '__main__':
     }
 
     # setup data for model training
-    df = pd.read_csv('crabs.csv').drop(columns='index')
-    all_, discrete, continuous = md.get_columns_by_dtype(df)
+    df = pd.read_csv('test_crabs.csv').drop(columns='index')
+    all_, discrete, continuous = data_import_utils.get_columns_by_dtype(df)
     data_full = {
         'discrete': pd.DataFrame(df, columns=discrete),
         'continuous': pd.DataFrame(df, columns=continuous),
@@ -333,8 +336,8 @@ if __name__ == '__main__':
     _test_all(models, models_setup, data_full, depth=3)
 
     ## dedicated density_sum test
-    df = pd.read_csv('crabs.csv', usecols=['sex', 'RW'])
-    all_, discrete, continuous = md.get_columns_by_dtype(df)
+    df = pd.read_csv('test_crabs.csv', usecols=['sex', 'RW'])
+    all_, discrete, continuous = data_import_utils.get_columns_by_dtype(df)
     data = {
         'discrete': pd.DataFrame(df, columns=discrete),
         'continuous': pd.DataFrame(df, columns=continuous),

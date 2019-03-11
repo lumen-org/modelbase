@@ -1674,16 +1674,17 @@ class Model:
                 aggr_input_dim_names = t[NAME_IDX]
                 basenames.update(aggr_input_dim_names)
 
-                # all dimensions that are required as input by the aggregation/density must be available somehow:
-                #  * as a split (i.e. splitby), or
-                #  * from data (i.e. evidence)
-                # if that is not the case: add a default split for it
-                # TODO: this is not tested
-                for name in aggr_input_dim_names:
-                    if name not in evidence_names and name not in split_names:
-                        add_split_for_defaulting_field(self.byname(name))
-                #TODO: just an idea: couldn't I merge the evidence given (takes higher priority) with all default of all variables and use this as a starting point for the input frame??
-
+                aggr_method = t[METHOD_IDX]
+                if aggr_method == 'density' or aggr_method == 'probability':
+                    # all dimensions that are required as input by a density/probability must be available somehow:
+                    #  * as a split (i.e. splitby), or
+                    #  * from data (i.e. evidence)
+                    # if that is not the case: add a default split for it
+                    # TODO: this is not tested
+                    for name in aggr_input_dim_names:
+                        if name not in evidence_names and name not in split_names:
+                            add_split_for_defaulting_field(self.byname(name))
+                    # TODO: just an idea: couldn't I merge the evidence given (takes higher priority) with all default of all variables and use this as a starting point for the input frame??
 
         basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
