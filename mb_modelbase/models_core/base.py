@@ -293,3 +293,18 @@ def to_name_sequence(obj):
         sequence of str
     """
     return list(map(_name_from_field, _to_sequence(obj)))
+
+
+# def field_usage_type(fu):
+#     """Returns the 'type' of the FieldUsage `fu`
+#
+#     Args:
+#         fu : FieldUsage
+#
+#     Returns: str
+#         Returns a string to identify the type of the field usage, as follows:
+#         * 'split' if it is any split
+#         * 'density' if it is an aggregation with method 'density' OR 'probability'
+#         * 'aggregation' if it is an aggregation with method 'maximum' OR 'average'
+#     """
+#     return fu[METHOD_IDX]

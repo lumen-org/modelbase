@@ -20,9 +20,10 @@ import pandas as pd
 import logging
 
 from mb_modelbase.models_core import base
-from mb_modelbase.models_core.base import Field, Aggregation, Density, Probability, Split, Condition
+from mb_modelbase.models_core.base import Condition, Split, Density
 from mb_modelbase.models_core.base import NAME_IDX, METHOD_IDX, YIELDS_IDX, ARGS_IDX, OP_IDX, VALUE_IDX
 from mb_modelbase.models_core import splitter as sp
+from mb_modelbase.models_core import models_predict
 from mb_modelbase.utils import utils
 from mb_modelbase.utils import data_import_utils
 from mb_modelbase.models_core import data_aggregation
@@ -35,6 +36,7 @@ logger.setLevel(logging.DEBUG)
 
 
 """ Utility functions for converting models and parts / components of models to strings. """
+
 
 def field_tojson(field):
     """Returns an adapted version of a field that in any case is JSON serializable. A fields domain may contain the
@@ -93,13 +95,6 @@ def condition_to_str(model, condition):
 def conditions_to_str(model, conditions):
     cond_strs = [condition_to_str(model, condition) for condition in conditions]
     return "(" + ",".join(cond_strs) + ")"
-
-
-def _tuple2str(tuple_):
-    """Returns a string that summarizes the given splittuple or aggregation tuple"""
-    is_aggr_tuple = len(tuple_) == 4 and not tuple_[METHOD_IDX] == 'density'
-    prefix = (str(tuple_[YIELDS_IDX]) + '@') if is_aggr_tuple else ""
-    return prefix + str(tuple_[METHOD_IDX]) + '(' + str(tuple_[NAME_IDX]) + ')'
 
 
 class Model:
@@ -1577,12 +1572,11 @@ class Model:
                 # let model be a model with the default value of X set to 1.
                 model.predict(X, Y, Density('X','Y'), splitby=Split('Y', 'equidist, 10))
         """
-        # TODO: add default splits for each data type?
         if evidence is not None:
             if splitby is not None:
                 raise ValueError('you may not use both arguments at the same time: evidence and splitby')
             if not self.isfieldname(evidence.colnames):
-                raise ValueError('evidence containts data dimensions that are not modelled by this model')
+                raise ValueError('evidence contains data dimensions that are not modelled by this model')
 
         if isinstance(predict, (str, tuple)):
             predict = [predict]
@@ -1620,71 +1614,14 @@ class Model:
         evidence_ids = [name + next(idgen) for name in evidence_names]
         evidence_name2id = dict(zip(evidence_names, evidence_ids))
 
-        basenames = set(split_names + evidence_names)  # set of names of fields needed for basemodel of this query
+        basenames = set(split_names + evidence_names)  # set of names of fields needed for base-model of this query
 
-        def add_split_for_defaulting_field(dim):
-            """ A add a filter and identity split for the defaulting field `dim`, if possible.
-
-            Returns:
-                the value/subset `dim` defaults to.
-            """
-            if dim['default_value'] is not None:
-                def_ = dim['default_value']
-            elif dim['default_subset'] is not None:
-                def_ = dim['default_subset']
-            else:
-                raise ValueError("Missing split-tuple for a split-field in predict: " + name)
-
-            logger.info("using default for dim " + str(name) + " : " + str(def_))
-
-            # add split
-            split = Split(name, 'identity')
-            splitby.append(split)
-            id_ = name + next(idgen)
-            split_ids.append(id_)
-            split_name2id[name] = id_
-
-            # add condition
-            condition = Condition(name, '==', def_)
-            where.append(condition)
-            filter_names.append(name)
-
-            return def_
-
-        for t in predict:
-            if isinstance(t, str):
-                # t is a string, i.e. name of a field that is split by
-                name = t
-                predict_names.append(name)
-                try:
-                    predict_ids.append(split_name2id[name])
-                except KeyError:
-                    dim = self.byname(name)
-                    add_split_for_defaulting_field(dim)
-                    predict_ids.append(split_name2id[name])  # "retry"
-
-                basenames.add(name)
-            else:
-                # t is an aggregation/density tuple
-                id_ = _tuple2str(t) + next(idgen)
-                aggrs.append(t)
-                aggr_ids.append(id_)
-                predict_names.append(_tuple2str(t))  # generate column name to return
-                predict_ids.append(id_)
-                aggr_input_dim_names = t[NAME_IDX]
-                basenames.update(aggr_input_dim_names)
-
-                aggr_method = t[METHOD_IDX]
-                if aggr_method == 'density' or aggr_method == 'probability':
-                    # all dimensions that are required as input by a density/probability must be available somehow:
-                    #  * as a split (i.e. splitby), or
-                    #  * from data (i.e. evidence)
-                    # if that is not the case: add a default split for it
-                    # TODO: this is not tested
-                    for name in aggr_input_dim_names:
-                        if name not in evidence_names and name not in split_names:
-                            add_split_for_defaulting_field(self.byname(name))
-                    # TODO: just an idea: couldn't I merge the evidence given (takes higher priority) with all default of all variables and use this as a starting point for the input frame??
+        models_predict.apply_defaulting_fields(self, basenames, aggrs, aggr_ids,
+                            splitby, split_ids, split_names, split_name2id,
+                            where, filter_names,
+                            predict, predict_names, predict_ids,
+                            evidence_names,
+                            idgen)
 
         basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
@@ -1693,18 +1630,13 @@ class Model:
 
         # for density: keep only those fields as requested in the tuple
         # for 'normal' aggregations: remove all fields of other measures which are not also
-        # a used for splitting, or equivalently: keep all fields of fields, plus the one
+        # a used for splitting, or equivalently: keep all fields of splits, plus the one
         # for the current aggregation
-
-        def _derive_aggregation_model(aggr):
-            aggr_model = basemodel.copy(name=next(aggr_model_id_gen))
-            if aggr[METHOD_IDX] == 'density':
-                return aggr_model.model(model=aggr[NAME_IDX])
-            else:
-                return aggr_model.model(model=list(splitnames_unique | set(aggr[NAME_IDX])))
-
         aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
-        aggr_models = [_derive_aggregation_model(aggr) for aggr in aggrs]
+        aggr_models = [models_predict.derive_aggregation_model(basemodel, aggr, splitnames_unique, aggr_model_id_gen)
+                       for aggr in aggrs]
+
+
 
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
@@ -1714,17 +1646,6 @@ class Model:
             else:
                 input_frame = pd.DataFrame()
         else:
-            def _get_group_frame(split, column_id):
-                field = basemodel.byname(split[NAME_IDX])
-                domain = field['domain'].bounded(field['extent'])
-                try:
-                    splitfct = sp.splitter[split[METHOD_IDX].lower()]
-                except KeyError:
-                    raise ValueError("split method '" + split[METHOD_IDX] + "' is not supported")
-                frame = pd.DataFrame({column_id: splitfct(domain.values(), split[ARGS_IDX])})
-                frame['__crossIdx__'] = 0  # need that index to cross join later
-                return frame
-
             def _crossjoin(df1, df2):
                 return pd.merge(df1, df2, on='__crossIdx__', copy=False)
 
@@ -1738,7 +1659,7 @@ class Model:
 
             # all splits are non-data splits
             if len(data_splits) == 0:
-                group_frames = map(_get_group_frame, splitby, split_ids)
+                group_frames = map(models_predict.get_group_frame, [self]*len(splitby), splitby, split_ids)
                 input_frame = functools.reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
 
             # all splits are data and/or identity splits
@@ -1756,7 +1677,7 @@ class Model:
                 # add identity splits
                 for id_, s in zip(identity_ids, identity_splits):
                     field = basemodel.byname(s[NAME_IDX])
-                    domain = field['domain'].bounded(field['extent'])  # TODO: what does this do?
+                    domain = field['domain'].bounded(field['extent'])
                     assert (domain.issingular())
                     input_frame[id_] = domain.value()
 
