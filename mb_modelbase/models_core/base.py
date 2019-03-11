@@ -22,7 +22,7 @@ from collections import namedtuple
 
 
 AggregationMethods = {'maximum', 'average', 'density', 'probability'}  # possible method of an aggregation
-SplitMethods = {'elements', 'identity', 'equiinterval', 'equidist'}  # possible method of a split
+SplitMethods = {'elements', 'identity', 'equiinterval', 'equidist', 'data'}  # possible method of a split
 
 AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'yields', 'args'])
 """An aggregation tuple describes an aggregation.

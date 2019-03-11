@@ -1636,55 +1636,9 @@ class Model:
         aggr_models = [models_predict.derive_aggregation_model(basemodel, aggr, splitnames_unique, aggr_model_id_gen)
                        for aggr in aggrs]
 
-
-
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
-        if len(splitby) == 0:
-            if evidence is not None:
-                input_frame = evidence
-            else:
-                input_frame = pd.DataFrame()
-        else:
-            def _crossjoin(df1, df2):
-                return pd.merge(df1, df2, on='__crossIdx__', copy=False)
-
-            # filter to tuples of (identity_split, split_id)
-            id_tpl = tuple(zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'identity')))
-            identity_splits, identity_ids = ([], []) if len(id_tpl) == 0 else id_tpl
-
-            # filter to tuples of (data_split, split_id)
-            split_tpl = tuple(zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'data')))
-            data_splits, data_ids = ([], []) if len(split_tpl) == 0 else split_tpl
-
-            # all splits are non-data splits
-            if len(data_splits) == 0:
-                group_frames = map(models_predict.get_group_frame, [self]*len(splitby), splitby, split_ids)
-                input_frame = functools.reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
-
-            # all splits are data and/or identity splits
-            elif len(data_splits) + len(identity_splits) == len(splitby):
-
-                # compute input frame according to data splits
-                data_split_names = [s[NAME_IDX] for s in data_splits]
-                assert (self.mode == 'both')
-                # limit = 15*len(data_split_names)  # TODO: maybe we need a nicer heuristic? :)
-                # #.drop_duplicates()\ # TODO: would make sense to do it, but then I run into problems with matching test data to aggregations on them in frontend, because I drop them for the aggregations, but not for test data select
-                input_frame = self.test_data.loc[:, data_split_names] \
-                    .sort_values(by=data_split_names, ascending=True)
-                input_frame.columns = data_ids  # rename to data split ids!
-
-                # add identity splits
-                for id_, s in zip(identity_ids, identity_splits):
-                    field = basemodel.byname(s[NAME_IDX])
-                    domain = field['domain'].bounded(field['extent'])
-                    assert (domain.issingular())
-                    input_frame[id_] = domain.value()
-
-                # TODO: I do not understand why this reset is necesary, but it breaks if I don't do it.
-                input_frame = input_frame.reset_index(drop=True)
-            else:
-                raise NotImplementedError('Currently mixing data splits with any other splits is not supported.')
+        input_frame = models_predict.generate_input_frame(self, basemodel, splitby, split_ids, evidence)
 
         # (4) query models and fill result data frame
         """ question is: how to efficiently query the model? how can I vectorize it?

@@ -6,7 +6,9 @@ This module contains helper functions methods to do prediction on models.
 
 
 """
+import functools
 import logging
+
 import pandas as pd
 
 from mb_modelbase.models_core import splitter as sp
@@ -143,7 +145,7 @@ def get_group_frame(model, split, column_id):
     return frame
 
 
-def generate_input_series(model, input_names_required, splits, split_names, evidence):
+def generate_all_input_series(model, input_names_required, splits, split_names, evidence):
     """Returns a dict of pd.Series with an entry for every 'input dimension'
 
     Args:
@@ -194,4 +196,64 @@ def generate_input_series_for_dim(model, input_dim_name, name2split, evidence):
 
     assert(series is not None)
     return series
+
+
+def generate_input_frame(model, basemodel, splitby, split_ids, evidence):
+    """Create one common big input based on splitbys"""
+
+    # TODO: in the future I want to create the input frame based on what is actually needed for a particular aggregation
+    # instead of just creating one huge input frame and then cutting down what is not needed
+
+    # TODO: idea: can't we handle the the split-method 'data' (which uses .test_data as the result of the split) as evidence
+    # this seem more clean and versatile
+
+    # TODO: we should only need basemodel
+
+    if len(splitby) == 0:
+        if evidence is not None:
+            input_frame = evidence
+        else:
+            input_frame = pd.DataFrame()
+    else:
+        def _crossjoin(df1, df2):
+            return pd.merge(df1, df2, on='__crossIdx__', copy=False)
+
+        # filter to tuples of (identity_split, split_id)
+        id_tpl = tuple(zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'identity')))
+        identity_splits, identity_ids = ([], []) if len(id_tpl) == 0 else id_tpl
+
+        # filter to tuples of (data_split, split_id)
+        split_tpl = tuple(zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'data')))
+        data_splits, data_ids = ([], []) if len(split_tpl) == 0 else split_tpl
+
+        # all splits are non-data splits. Note: this should be the 'normal' case
+        if len(data_splits) == 0:
+            group_frames = map(get_group_frame, [model] * len(splitby), splitby, split_ids)
+            input_frame = functools.reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
+
+        # all splits are data and/or identity splits
+        elif len(data_splits) + len(identity_splits) == len(splitby):
+
+            # compute input frame according to data splits
+            data_split_names = [s[NAME_IDX] for s in data_splits]
+            assert (model.mode == 'both')
+            # limit = 15*len(data_split_names)  # TODO: maybe we need a nicer heuristic? :)
+            # #.drop_duplicates()\ # TODO: would make sense to do it, but then I run into problems with matching test data to aggregations on them in frontend, because I drop them for the aggregations, but not for test data select
+            # sorting is required for correct display, since points are connected along their index
+            input_frame = model.test_data.loc[:, data_split_names].sort_values(by=data_split_names, ascending=True)
+            input_frame.columns = data_ids  # rename to data split ids!
+
+            # add identity splits
+            for id_, s in zip(identity_ids, identity_splits):
+                field = basemodel.byname(s[NAME_IDX])
+                domain = field['domain'].bounded(field['extent'])
+                assert (domain.issingular())
+                input_frame[id_] = domain.value()
+
+            # TODO: I do not understand why this reset is necesary, but it breaks if I don't do it.
+            input_frame = input_frame.reset_index(drop=True)
+        else:
+            raise NotImplementedError('Currently mixing data splits with any other splits is not supported.')
+
+    return input_frame
 
