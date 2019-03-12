@@ -4,12 +4,22 @@ import pymc3 as pm
 import mb_modelbase as mbase
 import unittest
 
-#testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_testcase_model.mdl'
-testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_getting_started_model.mdl'
+#testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl'
+# testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_getting_started_model.mdl'
+#
+# np.random.seed(123)
+# alpha, sigma = 1, 1
+# beta_0 = 1
+# beta_1 = 2.5
+# size = 100
+# X1 = np.random.randn(size)
+# X2 = np.random.randn(size) * 0.2
+# Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
+# data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
 
 #testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_testcase_model.mdl'
-#testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl'
-
+# testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_testcase_model.mdl'
+#
 # np.random.seed(2)
 # size = 100
 # mu = np.random.normal(0, 1, size=size)
@@ -17,15 +27,18 @@ testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_
 # X = np.random.normal(mu, sigma, size=size)
 # data = pd.DataFrame({'X': X})
 
-np.random.seed(123)
-alpha, sigma = 1, 1
-beta_0 = 1
-beta_1 = 2.5
-size = 100
-X1 = np.random.randn(size)
-X2 = np.random.randn(size) * 0.2
-Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
-data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
+#testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_coal_mining_disaster_model.mdl'
+testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_coal_mining_disaster_model.mdl'
+
+disasters = np.array([4, 5, 4, 0, 1, 4, 3, 4, 0, 6, 3, 3, 4, 0, 2, 6,
+                            3, 3, 5, 4, 5, 3, 1, 4, 4, 1, 5, 5, 3, 4, 2, 5,
+                            2, 2, 3, 4, 2, 1, 3, 3, 2, 1, 1, 1, 1, 3, 0, 0,
+                            1, 0, 1, 1, 0, 0, 3, 1, 0, 3, 2, 2, 0, 1, 1, 1,
+                            0, 1, 0, 1, 0, 0, 0, 2, 1, 0, 0, 0, 1, 1, 0, 2,
+                            3, 3, 1, 2, 2, 1, 1, 1, 1, 2, 4, 2, 0, 0, 1, 4,
+                            0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1])
+years = np.arange(1851, 1962)
+data = pd.DataFrame({'years': years, 'disasters': disasters})
 
 class Test_methods_on_initialized_model(unittest.TestCase):
     """
