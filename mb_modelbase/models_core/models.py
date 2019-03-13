@@ -1620,15 +1620,12 @@ class Model:
         basenames = set().union(split_names, evidence_names, aggr_input_names, aggr_dims)
         basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
-        # (2) derive a sub-model for each requested aggregation
-        splitnames_unique = set(split_names)
-        aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
-        aggr_models = [models_predict.derive_aggregation_model(basemodel, aggr, splitnames_unique, aggr_model_id_gen)
-                       for aggr in aggrs]
+        # (2) generate all input data
+        partial_data, split_data = models_predict.generate_all_input(basemodel, aggr_input_names + split_names, splitby, split_names, evidence)
 
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
-        input_frame = models_predict.generate_input_frame(self, basemodel, splitby, split_ids, evidence)
+        # OLD: input_frame = models_predict.generate_input_frame(self, basemodel, splitby, split_ids, evidence)
 
         # build list of comparison operators, depending on split types. Needed to condition on each tuple of the input
         #  frame when aggregating
@@ -1651,26 +1648,36 @@ class Model:
         else:
             raise NotImplementedError("yet to implement mixed use of splits and evidence")
 
-        # (4) query models and fill result data frame
+
+        # (3) execute each aggregation
+        splitnames_unique = set(split_names)
+        input_names_unique = list(set(input_names))
+        aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
+
         result_list = [pd.DataFrame()]
-        for idx, aggr in enumerate(aggrs):
-            aggr_model = aggr_models[idx]
+        for aggr, aggr_id in zip(aggrs, aggr_ids):
+
+            # derive submodel for aggr
+            aggr_model = models_predict.derive_aggregation_model(basemodel, aggr, input_names_unique, aggr_model_id_gen)
             aggr_method = aggr[METHOD_IDX]
 
+            # get input data frame
+            # nothing to do: input is identical for all frames!
+
+            # query model
             if aggr_method == 'density' or aggr_method == 'probability':
                 aggr_results = models_predict.\
-                    aggregate_density_or_probability(self, aggr_model, aggr, input_frame, input_name2id, splitby)
+                    aggregate_density_or_probability(aggr_model, aggr, splitby, partial_data, split_data, input_name2id)
 
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 aggr_results = models_predict.\
-                    aggregate_maximum_or_average(self, aggr_model, aggr, input_frame, input_names, splitby, operator_list)
+                    aggregate_maximum_or_average(self, aggr_model, aggr, partial_data, split_data, input_names, splitby, operator_list)
             else:
                 raise ValueError("Invalid 'aggregation method': " + str(aggr_method))
 
-            # generate DataSeries from it
-            columns = [aggr_ids[idx]]
-            df = pd.DataFrame(aggr_results, columns=columns)
-            result_list.append(df)
+            result_list.append(
+                pd.DataFrame(aggr_results, columns=[aggr_id])
+            )
 
         # QUICK FIX: when splitting by 'equiinterval' we get intervals instead of scalars as entries
         # however, I cannot currently handle intervals on the client side easily
