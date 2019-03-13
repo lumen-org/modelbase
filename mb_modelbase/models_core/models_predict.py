@@ -23,7 +23,10 @@ logger.setLevel(logging.DEBUG)
 
 
 def _tuple2str(tuple_):
-    """Returns a string that summarizes the given splittuple or aggregation tuple"""
+    """Returns a string that summarizes the given split tuple or aggregation tuple
+
+    The indended use if as column names in the returned DataFrame of Model.predict.
+    """
     is_aggr_tuple = len(tuple_) == 4 and not tuple_[METHOD_IDX] == 'density'
     prefix = (str(tuple_[YIELDS_IDX]) + '@') if is_aggr_tuple else ""
     return prefix + str(tuple_[METHOD_IDX]) + '(' + str(tuple_[NAME_IDX]) + ')'
@@ -74,48 +77,112 @@ def add_split_for_defaulting_field(dim, splitby, split_ids, split_name2id, split
     return def_
 
 
-def apply_defaulting_fields(model, basenames,
-                            aggrs, aggr_ids,
-                            splitby, split_ids, split_names, split_name2id,
-                            where, filter_names,
-                            predict, predict_names, predict_ids,
-                            evidence_names,
-                            idgen):
+def create_data_structures_for_clauses(model, predict, where, splitby, evidence):
+    # the following convention for naming of variables is used:
+    #  * 'input' means we require values of that dimension as input
+    #  * 'output' means values of that dimension will be the result of a prediction
+    #  * 'split' means dimension that are split by in order to create 'input'
+    #  * 'dims' means dimensions that are required to be included in the model
+    #
+    # furthermore:
+    #  * 'names' hold names of dimensions (which are unique along dimensions of a model, but multiple FieldUsages
+    #    of one dimension may be part of a predict query). There is the special case of names of the
+    #    Density/Probability Field Usages, which are not (and cannot be) names of dimensions as such.
+    #  * 'ids' hold unique ids (which are unique for that particular FieldUsage across this call to `.predict()`)
+    #
+    # note also that if anything is a list it is in the same order than the corresponding arguments to `.predict()`
 
-    for t in predict:
-        clause_type = type_of_clause(t)
-        if clause_type == 'split':
-            # t is a string, i.e. name of a field that is split by
-            name = t
-            predict_names.append(name)
-            try:
-                predict_ids.append(split_name2id[name])
-            except KeyError:
-                dim = model.byname(name)
-                add_split_for_defaulting_field(dim, splitby, split_ids, split_name2id, split_names, where, filter_names, idgen)
-                predict_ids.append(split_name2id[name])  # "retry"
-            basenames.add(name)
+    idgen = utils.linear_id_generator()
+
+    # init utility data structures for the various clauses: splits, aggr-predicions, density-predicions, ...
+    filter_names = [f[NAME_IDX] for f in where]
+
+    # predict.* is about the dimensions and columns of the pd.DataFrame to be returned as query result
+    predict_ids = []  # unique ids of columns in data frame. In correct order. For reordering of columns.
+    predict_names = []  # names of columns as to be returned. In correct order. For renaming of columns.
+
+    # split.* is about the splits to to in order to generate necessary input
+    split_names = [f[NAME_IDX] for f in splitby]  # name of fields to split by. Same order as in split-by clause.
+    split_ids = [f[NAME_IDX] + next(idgen) for f in
+                 splitby]  # ids for columns for fields to split by. Same order as in splitby-clause.
+    split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids (for columns in data frames)
+
+    # aggr.* is about the aggregations to do
+    aggrs = []  # list of aggregation tuples, in same order as in the predict-clause
+    aggr_ids = []  # ids for columns of fields to aggregate. Same order as in predict-clause
+    aggr_dims = []  # names of the dims averaged or maximized over
+    aggr_input_names = set()  # names of the dims requires as input for density / probability
+    aggr_output_names = []  # name of the dim predicted by each aggregation, in same order as aggr
+
+    # evidence.* is about the data points to use as input
+    evidence_names = evidence.colnames if evidence is not None else []
+    evidence_ids = [name + next(idgen) for name in evidence_names]
+    evidence_name2id = dict(zip(evidence_names, evidence_ids))
+
+    # check / normalize each predict clause
+    for clause in predict:
+        normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_input_names, aggr_output_names,
+                             splitby, split_ids, split_names, split_name2id,
+                             where, filter_names,
+                             predict, predict_ids, predict_names,
+                             evidence_names,
+                             idgen)
+
+    return aggrs, aggr_ids, aggr_input_names, aggr_dims, \
+        predict_ids, predict_names, \
+        split_ids, split_names, split_name2id, \
+        evidence, evidence_ids, evidence_names, evidence_name2id
+
+
+def normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_input_names, aggr_output_names,
+                             splitby, split_ids, split_names, split_name2id,
+                             where, filter_names,
+                             predict, predict_ids, predict_names,
+                             evidence_names,
+                             idgen):
+    clause_type = type_of_clause(clause)
+    if clause_type == 'split':
+        # t is a string, i.e. name of a field that is split by
+        name = clause
+        predict_names.append(name)
+        try:
+            predict_ids.append(split_name2id[name])
+        except KeyError:
+            # no explicit split was passed into .predict, hence a default value/subset is required instead
+            dim = model.byname(name)
+            add_split_for_defaulting_field(dim, splitby, split_ids, split_name2id, split_names, where, filter_names, idgen)
+            predict_ids.append(split_name2id[name])  # "retry"
+    else:
+        # t is an aggregation/density tuple
+        clause_name = _tuple2str(clause)
+        clause_id = clause_name + next(idgen)
+
+        aggrs.append(clause)
+        aggr_ids.append(clause_id)
+
+        predict_names.append(clause_name)  # generate column name to return
+        predict_ids.append(clause_id)
+
+        if clause_type == 'maximum' or clause_type == 'average':
+            aggr_dims.extend(clause[NAME_IDX])
+            aggr_output_names.append(clause[YIELDS_IDX])
+
+        elif clause_type == 'density' or clause_type == 'probability':
+            input_names = clause[NAME_IDX]
+            aggr_input_names.update(input_names)
+            aggr_output_names.append(clause_name)
+
+            # all input dimensions for a density/probability aggregation must be available:
+            #  * as a split (i.e. splitby), or
+            #  * from data (i.e. evidence)
+            # if that is not the case: add a default split for it
+            for name in input_names:
+                if name not in evidence_names and name not in split_names:
+                    add_split_for_defaulting_field(model.byname(name),
+                                                   splitby, split_ids, split_name2id, split_names,
+                                                   where, filter_names, idgen)
         else:
-            # t is an aggregation/density tuple
-            id_ = _tuple2str(t) + next(idgen)
-            aggrs.append(t)
-            aggr_ids.append(id_)
-            predict_names.append(_tuple2str(t))  # generate column name to return
-            predict_ids.append(id_)
-            aggr_input_dim_names = t[NAME_IDX]
-            basenames.update(aggr_input_dim_names)
-
-            if clause_type == 'density' or clause_type == 'probability':
-                # all dimensions that are required as input by a density/probability must be available somehow:
-                #  * as a split (i.e. splitby), or
-                #  * from data (i.e. evidence)
-                # if that is not the case: add a default split for it
-                # TODO: this is not tested
-                for name in aggr_input_dim_names:
-                    if name not in evidence_names and name not in split_names:
-                        add_split_for_defaulting_field(model.byname(name), splitby, split_ids, split_name2id, split_names,
-                                                       where, filter_names, idgen)
-                # TODO: just an idea: couldn't I merge the evidence given (takes higher priority) with all default of all variables and use this as a starting point for the input frame??
+            raise ValueError('invalid clause type: ' + str(clause_type))
 
 
 def derive_aggregation_model(basemodel, aggr, splitnames_unique, id_gen):
@@ -126,8 +193,12 @@ def derive_aggregation_model(basemodel, aggr, splitnames_unique, id_gen):
     """
     aggr_model = basemodel.copy(name=next(id_gen))
     if type_of_clause(aggr) == 'density':
+        # for density: keep only those fields as requested in the tuple
         return aggr_model.model(model=aggr[NAME_IDX])
     else:
+        # for 'normal' aggregations: remove all fields of other measures which are not also
+        # a used for splitting, or equivalently: keep all fields of splits, plus the one
+        # for the current aggregation
         return aggr_model.model(model=list(splitnames_unique | set(aggr[NAME_IDX])))
 
 

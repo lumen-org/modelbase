@@ -1571,6 +1571,20 @@ class Model:
 
                 # let model be a model with the default value of X set to 1.
                 model.predict(X, Y, Density('X','Y'), splitby=Split('Y', 'equidist, 10))
+
+        Ideas for Improvement:
+
+           How to efficiently query the model? how can I vectorize it? I believe that depends on the query. A typical
+           query consists of dimensions for splits and then aggregations and densities. For the case of aggregations
+           a conditioned model has to be calculated for every split. I don't see how to vectorize / speed this up
+           easily. For densities it might be very well possible, as the splits are now simply input to some density
+           function. It might actually be faster to first condition the model on the dimensions (values)
+           and then derive the measure models... note: for density however, no conditioning on the input is required
+
+        TODO:
+            * just an idea: couldn't I merge the evidence given (takes higher priority) with all default of all
+           variables and use this as a starting point for the input frame??
+
         """
         if evidence is not None:
             if splitby is not None:
@@ -1594,45 +1608,20 @@ class Model:
             where = []
         if splitby is None:
             splitby = []
-        idgen = utils.linear_id_generator()
 
-        filter_names = [f[NAME_IDX] for f in where]
-        split_names = [f[NAME_IDX] for f in splitby]  # name of fields to split by. Same order as in split-by clause.
+        # (0) create data structures for clauses
+        aggrs, aggr_ids, aggr_input_names, aggr_dims, \
+        predict_ids, predict_names, \
+        split_ids, split_names, split_name2id, \
+        evidence, evidence_ids, evidence_names, evidence_name2id \
+            = models_predict.create_data_structures_for_clauses(self, predict, where, splitby, evidence)
 
-        # (1) derive base model, i.e. a model on all requested fields and measures, respecting filters
-
-        predict_ids = []  # unique ids of columns in data frame. In correct order. For reordering of columns.
-        predict_names = []  # names of columns as to be returned. In correct order. For renaming of columns.
-
-        split_ids = [f[NAME_IDX] + next(idgen) for f in
-                     splitby]  # ids for columns for fields to split by. Same order as in splitby-clause.
-        split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids (for columns in data frames)
-
-        aggrs = []  # list of aggregation tuples, in same order as in the predict-clause
-        aggr_ids = []  # ids for columns of fields to aggregate. Same order as in predict-clause
-
-        evidence_names = evidence.colnames if evidence is not None else []
-        evidence_ids = [name + next(idgen) for name in evidence_names]
-        evidence_name2id = dict(zip(evidence_names, evidence_ids))
-
-        basenames = set(split_names + evidence_names)  # set of names of fields needed for base-model of this query
-
-        models_predict.apply_defaulting_fields(self, basenames, aggrs, aggr_ids,
-                            splitby, split_ids, split_names, split_name2id,
-                            where, filter_names,
-                            predict, predict_names, predict_ids,
-                            evidence_names,
-                            idgen)
-
+        # (1) derive base model, i.e. a model on all requested fields and measures respecting filters
+        basenames = set().union(split_names, evidence_names, aggr_input_names, aggr_dims)
         basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
         # (2) derive a sub-model for each requested aggregation
         splitnames_unique = set(split_names)
-
-        # for density: keep only those fields as requested in the tuple
-        # for 'normal' aggregations: remove all fields of other measures which are not also
-        # a used for splitting, or equivalently: keep all fields of splits, plus the one
-        # for the current aggregation
         aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
         aggr_models = [models_predict.derive_aggregation_model(basemodel, aggr, splitnames_unique, aggr_model_id_gen)
                        for aggr in aggrs]
@@ -1640,21 +1629,6 @@ class Model:
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
         input_frame = models_predict.generate_input_frame(self, basemodel, splitby, split_ids, evidence)
-
-        # (4) query models and fill result data frame
-        """ question is: how to efficiently query the model? how can I vectorize it?
-            I believe that depends on the query. A typical query consists of
-            dimensions for splits and then aggregations and densities.
-            For the case of aggregations a conditioned model has to be
-            calculated for every split. I don't see how to vectorize / speed
-            this up easily.
-            For densities it might be very well possible, as the splits are
-            now simply input to some density function.
-
-            it might actually be faster to first condition the model on the
-            dimensions (values) and then derive the measure models...
-            note: for density however, no conditioning on the input is required
-        """
 
         # build list of comparison operators, depending on split types. Needed to condition on each tuple of the input
         #  frame when aggregating
@@ -1665,21 +1639,19 @@ class Model:
             "elements": "in",
             "data": "in",
         }
-
-        # unified handling of
+        # unified handling of evidence and splits
         if len(splitby) > 0:
             operator_list = [method2operator[method] for (_, method, __) in splitby]
             input_names = split_names
-            input_ids = split_ids
             input_name2id = split_name2id
         elif len(input_frame) > 0 and len(splitby) == 0:
             operator_list = ["=="] * evidence.shape[1]
             input_names = evidence_names
-            input_ids = evidence_ids
             input_name2id = evidence_name2id
         else:
             raise NotImplementedError("yet to implement mixed use of splits and evidence")
 
+        # (4) query models and fill result data frame
         result_list = [pd.DataFrame()]
         for idx, aggr in enumerate(aggrs):
             aggr_model = aggr_models[idx]
