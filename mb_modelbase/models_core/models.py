@@ -1619,54 +1619,57 @@ class Model:
         basenames = set().union(split_names, evidence_names, aggr_input_names, aggr_dims)
         basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
+        input_names = aggr_input_names | set(split_names) | set(evidence_names)  # set of names of dimension that we need values for in our input data frame
+
         # (2) generate all input data
-        partial_data, split_data = models_predict.generate_all_input(basemodel, aggr_input_names | set(split_names), splitby, split_names, evidence)
+        partial_data, split_data = models_predict.generate_all_input(basemodel, input_names, splitby, split_names, evidence)
 
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
         # OLD: input_frame = models_predict.generate_input_frame(self, basemodel, splitby, split_ids, evidence)
 
-        # build list of comparison operators, depending on split types. Needed to condition on each tuple of the input
-        #  frame when aggregating
-        method2operator = {
-            "equidist": "==",
-            "equiinterval": "in",
-            "identity": "in",
-            "elements": "in",
-            "data": "in",
-        }
-        # unified handling of evidence and splits
-        if len(splitby) > 0:
-            operator_list = [method2operator[method] for (_, method, __) in splitby]
-            input_names = split_names
-            input_name2id = split_name2id
-        elif len(input_frame) > 0 and len(splitby) == 0:
-            operator_list = ["=="] * evidence.shape[1]
-            input_names = evidence_names
-            input_name2id = evidence_name2id
-        else:
-            raise NotImplementedError("yet to implement mixed use of splits and evidence")
+        # # build list of comparison operators, depending on split types. Needed to condition on each tuple of the input
+        # #  frame when aggregating
+        # method2operator = {
+        #     "equidist": "==",
+        #     "equiinterval": "in",
+        #     "identity": "in",
+        #     "elements": "in",
+        #     "data": "in",
+        # }
+        # # unified handling of evidence and splits
+        # if len(splitby) > 0:
+        #     operator_list = [method2operator[method] for (_, method, __) in splitby]
+        #     input_names = split_names
+        #     input_name2id = split_name2id
+        # elif len(input_frame) > 0 and len(splitby) == 0:
+        #     operator_list = ["=="] * evidence.shape[1]
+        #     input_names = evidence_names
+        #     input_name2id = evidence_name2id
+        # else:
+        #     raise NotImplementedError("yet to implement mixed use of splits and evidence")
 
 
         # (3) execute each aggregation
-        splitnames_unique = set(split_names)
-        input_names_unique = list(set(input_names))
+        #splitnames_unique = set(split_names)
+
         aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
 
         result_list = [pd.DataFrame()]
         for aggr, aggr_id in zip(aggrs, aggr_ids):
 
             # derive submodel for aggr
-            aggr_model = models_predict.derive_aggregation_model(basemodel, aggr, input_names_unique, aggr_model_id_gen)
+            aggr_model = models_predict.derive_aggregation_model(basemodel, aggr, input_names, next(aggr_model_id_gen))
             aggr_method = aggr[METHOD_IDX]
 
             # get input data frame
-            # nothing to do: input is identical for all frames!
+            # OLD: nothing to do: input is identical for all frames!
+            # NEW: is needed individually (for performance reasons), but done further down inside
 
             # query model
             if aggr_method == 'density' or aggr_method == 'probability':
                 aggr_results = models_predict.\
-                    aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, input_name2id)
+                    aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data)  # , input_name2id)
 
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 aggr_results = models_predict.\

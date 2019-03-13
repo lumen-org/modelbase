@@ -31,16 +31,31 @@ def cartesian_product(*arrays):
         arr[...,i] = a
     return arr.reshape(-1, la)
 
+
 def cartesian_product_multi(*dfs):
     idx = cartesian_product(*[np.ogrid[:len(df)] for df in dfs])
     return pd.DataFrame(
         np.column_stack([df.values[idx[:,i]] for i,df in enumerate(dfs)]))
 
+
 def _crossjoin2(*dfs):
-    return cartesian_product_multi(dfs)
+    return cartesian_product_multi(*dfs)
+
 
 def _crossjoin(df1, df2):
     return pd.merge(df1, df2, on='__my_cross_index__', copy=False)
+
+
+def _crossjoin3(*dfs):
+
+    # group_frames = map(get_group_frame, [model] * len(splitby), splitby, split_ids)
+    # input_frame = functools.reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
+
+    CONTINUE_HERE_!!!
+
+    dfs = (pd.DataFrame(data=df).assign(__my_cross_index__=1) for df in dfs)
+    return functools.reduce(_crossjoin, dfs, next(dfs)).drop('__my_cross_index__', axis=1)
+
 
 def _tuple2str(tuple_):
     """Returns a string that summarizes the given split tuple or aggregation tuple
@@ -205,26 +220,25 @@ def normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_inp
             raise ValueError('invalid clause type: ' + str(clause_type))
 
 
-def derive_aggregation_model(model, aggr, input_names, id_gen):
-    """Derive a model from model for the aggregation `aggr` considering that we will split along dimensions in
-    split unique.
+def derive_aggregation_model(model, aggr, input_names, model_name=None):
+    """Derive a model from model for the aggregation `aggr` considering that we have input along dimensions in
+    `input_names`.
 
     Returns: mb_modelbase.Model
 
     """
-    aggr_names = aggr[NAME_IDX]
+    aggr_names = set(aggr[NAME_IDX])
     if type_of_clause(aggr) == 'density':
         assert (input_names >= aggr_names)
         # OLD for density: keep only those fields as requested in the tuple
-        # for density: all input names
         dims_to_model = input_names
     else:
-        # for 'normal' aggregations: remove all fields of other measures which are not also
-        # a used for splitting, or equivalently: keep all fields of splits, plus the one
-        # for the current aggregation
-        assert set(input_names).isdisjoint(set(aggr_names))
+        # OLD: for 'normal' aggregations: remove all fields of other measures which are not also a used for
+        # splitting, or equivalently: keep all fields of splits, plus the one for the current aggregation
+        assert set(input_names).isdisjoint(aggr_names)
         dims_to_model = input_names + aggr_names
-    return model.copy(name=next(id_gen)).model(model=dims_to_model)
+    #dims_to_model = model.sorted_names(dims_to_model)
+    return model.copy(name=model_name).model(model=list(dims_to_model))
 
 
 def get_split_values(model, split):
@@ -420,7 +434,7 @@ def divide_df(df, colnames):
     return df[list(colnames)], df[list(other)]
 
 
-def aggregate_density_or_probability(model, aggr, partial_data, split_data, name2id):
+def aggregate_density_or_probability(model, aggr, partial_data, split_data):  # , name2id):
     """
     Compute density or probability aggregation `aggr` for `model` on given data.
     :param model:
@@ -447,9 +461,12 @@ def aggregate_density_or_probability(model, aggr, partial_data, split_data, name
     partial_data_cond_out, partial_data_input = divide_df(partial_data, cond_out_names)
     split_data_cond_out, split_data_input = divide_df(split_data, cond_out_names)
 
-    # merge data for each type
-    cond_out_data = _crossjoin2(*split_data_cond_out, partial_data_cond_out)
-    input_data = _crossjoin2(*split_data_input, partial_data_input)
+    # need individual pd.Series
+    split_data_cond_out = [col for name, col in split_data_cond_out.iteritems()]
+    split_data_input = [col for name, col in split_data_input.iteritems()]
+
+    input_data = _crossjoin3(*split_data_input, partial_data_input)
+    cond_out_data = _crossjoin3(*split_data_cond_out, partial_data_cond_out)
 
     # TODO: make the outer loop parallel
     operator_list = ['==']*len(input_names)  # OLD: used operator_list with custom op string
