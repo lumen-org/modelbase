@@ -1600,6 +1600,7 @@ class Model:
         split_names = [f[NAME_IDX] for f in splitby]  # name of fields to split by. Same order as in split-by clause.
 
         # (1) derive base model, i.e. a model on all requested fields and measures, respecting filters
+
         predict_ids = []  # unique ids of columns in data frame. In correct order. For reordering of columns.
         predict_names = []  # names of columns as to be returned. In correct order. For renaming of columns.
 

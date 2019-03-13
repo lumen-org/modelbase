@@ -340,8 +340,7 @@ def aggregate_density_or_probability(model, aggr_model, aggr, input_frame, input
         for col_id in nonscalar_ids:
             subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
 
-        if (model.parallel_processing):
-            # Opens parallel environment with mp
+        if model.parallel_processing:
             with mp.Pool() as p:
                 aggr_results = p.map(aggr_model.density, subframe.itertuples(index=False, name=None))
         else:  # Non-parallel execution
@@ -350,13 +349,12 @@ def aggregate_density_or_probability(model, aggr_model, aggr, input_frame, input
                 aggr_results.append(res)
 
     else:  # aggr_method == 'probability'
-        # TODO: use DataFrame.apply instead? What is faster?
-
-        if (model.parallel_processing):
-            # Opens parallel environment with mp
+        assert(aggr_method == 'probability')
+        if model.parallel_processing:
             with mp.Pool() as p:
                 aggr_results = p.map(aggr_model.probability, subframe.itertuples(index=False, name=None))
-        else:  # Non-parallel execution
+        else:
+            # TODO: use DataFrame.apply instead? What is faster?
             for row in subframe.itertuples(index=False, name=None):
                 res = aggr_model.probability(domains=row)
                 aggr_results.append(res)
@@ -384,30 +382,26 @@ def aggregate_maximum_or_average(model, aggr_model, aggr, input_frame, input_nam
         rowmodel_name = aggr_model.name + next(row_id_gen)
 
         if model.parallel_processing:
-
             # Define function for parallel execution of for loop
             def pred_max(row, input_names=input_names, operator_list=operator_list,
                          rowmodel_name=rowmodel_name, aggr_model=aggr_model):
 
                 pairs = zip(input_names, operator_list, row)
-                rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(
-                    keep=aggr[NAME_IDX])
+                rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
                 res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
                 i = rowmodel.asindex(aggr[YIELDS_IDX])
                 return res[i]
 
-            # Open parallel environment with mp_dill, which allows to use a function which was defined in the same scope (here: pred_max)
-
+            # Open parallel environment with mp_dill, which allows to use a function which was defined in the same
+            # scope (here: pred_max)
             with mp_dill.Pool() as p:
                 aggr_results = p.map(pred_max, input_frame.itertuples(index=False, name=None))
 
-        else:  # Non-parallel execution
-
+        else:
             for row in input_frame.itertuples(index=False, name=None):
                 pairs = zip(input_names, operator_list, row)
                 # derive model for these specific conditions
-                rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(
-                    keep=aggr[NAME_IDX])
+                rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
                 res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
                 # reduce to requested field
                 i = rowmodel.asindex(aggr[YIELDS_IDX])
