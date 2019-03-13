@@ -1681,105 +1681,16 @@ class Model:
 
         result_list = [pd.DataFrame()]
         for idx, aggr in enumerate(aggrs):
-            aggr_results = []
             aggr_model = aggr_models[idx]
             aggr_method = aggr[METHOD_IDX]
 
             if aggr_method == 'density' or aggr_method == 'probability':
-                # TODO (1): this is inefficient because it recalculates the same value many times, when we split on more than what the density is calculated on
-                # TODO: to solve it: calculate density only on the required groups and then join into the result table.
-                # TODO: to solve it(2): splits should be respected also for densities
-                names = self.sorted_names(aggr[NAME_IDX])
-                # select relevant columns in correct order and iterate over it
-                ids = []
-                for name in names:
-                    try:
-                        id_ = input_name2id[name]
-                    except KeyError as err:
-                        raise RuntimeError("you should no get here anymore, because we create default splits above already")
-                        # dim = self.byname(name)
-                        # default_ = add_split_for_defaulting_field(dim)
-                        # id_ = input_name2id[name]  # try again
-                        # input_frame[id_] = [default_] * len(input_frame)  # add a column with the default to input_frame
-                    ids.append(id_)
-
-                subframe = input_frame.loc[:, ids]
-
-                if aggr_method == 'density':
-                    # when splitting by elements or identity we get single element lists instead of scalars.
-                    # However, density() requires scalars.
-                    # TODO: I believe this issue should be handled in a conceptually better and faster way...
-                    nonscalar_ids = [input_name2id[name] for (name, method, __) in splitby if
-                                     method == 'elements' or method == 'identity' and name in names]
-                    for col_id in nonscalar_ids:
-                        subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
-
-                    if (self.parallel_processing):
-                        # Opens parallel environment with mp
-                        with mp.Pool() as p:
-                            aggr_results = p.map(aggr_model.density, subframe.itertuples(index=False, name=None))
-                    else:  # Non-parallel execution
-                        for row in subframe.itertuples(index=False, name=None):
-                            res = aggr_model.density(values=row)
-                            aggr_results.append(res)
-
-                else:  # aggr_method == 'probability'
-                    # TODO: use DataFrame.apply instead? What is faster?
-
-                    if (self.parallel_processing):
-                        # Opens parallel environment with mp
-                        with mp.Pool() as p:
-                            aggr_results = p.map(aggr_model.probability, subframe.itertuples(index=False, name=None))
-                    else:  # Non-parallel execution
-                        for row in subframe.itertuples(index=False, name=None):
-                            res = aggr_model.probability(domains=row)
-                            aggr_results.append(res)
+                aggr_results = models_predict.\
+                    aggregate_density_or_probability(self, aggr_model, aggr, input_frame, input_name2id, splitby)
 
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
-                #assert ((len(input_frame) == 0 and len(splitby) == 0) or (len(input_frame) != 0 and len(splitby) != 0))
-                #if len(splitby) == 0:
-                if len(input_frame) == 0:
-                    assert len(splitby) == 0
-                    # there is no fields to split by, hence only a single value will be aggregated
-                    # i.e. marginalize all other fields out
-                    singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
-                    res = singlemodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
-                    # reduce to requested field
-                    i = singlemodel.asindex(aggr[YIELDS_IDX])
-                    aggr_results.append(res[i])
-                else:
-                    row_id_gen = utils.linear_id_generator(prefix="_row")
-                    rowmodel_name = aggr_model.name + next(row_id_gen)
-
-                    if self.parallel_processing:
-
-                        # Define function for parallel execution of for loop
-                        def pred_max(row, input_names=input_names, operator_list=operator_list,
-                                     rowmodel_name=rowmodel_name, aggr_model=aggr_model):
-
-                            pairs = zip(input_names, operator_list, row)
-                            rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(
-                                keep=aggr[NAME_IDX])
-                            res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
-                            i = rowmodel.asindex(aggr[YIELDS_IDX])
-                            return res[i]
-
-                        # Open parallel environment with mp_dill, which allows to use a function which was defined in the same scope (here: pred_max)
-
-                        with mp_dill.Pool() as p:
-                            aggr_results = p.map(pred_max, input_frame.itertuples(index=False, name=None))
-
-                    else:  # Non-parallel execution
-
-                        for row in input_frame.itertuples(index=False, name=None):
-                            pairs = zip(input_names, operator_list, row)
-                            # derive model for these specific conditions
-                            rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(
-                                keep=aggr[NAME_IDX])
-                            res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
-                            # reduce to requested field
-                            i = rowmodel.asindex(aggr[YIELDS_IDX])
-                            aggr_results.append(res[i])
+                aggr_results = models_predict.\
+                    aggregate_maximum_or_average(self, aggr_model, aggr, input_frame, input_names, splitby, operator_list)
             else:
                 raise ValueError("Invalid 'aggregation method': " + str(aggr_method))
 

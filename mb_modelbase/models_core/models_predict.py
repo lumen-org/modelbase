@@ -10,11 +10,13 @@ import functools
 import logging
 
 import pandas as pd
+import multiprocessing as mp
+import multiprocessing_on_dill as mp_dill
 
 from mb_modelbase.models_core import splitter as sp
 from mb_modelbase.models_core.base import Split, Condition, Density
 from mb_modelbase.models_core.base import NAME_IDX, METHOD_IDX, YIELDS_IDX, ARGS_IDX, OP_IDX, VALUE_IDX
-
+from mb_modelbase.utils import utils
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -145,20 +147,67 @@ def get_group_frame(model, split, column_id):
     return frame
 
 
-def generate_all_input_series(model, input_names_required, splits, split_names, evidence):
-    """Returns a dict of pd.Series with an entry for every 'input dimension'
+def data_splits_to_evidence(model, splitby, evidence):
+    """Convert data splits into evidence and return that evidence.
+
+    Careful: splitby is not modified.
+    """
+
+    # find data_splits
+    data_split_names = [s[NAME_IDX] for s in splitby if s[METHOD_IDX] == 'data']
+
+    # extract test data for it
+    if (data_split_names) > 0:
+        data_split_data = model.test_data.loc[:, data_split_names].sort_values(by=data_split_names, ascending=True)
+        #TODO:!? data_split_data.columns = data_ids  # rename to data split ids!
+
+    # add to evidence
+    if evidence.empty:
+        evidence = data_split_data
+    elif evidence.colnames == data_split_names:
+        # may only add if column are identical
+        evidence = pd.concat([evidence, data_split_data])
+    else:
+        raise ValueError("cannot merge evidence with data splits if dimensions and their order are not identical.")
+
+    return evidence
+
+
+def generate_all_input(model, input_names_required, splits, split_names, evidence):
+    """Returns a tuple of two pd.DataFrames of input for the prediction query execution.
+
+    The first is for partial data, i.e. data of (a subspace of) the data space that is used item-wise as input. That
+    means columns of it are combined using concatenation.
+
+    The second is for split data, i.e. data that is used column wise. That means columns of it are combined using
+    cross-joins.
+
+    The two data frames have no common columns.
 
     Args:
         model: md_modelbase.Model
         input_names_required: sequence of str
             The names of the dimensions to generate input series' for.
 
-    Returns: dict of <str:pd.Series>
+    Returns: pd.DataFrame, pd.DataFrame
         The generated dict of <input dimension name : series of input values>
     """
 
+    # normalize splits with method 'data' to evidence
+    evidence = data_splits_to_evidence(model, splits, evidence)
+
+    # generate input series for each input name
     name2split = dict(zip(split_names, splits))
-    return {name:generate_input_series_for_dim(model, name, name2split, evidence) for name in input_names_required}
+    data = {name: generate_input_series_for_dim(model, name, name2split, evidence) for name in input_names_required}
+
+    assert set(evidence.colnames).isdisjoint(set(data.colnames))
+
+    return evidence, pd.DataFrame(data=data)
+
+def genereate_input_for_aggregation(model, aggr, split_data, partial_data):
+    """Return an iterator over """
+    pass
+
 
 
 def generate_input_series_for_dim(model, input_dim_name, name2split, evidence):
@@ -256,4 +305,113 @@ def generate_input_frame(model, basemodel, splitby, split_ids, evidence):
             raise NotImplementedError('Currently mixing data splits with any other splits is not supported.')
 
     return input_frame
+
+
+def aggregate_density_or_probability(model, aggr_model, aggr, input_frame, input_name2id, splitby):
+
+    aggr_results = []
+    aggr_method = aggr[METHOD_IDX]
+
+    # TODO (1): this is inefficient because it recalculates the same value many times, when we split on more than what the density is calculated on
+    # TODO: to solve it: calculate density only on the required groups and then join into the result table.
+    # TODO: to solve it(2): splits should be respected also for densities
+    names = model.sorted_names(aggr[NAME_IDX])
+    # select relevant columns in correct order and iterate over it
+    ids = []
+    for name in names:
+        try:
+            id_ = input_name2id[name]
+        except KeyError as err:
+            raise RuntimeError("you should no get here anymore, because we create default splits above already")
+            # dim = self.byname(name)
+            # default_ = add_split_for_defaulting_field(dim)
+            # id_ = input_name2id[name]  # try again
+            # input_frame[id_] = [default_] * len(input_frame)  # add a column with the default to input_frame
+        ids.append(id_)
+
+    subframe = input_frame.loc[:, ids]
+
+    if aggr_method == 'density':
+        # when splitting by elements or identity we get single element lists instead of scalars.
+        # However, density() requires scalars.
+        # TODO: I believe this issue should be handled in a conceptually better and faster way...
+        nonscalar_ids = [input_name2id[name] for (name, method, __) in splitby if
+                         method == 'elements' or method == 'identity' and name in names]
+        for col_id in nonscalar_ids:
+            subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
+
+        if (model.parallel_processing):
+            # Opens parallel environment with mp
+            with mp.Pool() as p:
+                aggr_results = p.map(aggr_model.density, subframe.itertuples(index=False, name=None))
+        else:  # Non-parallel execution
+            for row in subframe.itertuples(index=False, name=None):
+                res = aggr_model.density(values=row)
+                aggr_results.append(res)
+
+    else:  # aggr_method == 'probability'
+        # TODO: use DataFrame.apply instead? What is faster?
+
+        if (model.parallel_processing):
+            # Opens parallel environment with mp
+            with mp.Pool() as p:
+                aggr_results = p.map(aggr_model.probability, subframe.itertuples(index=False, name=None))
+        else:  # Non-parallel execution
+            for row in subframe.itertuples(index=False, name=None):
+                res = aggr_model.probability(domains=row)
+                aggr_results.append(res)
+
+    return aggr_results
+
+
+def aggregate_maximum_or_average(model, aggr_model, aggr, input_frame, input_names, splitby, operator_list):
+
+    aggr_results = []
+
+    # assert ((len(input_frame) == 0 and len(splitby) == 0) or (len(input_frame) != 0 and len(splitby) != 0))
+    # if len(splitby) == 0:
+    if len(input_frame) == 0:
+        assert len(splitby) == 0
+        # there is no fields to split by, hence only a single value will be aggregated
+        # i.e. marginalize all other fields out
+        singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
+        res = singlemodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
+        # reduce to requested field
+        i = singlemodel.asindex(aggr[YIELDS_IDX])
+        aggr_results.append(res[i])
+    else:
+        row_id_gen = utils.linear_id_generator(prefix="_row")
+        rowmodel_name = aggr_model.name + next(row_id_gen)
+
+        if model.parallel_processing:
+
+            # Define function for parallel execution of for loop
+            def pred_max(row, input_names=input_names, operator_list=operator_list,
+                         rowmodel_name=rowmodel_name, aggr_model=aggr_model):
+
+                pairs = zip(input_names, operator_list, row)
+                rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(
+                    keep=aggr[NAME_IDX])
+                res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
+                i = rowmodel.asindex(aggr[YIELDS_IDX])
+                return res[i]
+
+            # Open parallel environment with mp_dill, which allows to use a function which was defined in the same scope (here: pred_max)
+
+            with mp_dill.Pool() as p:
+                aggr_results = p.map(pred_max, input_frame.itertuples(index=False, name=None))
+
+        else:  # Non-parallel execution
+
+            for row in input_frame.itertuples(index=False, name=None):
+                pairs = zip(input_names, operator_list, row)
+                # derive model for these specific conditions
+                rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(
+                    keep=aggr[NAME_IDX])
+                res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
+                # reduce to requested field
+                i = rowmodel.asindex(aggr[YIELDS_IDX])
+                aggr_results.append(res[i])
+
+    return aggr_results
 
