@@ -135,7 +135,7 @@ def create_data_structures_for_clauses(model, predict, where, splitby, evidence)
     aggr_output_names = []  # name of the dim predicted by each aggregation, in same order as aggr
 
     # evidence.* is about the data points to use as input
-    evidence_names = evidence.colnames if evidence is not None else []
+    evidence_names = evidence.columns
     evidence_ids = [name + next(idgen) for name in evidence_names]
     evidence_name2id = dict(zip(evidence_names, evidence_ids))
 
@@ -257,14 +257,14 @@ def data_splits_to_evidence(model, splitby, evidence):
         data_split_data = model.test_data.loc[:, data_split_names].sort_values(by=data_split_names, ascending=True)
         #TODO:!? data_split_data.columns = data_ids  # rename to data split ids!
 
-    # add to evidence
-    if evidence.empty:
-        evidence = data_split_data
-    elif evidence.colnames == data_split_names:
-        # may only add if column are identical
-        evidence = pd.concat([evidence, data_split_data])
-    else:
-        raise ValueError("cannot merge evidence with data splits if dimensions and their order are not identical.")
+        # add to evidence
+        if evidence.empty:
+            evidence = data_split_data
+        elif evidence.columns == data_split_names:
+            # may only add if column are identical
+            evidence = pd.concat([evidence, data_split_data])
+        else:
+            raise ValueError("cannot merge evidence with data splits if dimensions and their order are not identical.")
 
     return evidence
 
@@ -291,11 +291,11 @@ def generate_all_input(model, input_names_required, splits, split_names, evidenc
 
     # normalize splits with method 'data' to evidence
     evidence = data_splits_to_evidence(model, splits, evidence)
+    assert set(evidence.columns).isdisjoint(set(input_names_required))
 
     # generate input series for each input name
     name2split = dict(zip(split_names, splits))
-    data = [generate_input_series_for_dim(model, name, name2split, evidence) for name in input_names_required]
-    assert set(evidence.colnames).isdisjoint(set(input_names_required))
+    data_dict = {name: generate_input_series_for_dim(model, name, split_names, name2split, evidence) for name in input_names_required}
 
     # cross join all columns of data and with evidence
     #input_frame = _crossjoin2(*data, evidence)
@@ -305,7 +305,7 @@ def generate_all_input(model, input_names_required, splits, split_names, evidenc
     #evidence = evidence.assign(__my_cross_index__=1)
     #input_frame = functools.reduce(_crossjoin, group_frames, next(group_frames)).drop('__my_cross_index__', axis=1)
 
-    return evidence, pd.DataFrame(data=data, columns=input_names_required)
+    return evidence, pd.DataFrame(data=data_dict)
     #return input_frame
 
 
@@ -314,12 +314,12 @@ def generate_input_for_aggregation(model, aggr, split_data, partial_data):
     pass
 
 
-def generate_input_series_for_dim(model, input_dim_name, name2split, evidence):
+def generate_input_series_for_dim(model, input_dim_name, split_names, name2split, evidence):
     name = input_dim_name
-    split_names = name2split.keys()
+    split_names = set(split_names)
 
     # if evidence is available: use evidence
-    if name in evidence.colnames:
+    if name in evidence.columns:
         series = evidence.loc[:, name]
 
         # if split is available: modify evidence
@@ -415,9 +415,9 @@ def divide_df(df, colnames):
     """Returns a tuple of two pd.DataFrames where the first one contains all columns with names in `colnames` and the
     second all other.
     """
-    assert(set(df.colnames) >= set(colnames))
-    other = set(df.colnames) - set(colnames)
-    return df[colnames], df[other]
+    assert(set(df.columns) >= set(colnames))
+    other = set(df.columns) - set(colnames)
+    return df[list(colnames)], df[list(other)]
 
 
 def aggregate_density_or_probability(model, aggr, partial_data, split_data, name2id):

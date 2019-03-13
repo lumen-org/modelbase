@@ -1586,11 +1586,10 @@ class Model:
            variables and use this as a starting point for the input frame??
 
         """
-        if evidence is not None:
-            if splitby is not None:
-                raise ValueError('you may not use both arguments at the same time: evidence and splitby')
-            if not self.isfieldname(evidence.colnames):
-                raise ValueError('evidence contains data dimensions that are not modelled by this model')
+        if evidence is None:
+            evidence = pd.DataFrame()
+        elif not self.isfieldname(evidence.colnames):
+            raise ValueError('evidence contains data dimensions that are not modelled by this model')
 
         if isinstance(predict, (str, tuple)):
             predict = [predict]
@@ -1621,7 +1620,7 @@ class Model:
         basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
         # (2) generate all input data
-        partial_data, split_data = models_predict.generate_all_input(basemodel, aggr_input_names + split_names, splitby, split_names, evidence)
+        partial_data, split_data = models_predict.generate_all_input(basemodel, aggr_input_names | set(split_names), splitby, split_names, evidence)
 
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
@@ -1667,7 +1666,7 @@ class Model:
             # query model
             if aggr_method == 'density' or aggr_method == 'probability':
                 aggr_results = models_predict.\
-                    aggregate_density_or_probability(aggr_model, aggr, splitby, partial_data, split_data, input_name2id)
+                    aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, input_name2id)
 
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 aggr_results = models_predict.\
