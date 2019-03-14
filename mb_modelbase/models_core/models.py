@@ -1612,15 +1612,11 @@ class Model:
             splitby = []
 
         # (0) create data structures for clauses
-
-        # about ids:
-
         aggrs, aggr_ids, aggr_input_names, aggr_dims, \
         predict_ids, predict_names, \
         split_names, \
         evidence, evidence_names\
             = models_predict.create_data_structures_for_clauses(self, predict, where, splitby, evidence)
-
         # set of names of dimensions that we need values for in the input data frame
         input_names = aggr_input_names | set(split_names) | set(evidence_names)
 
@@ -1630,10 +1626,6 @@ class Model:
 
         # (2) generate all input data
         partial_data, split_data = models_predict.generate_all_input(basemodel, input_names, splitby, split_names, evidence)
-
-        # (3) generate input for model aggregations,
-        # i.e. a cross join of splits of all dimensions
-        # OLD: input_frame = models_predict.generate_input_frame(self, basemodel, splitby, split_ids, evidence)
 
         # # build list of comparison operators, depending on split types. Needed to condition on each tuple of the input
         # #  frame when aggregating
@@ -1645,16 +1637,7 @@ class Model:
         #     "data": "in",
         # }
         # # unified handling of evidence and splits
-        # if len(splitby) > 0:
         #     operator_list = [method2operator[method] for (_, method, __) in splitby]
-        #     input_names = split_names
-        #     input_name2id = split_name2id
-        # elif len(input_frame) > 0 and len(splitby) == 0:
-        #     operator_list = ["=="] * evidence.shape[1]
-        #     input_names = evidence_names
-        #     input_name2id = evidence_name2id
-        # else:
-        #     raise NotImplementedError("yet to implement mixed use of splits and evidence")
 
         # (3) execute each aggregation
         aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
@@ -1682,8 +1665,8 @@ class Model:
                 aggr_df = models_predict.\
                     aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, aggr_id)
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
-                # TODO: I believe all max/avg aggregations require the identical input data, because i always condition on all input items
-                #  --> reuse it!?
+                # TODO: I believe all max/avg aggregations require the identical input data, because i always condition
+                #  on all input items --> reuse it!?
                 aggr_df = models_predict.\
                     aggregate_maximum_or_average(aggr_model, aggr, partial_data, split_data, input_names, splitby, aggr_id)
             else:
@@ -1701,17 +1684,21 @@ class Model:
             # TODO: need to generate input for requested output anyway
             raise NotImplementedError()
         else:
-            data_frame = functools.reduce(lambda df1, df2: df1.join(df2, on=input_names), result_list[1:],
-                                          result_list[0])
+            data_frame = functools.reduce(lambda df1, df2: df1.merge(df2, on=list(input_names), how='inner', copy=False),
+                                          result_list[1:], result_list[0])
 
-        # TEMPORARILY REMOVED:
         # QUICK FIX: when splitting by 'equiinterval' we get intervals instead of scalars as entries
         # however, I cannot currently handle intervals on the client side easily
         # so we just turn it back into scalars
+        column_interval_list = [name for (name, method, __) in splitby if method == 'equiinterval']
+        for column in column_interval_list:
+            data_frame[column] = data_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)
+
         # column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'equiinterval']
         # for column in column_interval_list:
         #     input_frame[column] = input_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)
-        #
+
+        # TEMPORARILY REMOVED:
         # # QUICK FIX2: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
         # column_interval_list = [split_name2id[name] for (name, method, __) in splitby if
         #                         method == 'elements' or method == 'identity']
@@ -1722,9 +1709,7 @@ class Model:
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
 
         # (7) get correctly ordered frame that only contain requested fields
-        # data_frame has input columns (which are labelled simply with the names of the dimensions, because there cannot
-        # be any name clash) and output columns (which are labelled by predict_ids in order to prevent name clashing)
-        data_frame = data_frame[predict_ids]  # flattens
+        data_frame = data_frame[predict_ids]
 
         # (8) rename columns to be readable (but not unique anymore)
         data_frame.columns = predict_names

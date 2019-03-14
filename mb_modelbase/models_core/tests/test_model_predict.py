@@ -21,6 +21,9 @@ if __name__ == '__main__':
     FL = model.byname('FL')
     RW = model.byname('RW')
 
+    res = model.predict(['sex', 'species', Density(sex), Density(species)], splitby=[Split(sex), Split(species)])
+    print(res)
+
     res = model.predict(['species', Density(species)], splitby=Split(species))
     print(res)
 
@@ -51,11 +54,6 @@ if __name__ == '__main__':
     res = model.predict(['sex', Density(sex)], splitby=Split(sex))
     print(res)
 
-    # merge fails
-    # res = model.predict(['sex', Density(sex), Aggregation(FL, method='maximum', yields='FL')], splitby=[Split(sex)])
-    # print(res)
-
-    # merge fails
-    # res = model.predict(['sex', 'species', Density([sex, species]), Density(sex), Density(species)], splitby=[Split(sex), Split(species)])
-    # print(res)
+    res = model.predict(['sex', Density(sex), Aggregation(FL, method='maximum', yields='FL')], splitby=[Split(sex)])
+    print(res)
 

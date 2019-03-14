@@ -26,7 +26,7 @@ def equidist(domain, args):
         return [domain[0]]*(args[0] > 0) if domain[0] == domain[1] else np.linspace(domain[0], domain[1], args[0])
         #TODO: future if we use domains: return [domain[0]] if domain.issingular() else np.linspace(domain[0], domain[1], args[0])
     except TypeError:
-        # domain aint a list
+        # domain is not a list
         return [domain]
     except IndexError:
         # domain only has one element
@@ -42,29 +42,45 @@ def equiinterval(domain, args):
         points = equidist(domain, [n+1])
         if len(points) == 1:
             points.append(points[0])  # add another point to make sure we get any interval at all
-        return [[points[i], points[i+1]] for i in range(len(points)-1)]
+        return [(points[i], points[i+1]) for i in range(len(points)-1)]
     elif n == 0:
         return []
     else:
         raise ValueError("Number of samples, " + str(n) + ", must be non-negative.")
 
+#
+# def identity(domain, args):
+#     """ Given any domain returns the full domain itself. Note that for consistency it return a (single-element) list
+#     of domains. """
+#     return [domain]
+#
+#
+# def elements(domain, args):
+#     """ Splits the given discrete domain into it's single elements and returns these. Thus, it returns a list
+#     of these elements."""
+#     if isinstance(domain, str):
+#         return [(domain,)]
+#         # raise TypeError('domain must be a list of values, not a single value')
+#     else:
+#         #return domain
+#         return [(e,) for e in domain]
+
 
 def identity(domain, args):
     """ Given any domain returns the full domain itself. Note that for consistency it return a (single-element) list
     of domains. """
-    return [domain]
+    return domain
 
 
 def elements(domain, args):
     """ Splits the given discrete domain into it's single elements and returns these. Thus, it returns a list
     of these elements."""
     if isinstance(domain, str):
-        return [[domain]]
+        return [(domain,)]
         # raise TypeError('domain must be a list of values, not a single value')
     else:
         #return domain
-        return [[e] for e in domain]
-
+        return [e for e in domain]
 
 
 """ A map from 'method id' to the actual splitter function. """

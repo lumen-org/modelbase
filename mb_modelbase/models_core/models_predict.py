@@ -3,8 +3,6 @@
 @author: Philipp Lucas
 
 This module contains helper functions methods to do prediction on models.
-
-
 """
 import functools
 import logging
@@ -23,6 +21,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 # https://stackoverflow.com/questions/53699012/performant-cartesian-product-cross-join-with-pandas
+# form here ...
 def cartesian_product(*arrays):
     la = len(arrays)
     dtype = np.result_type(*arrays)
@@ -36,7 +35,7 @@ def cartesian_product_multi(*dfs):
     idx = cartesian_product(*[np.ogrid[:len(df)] for df in dfs])
     return pd.DataFrame(
         np.column_stack([df.values[idx[:,i]] for i,df in enumerate(dfs)]))
-
+# ... till here
 
 def _crossjoin2(*dfs):
     return cartesian_product_multi(*dfs)
@@ -47,10 +46,6 @@ def _crossjoin(df1, df2):
 
 
 def _crossjoin3(*dfs):
-
-    # group_frames = map(get_group_frame, [model] * len(splitby), splitby, split_ids)
-    # input_frame = functools.reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
-
     dfs = (pd.DataFrame(data=df).assign(__my_cross_index__=1) for df in dfs if not df.empty)
     try:
         initial = next(dfs)
@@ -58,6 +53,7 @@ def _crossjoin3(*dfs):
         return pd.DataFrame()
     else:
         return functools.reduce(_crossjoin, dfs, initial).drop('__my_cross_index__', axis=1)
+
 
 def _tuple2str(tuple_):
     """Returns a string that summarizes the given split tuple or aggregation tuple
@@ -83,6 +79,8 @@ def get_names_and_maps():
 
 def add_split_for_defaulting_field(dim, splitby, split_names, where, filter_names):
     """ A add a filter and identity split for the defaulting field `dim`, if possible.
+
+    TODO: fix documentation!
 
     Returns:
         the value/subset `dim` defaults to.
@@ -112,6 +110,16 @@ def add_split_for_defaulting_field(dim, splitby, split_names, where, filter_name
 
 
 def create_data_structures_for_clauses(model, predict, where, splitby, evidence):
+    """
+    TODO: fix documentation!
+    :param model:
+    :param predict:
+    :param where:
+    :param splitby:
+    :param evidence:
+    :return:
+    """
+
     # the following convention for naming of variables is used:
     #  * 'input' means we require values of that dimension as input
     #  * 'output' means values of that dimension will be the result of a prediction
@@ -132,7 +140,7 @@ def create_data_structures_for_clauses(model, predict, where, splitby, evidence)
     filter_names = [f[NAME_IDX] for f in where]
 
     # predict.* is about the dimensions and columns of the pd.DataFrame to be returned as query result
-    predict_ids = []  # unique ids of columns in data frame. In correct order. For reordering of columns.
+    predict_ids = []  # labels for columns in result data frames. splits/evidence is labelled by just their name, aggr have an id
     predict_names = []  # names of columns as to be returned. In correct order. For renaming of columns.
 
     # split.* is about the splits to to in order to generate necessary input
@@ -164,11 +172,11 @@ def create_data_structures_for_clauses(model, predict, where, splitby, evidence)
 
 
 def normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_input_names, aggr_output_names,
-                             splitby, split_names,
-                             where, filter_names,
-                             predict_ids, predict_names,
-                             evidence_names,
-                             idgen):
+                             splitby, split_names, where, filter_names, predict_ids, predict_names,
+                             evidence_names, idgen):
+    """
+    TODO: fix documentation!
+    """
     clause_type = type_of_clause(clause)
     if clause_type == 'split':
         # t is a string, i.e. name of a field that is split by
@@ -215,6 +223,8 @@ def normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_inp
 def derive_aggregation_model(model, aggr, input_names, model_name=None):
     """Derive a model from model for the aggregation `aggr` considering that we have input along dimensions in
     `input_names`.
+
+    TODO: fix documentation!
 
     Returns: mb_modelbase.Model
     """
@@ -346,7 +356,8 @@ def generate_input_series_for_dim(model, input_dim_name, split_names, name2split
 
 
 def generate_input_frame(model, basemodel, splitby, split_ids, evidence):
-    """Create one common big input based on splitbys"""
+    """OLDOLDOLD
+    Create one common big input based on splitbys"""
 
     # TODO: in the future I want to create the input frame based on what is actually needed for a particular aggregation
     # instead of just creating one huge input frame and then cutting down what is not needed
@@ -457,7 +468,7 @@ def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, a
     results = []
     method = aggr[METHOD_IDX]
     if cond_out_data.empty:
-        results = aggregate_inner_density_probability(model, method, input_data)
+        results = aggr_density_probability_inner(model, method, input_data)
     else:
         _extend = results.extend
         for row in cond_out_data.itertuples(index=False, name=None):
@@ -465,7 +476,7 @@ def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, a
             pairs = zip(input_names, operator_list, row)
             cond_out_model = model.copy().condition(pairs).marginalize(keep=input_names)
             # query model
-            _extend(aggregate_inner_density_probability(cond_out_model, method, input_data))
+            _extend(aggr_density_probability_inner(cond_out_model, method, input_data))
 
     # TODO: use multi indexes. this should give some speed up
     #  problem right now is: the columns for the keys are not hashable, because they contains lists
@@ -478,7 +489,7 @@ def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, a
     return _crossjoin3(cond_out_data, input_data).assign(**{aggr_id: results})
 
 
-def aggregate_inner_density_probability(model, method, input_data):
+def aggr_density_probability_inner(model, method, input_data):
     """Compute density/probability of given `model` w.r.t to  `input_data`.
 
     Args:
@@ -493,19 +504,18 @@ def aggregate_inner_density_probability(model, method, input_data):
     Returns: list
         The probability/density values.
     """
+    # TODO: is this still an issue?
+    # # when splitting by elements or identity we get single element lists instead of scalars.
+    # # However, density() requires scalars.
+    # # TODO: I believe this issue should be handled in a conceptually better and faster way...
+    # nonscalar_ids = [input_name2id[name] for (name, method, __) in splitby if
+    #                  method == 'elements' or method == 'identity' and name in names]
+    # for col_id in nonscalar_ids:
+    #     subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
+
     results = []
     if method == 'density':
-        # TODO: is this still an issue?
-        # # when splitting by elements or identity we get single element lists instead of scalars.
-        # # However, density() requires scalars.
-        # # TODO: I believe this issue should be handled in a conceptually better and faster way...
-        # nonscalar_ids = [input_name2id[name] for (name, method, __) in splitby if
-        #                  method == 'elements' or method == 'identity' and name in names]
-        # for col_id in nonscalar_ids:
-        #     subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
-
         assert(model.names == list(input_data.columns))
-
         if model.parallel_processing:
             with mp.Pool() as p:
                 results = p.map(model.density, input_data.itertuples(index=False, name=None))
@@ -532,6 +542,18 @@ def aggregate_inner_density_probability(model, method, input_data):
 
 
 def aggregate_maximum_or_average(model, aggr, partial_data, split_data_dict, input_names, splitby, aggr_id='aggr_id'):
+    """
+    TODO: fix documentation
+
+    :param model:
+    :param aggr:
+    :param partial_data:
+    :param split_data_dict:
+    :param input_names:
+    :param splitby:
+    :param aggr_id:
+    :return:
+    """
 
     input_names = model.sorted_names(aggr[NAME_IDX])
     split_data_list = (df for name, df in split_data_dict.items())
@@ -557,29 +579,20 @@ def aggregate_maximum_or_average(model, aggr, partial_data, split_data_dict, inp
         row_id_gen = utils.linear_id_generator(prefix="_row")
         rowmodel_name = model.name + next(row_id_gen)
 
+        # TODO: I think this can be speed up: no need to recompute `i`, i is identical for all iteration of for loop
+
+        def pred_max_func(row, cond_out_names=cond_out_names, operator_list=operator_list,
+                                   rowmodel_name=rowmodel_name, model=model):
+            pairs = zip(cond_out_names, operator_list, row)
+            rowmodel = model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
+            res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
+            i = rowmodel.asindex(aggr[YIELDS_IDX])
+            return res[i]
+
         if model.parallel_processing:
-            def pred_max_parallel_func(row, input_names=input_names, operator_list=operator_list,
-                         rowmodel_name=rowmodel_name, aggr_model=model):
-                pairs = zip(input_names, operator_list, row)
-                rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
-                res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
-                i = rowmodel.asindex(aggr[YIELDS_IDX])
-                return res[i]
-
             with mp_dill.Pool() as p:
-                results = p.map(pred_max_parallel_func, cond_out_data.itertuples(index=False, name=None))
+                results = p.map(pred_max_func, cond_out_data.itertuples(index=False, name=None))
         else:
-            # TODO: I think this can be speed up: no need to recompute `i`
-            for row in cond_out_data.itertuples(index=False, name=None):
-                # derive model for these specific conditions
-                pairs = zip(cond_out_names, operator_list, row)
-                rowmodel = model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
-
-                # aggregate
-                res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
-
-                # reduce to requested field
-                i = rowmodel.asindex(aggr[YIELDS_IDX])  # TODO: i is identical for all iteration of this for loop
-                results.append(res[i])
+            results = [pred_max_func(row) for row in cond_out_data.itertuples(index=False, name=None)]
 
     return cond_out_data.assign(**{aggr_id: results})
