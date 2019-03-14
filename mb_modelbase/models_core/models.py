@@ -1655,51 +1655,74 @@ class Model:
 
         aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
 
-        result_list = [pd.DataFrame()]
+        # result_list = [pd.DataFrame()]
+        result_list = []
         for aggr, aggr_id in zip(aggrs, aggr_ids):
 
             # derive submodel for aggr
             aggr_model = models_predict.derive_aggregation_model(basemodel, aggr, input_names, next(aggr_model_id_gen))
             aggr_method = aggr[METHOD_IDX]
 
-            # get input data frame
-            # OLD: nothing to do: input is identical for all frames!
-            # NEW: is needed individually (for performance reasons), but done further down inside
+            # Input Data: Generating input in a performant way is a bit involved:
+            # * input should be generated on individual basis of an aggregation.
+            #   * p(A,B|C,D) should in an outer loop generate the conditional models over C, D (which is expensive) and
+            #     then on an inner loop query the actual density over A,B (which is fast).
+            #   * for p(C,D|A,B) it is the inverse order
+            # * for that reason each aggr generates its own input and returns it
+            # * however, the order between multiple aggregations will typically not match. Hence we need to:
+            #   1. also return the input data frames from each aggregation execution (and not only the output)
+            #   2. and use the input information to join the multiple output data frames together
+
+            # TODO: I imagine there is a smart way of reordering the results without having to explicitely create the
+            #  cross join of cond_out_data and input_data.
 
             # query model
             if aggr_method == 'density' or aggr_method == 'probability':
-                aggr_results = models_predict.\
-                    aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data)  # , input_name2id)
+                aggr_df = models_predict.\
+                    aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, aggr_id)
 
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
-                aggr_results = models_predict.\
-                    aggregate_maximum_or_average(self, aggr_model, aggr, partial_data, split_data, input_names, splitby, operator_list)
+                aggr_df = models_predict.\
+                    aggregate_maximum_or_average(self, aggr_model, aggr, partial_data, split_data, input_names, splitby, operator_list, aggr_id)
             else:
                 raise ValueError("Invalid 'aggregation method': " + str(aggr_method))
 
-            result_list.append(
-                pd.DataFrame(aggr_results, columns=[aggr_id])
-            )
+            result_list.append(aggr_df)
+
+        # (4) need to merge all data frames on input_names, since they are not necesarily in the same order
+        # TODO: right now we do not use any indexes for merging - which probably is slower...
+        #  but if we do, I think we can do this:
+        #  data_frame = result_list[0].join(result_list[1:], on=input_names)
+
+        # reduce to one final data frame
+        if len(result_list) == 0:
+            # TODO: need to generate input for requested output anyway
+            raise NotImplementedError()
+        else:
+            data_frame = functools.reduce(lambda df1, df2: df1.join(df2, on=input_names), result_list[1:],
+                                          result_list[0])
 
         # QUICK FIX: when splitting by 'equiinterval' we get intervals instead of scalars as entries
         # however, I cannot currently handle intervals on the client side easily
         # so we just turn it back into scalars
-        column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'equiinterval']
-        for column in column_interval_list:
-            input_frame[column] = input_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)
-
-        # QUICK FIX2: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
-        column_interval_list = [split_name2id[name] for (name, method, __) in splitby if
-                                method == 'elements' or method == 'identity']
-        for column in column_interval_list:
-            input_frame[column] = input_frame[column].apply(lambda entry: entry[0])
+        # TEMPORARILY REMOVED
+        # column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'equiinterval']
+        # for column in column_interval_list:
+        #     input_frame[column] = input_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)
+        #
+        # # QUICK FIX2: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
+        # column_interval_list = [split_name2id[name] for (name, method, __) in splitby if
+        #                         method == 'elements' or method == 'identity']
+        # for column in column_interval_list:
+        #     input_frame[column] = input_frame[column].apply(lambda entry: entry[0])
 
         # (5) filter on aggregations?
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
 
-        # (6) collect all results into data frames
-        result_list.append(input_frame)
-        data_frame = pd.concat(result_list, axis=1)
+        # (6)OLD: collect all results into data frames
+        # result_list.append(input_frame)
+        # data_frame = pd.concat(result_list, axis=1)
+
         # (7) get correctly ordered frame that only contain requested fields
         data_frame = data_frame[predict_ids]  # flattens
         # (8) rename columns to be readable (but not unique anymore)

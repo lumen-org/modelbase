@@ -51,11 +51,13 @@ def _crossjoin3(*dfs):
     # group_frames = map(get_group_frame, [model] * len(splitby), splitby, split_ids)
     # input_frame = functools.reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
 
-    CONTINUE_HERE_!!!
-
-    dfs = (pd.DataFrame(data=df).assign(__my_cross_index__=1) for df in dfs)
-    return functools.reduce(_crossjoin, dfs, next(dfs)).drop('__my_cross_index__', axis=1)
-
+    dfs = (pd.DataFrame(data=df).assign(__my_cross_index__=1) for df in dfs if not df.empty)
+    try:
+        initial = next(dfs)
+    except StopIteration:
+        return pd.DataFrame()
+    else:
+        return functools.reduce(_crossjoin, dfs, initial).drop('__my_cross_index__', axis=1)
 
 def _tuple2str(tuple_):
     """Returns a string that summarizes the given split tuple or aggregation tuple
@@ -434,7 +436,7 @@ def divide_df(df, colnames):
     return df[list(colnames)], df[list(other)]
 
 
-def aggregate_density_or_probability(model, aggr, partial_data, split_data):  # , name2id):
+def aggregate_density_or_probability(model, aggr, partial_data, split_data, aggr_id='aggr_id'):  # , name2id):
     """
     Compute density or probability aggregation `aggr` for `model` on given data.
     :param model:
@@ -444,7 +446,6 @@ def aggregate_density_or_probability(model, aggr, partial_data, split_data):  # 
     :param name2id:
     :return:
     """
-    results = []
     method = aggr[METHOD_IDX]
 
     # data has two 'types' of dimension:
@@ -461,52 +462,86 @@ def aggregate_density_or_probability(model, aggr, partial_data, split_data):  # 
     partial_data_cond_out, partial_data_input = divide_df(partial_data, cond_out_names)
     split_data_cond_out, split_data_input = divide_df(split_data, cond_out_names)
 
-    # need individual pd.Series
+    # extract individual pd.Series for split data (required for cross join below)
     split_data_cond_out = [col for name, col in split_data_cond_out.iteritems()]
     split_data_input = [col for name, col in split_data_input.iteritems()]
 
-    input_data = _crossjoin3(*split_data_input, partial_data_input)
+    # build data of both 'types'
     cond_out_data = _crossjoin3(*split_data_cond_out, partial_data_cond_out)
+    input_data = _crossjoin3(*split_data_input, partial_data_input)
 
     # TODO: make the outer loop parallel
     operator_list = ['==']*len(input_names)  # OLD: used operator_list with custom op string
 
-    for row in cond_out_data.itertuples(index=False, name=None):
-        pairs = zip(input_names, operator_list, row)
+    results = []
+    if cond_out_data.empty:
+        results = aggregate_inner_density_probability(model, method, input_data)
+    else:
+        _extend = results.extend
+        for row in cond_out_data.itertuples(index=False, name=None):
+            # derive model for these specific conditions
+            pairs = zip(input_names, operator_list, row)
+            cond_out_model = model.copy().condition(pairs).marginalize(keep=input_names)
+            # query model
+            _extend(aggregate_inner_density_probability(cond_out_model, method, input_data))
 
-        # derive model for these specific conditions
-        cond_out_model = model.copy().condition(pairs).marginalize(keep=input_names)
+    # TODO: use multi indexes. this should give some speed up
+    #  problem right now is: the columns for the keys are not hashable, because they contains lists
+    #  solution: turn lists into tuples. Not sure how deep required changes would be
+    # foo = _crossjoin3(cond_out_data, input_data)
+    # df_index = pd.MultiIndex.from_frame(foo)
+    # return_df = pd.DataFrame(data={aggr_id: results}, index=df_index)
+    # return return_df
 
-        # now query density/probability
-        if method == 'density':
-            # is this still an issue?
-            # # when splitting by elements or identity we get single element lists instead of scalars.
-            # # However, density() requires scalars.
-            # # TODO: I believe this issue should be handled in a conceptually better and faster way...
-            # nonscalar_ids = [input_name2id[name] for (name, method, __) in splitby if
-            #                  method == 'elements' or method == 'identity' and name in names]
-            # for col_id in nonscalar_ids:
-            #     subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
+    return _crossjoin3(cond_out_data, input_data).assign(**{aggr_id:results})
 
-            if model.parallel_processing:
-                with mp.Pool() as p:
-                    results = p.map(cond_out_model.density, input_data.itertuples(index=False, name=None))
-            else:  # Non-parallel execution
-                for row in input_data.itertuples(index=False, name=None):
-                    res = cond_out_model.density(values=row)
-                    results.append(res)
+def aggregate_inner_density_probability(model, method, input_data):
+    """Compute density/probability of given `model` w.r.t to  `input_data`.
 
-        else:  # aggr_method == 'probability'
-            assert(method == 'probability')
-            if model.parallel_processing:
-                with mp.Pool() as p:
-                    results = p.map(cond_out_model.probability, input_data.itertuples(index=False, name=None))
-            else:
-                # TODO: use DataFrame.apply instead? What is faster?
-                for row in input_data.itertuples(index=False, name=None):
-                    res = cond_out_model.probability(domains=row)
-                    results.append(res)
+    Args:
+        model: mb_modelbase.Model
+            The model to get density/probability for.
+        method: str,
+            One of 'density' and 'probability'
+        input_data: pd.DataFrame
+            data frame to use as input for model.
 
+    Returns: list
+        The probability/density values.
+    """
+    results = []
+    if method == 'density':
+        # is this still an issue?
+        # # when splitting by elements or identity we get single element lists instead of scalars.
+        # # However, density() requires scalars.
+        # # TODO: I believe this issue should be handled in a conceptually better and faster way...
+        # nonscalar_ids = [input_name2id[name] for (name, method, __) in splitby if
+        #                  method == 'elements' or method == 'identity' and name in names]
+        # for col_id in nonscalar_ids:
+        #     subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
+
+        if model.parallel_processing:
+            with mp.Pool() as p:
+                results = p.map(model.density, input_data.itertuples(index=False, name=None))
+        else:  # Non-parallel execution
+            _density = model.density
+            _append = results.append
+            for row in input_data.itertuples(index=False, name=None):
+                _append(_density(values=row))
+
+    else:  # aggr_method == 'probability'
+        assert (method == 'probability')
+        if model.parallel_processing:
+            with mp.Pool() as p:
+                results = p.map(model.probability, input_data.itertuples(index=False, name=None))
+        else:
+            # TODO: use DataFrame.apply instead? What is faster?
+            _probability = model.probability
+            _append = results.append
+            for row in input_data.itertuples(index=False, name=None):
+                _append(_probability(values=row))
+
+    assert(len(input_data) == len(results))
     return results
 
 
