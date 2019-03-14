@@ -1620,14 +1620,12 @@ class Model:
         evidence, evidence_names\
             = models_predict.create_data_structures_for_clauses(self, predict, where, splitby, evidence)
 
-        # (1) derive base model, i.e. a model on all requested fields and measures respecting filters
-        basenames = set().union(split_names, evidence_names, aggr_input_names, aggr_dims)
-        basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
-
-        # set of names of dimension that we need values for in the input data frame
+        # set of names of dimensions that we need values for in the input data frame
         input_names = aggr_input_names | set(split_names) | set(evidence_names)
-        # input_name2id = {}
-        # input_name2id.update(**split_name2id, **evidence_name2id)
+
+        # (1) derive base model, i.e. a model on all requested fields and measures respecting filters
+        basenames = input_names.union(aggr_dims)
+        basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
         # (2) generate all input data
         partial_data, split_data = models_predict.generate_all_input(basemodel, input_names, splitby, split_names, evidence)
@@ -1658,14 +1656,9 @@ class Model:
         #     raise NotImplementedError("yet to implement mixed use of splits and evidence")
 
         # (3) execute each aggregation
-        #splitnames_unique = set(split_names)
-
         aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
-
-        # result_list = [pd.DataFrame()]
         result_list = []
         for aggr, aggr_id in zip(aggrs, aggr_ids):
-
             # derive submodel for aggr
             aggr_model = models_predict.derive_aggregation_model(basemodel, aggr, input_names, next(aggr_model_id_gen))
             aggr_method = aggr[METHOD_IDX]
@@ -1681,13 +1674,12 @@ class Model:
             #   2. and use the input information to join the multiple output data frames together
 
             # TODO: I imagine there is a smart way of reordering the results without having to explicitely create the
-            #  cross join of cond_out_data and input_data.
+            #  cross join of cond_out_data and input_data!?
 
             # query model
             if aggr_method == 'density' or aggr_method == 'probability':
                 aggr_df = models_predict.\
                     aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, aggr_id)
-
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 aggr_df = models_predict.\
                     aggregate_maximum_or_average(self, aggr_model, aggr, partial_data, split_data, input_names, splitby, operator_list, aggr_id)
@@ -1726,15 +1718,11 @@ class Model:
         # (5) filter on aggregations?
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
 
-        # (6)OLD: collect all results into data frames
-        # result_list.append(input_frame)
-        # data_frame = pd.concat(result_list, axis=1)
-
         # (7) get correctly ordered frame that only contain requested fields
         # data_frame has input columns (which are labelled simply with the names of the dimensions, because there cannot
         # be any name clash) and output columns (which are labelled by predict_ids in order to prevent name clashing)
-
         data_frame = data_frame[predict_ids]  # flattens
+
         # (8) rename columns to be readable (but not unique anymore)
         data_frame.columns = predict_names
 

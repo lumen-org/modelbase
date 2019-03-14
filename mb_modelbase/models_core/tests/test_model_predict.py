@@ -18,6 +18,15 @@ if __name__ == '__main__':
     sex = model.byname('sex')
     species = model.byname('species')
 
-    res = model.predict(['sex', 'species', Density([sex, species])], splitby=[Split(sex), Split(species)])
-
+    res = model.predict(['species', Density(species)], splitby=Split(species))
     print(res)
+
+    res = model.predict(['sex', Density(sex)], splitby=Split(sex))
+    print(res)
+
+    res = model.predict(['sex', 'species', Density([sex, species])], splitby=[Split(sex), Split(species)])
+    print(res)
+
+    res = model.predict(['sex', 'species', Density([sex, species]), Density(sex), Density(species)], splitby=[Split(sex), Split(species)])
+    print(res)
+
