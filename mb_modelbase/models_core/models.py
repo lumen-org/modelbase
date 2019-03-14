@@ -1682,8 +1682,10 @@ class Model:
                 aggr_df = models_predict.\
                     aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, aggr_id)
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
+                # TODO: I believe all max/avg aggregations require the identical input data, because i always condition on all input items
+                #  --> reuse it!?
                 aggr_df = models_predict.\
-                    aggregate_maximum_or_average(self, aggr_model, aggr, partial_data, split_data, input_names, splitby, operator_list, aggr_id)
+                    aggregate_maximum_or_average(aggr_model, aggr, partial_data, split_data, input_names, splitby, aggr_id)
             else:
                 raise ValueError("Invalid 'aggregation method': " + str(aggr_method))
 

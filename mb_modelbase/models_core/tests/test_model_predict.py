@@ -19,12 +19,31 @@ if __name__ == '__main__':
     sex = model.byname('sex')
     species = model.byname('species')
     FL = model.byname('FL')
+    RW = model.byname('RW')
 
-    # res = model.predict(['species', Density(species)], splitby=Split(species))
-    # print(res)
+    res = model.predict(['species', Density(species)], splitby=Split(species))
+    print(res)
 
-    # res = model.predict(['FL', Density(FL)], splitby=Split(FL, method='equidist'))
-    # print(res)
+    res = model.predict(['sex', 'species', Density([sex, species])], splitby=[Split(sex), Split(species)])
+    print(res)
+
+    res = model.predict(['sex', 'RW', Aggregation(FL, method='maximum', yields='FL')], splitby=[Split(sex), Split(RW, method='equidist')])
+    print(res)
+
+    res = model.predict(['species', Density(species)], splitby=Split(species))
+    print(res)
+
+    res = model.predict(['FL', Density(FL)], splitby=Split(FL, method='equidist'))
+    print(res)
+
+    res = model.predict([Aggregation(FL, method='maximum', yields='FL')])
+    print(res)
+
+    res = model.predict([Aggregation(FL, method='maximum', yields='FL')], splitby=[Split(sex)])
+    print(res)
+
+    res = model.predict(['sex', Aggregation(FL, method='maximum', yields='FL')], splitby=[Split(sex)])
+    print(res)
 
     res = model.predict(['FL', Probability(FL)], splitby=Split(FL, method='equiinterval'))
     print(res)
@@ -32,9 +51,11 @@ if __name__ == '__main__':
     res = model.predict(['sex', Density(sex)], splitby=Split(sex))
     print(res)
 
-    res = model.predict(['sex', 'species', Density([sex, species])], splitby=[Split(sex), Split(species)])
-    print(res)
+    # merge fails
+    # res = model.predict(['sex', Density(sex), Aggregation(FL, method='maximum', yields='FL')], splitby=[Split(sex)])
+    # print(res)
 
-    res = model.predict(['sex', 'species', Density([sex, species]), Density(sex), Density(species)], splitby=[Split(sex), Split(species)])
-    print(res)
+    # merge fails
+    # res = model.predict(['sex', 'species', Density([sex, species]), Density(sex), Density(species)], splitby=[Split(sex), Split(species)])
+    # print(res)
 

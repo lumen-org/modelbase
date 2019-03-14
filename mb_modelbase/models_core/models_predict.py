@@ -225,7 +225,7 @@ def derive_aggregation_model(model, aggr, input_names, model_name=None):
         dims_to_model = input_names
     else:
         assert set(input_names).isdisjoint(aggr_names)
-        dims_to_model = input_names + aggr_names
+        dims_to_model = input_names | aggr_names
     #TODO: ??? dims_to_model = model.sorted_names(dims_to_model)
     return model.copy(name=model_name).model(model=list(dims_to_model))
 
@@ -300,7 +300,7 @@ def generate_all_input(model, input_names, splits, split_names, evidence):
     name2split = dict(zip(split_names, splits))
     data_dict = {name: generate_input_series_for_dim(model, name, split_names, name2split, evidence) for name in input_names}
 
-    return evidence, pd.DataFrame(data=data_dict)
+    return evidence, data_dict
 
 
 def generate_input_for_aggregation(model, aggr, split_data, partial_data):
@@ -417,44 +417,45 @@ def divide_df(df, colnames):
     return df[list(colnames)], df[list(other)]
 
 
-def aggregate_density_or_probability(model, aggr, partial_data, split_data, aggr_id='aggr_id'):  # , name2id):
+def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, aggr_id='aggr_id'):  # , name2id):
     """
     Compute density or probability aggregation `aggr` for `model` on given data.
     :param model:
     :param aggr:
-    :param partial_data:
-    :param split_data:
+    :param partial_df: pd.DataFrame
+    :param split_data_dict: dict
     :param name2id:
     :return:
     """
-    method = aggr[METHOD_IDX]
 
     # data has two 'types' of dimension:
     #  * `input_names`: input to the density query
     #  * `cond_out_names`: to be conditioned out
 
     input_names = model.sorted_names(aggr[NAME_IDX])
-    #input_ids = [name2id[name] for name in input_names]
-
-    cond_out_names = (set(partial_data.columns) | set(split_data.columns)) - set(input_names)
-    #cond_out_ids = [name2id[name] for name in cond_out_names]
+    cond_out_names = (set(partial_df.columns) | set(split_data_dict.keys())) - set(input_names)
 
     # divide evidence and split data into those for conditioning out and for querying
-    partial_data_cond_out, partial_data_input = divide_df(partial_data, cond_out_names)
-    split_data_cond_out, split_data_input = divide_df(split_data, cond_out_names)
-
-    # extract individual pd.Series for split data (required for cross join below)
-    split_data_cond_out = [col for name, col in split_data_cond_out.iteritems()]
-    split_data_input = [col for name, col in split_data_input.iteritems()]
+    partial_df_cond_out, partial_df_input = divide_df(partial_df, cond_out_names)
+    split_df_cond_out, split_df_input = [], []
+    for name, df in split_data_dict.items():
+        if name in cond_out_names:
+            split_df_cond_out.append(df)
+        else:
+            split_df_input.append(df)
 
     # build data of both 'types'
-    cond_out_data = _crossjoin3(*split_data_cond_out, partial_data_cond_out)
-    input_data = _crossjoin3(*split_data_input, partial_data_input)
+    cond_out_data = _crossjoin3(*split_df_cond_out, partial_df_cond_out)
+    input_data = _crossjoin3(*split_df_input, partial_df_input)
+
+    # reorder to match model ordering
+    input_data = input_data[model.sorted_names(input_data.columns)]
 
     # TODO: make the outer loop parallel
     operator_list = ['==']*len(input_names)  # OLD: used operator_list with custom op string
 
     results = []
+    method = aggr[METHOD_IDX]
     if cond_out_data.empty:
         results = aggregate_inner_density_probability(model, method, input_data)
     else:
@@ -474,7 +475,8 @@ def aggregate_density_or_probability(model, aggr, partial_data, split_data, aggr
     # return_df = pd.DataFrame(data={aggr_id: results}, index=df_index)
     # return return_df
 
-    return _crossjoin3(cond_out_data, input_data).assign(**{aggr_id:results})
+    return _crossjoin3(cond_out_data, input_data).assign(**{aggr_id: results})
+
 
 def aggregate_inner_density_probability(model, method, input_data):
     """Compute density/probability of given `model` w.r.t to  `input_data`.
@@ -486,13 +488,14 @@ def aggregate_inner_density_probability(model, method, input_data):
             One of 'density' and 'probability'
         input_data: pd.DataFrame
             data frame to use as input for model.
+            Input data must be in same order like fields in model.
 
     Returns: list
         The probability/density values.
     """
     results = []
     if method == 'density':
-        # is this still an issue?
+        # TODO: is this still an issue?
         # # when splitting by elements or identity we get single element lists instead of scalars.
         # # However, density() requires scalars.
         # # TODO: I believe this issue should be handled in a conceptually better and faster way...
@@ -500,6 +503,8 @@ def aggregate_inner_density_probability(model, method, input_data):
         #                  method == 'elements' or method == 'identity' and name in names]
         # for col_id in nonscalar_ids:
         #     subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
+
+        assert(model.names == list(input_data.columns))
 
         if model.parallel_processing:
             with mp.Pool() as p:
@@ -526,59 +531,55 @@ def aggregate_inner_density_probability(model, method, input_data):
     return results
 
 
-def aggregate_maximum_or_average(model, aggr_model, aggr, input_frame, input_names, splitby, operator_list):
+def aggregate_maximum_or_average(model, aggr, partial_data, split_data_dict, input_names, splitby, aggr_id='aggr_id'):
 
-    # TODO: speed up aggr_results = np.empty(len(input_frame))
-    aggr_results = []
+    input_names = model.sorted_names(aggr[NAME_IDX])
+    split_data_list = (df for name, df in split_data_dict.items())
 
-    # assert ((len(input_frame) == 0 and len(splitby) == 0) or (len(input_frame) != 0 and len(splitby) != 0))
-    # if len(splitby) == 0:
+    cond_out_data = _crossjoin3(*split_data_list, partial_data)
+    cond_out_names = set(partial_data.columns) | set(split_data_dict.keys())
 
-    if len(input_frame) == 0:
-        assert len(splitby) == 0
+    # TODO: make the outer loop parallel
+    operator_list = ['==']*len(input_names)  # OLD: used operator_list with custom op string
+    # TODO: speed up results = np.empty(len(input_frame))
+    results = []
+
+    if len(cond_out_data) == 0:
         # there is no fields to split by, hence only a single value will be aggregated
-        # i.e. marginalize all other fields out
-        #singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
-        assert len(aggr[NAME_IDX]) == len(aggr_model.fields)
-        res = aggr_model.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
-        # reduce to requested field
-        i = aggr_model.asindex(aggr[YIELDS_IDX])
-        aggr_results.append(res[i])
+        assert len(splitby) == 0
+        # singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
+        assert len(aggr[NAME_IDX]) == len(model.fields)
+        res = model.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
+        i = model.asindex(aggr[YIELDS_IDX])  # reduce to requested field
+        results.append(res[i])
+
     else:
         row_id_gen = utils.linear_id_generator(prefix="_row")
-        rowmodel_name = aggr_model.name + next(row_id_gen)
+        rowmodel_name = model.name + next(row_id_gen)
 
         if model.parallel_processing:
-
-            # Define function for parallel execution of for loop
-            def pred_max(row, input_names=input_names, operator_list=operator_list,
-                         rowmodel_name=rowmodel_name, aggr_model=aggr_model):
-
+            def pred_max_parallel_func(row, input_names=input_names, operator_list=operator_list,
+                         rowmodel_name=rowmodel_name, aggr_model=model):
                 pairs = zip(input_names, operator_list, row)
                 rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
                 res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
                 i = rowmodel.asindex(aggr[YIELDS_IDX])
                 return res[i]
 
-            # Open parallel environment with mp_dill, which allows to use a function which was defined in the same
-            # scope (here: pred_max)
             with mp_dill.Pool() as p:
-                aggr_results = p.map(pred_max, input_frame.itertuples(index=False, name=None))
-
+                results = p.map(pred_max_parallel_func, cond_out_data.itertuples(index=False, name=None))
         else:
-
-            for row in input_frame.itertuples(index=False, name=None):
-
-                pairs = zip(input_names, operator_list, row)
+            # TODO: I think this can be speed up: no need to recompute `i`
+            for row in cond_out_data.itertuples(index=False, name=None):
                 # derive model for these specific conditions
-                rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
+                pairs = zip(cond_out_names, operator_list, row)
+                rowmodel = model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
 
                 # aggregate
                 res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
 
                 # reduce to requested field
                 i = rowmodel.asindex(aggr[YIELDS_IDX])  # TODO: i is identical for all iteration of this for loop
-                aggr_results.append(res[i])
+                results.append(res[i])
 
-    return aggr_results
-
+    return cond_out_data.assign(**{aggr_id: results})
