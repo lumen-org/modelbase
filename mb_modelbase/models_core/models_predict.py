@@ -87,10 +87,12 @@ def add_split_for_defaulting_field(dim, splitby, split_names, where, filter_name
     """
     name = dim['name']
 
-    if dim['default_value'] is not None:
-        def_ = dim['default_value']
-    elif dim['default_subset'] is not None:
+    if dim['default_subset'] is not None:
         def_ = dim['default_subset']
+        op_ = "in"
+    elif dim['default_value'] is not None:
+        def_ = dim['default_value']
+        op_ = "=="
     else:
         raise ValueError("Missing split-tuple for a split-field in predict: " + name)
 
@@ -102,7 +104,7 @@ def add_split_for_defaulting_field(dim, splitby, split_names, where, filter_name
     split_names.append(name)
 
     # add condition
-    condition = Condition(name, '==', def_)
+    condition = Condition(name, op_, def_)
     where.append(condition)
     filter_names.append(name)
 

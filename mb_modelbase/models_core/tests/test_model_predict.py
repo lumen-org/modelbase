@@ -21,10 +21,10 @@ if __name__ == '__main__':
     FL = model.byname('FL')
     RW = model.byname('RW')
 
-    res = model.predict(['sex', 'FL', Density([FL, sex])], splitby=[Split(sex), Split(FL)])
-    print(res)
 
-    exit(1)
+
+    res = model.predict(['sex', 'FL', Probability([FL, sex])], splitby=[Split(sex), Split(FL)])
+    print(res)
 
     res = model.predict(['sex', 'species', Density(sex), Density(species)], splitby=[Split(sex), Split(species)])
     print(res)

@@ -238,7 +238,8 @@ class Model:
                     * sampling: `.sample()` which draws samples according to the distribution,
                     * aggregations: `.aggregate()` which aggregates the model using to chosen method, and
                     * a complex query method that combines (almost) all of the above (and more): `.predict()`
-            There is some other methods that change the 'default' behaviour of the model, but do not actually change the model. See secition 'Default Values and Default Subsets'.
+            There is some other methods that change the 'default' behaviour of the model, but do not actually change
+            the model. See secition 'Default Values and Default Subsets'.
 
         Storing / Loading:
 
@@ -1310,9 +1311,10 @@ class Model:
 
         # sum up density over all elements of the cartesian product of the categorical part of the event
         # TODO: generalize
-        assert (all(len(d) == 1 for d in cat_domains))
-        x = list([d[0] for d in cat_domains])
-        return vol * self._density(x + y)
+        # assert (all(len(d) == 1 for d in cat_domains))
+        # x = list([d[0] for d in cat_domains])
+        # return vol * self._density(x + y)
+        return vol * self._density(list(cat_domains) + y)
 
     def sample(self, n=1):
         """Returns n samples drawn from the model as a dataframe with suitable column names.
