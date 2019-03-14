@@ -1535,15 +1535,13 @@ class Model:
 
         Args:
             predict: A sequence of strings and
-
-                This is list of fields (either by name ornames of fields (strings) and 'AggregationTuple's.
+                This is list of fields (either by name or names of fields (strings) and 'AggregationTuple's.
                 This is the list of fields and aggregations to be included in the returned data frame. They are referenced either by their nam
             where: A list of `ConditionTuple`s, representing the conditions to
                 adhere.
             splitby: A list of 'SplitTuple's, i.e. a list of fields on which to
                 split the model and the method how to do the split.
             evidence: pd.DataFrame, optional.
-                May currently not be used together with splitby.
             returnbasemodel: A boolean flag. If set this method will return the
                 pair (result-dataframe, basemodel-for-the-prediction).
                 Defaults to False.
@@ -1551,9 +1549,13 @@ class Model:
             A dataframe with the fields as given in 'predict', or a tuple (see
             returnbasemodel).
 
+        Evidence and splits:
+
+            While both may be used in parallel, they may currently not share any dimensions.
+
         Hidden fields:
             TODO: fix?
-            You may not include any hidden field in the predict-clause, and such queries will result in a
+            You may not include any hidden field in the predict-clause and such queries will result in a
             ValueError().
             TODO: raise error
 
@@ -1609,21 +1611,26 @@ class Model:
             splitby = []
 
         # (0) create data structures for clauses
+
+        # about ids:
+
         aggrs, aggr_ids, aggr_input_names, aggr_dims, \
         predict_ids, predict_names, \
-        split_ids, split_names, split_name2id, \
-        evidence, evidence_ids, evidence_names, evidence_name2id \
+        split_names, \
+        evidence, evidence_names\
             = models_predict.create_data_structures_for_clauses(self, predict, where, splitby, evidence)
 
         # (1) derive base model, i.e. a model on all requested fields and measures respecting filters
         basenames = set().union(split_names, evidence_names, aggr_input_names, aggr_dims)
         basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
-        # set of names of dimension that we need values for in our input data frame
+        # set of names of dimension that we need values for in the input data frame
         input_names = aggr_input_names | set(split_names) | set(evidence_names)
+        # input_name2id = {}
+        # input_name2id.update(**split_name2id, **evidence_name2id)
 
         # (2) generate all input data
-        partial_data, split_data = models_predict.generate_all_input(basemodel, input_names, input_ids, splitby, split_names, evidence)
+        partial_data, split_data = models_predict.generate_all_input(basemodel, input_names, splitby, split_names, evidence)
 
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
@@ -1649,7 +1656,6 @@ class Model:
         #     input_name2id = evidence_name2id
         # else:
         #     raise NotImplementedError("yet to implement mixed use of splits and evidence")
-
 
         # (3) execute each aggregation
         #splitnames_unique = set(split_names)
@@ -1725,6 +1731,9 @@ class Model:
         # data_frame = pd.concat(result_list, axis=1)
 
         # (7) get correctly ordered frame that only contain requested fields
+        # data_frame has input columns (which are labelled simply with the names of the dimensions, because there cannot
+        # be any name clash) and output columns (which are labelled by predict_ids in order to prevent name clashing)
+
         data_frame = data_frame[predict_ids]  # flattens
         # (8) rename columns to be readable (but not unique anymore)
         data_frame.columns = predict_names

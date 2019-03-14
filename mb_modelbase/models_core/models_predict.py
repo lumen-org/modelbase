@@ -81,7 +81,7 @@ def get_names_and_maps():
     pass
 
 
-def add_split_for_defaulting_field(dim, splitby, split_ids, split_name2id, split_names, where, filter_names, idgen):
+def add_split_for_defaulting_field(dim, splitby, split_names, where, filter_names):
     """ A add a filter and identity split for the defaulting field `dim`, if possible.
 
     Returns:
@@ -101,9 +101,6 @@ def add_split_for_defaulting_field(dim, splitby, split_ids, split_name2id, split
     # add split
     split = Split(name, 'identity')
     splitby.append(split)
-    id_ = name + next(idgen)
-    split_ids.append(id_)
-    split_name2id[name] = id_
     split_names.append(name)
 
     # add condition
@@ -140,9 +137,6 @@ def create_data_structures_for_clauses(model, predict, where, splitby, evidence)
 
     # split.* is about the splits to to in order to generate necessary input
     split_names = [f[NAME_IDX] for f in splitby]  # name of fields to split by. Same order as in split-by clause.
-    split_ids = [f[NAME_IDX] + next(idgen) for f in
-                 splitby]  # ids for columns for fields to split by. Same order as in splitby-clause.
-    split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids (for columns in data frames)
 
     # aggr.* is about the aggregations to do
     aggrs = []  # list of aggregation tuples, in same order as in the predict-clause
@@ -153,42 +147,38 @@ def create_data_structures_for_clauses(model, predict, where, splitby, evidence)
 
     # evidence.* is about the data points to use as input
     evidence_names = evidence.columns
-    evidence_ids = [name + next(idgen) for name in evidence_names]
-    evidence_name2id = dict(zip(evidence_names, evidence_ids))
 
     # check / normalize each predict clause
     for clause in predict:
         normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_input_names, aggr_output_names,
-                             splitby, split_ids, split_names, split_name2id,
+                             splitby, split_names,
                              where, filter_names,
-                             predict, predict_ids, predict_names,
+                             predict_ids, predict_names,
                              evidence_names,
                              idgen)
 
     return aggrs, aggr_ids, aggr_input_names, aggr_dims, \
         predict_ids, predict_names, \
-        split_ids, split_names, split_name2id, \
-        evidence, evidence_ids, evidence_names, evidence_name2id
+        split_names, \
+        evidence, evidence_names
 
 
 def normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_input_names, aggr_output_names,
-                             splitby, split_ids, split_names, split_name2id,
+                             splitby, split_names,
                              where, filter_names,
-                             predict, predict_ids, predict_names,
+                             predict_ids, predict_names,
                              evidence_names,
                              idgen):
     clause_type = type_of_clause(clause)
     if clause_type == 'split':
         # t is a string, i.e. name of a field that is split by
         name = clause
-        predict_names.append(name)
-        try:
-            predict_ids.append(split_name2id[name])
-        except KeyError:
-            # no explicit split was passed into .predict, hence a default value/subset is required instead
+        if name not in split_names:
             dim = model.byname(name)
-            add_split_for_defaulting_field(dim, splitby, split_ids, split_name2id, split_names, where, filter_names, idgen)
-            predict_ids.append(split_name2id[name])  # "retry"
+            add_split_for_defaulting_field(dim, splitby, split_names, where, filter_names)
+        predict_names.append(name)
+        predict_ids.append(name)
+
     else:
         # t is an aggregation/density tuple
         clause_name = _tuple2str(clause)
@@ -216,8 +206,8 @@ def normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_inp
             for name in input_names:
                 if name not in evidence_names and name not in split_names:
                     add_split_for_defaulting_field(model.byname(name),
-                                                   splitby, split_ids, split_name2id, split_names,
-                                                   where, filter_names, idgen)
+                                                   splitby, split_names,
+                                                   where, filter_names)
         else:
             raise ValueError('invalid clause type: ' + str(clause_type))
 
@@ -227,19 +217,15 @@ def derive_aggregation_model(model, aggr, input_names, model_name=None):
     `input_names`.
 
     Returns: mb_modelbase.Model
-
     """
     aggr_names = set(aggr[NAME_IDX])
     if type_of_clause(aggr) == 'density':
         assert (input_names >= aggr_names)
-        # OLD for density: keep only those fields as requested in the tuple
         dims_to_model = input_names
     else:
-        # OLD: for 'normal' aggregations: remove all fields of other measures which are not also a used for
-        # splitting, or equivalently: keep all fields of splits, plus the one for the current aggregation
         assert set(input_names).isdisjoint(aggr_names)
         dims_to_model = input_names + aggr_names
-    #dims_to_model = model.sorted_names(dims_to_model)
+    #TODO: ??? dims_to_model = model.sorted_names(dims_to_model)
     return model.copy(name=model_name).model(model=list(dims_to_model))
 
 
@@ -285,7 +271,7 @@ def data_splits_to_evidence(model, splitby, evidence):
     return evidence
 
 
-def generate_all_input(model, input_names_required, splits, split_names, evidence):
+def generate_all_input(model, input_names, splits, split_names, evidence):
     """Returns a tuple of two pd.DataFrames of input for the prediction query execution.
 
     The first is for partial data, i.e. data of (a subspace of) the data space that is used item-wise as input. That
@@ -298,7 +284,7 @@ def generate_all_input(model, input_names_required, splits, split_names, evidenc
 
     Args:
         model: md_modelbase.Model
-        input_names_required: sequence of str
+        input_names: sequence of str
             The names of the dimensions to generate input series' for.
 
     Returns: pd.DataFrame, pd.DataFrame
@@ -307,19 +293,11 @@ def generate_all_input(model, input_names_required, splits, split_names, evidenc
 
     # normalize splits with method 'data' to evidence
     evidence = data_splits_to_evidence(model, splits, evidence)
-    assert set(evidence.columns).isdisjoint(set(input_names_required))
+    assert set(evidence.columns).isdisjoint(set(input_names))
 
     # generate input series for each input name
     name2split = dict(zip(split_names, splits))
-    data_dict = {name: generate_input_series_for_dim(model, name, split_names, name2split, evidence) for name in input_names_required}
-
-    # cross join all columns of data and with evidence
-    #input_frame = _crossjoin2(*data, evidence)
-
-    # augment
-    #data = [df.assign(__my_cross_index__=1) for df in data]
-    #evidence = evidence.assign(__my_cross_index__=1)
-    #input_frame = functools.reduce(_crossjoin, group_frames, next(group_frames)).drop('__my_cross_index__', axis=1)
+    data_dict = {name: generate_input_series_for_dim(model, name, split_names, name2split, evidence) for name in input_names}
 
     return evidence, pd.DataFrame(data=data_dict)
 
@@ -430,6 +408,9 @@ def divide_df(df, colnames):
     """Returns a tuple of two pd.DataFrames where the first one contains all columns with names in `colnames` and the
     second all other.
     """
+    if df.empty:
+        return pd.DataFrame(), pd.DataFrame
+
     assert(set(df.columns) >= set(colnames))
     other = set(df.columns) - set(colnames)
     return df[list(colnames)], df[list(other)]
@@ -557,7 +538,7 @@ def aggregate_maximum_or_average(model, aggr_model, aggr, input_frame, input_nam
         # there is no fields to split by, hence only a single value will be aggregated
         # i.e. marginalize all other fields out
         #singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
-        assert(len(aggr[NAME_IDX]) == len(aggr_model.fields))
+        assert len(aggr[NAME_IDX]) == len(aggr_model.fields)
         res = aggr_model.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
         # reduce to requested field
         i = aggr_model.asindex(aggr[YIELDS_IDX])
