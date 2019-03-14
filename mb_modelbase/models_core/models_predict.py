@@ -219,7 +219,8 @@ def derive_aggregation_model(model, aggr, input_names, model_name=None):
     Returns: mb_modelbase.Model
     """
     aggr_names = set(aggr[NAME_IDX])
-    if type_of_clause(aggr) == 'density':
+    clause_type = type_of_clause(aggr)
+    if clause_type == 'density' or clause_type == 'probability':
         assert (input_names >= aggr_names)
         dims_to_model = input_names
     else:
@@ -519,7 +520,7 @@ def aggregate_inner_density_probability(model, method, input_data):
             _probability = model.probability
             _append = results.append
             for row in input_data.itertuples(index=False, name=None):
-                _append(_probability(values=row))
+                _append(_probability(domains=row))
 
     assert(len(input_data) == len(results))
     return results

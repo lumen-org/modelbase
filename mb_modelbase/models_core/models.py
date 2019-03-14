@@ -1357,6 +1357,7 @@ class Model:
         mycopy.mode = self.mode
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
+        mycopy.parallel_processing = self.parallel_processing
         return mycopy
 
     def _condition_values(self, names=None, pairflag=False, to_scalar=True):
@@ -1701,10 +1702,10 @@ class Model:
             data_frame = functools.reduce(lambda df1, df2: df1.join(df2, on=input_names), result_list[1:],
                                           result_list[0])
 
+        # TEMPORARILY REMOVED:
         # QUICK FIX: when splitting by 'equiinterval' we get intervals instead of scalars as entries
         # however, I cannot currently handle intervals on the client side easily
         # so we just turn it back into scalars
-        # TEMPORARILY REMOVED
         # column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'equiinterval']
         # for column in column_interval_list:
         #     input_frame[column] = input_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)

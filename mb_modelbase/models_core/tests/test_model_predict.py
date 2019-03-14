@@ -7,6 +7,7 @@ from mb_modelbase.models_core.tests import test_crabs as crabs
 
 if __name__ == '__main__':
     model = Model.load('crabs_test.mdl')
+    model.parallel_processing = False
 
     # data = crabs.mixed()
     # model = MixCondGauss("TestMod").fit(df=data)
@@ -17,8 +18,15 @@ if __name__ == '__main__':
 
     sex = model.byname('sex')
     species = model.byname('species')
+    FL = model.byname('FL')
 
-    res = model.predict(['species', Density(species)], splitby=Split(species))
+    # res = model.predict(['species', Density(species)], splitby=Split(species))
+    # print(res)
+
+    # res = model.predict(['FL', Density(FL)], splitby=Split(FL, method='equidist'))
+    # print(res)
+
+    res = model.predict(['FL', Probability(FL)], splitby=Split(FL, method='equiinterval'))
     print(res)
 
     res = model.predict(['sex', Density(sex)], splitby=Split(sex))
