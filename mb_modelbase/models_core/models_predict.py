@@ -322,7 +322,6 @@ def generate_all_input(model, input_names_required, splits, split_names, evidenc
     #input_frame = functools.reduce(_crossjoin, group_frames, next(group_frames)).drop('__my_cross_index__', axis=1)
 
     return evidence, pd.DataFrame(data=data_dict)
-    #return input_frame
 
 
 def generate_input_for_aggregation(model, aggr, split_data, partial_data):

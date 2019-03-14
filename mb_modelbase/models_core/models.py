@@ -1619,10 +1619,11 @@ class Model:
         basenames = set().union(split_names, evidence_names, aggr_input_names, aggr_dims)
         basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
-        input_names = aggr_input_names | set(split_names) | set(evidence_names)  # set of names of dimension that we need values for in our input data frame
+        # set of names of dimension that we need values for in our input data frame
+        input_names = aggr_input_names | set(split_names) | set(evidence_names)
 
         # (2) generate all input data
-        partial_data, split_data = models_predict.generate_all_input(basemodel, input_names, splitby, split_names, evidence)
+        partial_data, split_data = models_predict.generate_all_input(basemodel, input_names, input_ids, splitby, split_names, evidence)
 
         # (3) generate input for model aggregations,
         # i.e. a cross join of splits of all dimensions
