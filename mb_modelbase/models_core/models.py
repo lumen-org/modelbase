@@ -1577,6 +1577,11 @@ class Model:
                 # let model be a model with the default value of X set to 1.
                 model.predict(X, Y, Density('X','Y'), splitby=Split('Y', 'equidist, 10))
 
+        Splits:
+
+            Splits may have scalars or domains as a result type.
+
+
         Ideas for Improvement:
 
            How to efficiently query the model? how can I vectorize it? I believe that depends on the query. A typical

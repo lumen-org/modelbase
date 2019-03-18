@@ -7,6 +7,20 @@ return a split of the domain into subdomains.
 Note that not all splitters work with all domains. See the documentation of
 each for more.
 
+
+Scalar or interval-valued return values
+
+    Splits return different _types_ of values:
+     * scalars (i.e. single elements of the splitted domain), or
+     * domains  (i.e. a tuple, such as (min, max) for quantitative domains, or (el1, el2) for categorical domains)
+
+    The return type different between the split functions, and in the future there may be flags to configure what to
+    return. Note, that generally and 'up-cast' is possible, i.e. returning a domain instead of a scalar.
+
+TODO:
+    need to clean up domains. documentation of functions and their implementation does not match. Also, we lack
+    a good strategy to distinghuish scalar and domain-values splits and how to deal with them in predict.
+
 @author: Philipp Lucas
 """
 import numpy as np
@@ -48,39 +62,29 @@ def equiinterval(domain, args):
     else:
         raise ValueError("Number of samples, " + str(n) + ", must be non-negative.")
 
-#
-# def identity(domain, args):
-#     """ Given any domain returns the full domain itself. Note that for consistency it return a (single-element) list
-#     of domains. """
-#     return [domain]
-#
-#
-# def elements(domain, args):
-#     """ Splits the given discrete domain into it's single elements and returns these. Thus, it returns a list
-#     of these elements."""
-#     if isinstance(domain, str):
-#         return [(domain,)]
-#         # raise TypeError('domain must be a list of values, not a single value')
-#     else:
-#         #return domain
-#         return [(e,) for e in domain]
-
 
 def identity(domain, args):
     """ Given any domain returns the full domain itself. Note that for consistency it return a (single-element) list
     of domains. """
     return domain
+    # OLD:
+    # return [domain]
 
 
 def elements(domain, args):
     """ Splits the given discrete domain into it's single elements and returns these. Thus, it returns a list
     of these elements."""
     if isinstance(domain, str):
-        return [(domain,)]
-        # raise TypeError('domain must be a list of values, not a single value')
+        return [domain]
     else:
-        #return domain
         return [e for e in domain]
+    # OLD:
+    #     if isinstance(domain, str):
+    #         return [(domain,)]
+    #         # raise TypeError('domain must be a list of values, not a single value')
+    #     else:
+    #         #return domain
+    #         return [(e,) for e in domain]
 
 
 """ A map from 'method id' to the actual splitter function. """
@@ -89,4 +93,12 @@ splitter = {
     "equiinterval": equiinterval,
     "identity": identity,
     "elements": elements
+}
+
+"""A dict from `method_id` to a method's return type ('scalar' or 'domain')."""
+return_types = {
+    "equidist": 'scalar',
+    "equiinterval": 'domain',
+    "identity": 'domain',
+    "elements": 'scalar'
 }

@@ -524,7 +524,8 @@ def aggr_density_probability_inner(model, method, input_data):
 
     else:  # aggr_method == 'probability'
         assert (method == 'probability')
-        if model.parallel_processing:
+        # if model.parallel_processing:
+        if False:
             with mp.Pool() as p:
                 results = p.map(model.probability, input_data.itertuples(index=False, name=None))
         else:
