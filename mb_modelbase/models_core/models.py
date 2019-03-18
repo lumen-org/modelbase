@@ -415,8 +415,9 @@ class Model:
         callbacks = self._set_model_params(**kwargs)
         self._update_all_field_derivatives()
         self.mode = "model"
-        for callback in callbacks:
-            callback()
+
+        if callbacks is not None:
+            [c() for c in callbacks]
 
         return self
 
@@ -468,10 +469,11 @@ class Model:
 
         # model specific clean up, setting of data, models fields, and possible more model specific stuff
         callbacks = self._set_data(df, silently_drop, **kwargs)
+
         self.mode = 'data'
         self._update_all_field_derivatives()
-        for callback in callbacks:
-            callback()
+        if callbacks is not None:
+            [c() for c in callbacks]
 
         self.pci_graph = pci_graph.create(self.data) if kwargs['pci_graph'] else None
         return self
@@ -576,7 +578,7 @@ class Model:
 
         return self
 
-    def fit(self, df=None, **kwargs):
+    def fit(self, df=None, auto_extend=True, **kwargs):
         """Fit the model. The model is fit:
         * to the optionally passed DataFrame `df`,
         * or to the previously set data (using `.set_data()`)
@@ -584,7 +586,7 @@ class Model:
         On return of this method the attribute `.data` is filled with the appropriate data that
         was used to fit the model, i.e. if `df` is given it is set using `.set_data()`
 
-        Args:
+        Args:fit(
             df: pd.DataFrame, optional
                 The pandas data frame that holds the data to fit the model to. You can also
                 previously set the data to fit to using the set_data method.
@@ -601,16 +603,14 @@ class Model:
 
         try:
             callbacks = self._fit(**kwargs)
+
             self.mode = "both"
             # self._update_all_field_derivatives()
-            for callback in callbacks:
-                callback()
+            if callbacks is not None:
+                [c() for c in callbacks]
 
-            # TODO: clean up and add as parameter for `fit`
-            if True:
-                # auto_extent.print_extents(self)
+            if auto_extend:
                 auto_extent.adopt_all_extents(self)
-                # auto_extent.print_extents(self)
 
         except NameError:
             raise NotImplementedError("You have to implement the _fit method in your model!")
@@ -734,17 +734,18 @@ class Model:
         if len(cond_out) != 0:
             callbacks = self._conditionout(self.inverse_names(cond_out, sorted_=True), cond_out)
             self._update_remove_fields(cond_out)
-            for callback in callbacks:
-                callback()
+            if callbacks is not None:
+                [c() for c in callbacks]
             remove = self.inverse_names(keep, sorted_=True)  # do it again, because fields may have changed
             for name in cond_out:
                 self.history[name]['marginalized'] = 'conditioned_out'
 
         if len(keep) != self.dim and not self._isempty():
             callbacks = self._marginalizeout(keep, remove)
+
             self._update_remove_fields(remove)
-            for callback in callbacks:
-                callback()
+            if callbacks is not None:
+                [c() for c in callbacks]
             for name in remove:
                 self.history[name]['marginalized'] = 'marginalized_out'
         return self
@@ -1964,8 +1965,9 @@ class Model:
         callbacks = self._generate_model(opts)  # call specific class method
         self._init_history()
         self._update_all_field_derivatives()
-        for callback in callbacks:
-            callback()
+
+        if callbacks is not None:
+            [c() for c in callbacks]
         return self
 
     def _generate_data(self, opts=None):
