@@ -315,11 +315,6 @@ def generate_all_input(model, input_names, splits, split_names, evidence):
     return evidence, data_dict
 
 
-def generate_input_for_aggregation(model, aggr, split_data, partial_data):
-    """Return an iterator over """
-    pass
-
-
 def generate_input_series_for_dim(model, input_dim_name, split_names, name2split, evidence):
     name = input_dim_name
     split_names = set(split_names)
@@ -557,6 +552,7 @@ def aggregate_maximum_or_average(model, aggr, partial_data, split_data_dict, inp
     :return:
     """
 
+    # TODO: input_names is unused!
     input_names = model.sorted_names(aggr[NAME_IDX])
     split_data_list = (df for name, df in split_data_dict.items())
 
@@ -564,7 +560,7 @@ def aggregate_maximum_or_average(model, aggr, partial_data, split_data_dict, inp
     cond_out_names = set(partial_data.columns) | set(split_data_dict.keys())
 
     # TODO: make the outer loop parallel
-    operator_list = ['==']*len(input_names)  # OLD: used operator_list with custom op string
+    operator_list = ['==']*len(cond_out_names)  # OLD: used operator_list with custom op string
     # TODO: speed up results = np.empty(len(input_frame))
     results = []
 

@@ -1683,8 +1683,15 @@ class Model:
 
         # reduce to one final data frame
         if len(result_list) == 0:
-            # TODO: need to generate input for requested output anyway
-            raise NotImplementedError()
+            # no actual model query involved - simply a join of splits and evidence
+            # -> generate input (i.e. join) for requested output (i.e. predict_ids)
+            evidence_res = evidence.loc[:, evidence.columns & set(predict_ids)]
+            split_res = (split_data[name] for name in predict_ids if name in split_data)
+            data_frame = models_predict._crossjoin3(*split_res, evidence_res)
+        elif len(input_names) == 0:
+            # there is no index to merge on, because there was no spits or evidence
+            assert all(1 == len(res.columns) for res in result_list)
+            data_frame = pd.concat(result_list, axis=1, copy=False)
         else:
             data_frame = functools.reduce(lambda df1, df2: df1.merge(df2, on=list(input_names), how='inner', copy=False),
                                           result_list[1:], result_list[0])

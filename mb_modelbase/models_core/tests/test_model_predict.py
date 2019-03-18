@@ -21,7 +21,25 @@ if __name__ == '__main__':
     FL = model.byname('FL')
     RW = model.byname('RW')
 
+    # check result of very simple split
+    res = model.predict(['sex'], splitby=[Split(sex)])
+    print(res)
+    assert res.columns == ['sex']
+    assert res.shape == (2,1)
+    res = res.sort_values('sex')
+    assert all(res['sex'].values == ['Female', 'Male'])
 
+    exit(1)
+
+    # should not raise exception
+    res = model.predict([Aggregation([FL,RW], method='maximum', yields='RW'), Aggregation([FL,RW], method='maximum', yields='FL')])
+    print(res)
+
+    # split by two categoricals and predict one other variable
+    res = model.predict(['sex', 'species', Aggregation(FL, method='maximum', yields='FL')], splitby=[Split(sex), Split(species)])
+    print(res)
+    # should all be different results
+    assert len(res.iloc[:,2].unique()) == 4
 
     res = model.predict(['sex', 'FL', Probability([FL, sex])], splitby=[Split(sex), Split(FL)])
     print(res)
