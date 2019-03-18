@@ -37,10 +37,18 @@ spn.set_data(allbus, True)
 spn.fit()
 
 age = spn.copy().marginalize(['age'])
+ori = spn.copy().marginalize(['orientation'])
+ao = spn.copy().marginalize(['age', 'orientation'])
+
+spn.sample()
+age.sample()
+ori.sample()
+ao.sample()
+
 print([age.density([x]) for x in range(30)])
 
-spn.marginalize(['age', 'orientation'])
-spn.density([1.0, 1.0])
+ao = spn.copy().marginalize(['age', 'orientation'])
+ao.density([1.0, 1.0])
 
 iris = iris_ds.mixed()
 # iris = pd.read_csv('/home/me/apps/lumen/repos/lumen_data/mb_data/iris/iris.csv')

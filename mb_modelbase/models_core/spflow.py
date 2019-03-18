@@ -94,7 +94,6 @@ class SPNModel(Model):
 
     def _conditionout(self, keep, remove):
         condvalues = self._condition_values(remove)
-        print(condvalues)
         old_indices = [self._initial_names_to_index[name] for name in remove]
         for i in range(len(remove)):
             self._condition[old_indices[i]] = condvalues[i]
@@ -109,8 +108,11 @@ class SPNModel(Model):
         return 3
 
     def _sample(self, random_state=RandomState(123)):
-        s = sample_instances(self._spn, self._condition, random_state)
-        return list(s[0])
+        placeholder = self._condition.copy()
+        s = sample_instances(self._spn, placeholder, random_state)
+        indices = [self._initial_names_to_index[name] for name in self.names]
+        result = s[:, indices]
+        return result.reshape(len(self.names))
 
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)
