@@ -13,8 +13,6 @@ import copy as cp
 import functools
 import operator
 import pickle as pickle
-import multiprocessing as mp
-import multiprocessing_on_dill as mp_dill
 import numpy as np
 import pandas as pd
 import logging
@@ -1654,7 +1652,7 @@ class Model:
             #   1. also return the input data frames from each aggregation execution (and not only the output)
             #   2. and use the input information to join the multiple output data frames together
 
-            # TODO: I imagine there is a smart way of reordering the results without having to explicitely create the
+            # TODO: I imagine there is a smart way of reordering the results without having to explicitly create the
             #  cross join of cond_out_data and input_data!?
 
             # query model
@@ -1663,7 +1661,7 @@ class Model:
                     aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, name2split, aggr_id)
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 # TODO: I believe all max/avg aggregations require the identical input data, because i always condition
-                #  on all input items --> reuse it!?
+                #  on all input items --> reuse it. This is: generate input before and then pass it in
                 aggr_df = models_predict.\
                     aggregate_maximum_or_average(aggr_model, aggr, partial_data, split_data, name2split, aggr_id)
             else:
@@ -1694,7 +1692,7 @@ class Model:
         # (4) Fix domain valued splits.
         # Some splits result in domains (i.e. tuples, and not just single, scalar values). However,
         # I cannot currently handle intervals on the client side easily. Therefore we turn it back into scalars. Note
-        # that only splits may result in tuples, and evidence is currently not allowed to have tuples
+        # that only splits may result in tuples, but evidence is currently not allowed to have tuples
         for name, split in name2split.items():
             if split['return_type'] == 'domain':
                 dataframe[name] = dataframe[name].apply(split['down_cast_fct'])

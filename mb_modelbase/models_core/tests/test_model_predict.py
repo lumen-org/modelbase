@@ -27,9 +27,7 @@ if __name__ == '__main__':
     assert res.columns == ['sex']
     assert res.shape == (2,1)
     res = res.sort_values('sex')
-    #assert all(res['sex'].values == [('Female',), ('Male',)])
-
-
+    assert all(res['sex'].values == ['Female', 'Male'])
 
     # should not raise exception
     res = model.predict([Aggregation([FL,RW], method='maximum', yields='RW'), Aggregation([FL,RW], method='maximum', yields='FL')])
@@ -78,4 +76,5 @@ if __name__ == '__main__':
 
     res = model.predict(['sex', Density(sex), Aggregation(FL, method='maximum', yields='FL')], splitby=[Split(sex)])
     print(res)
-    #
+
+
