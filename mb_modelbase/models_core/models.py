@@ -1311,10 +1311,10 @@ class Model:
 
         # sum up density over all elements of the cartesian product of the categorical part of the event
         # TODO: generalize
-        # assert (all(len(d) == 1 for d in cat_domains))
-        # x = list([d[0] for d in cat_domains])
-        # return vol * self._density(x + y)
-        return vol * self._density(list(cat_domains) + y)
+        assert (all(len(d) == 1 for d in cat_domains)), "did not implement the case where categorical domain has more than one element"
+        x = list([d[0] for d in cat_domains])
+        return vol * self._density(x + y)
+        #return vol * self._density(list(cat_domains) + y)
 
     def sample(self, n=1):
         """Returns n samples drawn from the model as a dataframe with suitable column names.
@@ -1594,6 +1594,8 @@ class Model:
         TODO:
             * just an idea: couldn't I merge the evidence given (takes higher priority) with all default of all
            variables and use this as a starting point for the input frame??
+            * can't we handle the the split-method 'data' (which uses .test_data as the result of the split) as evidence.
+             this seem more clean and versatile
 
         """
         if evidence is None:
@@ -1621,7 +1623,7 @@ class Model:
         # (0) create data structures for clauses
         aggrs, aggr_ids, aggr_input_names, aggr_dims, \
         predict_ids, predict_names, \
-        split_names, \
+        split_names, name2split, \
         evidence, evidence_names\
             = models_predict.create_data_structures_for_clauses(self, predict, where, splitby, evidence)
         # set of names of dimensions that we need values for in the input data frame
@@ -1633,18 +1635,6 @@ class Model:
 
         # (2) generate all input data
         partial_data, split_data = models_predict.generate_all_input(basemodel, input_names, splitby, split_names, evidence)
-
-        # # build list of comparison operators, depending on split types. Needed to condition on each tuple of the input
-        # #  frame when aggregating
-        # method2operator = {
-        #     "equidist": "==",
-        #     "equiinterval": "in",
-        #     "identity": "in",
-        #     "elements": "in",
-        #     "data": "in",
-        # }
-        # # unified handling of evidence and splits
-        #     operator_list = [method2operator[method] for (_, method, __) in splitby]
 
         # (3) execute each aggregation
         aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
@@ -1670,12 +1660,12 @@ class Model:
             # query model
             if aggr_method == 'density' or aggr_method == 'probability':
                 aggr_df = models_predict.\
-                    aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, aggr_id)
+                    aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, name2split, aggr_id)
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 # TODO: I believe all max/avg aggregations require the identical input data, because i always condition
                 #  on all input items --> reuse it!?
                 aggr_df = models_predict.\
-                    aggregate_maximum_or_average(aggr_model, aggr, partial_data, split_data, input_names, splitby, aggr_id)
+                    aggregate_maximum_or_average(aggr_model, aggr, partial_data, split_data, name2split, aggr_id)
             else:
                 raise ValueError("Invalid 'aggregation method': " + str(aggr_method))
 
@@ -1692,43 +1682,33 @@ class Model:
             # -> generate input (i.e. join) for requested output (i.e. predict_ids)
             evidence_res = evidence.loc[:, evidence.columns & set(predict_ids)]
             split_res = (split_data[name] for name in predict_ids if name in split_data)
-            data_frame = models_predict._crossjoin3(*split_res, evidence_res)
+            dataframe = models_predict._crossjoin3(*split_res, evidence_res)
         elif len(input_names) == 0:
             # there is no index to merge on, because there was no spits or evidence
             assert all(1 == len(res.columns) for res in result_list)
-            data_frame = pd.concat(result_list, axis=1, copy=False)
+            dataframe = pd.concat(result_list, axis=1, copy=False)
         else:
-            data_frame = functools.reduce(lambda df1, df2: df1.merge(df2, on=list(input_names), how='inner', copy=False),
+            dataframe = functools.reduce(lambda df1, df2: df1.merge(df2, on=list(input_names), how='inner', copy=False),
                                           result_list[1:], result_list[0])
 
-        # QUICK FIX: when splitting by 'equiinterval' we get intervals instead of scalars as entries
-        # however, I cannot currently handle intervals on the client side easily
-        # so we just turn it back into scalars
-        column_interval_list = [name for (name, method, __) in splitby if method == 'equiinterval']
-        for column in column_interval_list:
-            data_frame[column] = data_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)
-
-        # column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'equiinterval']
-        # for column in column_interval_list:
-        #     input_frame[column] = input_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)
-
-        # TEMPORARILY REMOVED:
-        # # QUICK FIX2: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
-        # column_interval_list = [split_name2id[name] for (name, method, __) in splitby if
-        #                         method == 'elements' or method == 'identity']
-        # for column in column_interval_list:
-        #     input_frame[column] = input_frame[column].apply(lambda entry: entry[0])
+        # (4) Fix domain valued splits.
+        # Some splits result in domains (i.e. tuples, and not just single, scalar values). However,
+        # I cannot currently handle intervals on the client side easily. Therefore we turn it back into scalars. Note
+        # that only splits may result in tuples, and evidence is currently not allowed to have tuples
+        for name, split in name2split.items():
+            if split['return_type'] == 'domain':
+                dataframe[name] = dataframe[name].apply(split['down_cast_fct'])
 
         # (5) filter on aggregations?
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
 
         # (7) get correctly ordered frame that only contain requested fields
-        data_frame = data_frame[predict_ids]
+        dataframe = dataframe[predict_ids]
 
         # (8) rename columns to be readable (but not unique anymore)
-        data_frame.columns = predict_names
+        dataframe.columns = predict_names
 
-        return (data_frame, basemodel) if returnbasemodel else data_frame
+        return (dataframe, basemodel) if returnbasemodel else dataframe
 
     def _select_data(self, what, where=None, **kwargs):
         """Select and return that subset of the models data in `self.data` that respect the conditions in `where` and the columns

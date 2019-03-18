@@ -73,10 +73,6 @@ def type_of_clause(clause):
         return clause[METHOD_IDX]
 
 
-def get_names_and_maps():
-    pass
-
-
 def add_split_for_defaulting_field(dim, splitby, split_names, where, filter_names):
     """ A add a filter and identity split for the defaulting field `dim`, if possible.
 
@@ -167,10 +163,44 @@ def create_data_structures_for_clauses(model, predict, where, splitby, evidence)
                              evidence_names,
                              idgen)
 
+    name2split = make_name2split(model, splitby)
+
     return aggrs, aggr_ids, aggr_input_names, aggr_dims, \
         predict_ids, predict_names, \
-        split_names, \
+        split_names, name2split, \
         evidence, evidence_names
+
+
+def make_name2split(model, splitby):
+    name2split = {}
+    for s in splitby:
+        name = s[NAME_IDX]
+        method = s[METHOD_IDX]
+        input_type = model.byname(name)['dtype']
+        return_type = sp.return_types[method]
+        assert input_type in ['numerical', 'string'], 'invalid dtype'
+        if input_type == 'numerical' and return_type == 'scalar':
+            down_cast_fct = None
+            up_cast_fct = None
+        elif input_type == 'numerical' and return_type == 'domain':
+            down_cast_fct = lambda x: (x[0] + x[1]) / 2
+            up_cast_fct = None
+        elif input_type == 'string' and return_type == 'scalar':
+            down_cast_fct = None
+            up_cast_fct = lambda x: (x,)
+        elif input_type == 'string' and return_type == 'domain':
+            down_cast_fct = lambda x: x[0]
+            up_cast_fct = None
+
+        name2split[name] = {
+            'split': s,
+            'method': method,
+            'return_type': return_type,
+            'cond_op': 'in' if return_type == 'domain' else '==',
+            'down_cast_fct': down_cast_fct,
+            'up_cast_fct': up_cast_fct
+        }
+    return name2split
 
 
 def normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_input_names, aggr_output_names,
@@ -250,12 +280,6 @@ def get_split_values(model, split):
     except KeyError:
         raise ValueError("split method '" + split[METHOD_IDX] + "' is not supported")
     return splitfct(domain.values(), split[ARGS_IDX])
-
-
-def get_group_frame(model, split, column_id):
-    frame = pd.DataFrame({column_id: get_split_values(model, split)})
-    frame['__crossIdx__'] = 0  # need that index to cross join later
-    return frame
 
 
 def data_splits_to_evidence(model, splitby, evidence):
@@ -352,67 +376,6 @@ def generate_input_series_for_dim(model, input_dim_name, split_names, name2split
     return series
 
 
-def generate_input_frame(model, basemodel, splitby, split_ids, evidence):
-    """OLDOLDOLD
-    Create one common big input based on splitbys"""
-
-    # TODO: in the future I want to create the input frame based on what is actually needed for a particular aggregation
-    # instead of just creating one huge input frame and then cutting down what is not needed
-    # Bad Idea: instead change semantic, so that always all of the frame is needed
-
-    # either something is needed as input for density/prob or it's used as a condition
-
-    # TODO: idea: can't we handle the the split-method 'data' (which uses .test_data as the result of the split) as evidence
-    # this seem more clean and versatile
-
-    # TODO: we should only need basemodel
-
-    if len(splitby) == 0:
-        if evidence is not None:
-            input_frame = evidence
-        else:
-            input_frame = pd.DataFrame()
-    else:
-        # filter to tuples of (identity_split, split_id)
-        id_tpl = tuple(zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'identity')))
-        identity_splits, identity_ids = ([], []) if len(id_tpl) == 0 else id_tpl
-
-        # filter to tuples of (data_split, split_id)
-        split_tpl = tuple(zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'data')))
-        data_splits, data_ids = ([], []) if len(split_tpl) == 0 else split_tpl
-
-        # all splits are non-data splits. Note: this should be the 'normal' case
-        if len(data_splits) == 0:
-            group_frames = map(get_group_frame, [model] * len(splitby), splitby, split_ids)
-            input_frame = functools.reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
-
-        # all splits are data and/or identity splits
-        elif len(data_splits) + len(identity_splits) == len(splitby):
-
-            # compute input frame according to data splits
-            data_split_names = [s[NAME_IDX] for s in data_splits]
-            assert (model.mode == 'both')
-            # limit = 15*len(data_split_names)  # TODO: maybe we need a nicer heuristic? :)
-            # #.drop_duplicates()\ # TODO: would make sense to do it, but then I run into problems with matching test data to aggregations on them in frontend, because I drop them for the aggregations, but not for test data select
-            # sorting is required for correct display, since points are connected along their index
-            input_frame = model.test_data.loc[:, data_split_names].sort_values(by=data_split_names, ascending=True)
-            input_frame.columns = data_ids  # rename to data split ids!
-
-            # add identity splits
-            for id_, s in zip(identity_ids, identity_splits):
-                field = basemodel.byname(s[NAME_IDX])
-                domain = field['domain'].bounded(field['extent'])
-                assert (domain.issingular())
-                input_frame[id_] = domain.value()
-
-            # TODO: I do not understand why this reset is necesary, but it breaks if I don't do it.
-            input_frame = input_frame.reset_index(drop=True)
-        else:
-            raise NotImplementedError('Currently mixing data splits with any other splits is not supported.')
-
-    return input_frame
-
-
 def divide_df(df, colnames):
     """Returns a tuple of two pd.DataFrames where the first one contains all columns with names in `colnames` and the
     second all other.
@@ -425,7 +388,77 @@ def divide_df(df, colnames):
     return df[list(colnames)], df[list(other)]
 
 
-def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, aggr_id='aggr_id'):  # , name2id):
+def condition_ops_and_names(name2split, cond_out_names, split_dims, partial_dims):
+    """
+    Derive operator list
+    :param name2split: dict
+        Dictionairy of split names to meta information.
+    :param cond_out_names: list
+        List of names of dimensions to to condition out. All names that is split by (i.e. names that are in name2split)
+        occur first.
+    :param split_dims: int
+        number of split dimensions to condition on. Will be filled with operator from name2split.
+    :param partial_dims: int
+        number of partial data dimensions to condition on. Will be filled with operator "==".
+    :return:
+    """
+    return [name2split[name]['cond_op'] for name in cond_out_names[:split_dims]] + ['==']*partial_dims
+
+
+def validate_input_data_for_density_probability(aggr, split_df_input, partial_df, name2split):
+    """
+    Validates and if possible 'corrects' input data for use with a density or probability aggregation.
+
+    Density and probability aggregations require scalar- and domain-valued input, respectively. This method validates
+    this. If it is violated it automatically corrects it using up-cast (scalar to domain) or down-cast (domain to
+    scalar) functions. The casting methods are given as part of in `name2split`.
+
+    TODO: currently the evidence is assumed to be given at points only, not domains. Overcome this limitation and
+     allow domains for evidence as well.
+
+    :param aggr:
+    :param split_df_input:
+    :param partial_df:
+    :param name2split:
+    :return:
+    """
+
+    method = aggr[METHOD_IDX]
+    if method not in ['probability', 'density']:
+        raise ValueError('up/down casting of input only makes sense for density/probability aggregations')
+
+    def density_map_fct(series):
+        # input data must all be scalar valued, i.e. splits must all have result type 'scalar'
+        split = name2split[series.name]
+        if split['return_type'] == 'domain':
+            # down-cast from domains to scalar for density queries
+            return series.apply(split['down_cast_fct'])
+        else:
+            return series
+
+    def probability_map_fct(series):
+        # input data must all be domain valued, i.e. splits must all have results type 'scalar'
+        split = name2split[series.name]
+        if split['return_type'] == 'scalar':
+            # up-cast from scalar to domain for probability queries
+            return series.apply(split['up_cast_fct'])
+        else:
+            return series
+
+    if aggr[METHOD_IDX] == 'density':
+        split_df_input = map(density_map_fct, split_df_input)
+        # check partial input
+        # TODO
+    else:
+        # check split input
+        split_df_input = map(probability_map_fct, split_df_input)
+        # check partial input
+        # TODO
+
+    return split_df_input, partial_df
+
+
+def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, name2split, aggr_id='aggr_id'):  # , name2id):
     """
     Compute density or probability aggregation `aggr` for `model` on given data.
     :param model:
@@ -452,25 +485,29 @@ def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, a
         else:
             split_df_input.append(df)
 
-    # build data of both 'types'
+    # build cond out data and op list
     cond_out_data = _crossjoin3(*split_df_cond_out, partial_df_cond_out)
-    input_data = _crossjoin3(*split_df_input, partial_df_input)
+    cond_out_names = model.sorted_names(cond_out_names)
+    cond_out_data = cond_out_data[cond_out_names]
+    cond_out_ops = condition_ops_and_names(name2split, cond_out_names, len(split_df_cond_out),
+                                           len(partial_df_cond_out.columns))
 
-    # reorder to match model ordering
-    input_data = input_data[model.sorted_names(input_data.columns)]
+    # validate and build input data
+    split_df_input, partial_df_input = validate_input_data_for_density_probability(aggr, split_df_input,
+                                                                                   partial_df_input, name2split)
+    input_data = _crossjoin3(*split_df_input, partial_df_input)
+    input_data = input_data[input_names]  # reorder to match model ordering
 
     # TODO: make the outer loop parallel
-    operator_list = ['==']*len(input_names)  # OLD: used operator_list with custom op string
-
-    results = []
     method = aggr[METHOD_IDX]
+    results = []
     if cond_out_data.empty:
         results = aggr_density_probability_inner(model, method, input_data)
     else:
         _extend = results.extend
         for row in cond_out_data.itertuples(index=False, name=None):
             # derive model for these specific conditions
-            pairs = zip(input_names, operator_list, row)
+            pairs = zip(cond_out_names, cond_out_ops, row)
             cond_out_model = model.copy().condition(pairs).marginalize(keep=input_names)
             # query model
             _extend(aggr_density_probability_inner(cond_out_model, method, input_data))
@@ -483,6 +520,7 @@ def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, a
     # return_df = pd.DataFrame(data={aggr_id: results}, index=df_index)
     # return return_df
 
+    # return full data frame of input and output
     return _crossjoin3(cond_out_data, input_data).assign(**{aggr_id: results})
 
 
@@ -501,15 +539,6 @@ def aggr_density_probability_inner(model, method, input_data):
     Returns: list
         The probability/density values.
     """
-    # TODO: is this still an issue?
-    # # when splitting by elements or identity we get single element lists instead of scalars.
-    # # However, density() requires scalars.
-    # # TODO: I believe this issue should be handled in a conceptually better and faster way...
-    # nonscalar_ids = [input_name2id[name] for (name, method, __) in splitby if
-    #                  method == 'elements' or method == 'identity' and name in names]
-    # for col_id in nonscalar_ids:
-    #     subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
-
     results = []
     if method == 'density':
         assert(model.names == list(input_data.columns))
@@ -524,8 +553,7 @@ def aggr_density_probability_inner(model, method, input_data):
 
     else:  # aggr_method == 'probability'
         assert (method == 'probability')
-        # if model.parallel_processing:
-        if False:
+        if model.parallel_processing:
             with mp.Pool() as p:
                 results = p.map(model.probability, input_data.itertuples(index=False, name=None))
         else:
@@ -539,7 +567,7 @@ def aggr_density_probability_inner(model, method, input_data):
     return results
 
 
-def aggregate_maximum_or_average(model, aggr, partial_data, split_data_dict, input_names, splitby, aggr_id='aggr_id'):
+def aggregate_maximum_or_average(model, aggr, partial_data, split_data_dict, name2split, aggr_id='aggr_id'):
     """
     TODO: fix documentation
 
@@ -548,27 +576,22 @@ def aggregate_maximum_or_average(model, aggr, partial_data, split_data_dict, inp
     :param partial_data:
     :param split_data_dict:
     :param input_names:
-    :param splitby:
+    :param name2split :
     :param aggr_id:
     :return:
     """
 
-    # TODO: input_names is unused!
-    input_names = model.sorted_names(aggr[NAME_IDX])
     split_data_list = (df for name, df in split_data_dict.items())
-
     cond_out_data = _crossjoin3(*split_data_list, partial_data)
-    cond_out_names = set(partial_data.columns) | set(split_data_dict.keys())
+    cond_out_names = cond_out_data.columns
+    cond_out_ops = condition_ops_and_names(name2split, cond_out_names, len(split_data_dict), len(partial_data.columns))
 
     # TODO: make the outer loop parallel
-    operator_list = ['==']*len(cond_out_names)  # OLD: used operator_list with custom op string
     # TODO: speed up results = np.empty(len(input_frame))
     results = []
 
     if len(cond_out_data) == 0:
         # there is no fields to split by, hence only a single value will be aggregated
-        assert len(splitby) == 0
-        # singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
         assert len(aggr[NAME_IDX]) == len(model.fields)
         res = model.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
         i = model.asindex(aggr[YIELDS_IDX])  # reduce to requested field
@@ -580,7 +603,7 @@ def aggregate_maximum_or_average(model, aggr, partial_data, split_data_dict, inp
 
         # TODO: I think this can be speed up: no need to recompute `i`, i is identical for all iteration of for loop
 
-        def pred_max_func(row, cond_out_names=cond_out_names, operator_list=operator_list,
+        def pred_max_func(row, cond_out_names=cond_out_names, operator_list=cond_out_ops,
                                    rowmodel_name=rowmodel_name, model=model):
             pairs = zip(cond_out_names, operator_list, row)
             rowmodel = model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])

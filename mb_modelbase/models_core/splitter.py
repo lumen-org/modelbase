@@ -66,7 +66,7 @@ def equiinterval(domain, args):
 def identity(domain, args):
     """ Given any domain returns the full domain itself. Note that for consistency it return a (single-element) list
     of domains. """
-    return domain
+    return [domain]
     # OLD:
     # return [domain]
 
@@ -75,9 +75,9 @@ def elements(domain, args):
     """ Splits the given discrete domain into it's single elements and returns these. Thus, it returns a list
     of these elements."""
     if isinstance(domain, str):
-        return [domain]
+        return [(domain,)]
     else:
-        return [e for e in domain]
+        return [(e,) for e in domain]
     # OLD:
     #     if isinstance(domain, str):
     #         return [(domain,)]
@@ -100,5 +100,6 @@ return_types = {
     "equidist": 'scalar',
     "equiinterval": 'domain',
     "identity": 'domain',
-    "elements": 'scalar'
+    "elements": 'domain'
 }
+
