@@ -273,7 +273,7 @@ class Model:
 
            _aggrMethods : dict
 
-                This dictionary maps a string identifie of an aggregation method to the actual method implementation,
+                This dictionary maps a string identifier of an aggregation method to the actual method implementation,
                 i.e. a class method that returns the desired aggregation. See for example `Gaussian.py`, and there the
                  __init__ method where `.aggrMethods` is assigned the method `.maximum` as well as the implementation
                  of that method which simply returns the mean of the Gaussian.
