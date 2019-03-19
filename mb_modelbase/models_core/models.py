@@ -1598,7 +1598,7 @@ class Model:
         """
         if evidence is None:
             evidence = pd.DataFrame()
-        elif not self.isfieldname(evidence.colnames):
+        elif not self.isfieldname(evidence.columns):
             raise ValueError('evidence contains data dimensions that are not modelled by this model')
 
         if isinstance(predict, (str, tuple)):
@@ -1685,6 +1685,8 @@ class Model:
             # there is no index to merge on, because there was no spits or evidence
             assert all(1 == len(res.columns) for res in result_list)
             dataframe = pd.concat(result_list, axis=1, copy=False)
+        elif len(result_list) == 1:
+            dataframe = result_list[0]
         else:
             dataframe = functools.reduce(lambda df1, df2: df1.merge(df2, on=list(input_names), how='inner', copy=False),
                                           result_list[1:], result_list[0])

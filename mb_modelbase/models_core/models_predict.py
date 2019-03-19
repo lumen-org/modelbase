@@ -213,7 +213,7 @@ def normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_inp
     if clause_type == 'split':
         # t is a string, i.e. name of a field that is split by
         name = clause
-        if name not in split_names:
+        if name not in split_names and name not in evidence_names:
             dim = model.byname(name)
             add_split_for_defaulting_field(dim, splitby, split_names, where, filter_names)
         predict_names.append(name)
@@ -323,6 +323,7 @@ def generate_all_input(model, input_names, splits, split_names, evidence):
         model: md_modelbase.Model
         input_names: sequence of str
             The names of the dimensions to generate input series' for.
+    TODO: missing ARGS
 
     Returns: pd.DataFrame, pd.DataFrame
         The generated dict of <input dimension name : series of input values>
@@ -330,16 +331,26 @@ def generate_all_input(model, input_names, splits, split_names, evidence):
 
     # normalize splits with method 'data' to evidence
     evidence = data_splits_to_evidence(model, splits, evidence)
-    assert set(evidence.columns).isdisjoint(set(input_names))
+    #OLD: assert set(evidence.columns).isdisjoint(set(input_names))
 
     # generate input series for each input name
     name2split = dict(zip(split_names, splits))
-    data_dict = {name: generate_input_series_for_dim(model, name, split_names, name2split, evidence) for name in input_names}
+    #data_dict = {name: generate_input_series_for_dim(model, name, split_names, name2split, evidence) for name in input_names}
+    data_dict = {name: generate_input_series_for_dim(model, name, split_names, name2split, evidence) for name in split_names}
 
     return evidence, data_dict
 
 
 def generate_input_series_for_dim(model, input_dim_name, split_names, name2split, evidence):
+    """
+    TODO document
+    :param model:
+    :param input_dim_name:
+    :param split_names:
+    :param name2split:
+    :param evidence:
+    :return:
+    """
     name = input_dim_name
     split_names = set(split_names)
 
@@ -383,9 +394,15 @@ def divide_df(df, colnames):
     if df.empty:
         return pd.DataFrame(), pd.DataFrame
 
-    assert(set(df.columns) >= set(colnames))
-    other = set(df.columns) - set(colnames)
-    return df[list(colnames)], df[list(other)]
+    colnames = set(colnames)
+    df_colnames = set(df.columns)
+
+    names_intersect = colnames.intersection(df_colnames)
+    names_other = df_colnames - colnames
+
+    assert(names_intersect.isdisjoint(names_other))
+
+    return df[list(names_intersect)], df[list(names_other)]
 
 
 def condition_ops_and_names(name2split, cond_out_names, split_dims, partial_dims):
@@ -472,7 +489,6 @@ def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, n
     # data has two 'types' of dimension:
     #  * `input_names`: input to the density query
     #  * `cond_out_names`: to be conditioned out
-
     input_names = model.sorted_names(aggr[NAME_IDX])
     cond_out_names = (set(partial_df.columns) | set(split_data_dict.keys())) - set(input_names)
 
@@ -491,6 +507,13 @@ def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, n
     cond_out_data = cond_out_data[cond_out_names]
     cond_out_ops = condition_ops_and_names(name2split, cond_out_names, len(split_df_cond_out),
                                            len(partial_df_cond_out.columns))
+
+    # compute original, uncorrected input data. We will return this instead of the corrected input (below).
+    # Doing differently causes inconsistency:
+    #  - we might try to downcast/upcast later which would fail because it's been done already
+    #  - merging with other results based on these inputs might fail because not all have been down/up casted the same
+    input_data_orig = _crossjoin3(*split_df_input, partial_df_input)
+    input_data_orig = input_data_orig[input_names]
 
     # validate and build input data
     split_df_input, partial_df_input = validate_input_data_for_density_probability(aggr, split_df_input,
@@ -521,7 +544,7 @@ def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, n
     # return return_df
 
     # return full data frame of input and output
-    return _crossjoin3(cond_out_data, input_data).assign(**{aggr_id: results})
+    return _crossjoin3(cond_out_data, input_data_orig).assign(**{aggr_id: results})
 
 
 def aggr_density_probability_inner(model, method, input_data):

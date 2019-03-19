@@ -1,3 +1,4 @@
+import pandas as pd
 
 from mb_modelbase.models_core import Model
 from mb_modelbase.models_core.base import *
@@ -6,8 +7,9 @@ from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianMo
 from mb_modelbase.models_core.tests import test_crabs as crabs
 
 if __name__ == '__main__':
+
     model = Model.load('crabs_test.mdl')
-    model.parallel_processing = False
+    # model.parallel_processing = False
 
     # data = crabs.mixed()
     # model = MixCondGauss("TestMod").fit(df=data)
@@ -20,6 +22,17 @@ if __name__ == '__main__':
     species = model.byname('species')
     FL = model.byname('FL')
     RW = model.byname('RW')
+
+
+
+
+    # use some evidence
+    res = model.predict(['sex', 'FL', 'RW', Density([FL, RW, sex])], splitby=[Split(sex), Split(RW)], evidence=pd.DataFrame(data={'FL': [3,5,7,10,12]}))
+    print(res)
+
+
+    exit(1)
+
 
     # check result of very simple split
     res = model.predict(['sex'], splitby=[Split(sex)])
