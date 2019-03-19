@@ -1,12 +1,12 @@
 import pandas as pd
 from mb_modelbase.models_core.spflow import SPNModel
-from spn.structure.leaves.parametric.Parametric import Categorical, Bernoulli, Poisson
-from spn.structure.StatisticalTypes import MetaType
 from spn.io.Graphics import plot_spn
 
 from mb_data import iris as iris_ds
 from mb_data import allbus as allbus_ds
-
+from mb_modelbase.models_core import base
+import numpy as np
+import matplotlib.pyplot as plt
 allbus = allbus_ds.mixed()
 
 # Replace all categorical columns with numbers representing the factors
@@ -15,31 +15,36 @@ for cat in cats:
     allbus[cat] = pd.Categorical(allbus[cat])
     allbus[cat] = allbus[cat].cat.codes
 
-allbus_var_types = {
-    'sex': Bernoulli,
-    'east-west': Bernoulli,
-    'lived_abroad': Bernoulli,
-    'orientation_cat': Categorical,
-    'age': Poisson,
-    'education': Categorical,
-    'income': Poisson,
-    'happiness': Categorical,
-    'health': Categorical,
-    'orientation': Categorical
-}
-
-spn = SPNModel('Sum Product Network',
-               spn_type='spn',
-               var_types=allbus_var_types
-               )
+spn = SPNModel('Sum Product Network', spn_type='spn')
 
 spn.set_data(allbus, True)
-spn.fit()
+spn.fit(var_types=allbus_ds.spn_parameters())
+
+spn.density([0,0,0,0,0,0,0,0,0,])
+
+faces = [ len(np.unique(allbus.iloc[:, i])) for i in range(len(allbus.columns.values))]
+var_types = [spn._nameToVarType[x] for x in spn.names]
+
+ao = spn.copy().marginalize(['age', 'orientation'])
+cond = ao.copy().condition(base.Condition('age', "==", 34)).marginalize(remove=['age'])
+cond.density([1.5])
+
 
 age = spn.copy().marginalize(['age'])
-ori = spn.copy().marginalize(['orientation'])
-ao = spn.copy().marginalize(['age', 'orientation'])
+x = list(range(100))
+y = [age.density([v]) for v in x]
+plt.plot(x,y)
+plt.show()
 
+ori = spn.copy().marginalize(['orientation'])
+x = list(range(10))
+y = [ori.density([v]) for v in x]
+plt.plot(x,y)
+plt.show()
+
+ao = spn.copy().marginalize(['age', 'orientation'])
+ase = spn.copy().marginalize(['age', 'orientation'])
+edu = spn.copy().marginalize('education')
 spn.sample()
 age.sample()
 ori.sample()
@@ -50,23 +55,37 @@ print([age.density([x]) for x in range(30)])
 ao = spn.copy().marginalize(['age', 'orientation'])
 ao.density([1.0, 1.0])
 
+
+
+test = ao._density_mask.copy()
+np.put(test, np.argwhere(test == 2), [1.4,1.5])
+
+print(test)
+
+
+
+
+
+
+
+
+
+
 iris = iris_ds.mixed()
 # iris = pd.read_csv('/home/me/apps/lumen/repos/lumen_data/mb_data/iris/iris.csv')
 iris.species = pd.Categorical(iris.species)
 iris.species = iris.species.cat.codes
 
-iris_meta_types = {
-    'sepal_length': MetaType.REAL,
-    'sepal_width': MetaType.REAL,
-    'petal_length': MetaType.REAL,
-    'petal_width': MetaType.REAL,
-    'species': MetaType.DISCRETE
-}
+#mspn = SPNModel('Mixed Sum Product Network',
+#                spn_type='mspn',
+#                )
 
-mspn = SPNModel('Mixed Sum Product Network',
-                spn_type='mspn',
-                var_types=iris_meta_types
+#mspn.set_data(iris, True)
+#mspn.fit(var_types=iris_ds.spn_metaparameters())
+
+iris_spn = SPNModel('Mixed Sum Product Network',
+                spn_type='spn',
                 )
+iris_spn.set_data(iris, True)
+iris_spn.fit(var_types=iris_ds.spn_paramaters())
 
-mspn.set_data(iris, True)
-mspn.fit()

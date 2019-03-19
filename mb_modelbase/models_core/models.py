@@ -578,7 +578,7 @@ class Model:
 
         return self
 
-    def fit(self, df=None, auto_extend=True, **kwargs):
+    def fit(self, df=None, auto_extend=False, **kwargs):
         """Fit the model. The model is fit:
         * to the optionally passed DataFrame `df`,
         * or to the previously set data (using `.set_data()`)

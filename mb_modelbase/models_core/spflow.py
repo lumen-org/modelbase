@@ -17,7 +17,6 @@ from spn.algorithms.Inference import likelihood
 from spn.algorithms.Sampling import sample_instances
 from numpy.random.mtrand import RandomState
 from spn.io.Graphics import plot_spn
-import copy as np
 import numpy as np
 import functools
 
@@ -37,11 +36,9 @@ class SPNModel(Model):
 
     """
     def __init__(self, name,
-                 spn_type = 'spn',
-                 var_types = None):
+                 spn_type = 'spn'):
         super().__init__(name)
         self._spn_type = spn_type
-        self._nameToVarType = var_types
         self._aggrMethods = {
             'maximum': self._maximum,
             'average': self._maximum
@@ -49,9 +46,14 @@ class SPNModel(Model):
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
     def _update(self):
-        """updates dependent parameters / precalculated values of the model"""
+        """
+        the _density_mask is updated when the model is marginalized or conditioned
+        marginalized variables are represented with np.nan according to spflow
+        conditioned variables are represented with 1
+        untouched variables are represented with 2
+        """
         self._density_mask = np.array(
-            [np.nan if i in self._marginalized else 0 for i in self._initial_names]
+            [np.nan if i in self._marginalized else 1 if i in self._conditioned else 2 for i in self._initial_names]
         ).reshape(-1, self._initial_names_count)
         return self
 
@@ -59,7 +61,8 @@ class SPNModel(Model):
         self._set_data_mixed(df, drop_silently)
 
 
-    def _fit(self, min_instances_slice=20):
+    def _fit(self, var_types = None):
+        self._nameToVarType = var_types
         #Check if variable types are given
         assert self._nameToVarType != None
         #Check if enough
@@ -68,12 +71,21 @@ class SPNModel(Model):
         self._initial_names = self.names.copy()
         self._initial_names_count = len(self._initial_names)
         self._initial_names_to_index = {self._initial_names[i]:i for i in range(self._initial_names_count)}
+
+        # Initialize _density_mask with np.nan
+        self._density_mask = np.array(
+            [np.nan for i in self._initial_names]
+        ).reshape(-1, self._initial_names_count)
+
+        # Initialize _condition with np.nan
         self._condition = np.repeat(
             np.nan,
             self._initial_names_count
         ).reshape(-1, self._initial_names_count)
 
+
         self._marginalized = set()
+        self._conditioned = set()
 
         var_types = [self._nameToVarType[name] for name in self.names]
 
@@ -90,18 +102,54 @@ class SPNModel(Model):
 
     def _marginalizeout(self, keep, remove):
         self._marginalized = self._marginalized.union(remove)
+        # self._spn = marginalize(self._spn, self.asindex(keep))
         return self._unbound_updater,
 
     def _conditionout(self, keep, remove):
+        self._conditioned = self._conditioned.union(remove)
         condvalues = self._condition_values(remove)
         old_indices = [self._initial_names_to_index[name] for name in remove]
         for i in range(len(remove)):
-            self._condition[old_indices[i]] = condvalues[i]
+            self._condition[0, old_indices[i]] = condvalues[i]
+        return self._unbound_updater,
 
     def _density(self, x):
         input = self._density_mask.copy()
-        np.put(input, np.argwhere(np.isnan(input) == False), x)
+
+        counter = 0
+        for i in range(input.shape[1]):
+            if input[0, i] == 2:
+                input[0, i] = x[counter]
+                counter += 1
+            elif input[0, i] == 1:
+                input[0, i] = self._condition[0,i]
+        #print(input)
+        #print(input.shape)
         res = likelihood(self._spn, input)
+        #print(res)
+        return res[0]
+
+    def __density(self, x):
+        print("--- Density")
+        print("value: ", x)
+        print("value type: ", type(x))
+        input = self._density_mask.copy()
+        print("Density mask: ",input)
+        #Set input values where not marginalized or conditioned
+        indices = np.argwhere(self._density_mask == 2)
+        #if len(self.names) == 1:
+        #    print("Marginal")
+        #    indices = np.array(indices[0, 1]).reshape(-1)
+        print("Indices: ", indices)
+        np.put(input, indices, x)
+        print("Set input:", input)
+        # Set input values where conditioned if conditioned
+        if len(self._conditioned) > 0:
+            conditionvalues = self._condition[np.isnan(self._condition) == False].tolist()
+            conditionpositions = np.argwhere(self._density_mask == 1)
+            np.put(input, conditionpositions, conditionvalues)
+        res = likelihood(self._spn, input)
+        print(res)
         return res[0]
 
     def _maximum(self):
@@ -122,6 +170,7 @@ class SPNModel(Model):
         mycopy._initial_names = self._initial_names.copy()
         mycopy._initial_names_count = len(mycopy._initial_names)
         mycopy._marginalized = self._marginalized.copy()
+        mycopy._conditioned = self._conditioned.copy()
         mycopy._density_mask = self._density_mask.copy()
         mycopy._condition = self._condition.copy()
         mycopy._initial_names_to_index = self._initial_names_to_index.copy()

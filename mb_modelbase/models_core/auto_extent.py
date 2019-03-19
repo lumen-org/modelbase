@@ -31,7 +31,7 @@ def field_to_auto_extent(model, dim_name, prec=1e-03, step=.02):
 
     # check if dim_name is in model
     field = model.byname(dim_name)
-
+    print("--------" + field['name'] + "--------")
     if field['dtype'] == 'string':
         raise ValueError("dimension may not be categorical")
 
