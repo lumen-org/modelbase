@@ -1,7 +1,7 @@
 # Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de), Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
 import os
-#path = '/home/philipp/Desktop/code/modelbase'
-path = '/home/guet_jn/Desktop/modelbase'
+path = '/home/philipp/Desktop/code/modelbase'
+#path = '/home/guet_jn/Desktop/modelbase'
 os.chdir(path)
 
 from mb_modelbase.models_core.models import Model
@@ -57,6 +57,13 @@ class ProbabilisticPymc3Model(Model):
             self.fields = self.fields + get_numerical_fields(self.samples, trace.varnames)
             self._update_all_field_derivatives()
             self._init_history()
+
+            # Remove names and fields that are not in the samples
+            self.names = [name for name in self.names if name in self.samples.columns.values]
+            self.fields = [field for field in self.fields if field['name'] in self.samples.columns.values]
+            # Update name2idx and dim
+            self._update_name2idx_dict()
+            self.dim = len(self.fields)
 
             # Change order of sample columns so that it matches order of fields
             self.samples = self.samples[self.names]
@@ -147,7 +154,6 @@ class ProbabilisticPymc3Model(Model):
         x0 = np.zeros(len(self.fields))
         maximum = sciopt.minimize(self._negdensity,x0,method='nelder-mead',options={'xtol': 1e-8, 'disp': False}).x
         return maximum
-        #return data_aggr.aggregate_data(self._emp_data, 'maximum')
 
 
 if __name__ == '__main__':

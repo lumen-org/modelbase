@@ -4,18 +4,9 @@ import pymc3 as pm
 import mb_modelbase as mbase
 import unittest
 
-# testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_testcase_model.mdl'
-#testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_testcase_model.mdl'
 #testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl'
-testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_coal_mining_disaster_model.mdl'
-
-# np.random.seed(2)
-# size = 100
-# mu = np.random.normal(0, 1, size=size)
-# sigma = 1
-# X = np.random.normal(mu, sigma, size=size)
-# data = pd.DataFrame({'X': X})
-
+# testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_getting_started_model.mdl'
+#
 # np.random.seed(123)
 # alpha, sigma = 1, 1
 # beta_0 = 1
@@ -26,6 +17,19 @@ testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_coal_minin
 # Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
 # data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
 
+#testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_testcase_model.mdl'
+# testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_testcase_model.mdl'
+#
+# np.random.seed(2)
+# size = 100
+# mu = np.random.normal(0, 1, size=size)
+# sigma = 1
+# X = np.random.normal(mu, sigma, size=size)
+# data = pd.DataFrame({'X': X})
+
+#testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_coal_mining_disaster_model.mdl'
+testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_coal_mining_disaster_model.mdl'
+
 disasters = np.array([4, 5, 4, 0, 1, 4, 3, 4, 0, 6, 3, 3, 4, 0, 2, 6,
                             3, 3, 5, 4, 5, 3, 1, 4, 4, 1, 5, 5, 3, 4, 2, 5,
                             2, 2, 3, 4, 2, 1, 3, 3, 2, 1, 1, 1, 1, 3, 0, 0,
@@ -34,7 +38,6 @@ disasters = np.array([4, 5, 4, 0, 1, 4, 3, 4, 0, 6, 3, 3, 4, 0, 2, 6,
                             3, 3, 1, 2, 2, 1, 1, 1, 1, 2, 4, 2, 0, 0, 1, 4,
                             0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1])
 years = np.arange(1851, 1962)
-
 data = pd.DataFrame({'years': years, 'disasters': disasters})
 
 class Test_methods_on_initialized_model(unittest.TestCase):
@@ -157,6 +160,8 @@ class Test_methods_on_model_with_data(unittest.TestCase):
         self.assertEqual(mymod.test_data.empty, 0, "There is no test data in the model")
         self.assertEqual(mymod.samples.empty, 0, "There are no samples in the model")
         self.assertEqual(mymod.mode, 'both', "mode should be set to both")
+        self.assertEqual(mymod.names,list(mymod.samples.columns.values), "names and samples should hold the same variables in the same order")
+        self.assertEqual(mymod.names,[field['name'] for field in mymod.fields], "names and fields should hold the same variables in the same order")
 
     def test_marginalizeout(self):
         """
