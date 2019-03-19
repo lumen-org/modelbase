@@ -13,8 +13,6 @@ import copy as cp
 import functools
 import operator
 import pickle as pickle
-import multiprocessing as mp
-import multiprocessing_on_dill as mp_dill
 import numpy as np
 import pandas as pd
 import logging
@@ -275,7 +273,7 @@ class Model:
 
            _aggrMethods : dict
 
-                This dictionary maps a string identifie of an aggregation method to the actual method implementation,
+                This dictionary maps a string identifier of an aggregation method to the actual method implementation,
                 i.e. a class method that returns the desired aggregation. See for example `Gaussian.py`, and there the
                  __init__ method where `.aggrMethods` is assigned the method `.maximum` as well as the implementation
                  of that method which simply returns the mean of the Gaussian.
@@ -1313,10 +1311,10 @@ class Model:
 
         # sum up density over all elements of the cartesian product of the categorical part of the event
         # TODO: generalize
-        # assert (all(len(d) == 1 for d in cat_domains))
-        # x = list([d[0] for d in cat_domains])
-        # return vol * self._density(x + y)
-        return vol * self._density(list(cat_domains) + y)
+        assert (all(len(d) == 1 for d in cat_domains)), "did not implement the case where categorical domain has more than one element"
+        x = list([d[0] for d in cat_domains])
+        return vol * self._density(x + y)
+        #return vol * self._density(list(cat_domains) + y)
 
     def sample(self, n=1):
         """Returns n samples drawn from the model as a dataframe with suitable column names.
@@ -1531,40 +1529,51 @@ class Model:
             .hide(hide).condition(where) \
             .marginalize(keep=model)
 
-    def predict(self, predict, where=None, splitby=None, evidence=None, returnbasemodel=False):
-        """Calculate the prediction against the model and returns its result by means of a data frame.
+    def predict(self, predict, where=None, splitby=None, for_data=None, returnbasemodel=False):
+        """Calculate the prediction against the model and returns its result as a pd.DataFrame.
 
         The data frame contains exactly those fields which are specified in 'predict'. Its order is preserved.
 
         It does NOT modify the model it is called on.
 
         Args:
-            predict: A sequence of strings and
-                This is list of fields (either by name or names of fields (strings) and 'AggregationTuple's.
-                This is the list of fields and aggregations to be included in the returned data frame. They are referenced either by their nam
-            where: A list of `ConditionTuple`s, representing the conditions to
-                adhere.
-            splitby: A list of 'SplitTuple's, i.e. a list of fields on which to
-                split the model and the method how to do the split.
-            evidence: pd.DataFrame, optional.
-            returnbasemodel: A boolean flag. If set this method will return the
-                pair (result-dataframe, basemodel-for-the-prediction).
-                Defaults to False.
+            predict: list
+                A list of 'things' to predict. Each of these 'things' may be: a `Field`, a str identifying a `Field`,
+                or an 'AggregationTuple'.
+                These 'things' are included in the returned data frame, in the same order as specified here.
+
+            where: list[ConditionTuple], optional.
+                A list of `ConditionTuple`s, representing the conditions to adhere.
+
+            splitby: list[SplitTuple], optional.
+                A list of 'SplitTuple's, i.e. a list of fields on which to split the model and the method how to
+                do the split.
+
+            for_data: pd.DataFrame, optional.
+                Set of data points to do prediction for. Is combined with the values of `splitby` (if they overlap).
+                The columns of the dataframe must be labelled with the corresponding names of the dimensions in self.
+
+            returnbasemodel: bool
+                If set this method will return the pair (result-dataframe, basemodel-for-the-prediction). Defaults to
+                False.
+
         Returns:
-            A dataframe with the fields as given in 'predict', or a tuple (see
-            returnbasemodel).
+
+            A `pd.DataFrame` with the fields as given in 'predict', or a tuple (see returnbasemodel).
 
         Evidence and splits:
 
             While both may be used in parallel, they may currently not share any dimensions.
 
         Hidden fields:
-            TODO: fix?
+
             You may not include any hidden field in the predict-clause and such queries will result in a
             ValueError().
+            TODO: fix?
             TODO: raise error
 
         Default Values:
+
             You may leave out splits for fields that have a default value, like this:
 
                 # let model be a model with the default value of X set to 1.
@@ -1579,6 +1588,50 @@ class Model:
                 # let model be a model with the default value of X set to 1.
                 model.predict(X, Y, Density('X','Y'), splitby=Split('Y', 'equidist, 10))
 
+        for_data-clause:
+
+            You may provide data that a prediction is done for. See 'input generation'.
+
+        Splits:
+
+            Splits may have scalars or domains as a result type. See 'input generation'.
+
+        Input generation:
+
+            Many queries require 'input' that a query is computed on. E.g. a density can only be computed at a given
+            point. There is two ways to provide input: using splits (`SplitTuple`) and with the `for_data`-clause.
+
+            In case of the `for_data` clause the data points are taken as they are and the query is computed on them.
+            E.g.:
+
+            > model.predict(['RW', Density([RW])], for_data=pd.DataFrame(data={'RW': [5, 10, 15]}))
+            >
+            >   RW  density(['RW'])
+            >   5         0.005603
+            >  10         0.248187
+            >  15         0.250418
+
+            In the case of splits, each split is 'expanded' into a series of values of its dimension. Then these
+            splits are combined as their cartesian product, i.e. a cross-join is done. This allows to create all
+            sorts of 'meshes' across dimensions. For example:
+
+            > model.predict(['sex', 'FL', Probability([FL, sex])], splitby=[Split(sex), Split(FL)])
+            >
+            >        sex         FL  @probability(['FL', 'sex'])
+            >   0   Female   3.450144                     0.000545
+            >   1   Female   4.472832                     0.001566
+            > ...
+            >   24  Female  27.994656                     0.000781
+            >   25    Male   3.450144                     0.000633
+            >   26    Male   4.472832                     0.001634
+            >   27    Male   5.495520                     0.003874
+            >   28    Male   6.518208                     0.008429
+            > ...
+            >   49    Male  27.994656                     0.000844
+
+            Both, splits and for_data may used at the same time. They are combined as their cross product.
+
+
         Ideas for Improvement:
 
            How to efficiently query the model? how can I vectorize it? I believe that depends on the query. A typical
@@ -1589,14 +1642,17 @@ class Model:
            and then derive the measure models... note: for density however, no conditioning on the input is required
 
         TODO:
-            * just an idea: couldn't I merge the evidence given (takes higher priority) with all default of all
+            * just an idea: couldn't I merge the partial data given (takes higher priority) with all default of all
            variables and use this as a starting point for the input frame??
+            * can't we handle the the split-method 'data' (which uses .test_data as the result of the split) as partial
+             data. This seem more clean and versatile.
 
         """
-        if evidence is None:
-            evidence = pd.DataFrame()
-        elif not self.isfieldname(evidence.colnames):
-            raise ValueError('evidence contains data dimensions that are not modelled by this model')
+        partial_data = for_data
+        if partial_data is None:
+            partial_data = pd.DataFrame()
+        elif not self.isfieldname(partial_data.columns):
+            raise ValueError('partial_data contains data dimensions that are not modelled by this model')
 
         if isinstance(predict, (str, tuple)):
             predict = [predict]
@@ -1618,30 +1674,18 @@ class Model:
         # (0) create data structures for clauses
         aggrs, aggr_ids, aggr_input_names, aggr_dims, \
         predict_ids, predict_names, \
-        split_names, \
-        evidence, evidence_names\
-            = models_predict.create_data_structures_for_clauses(self, predict, where, splitby, evidence)
+        split_names, name2split, \
+        partial_data, partial_data_names\
+            = models_predict.create_data_structures_for_clauses(self, predict, where, splitby, partial_data)
         # set of names of dimensions that we need values for in the input data frame
-        input_names = aggr_input_names | set(split_names) | set(evidence_names)
+        input_names = aggr_input_names | set(split_names) | set(partial_data_names)
 
         # (1) derive base model, i.e. a model on all requested fields and measures respecting filters
         basenames = input_names.union(aggr_dims)
         basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
         # (2) generate all input data
-        partial_data, split_data = models_predict.generate_all_input(basemodel, input_names, splitby, split_names, evidence)
-
-        # # build list of comparison operators, depending on split types. Needed to condition on each tuple of the input
-        # #  frame when aggregating
-        # method2operator = {
-        #     "equidist": "==",
-        #     "equiinterval": "in",
-        #     "identity": "in",
-        #     "elements": "in",
-        #     "data": "in",
-        # }
-        # # unified handling of evidence and splits
-        #     operator_list = [method2operator[method] for (_, method, __) in splitby]
+        partial_data, split_data = models_predict.generate_all_input(basemodel, splitby, split_names, partial_data)
 
         # (3) execute each aggregation
         aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
@@ -1661,18 +1705,18 @@ class Model:
             #   1. also return the input data frames from each aggregation execution (and not only the output)
             #   2. and use the input information to join the multiple output data frames together
 
-            # TODO: I imagine there is a smart way of reordering the results without having to explicitely create the
+            # TODO: I imagine there is a smart way of reordering the results without having to explicitly create the
             #  cross join of cond_out_data and input_data!?
 
             # query model
             if aggr_method == 'density' or aggr_method == 'probability':
                 aggr_df = models_predict.\
-                    aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, aggr_id)
+                    aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, name2split, aggr_id)
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 # TODO: I believe all max/avg aggregations require the identical input data, because i always condition
-                #  on all input items --> reuse it!?
+                #  on all input items --> reuse it. This is: generate input before and then pass it in
                 aggr_df = models_predict.\
-                    aggregate_maximum_or_average(aggr_model, aggr, partial_data, split_data, input_names, splitby, aggr_id)
+                    aggregate_maximum_or_average(aggr_model, aggr, partial_data, split_data, name2split, aggr_id)
             else:
                 raise ValueError("Invalid 'aggregation method': " + str(aggr_method))
 
@@ -1685,40 +1729,39 @@ class Model:
 
         # reduce to one final data frame
         if len(result_list) == 0:
-            # TODO: need to generate input for requested output anyway
-            raise NotImplementedError()
+            # no actual model query involved - simply a join of splits and partial_data
+            # -> generate input (i.e. join) for requested output (i.e. predict_ids)
+            partial_data_res = partial_data.loc[:, partial_data.columns & set(predict_ids)]
+            split_res = (split_data[name] for name in predict_ids if name in split_data)
+            dataframe = models_predict.crossjoin(*split_res, partial_data_res)
+        elif len(input_names) == 0:
+            # there is no index to merge on, because there was no spits or partial_data
+            assert all(1 == len(res.columns) for res in result_list)
+            dataframe = pd.concat(result_list, axis=1, copy=False)
+        elif len(result_list) == 1:
+            dataframe = result_list[0]
         else:
-            data_frame = functools.reduce(lambda df1, df2: df1.merge(df2, on=list(input_names), how='inner', copy=False),
+            dataframe = functools.reduce(lambda df1, df2: df1.merge(df2, on=list(input_names), how='inner', copy=False),
                                           result_list[1:], result_list[0])
 
-        # QUICK FIX: when splitting by 'equiinterval' we get intervals instead of scalars as entries
-        # however, I cannot currently handle intervals on the client side easily
-        # so we just turn it back into scalars
-        column_interval_list = [name for (name, method, __) in splitby if method == 'equiinterval']
-        for column in column_interval_list:
-            data_frame[column] = data_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)
-
-        # column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'equiinterval']
-        # for column in column_interval_list:
-        #     input_frame[column] = input_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)
-
-        # TEMPORARILY REMOVED:
-        # # QUICK FIX2: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
-        # column_interval_list = [split_name2id[name] for (name, method, __) in splitby if
-        #                         method == 'elements' or method == 'identity']
-        # for column in column_interval_list:
-        #     input_frame[column] = input_frame[column].apply(lambda entry: entry[0])
+        # (4) Fix domain valued splits.
+        # Some splits result in domains (i.e. tuples, and not just single, scalar values). However,
+        # I cannot currently handle intervals on the client side easily. Therefore we turn it back into scalars. Note
+        # that only splits may result in tuples, but partial_data is currently not allowed to have tuples
+        for name, split in name2split.items():
+            if split['return_type'] == 'domain':
+                dataframe[name] = dataframe[name].apply(split['down_cast_fct'])
 
         # (5) filter on aggregations?
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
 
         # (7) get correctly ordered frame that only contain requested fields
-        data_frame = data_frame[predict_ids]
+        dataframe = dataframe[predict_ids]
 
         # (8) rename columns to be readable (but not unique anymore)
-        data_frame.columns = predict_names
+        dataframe.columns = predict_names
 
-        return (data_frame, basemodel) if returnbasemodel else data_frame
+        return (dataframe, basemodel) if returnbasemodel else dataframe
 
     def _select_data(self, what, where=None, **kwargs):
         """Select and return that subset of the models data in `self.data` that respect the conditions in `where` and the columns
