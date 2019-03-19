@@ -1307,7 +1307,7 @@ class Model:
         vol = functools.reduce(operator.mul, [high - low for low, high in num_domains], 1)
         # map quantitative domains to their mid
         # y = [(high + low) / 2 for low, high in num_domains]  ## UGLY HACK FOR SPN NETWORK TODO FIX!
-        y = [int((high + low) / 2) for low, high in num_domains]
+        y = [round((high + low) / 2) for low, high in num_domains]
 
         # sum up density over all elements of the cartesian product of the categorical part of the event
         # TODO: generalize
