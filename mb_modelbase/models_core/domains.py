@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2017-2019 Philipp Lucas (philipp.lucas@uni-jena.de, philipp.lucas@dlr.de)
 import math
 import logging
 
@@ -265,3 +265,4 @@ class DiscreteDomain(Domain):
     def contains(self, value):
         """Returns true iff value is an element of this domain."""
         return not self.isbounded() or value in self._value
+
