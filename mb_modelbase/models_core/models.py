@@ -20,9 +20,10 @@ import pandas as pd
 import logging
 
 from mb_modelbase.models_core import base
-from mb_modelbase.models_core.base import Field, Aggregation, Density, Probability, Split, Condition
+from mb_modelbase.models_core.base import Condition, Split, Density
 from mb_modelbase.models_core.base import NAME_IDX, METHOD_IDX, YIELDS_IDX, ARGS_IDX, OP_IDX, VALUE_IDX
 from mb_modelbase.models_core import splitter as sp
+from mb_modelbase.models_core import models_predict
 from mb_modelbase.utils import utils
 from mb_modelbase.utils import data_import_utils
 from mb_modelbase.models_core import data_aggregation
@@ -35,6 +36,7 @@ logger.setLevel(logging.DEBUG)
 
 
 """ Utility functions for converting models and parts / components of models to strings. """
+
 
 def field_tojson(field):
     """Returns an adapted version of a field that in any case is JSON serializable. A fields domain may contain the
@@ -95,13 +97,6 @@ def conditions_to_str(model, conditions):
     return "(" + ",".join(cond_strs) + ")"
 
 
-def _tuple2str(tuple_):
-    """Returns a string that summarizes the given splittuple or aggregation tuple"""
-    is_aggr_tuple = len(tuple_) == 4 and not tuple_[METHOD_IDX] == 'density'
-    prefix = (str(tuple_[YIELDS_IDX]) + '@') if is_aggr_tuple else ""
-    return prefix + str(tuple_[METHOD_IDX]) + '(' + str(tuple_[NAME_IDX]) + ')'
-
-
 class Model:
     """An abstract base model that provides an interface to derive submodels from it or query density and other
     aggregations of it.
@@ -138,7 +133,7 @@ class Model:
             The mode holds the current state of the model, and it represents it 'position' in the life-cycle of a model:
 
                 * mode is None: the model was instantiated using the class constructor. The model instance now exists,
-                but is not fitted to any data or otherwise even filled it's internal parameter to represent a valid
+                but is not fitted to any data or otherwise even filled its internal parameter to represent a valid
                 model at all.
 
                 * mode == 'data': Data was assigned to the model using `.set_data()`, but the no model to represent
@@ -152,11 +147,11 @@ class Model:
 
                 * mode == 'both': Data was assigned to the model AND the models parameters were fit to that data.
                 This is most common state of a model and holds for example after you call `.set_data()` and
-                thereafter `.fit()`. In
+                thereafter `.fit()`.
 
         .name : string
 
-            A (not necessarily unique) name of the model.
+            A unique (not enforced) name of the model.
 
         .names : sequence of strings
 
@@ -211,7 +206,7 @@ class Model:
             `.set_default_value()` and `.set_default_subset()`, respectively.
 
             Default values and default subsets (i.e. ranged) are used whenever a query against the model requires
-            scalar and range input, respectively, but non is provided in the queries arguments. In these cases the
+            scalar or range input, respectively, but non is provided in the queries arguments. In these cases the
             set default values or subsets are used.
 
             The combination of hiding and setting a default value it provides you with a view on a slice of the
@@ -225,14 +220,14 @@ class Model:
             value is a dict with these keys:
                 * 'conditioned': a list of conditions applied in that order
                 * 'marginalized': a string:
-                    either None ( if not marginalized in any way), or 'marginalized_out' (if marginalized over the full
+                    either None (if not marginalized in any way), or 'marginalized_out' (if marginalized over the full
                     domain) or 'conditioned_out' (if marginalized after conditioning).
 
         Model Queries:
 
             Once the model is initialized (i.e. its `.mode` equals 'model' or 'both') you may run model queries
             against it. There is two types of queries:
-                1. modelling queries, i.e. queries that result in an modified model. These are:
+                1. modeling queries, i.e. queries that result in an modified model. These are:
                     * marginalization: `.marginalize()`,
                     * conditioning: `.condition()`, and
                     * a complex query method that combines both above (and more): `.model()`
@@ -243,7 +238,8 @@ class Model:
                     * sampling: `.sample()` which draws samples according to the distribution,
                     * aggregations: `.aggregate()` which aggregates the model using to chosen method, and
                     * a complex query method that combines (almost) all of the above (and more): `.predict()`
-            There is some other methods that change the 'default' behaviour of the model, but do not actually change the model. See secition 'Default Values and Default Subsets'.
+            There is some other methods that change the 'default' behaviour of the model, but do not actually change
+            the model. See secition 'Default Values and Default Subsets'.
 
         Storing / Loading:
 
@@ -279,14 +275,15 @@ class Model:
 
            _aggrMethods : dict
 
-                This dictionary maps string identifier of aggregation methods to the actual method implementation,
+                This dictionary maps a string identifie of an aggregation method to the actual method implementation,
                 i.e. a class method that returns the desired aggregation. See for example `Gaussian.py`, and there the
                  __init__ method where `.aggrMethods` is assigned the method `.maximum` as well as the implementation
                  of that method which simply returns the mean of the Gaussian.
 
                 The possible aggregation methods are listed in `base.AggregationMethods`. Of these, 'density' and
-                'probability' are treated elsewhere (i.e. by `._density()` and `._probability()`. Hence, in your class
-                you must set class methods to the keys 'maximum' and 'average'.
+                'probability' are treated elsewhere (i.e. by `._density()` and `._probability()` and your model
+                 implementation must not supply its own implementation of it.
+                 Hence, in your class you should set class methods to the keys 'maximum' and 'average'.
 
     """
 
@@ -769,17 +766,17 @@ class Model:
         raise NotImplementedError("Implement this method in your model!")
 
     def condition(self, conditions=None, is_pure=False):
-        """Condition this model according to the list of three-tuples
-        (<name-of-random-variable>, <operator>, <value(s)>). In particular
-        objects of type ConditionTuples are accepted and see there for allowed values.
+        """Condition this model according to the list of three-tuples (<name-of-random-variable>, <operator>,
+        <value(s)>). In particular objects of type ConditionTuples are accepted and see there for allowed values.
 
-        Note: This only restricts the domains of the fields. To
-        remove the conditioned field you need to call marginalize
-        with the appropriate parameters.
-        TODO: this is actually a conceptual error. It should NOT only restrict the domain, but actually compute a conditional model. See  https://ci.inf-i2.uni-jena.de/gemod/modelbase/issues/4
+        Note: This only restricts the domains of the fields. To remove the conditioned field you need to call
+        marginalize with the appropriate parameters.
 
-        Hidden fields: Whether or not any field of the model is hidden makes no difference to the result of
-        this method. In particular you may condition on hidden fields.
+        TODO: this is actually a conceptual error. It should NOT only restrict the domain, but actually compute a
+          conditional model. See  https://ci.inf-i2.uni-jena.de/gemod/modelbase/issues/4
+
+        Hidden fields: Whether or not any field of the model is hidden makes no difference to the result of this
+        method. In particular you may condition on hidden fields.
 
         Default values: Default values for fields are not taken into consideration in any way.
 
@@ -1103,7 +1100,7 @@ class Model:
             Any value of a field that is hidden will be removed from the resulting aggregation before returning.
 
         Default values:
-            Instead of the aggregation of a model, the aggregation of the conditional model on all defaulting
+            Instead of the aggregation of the model, the aggregation of the conditional model on all defaulting
             fields is returned. For example:
 
                 Let p(sex,age) be a bivariate model and let its maximum be at argmax(p(sex,age)) = ('Female',
@@ -1315,9 +1312,10 @@ class Model:
 
         # sum up density over all elements of the cartesian product of the categorical part of the event
         # TODO: generalize
-        assert (all(len(d) == 1 for d in cat_domains))
-        x = list([d[0] for d in cat_domains])
-        return vol * self._density(x + y)
+        # assert (all(len(d) == 1 for d in cat_domains))
+        # x = list([d[0] for d in cat_domains])
+        # return vol * self._density(x + y)
+        return vol * self._density(list(cat_domains) + y)
 
     def sample(self, n=1):
         """Returns n samples drawn from the model as a dataframe with suitable column names.
@@ -1362,6 +1360,7 @@ class Model:
         mycopy.mode = self.mode
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
+        mycopy.parallel_processing = self.parallel_processing
         return mycopy
 
     def _condition_values(self, names=None, pairflag=False, to_scalar=True):
@@ -1531,7 +1530,7 @@ class Model:
             .hide(hide).condition(where) \
             .marginalize(keep=model)
 
-    def predict(self, predict, where=None, splitby=None, returnbasemodel=False):
+    def predict(self, predict, where=None, splitby=None, evidence=None, returnbasemodel=False):
         """Calculate the prediction against the model and returns its result by means of a data frame.
 
         The data frame contains exactly those fields which are specified in 'predict'. Its order is preserved.
@@ -1540,13 +1539,13 @@ class Model:
 
         Args:
             predict: A sequence of strings and
-
-                This is list of fields (either by name ornames of fields (strings) and 'AggregationTuple's.
+                This is list of fields (either by name or names of fields (strings) and 'AggregationTuple's.
                 This is the list of fields and aggregations to be included in the returned data frame. They are referenced either by their nam
             where: A list of `ConditionTuple`s, representing the conditions to
                 adhere.
             splitby: A list of 'SplitTuple's, i.e. a list of fields on which to
                 split the model and the method how to do the split.
+            evidence: pd.DataFrame, optional.
             returnbasemodel: A boolean flag. If set this method will return the
                 pair (result-dataframe, basemodel-for-the-prediction).
                 Defaults to False.
@@ -1554,9 +1553,13 @@ class Model:
             A dataframe with the fields as given in 'predict', or a tuple (see
             returnbasemodel).
 
+        Evidence and splits:
+
+            While both may be used in parallel, they may currently not share any dimensions.
+
         Hidden fields:
             TODO: fix?
-            You may not include any hidden field in the predict-clause, and such queries will result in a
+            You may not include any hidden field in the predict-clause and such queries will result in a
             ValueError().
             TODO: raise error
 
@@ -1574,8 +1577,25 @@ class Model:
 
                 # let model be a model with the default value of X set to 1.
                 model.predict(X, Y, Density('X','Y'), splitby=Split('Y', 'equidist, 10))
+
+        Ideas for Improvement:
+
+           How to efficiently query the model? how can I vectorize it? I believe that depends on the query. A typical
+           query consists of dimensions for splits and then aggregations and densities. For the case of aggregations
+           a conditioned model has to be calculated for every split. I don't see how to vectorize / speed this up
+           easily. For densities it might be very well possible, as the splits are now simply input to some density
+           function. It might actually be faster to first condition the model on the dimensions (values)
+           and then derive the measure models... note: for density however, no conditioning on the input is required
+
+        TODO:
+            * just an idea: couldn't I merge the evidence given (takes higher priority) with all default of all
+           variables and use this as a starting point for the input frame??
+
         """
-        # TODO: add default splits for each data type?
+        if evidence is None:
+            evidence = pd.DataFrame()
+        elif not self.isfieldname(evidence.colnames):
+            raise ValueError('evidence contains data dimensions that are not modelled by this model')
 
         if isinstance(predict, (str, tuple)):
             predict = [predict]
@@ -1593,304 +1613,107 @@ class Model:
             where = []
         if splitby is None:
             splitby = []
-        idgen = utils.linear_id_generator()
 
-        filter_names = [f[NAME_IDX] for f in where]
-        split_names = [f[NAME_IDX] for f in splitby]  # name of fields to split by. Same order as in split-by clause.
+        # (0) create data structures for clauses
+        aggrs, aggr_ids, aggr_input_names, aggr_dims, \
+        predict_ids, predict_names, \
+        split_names, \
+        evidence, evidence_names\
+            = models_predict.create_data_structures_for_clauses(self, predict, where, splitby, evidence)
+        # set of names of dimensions that we need values for in the input data frame
+        input_names = aggr_input_names | set(split_names) | set(evidence_names)
 
-        # (1) derive base model, i.e. a model on all requested fields and measures, respecting filters
-        predict_ids = []  # unique ids of columns in data frame. In correct order. For reordering of columns.
-        predict_names = []  # names of columns as to be returned. In correct order. For renaming of columns.
-
-        split_ids = [f[NAME_IDX] + next(idgen) for f in
-                     splitby]  # ids for columns for fields to split by. Same order as in splitby-clause.
-        split_name2id = dict(zip(split_names, split_ids))  # maps split names to ids (for columns in data frames)
-
-        aggrs = []  # list of aggregation tuples, in same order as in the predict-clause
-        aggr_ids = []  # ids for columns of fields to aggregate. Same order as in predict-clause
-
-        basenames = set(split_names)  # set of names of fields needed for basemodel of this query
-
-        def add_split_for_defaulting_field(dim):
-            """ A add a filter and identity split for the defaulting field `dim`, if possible.
-
-            Returns:
-                the value/subset `dim` defaults to.
-            """
-            if dim['default_value'] is not None:
-                def_ = dim['default_value']
-            elif dim['default_subset'] is not None:
-                def_ = dim['default_subset']
-            else:
-                raise ValueError("Missing split-tuple for a split-field in predict: " + name)
-
-            logger.info("using default for dim " + str(name) + " : " + str(def_))
-
-            # add split
-            split = Split(name, 'identity')
-            splitby.append(split)
-            id_ = name + next(idgen)
-            split_ids.append(id_)
-            split_name2id[name] = id_
-
-            # add condition
-            condition = Condition(name, '==', def_)
-            where.append(condition)
-            filter_names.append(name)
-
-            return def_
-
-        for t in predict:
-            if isinstance(t, str):
-                # t is a string, i.e. name of a field that is split by
-                name = t
-                predict_names.append(name)
-                try:
-                    predict_ids.append(split_name2id[name])
-                except KeyError:
-                    dim = self.byname(name)
-                    add_split_for_defaulting_field(dim)
-                    predict_ids.append(split_name2id[name])  # "retry"
-
-                basenames.add(name)
-            else:
-                # t is an aggregation/density tuple
-                id_ = _tuple2str(t) + next(idgen)
-                aggrs.append(t)
-                aggr_ids.append(id_)
-                predict_names.append(_tuple2str(t))  # generate column name to return
-                predict_ids.append(id_)
-                basenames.update(t[NAME_IDX])
-
+        # (1) derive base model, i.e. a model on all requested fields and measures respecting filters
+        basenames = input_names.union(aggr_dims)
         basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
-        # (2) derive a sub-model for each requested aggregation
-        splitnames_unique = set(split_names)
+        # (2) generate all input data
+        partial_data, split_data = models_predict.generate_all_input(basemodel, input_names, splitby, split_names, evidence)
 
-        # for density: keep only those fields as requested in the tuple
-        # for 'normal' aggregations: remove all fields of other measures which are not also
-        # a used for splitting, or equivalently: keep all fields of fields, plus the one
-        # for the current aggregation
+        # # build list of comparison operators, depending on split types. Needed to condition on each tuple of the input
+        # #  frame when aggregating
+        # method2operator = {
+        #     "equidist": "==",
+        #     "equiinterval": "in",
+        #     "identity": "in",
+        #     "elements": "in",
+        #     "data": "in",
+        # }
+        # # unified handling of evidence and splits
+        #     operator_list = [method2operator[method] for (_, method, __) in splitby]
 
-        def _derive_aggregation_model(aggr):
-            aggr_model = basemodel.copy(name=next(aggr_model_id_gen))
-            if aggr[METHOD_IDX] == 'density':
-                return aggr_model.model(model=aggr[NAME_IDX])
-            else:
-                return aggr_model.model(model=list(splitnames_unique | set(aggr[NAME_IDX])))
-
+        # (3) execute each aggregation
         aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
-        aggr_models = [_derive_aggregation_model(aggr) for aggr in aggrs]
-
-        # (3) generate input for model aggregations,
-        # i.e. a cross join of splits of all dimensions
-        if len(splitby) == 0:
-            input_frame = pd.DataFrame()
-        else:
-            def _get_group_frame(split, column_id):
-                field = basemodel.byname(split[NAME_IDX])
-                domain = field['domain'].bounded(field['extent'])
-                try:
-                    splitfct = sp.splitter[split[METHOD_IDX].lower()]
-                except KeyError:
-                    raise ValueError("split method '" + split[METHOD_IDX] + "' is not supported")
-                frame = pd.DataFrame({column_id: splitfct(domain.values(), split[ARGS_IDX])})
-                frame['__crossIdx__'] = 0  # need that index to cross join later
-                return frame
-
-            def _crossjoin(df1, df2):
-                return pd.merge(df1, df2, on='__crossIdx__', copy=False)
-
-            # filter to tuples of (identity_split, split_id)
-            id_tpl = tuple(zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'identity')))
-            identity_splits, identity_ids = ([], []) if len(id_tpl) == 0 else id_tpl
-
-            # filter to tuples of (data_split, split_id)
-            split_tpl = tuple(zip(*((s, i) for s, i in zip(splitby, split_ids) if s[METHOD_IDX] == 'data')))
-            data_splits, data_ids = ([], []) if len(split_tpl) == 0 else split_tpl
-
-            # all splits are non-data splits
-            if len(data_splits) == 0:
-                group_frames = map(_get_group_frame, splitby, split_ids)
-                input_frame = functools.reduce(_crossjoin, group_frames, next(group_frames)).drop('__crossIdx__', axis=1)
-
-            # all splits are data and/or identity splits
-            elif len(data_splits) + len(identity_splits) == len(splitby):
-
-                # compute input frame according to data splits
-                data_split_names = [s[NAME_IDX] for s in data_splits]
-                assert (self.mode == 'both')
-                # limit = 15*len(data_split_names)  # TODO: maybe we need a nicer heuristic? :)
-                # #.drop_duplicates()\ # TODO: would make sense to do it, but then I run into problems with matching test data to aggregations on them in frontend, because I drop them for the aggregations, but not for test data select
-                input_frame = self.test_data.loc[:, data_split_names] \
-                    .sort_values(by=data_split_names, ascending=True)
-                input_frame.columns = data_ids  # rename to data split ids!
-
-                # add identity splits
-                for id_, s in zip(identity_ids, identity_splits):
-                    field = basemodel.byname(s[NAME_IDX])
-                    domain = field['domain'].bounded(field['extent'])  # TODO: what does this do?
-                    assert (domain.issingular())
-                    input_frame[id_] = domain.value()
-
-                # TODO: I do not understand why this reset is necesary, but it breaks if I don't do it.
-                input_frame = input_frame.reset_index(drop=True)
-            else:
-                raise NotImplementedError('Currently mixing data splits with any other splits is not supported.')
-
-        # (4) query models and fill result data frame
-        """ question is: how to efficiently query the model? how can I vectorize it?
-            I believe that depends on the query. A typical query consists of
-            dimensions for splits and then aggregations and densities.
-            For the case of aggregations a conditioned model has to be
-            calculated for every split. I don't see how to vectorize / speed
-            this up easily.
-            For densities it might be very well possible, as the splits are
-            now simply input to some density function.
-
-            it might actually be faster to first condition the model on the
-            dimensions (values) and then derive the measure models...
-            note: for density however, no conditioning on the input is required
-        """
-
-        # build list of comparison operators, depending on split types. Needed to condition on each tuple of the input
-        #  frame when aggregating
-        method2operator = {
-            "equidist": "==",
-            "equiinterval": "in",
-            "identity": "in",
-            "elements": "in",
-            "data": "in",
-        }
-        operator_list = [method2operator[method] for (_, method, __) in splitby]
-
-        result_list = [pd.DataFrame()]
-        for idx, aggr in enumerate(aggrs):
-            aggr_results = []
-            aggr_model = aggr_models[idx]
+        result_list = []
+        for aggr, aggr_id in zip(aggrs, aggr_ids):
+            # derive submodel for aggr
+            aggr_model = models_predict.derive_aggregation_model(basemodel, aggr, input_names, next(aggr_model_id_gen))
             aggr_method = aggr[METHOD_IDX]
 
+            # Input Data: Generating input in a performant way is a bit involved:
+            # * input should be generated on individual basis of an aggregation.
+            #   * p(A,B|C,D) should in an outer loop generate the conditional models over C, D (which is expensive) and
+            #     then on an inner loop query the actual density over A,B (which is fast).
+            #   * for p(C,D|A,B) it is the inverse order
+            # * for that reason each aggr generates its own input and returns it
+            # * however, the order between multiple aggregations will typically not match. Hence we need to:
+            #   1. also return the input data frames from each aggregation execution (and not only the output)
+            #   2. and use the input information to join the multiple output data frames together
+
+            # TODO: I imagine there is a smart way of reordering the results without having to explicitely create the
+            #  cross join of cond_out_data and input_data!?
+
+            # query model
             if aggr_method == 'density' or aggr_method == 'probability':
-                # TODO (1): this is inefficient because it recalculates the same value many times, when we split on more than what the density is calculated on
-                # TODO: to solve it: calculate density only on the required groups and then join into the result table.
-                # TODO: to solve it(2): splits should be respected also for densities
-                names = self.sorted_names(aggr[NAME_IDX])
-                # select relevant columns in correct order and iterate over it
-                ids = []
-                for name in names:
-                    try:
-                        id_ = split_name2id[name]
-                    except KeyError as err:
-                        dim = self.byname(name)
-                        default_ = add_split_for_defaulting_field(dim)
-                        id_ = split_name2id[name]  # try again
-                        input_frame[id_] = [default_] * len(input_frame)  # add a column with the default to input_frame
-                    ids.append(id_)
-
-                subframe = input_frame.loc[:, ids]
-
-                if aggr_method == 'density':
-                    # when splitting by elements or identity we get single element lists instead of scalars.
-                    # However, density() requires scalars.
-                    # TODO: I believe this issue should be handled in a conceptually better and faster way...
-                    nonscalar_ids = [split_name2id[name] for (name, method, __) in splitby if
-                                     method == 'elements' or method == 'identity' and name in names]
-                    for col_id in nonscalar_ids:
-                        subframe[col_id] = subframe[col_id].apply(lambda entry: entry[0])
-
-                    if (self.parallel_processing):
-                        # Opens parallel environment with mp
-                        with mp.Pool() as p:
-                            aggr_results = p.map(aggr_model.density, subframe.itertuples(index=False, name=None))
-                    else:  # Non-parallel execution
-                        for row in subframe.itertuples(index=False, name=None):
-                            res = aggr_model.density(values=row)
-                            aggr_results.append(res)
-
-
-                else:  # aggr_method == 'probability'
-                    # TODO: use DataFrame.apply instead? What is faster?
-
-                    if (self.parallel_processing):
-                        # Opens parallel environment with mp
-                        with mp.Pool() as p:
-                            aggr_results = p.map(aggr_model.probability, subframe.itertuples(index=False, name=None))
-                    else:  # Non-parallel execution
-                        for row in subframe.itertuples(index=False, name=None):
-                            res = aggr_model.probability(domains=row)
-                            aggr_results.append(res)
-
+                aggr_df = models_predict.\
+                    aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, aggr_id)
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
-                if len(splitby) == 0:
-                    # there is no fields to split by, hence only a single value will be aggregated
-                    # i.e. marginalize all other fields out
-                    singlemodel = aggr_model.copy().marginalize(keep=aggr[NAME_IDX])
-                    res = singlemodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
-                    # reduce to requested field
-                    i = singlemodel.asindex(aggr[YIELDS_IDX])
-                    aggr_results.append(res[i])
-                else:
-                    row_id_gen = utils.linear_id_generator(prefix="_row")
-                    rowmodel_name = aggr_model.name + next(row_id_gen)
-
-                    if self.parallel_processing:
-
-                        # Define function for parallel execution of for loop
-                        def pred_max(row, split_names=split_names, operator_list=operator_list,
-                                     rowmodel_name=rowmodel_name, aggr_model=aggr_model):
-
-                            pairs = zip(split_names, operator_list, row)
-                            rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(
-                                keep=aggr[NAME_IDX])
-                            res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
-                            i = rowmodel.asindex(aggr[YIELDS_IDX])
-                            return res[i]
-
-                        # Open parallel environment with mp_dill, which allows to use a function which was defined in the same scope (here: pred_max)
-
-                        with mp_dill.Pool() as p:
-                            aggr_results = p.map(pred_max, input_frame.itertuples(index=False, name=None))
-
-                    else:  # Non-parallel execution
-
-                        for row in input_frame.itertuples(index=False, name=None):
-                            pairs = zip(split_names, operator_list, row)
-                            # derive model for these specific conditions
-                            rowmodel = aggr_model.copy(name=rowmodel_name).condition(pairs).marginalize(
-                                keep=aggr[NAME_IDX])
-                            res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
-                            # reduce to requested field
-                            i = rowmodel.asindex(aggr[YIELDS_IDX])
-                            aggr_results.append(res[i])
+                # TODO: I believe all max/avg aggregations require the identical input data, because i always condition
+                #  on all input items --> reuse it!?
+                aggr_df = models_predict.\
+                    aggregate_maximum_or_average(aggr_model, aggr, partial_data, split_data, input_names, splitby, aggr_id)
             else:
                 raise ValueError("Invalid 'aggregation method': " + str(aggr_method))
 
-            # generate DataSeries from it
-            columns = [aggr_ids[idx]]
-            df = pd.DataFrame(aggr_results, columns=columns)
-            result_list.append(df)
+            result_list.append(aggr_df)
+
+        # (4) need to merge all data frames on input_names, since they are not necesarily in the same order
+        # TODO: right now we do not use any indexes for merging - which probably is slower...
+        #  but if we do, I think we can do this:
+        #  data_frame = result_list[0].join(result_list[1:], on=input_names)
+
+        # reduce to one final data frame
+        if len(result_list) == 0:
+            # TODO: need to generate input for requested output anyway
+            raise NotImplementedError()
+        else:
+            data_frame = functools.reduce(lambda df1, df2: df1.merge(df2, on=list(input_names), how='inner', copy=False),
+                                          result_list[1:], result_list[0])
 
         # QUICK FIX: when splitting by 'equiinterval' we get intervals instead of scalars as entries
         # however, I cannot currently handle intervals on the client side easily
         # so we just turn it back into scalars
-        column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'equiinterval']
+        column_interval_list = [name for (name, method, __) in splitby if method == 'equiinterval']
         for column in column_interval_list:
-            input_frame[column] = input_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)
+            data_frame[column] = data_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)
 
-        # QUICK FIX2: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
-        column_interval_list = [split_name2id[name] for (name, method, __) in splitby if
-                                method == 'elements' or method == 'identity']
-        for column in column_interval_list:
-            input_frame[column] = input_frame[column].apply(lambda entry: entry[0])
+        # column_interval_list = [split_name2id[name] for (name, method, __) in splitby if method == 'equiinterval']
+        # for column in column_interval_list:
+        #     input_frame[column] = input_frame[column].apply(lambda entry: (entry[0] + entry[1]) / 2)
+
+        # TEMPORARILY REMOVED:
+        # # QUICK FIX2: when splitting by 'elements' or 'identity' we get intervals instead of scalars as entries
+        # column_interval_list = [split_name2id[name] for (name, method, __) in splitby if
+        #                         method == 'elements' or method == 'identity']
+        # for column in column_interval_list:
+        #     input_frame[column] = input_frame[column].apply(lambda entry: entry[0])
 
         # (5) filter on aggregations?
         # TODO? actually there should be some easy way to do it, since now it really is SQL filtering
 
-        # (6) collect all results into data frames
-        result_list.append(input_frame)
-        data_frame = pd.concat(result_list, axis=1)
         # (7) get correctly ordered frame that only contain requested fields
-        data_frame = data_frame[predict_ids]  # flattens
+        data_frame = data_frame[predict_ids]
+
         # (8) rename columns to be readable (but not unique anymore)
         data_frame.columns = predict_names
 
