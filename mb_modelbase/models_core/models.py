@@ -1527,7 +1527,7 @@ class Model:
             .hide(hide).condition(where) \
             .marginalize(keep=model)
 
-    def predict(self, predict, where=None, splitby=None, evidence=None, returnbasemodel=False):
+    def predict(self, predict, where=None, splitby=None, for_data=None, returnbasemodel=False):
         """Calculate the prediction against the model and returns its result by means of a data frame.
 
         The data frame contains exactly those fields which are specified in 'predict'. Its order is preserved.
@@ -1542,7 +1542,7 @@ class Model:
                 adhere.
             splitby: A list of 'SplitTuple's, i.e. a list of fields on which to
                 split the model and the method how to do the split.
-            evidence: pd.DataFrame, optional.
+            for_data: pd.DataFrame, optional.
             returnbasemodel: A boolean flag. If set this method will return the
                 pair (result-dataframe, basemodel-for-the-prediction).
                 Defaults to False.
@@ -1590,16 +1590,17 @@ class Model:
            and then derive the measure models... note: for density however, no conditioning on the input is required
 
         TODO:
-            * just an idea: couldn't I merge the evidence given (takes higher priority) with all default of all
+            * just an idea: couldn't I merge the partial data given (takes higher priority) with all default of all
            variables and use this as a starting point for the input frame??
-            * can't we handle the the split-method 'data' (which uses .test_data as the result of the split) as evidence.
-             this seem more clean and versatile
+            * can't we handle the the split-method 'data' (which uses .test_data as the result of the split) as partial
+             data. This seem more clean and versatile.
 
         """
-        if evidence is None:
-            evidence = pd.DataFrame()
-        elif not self.isfieldname(evidence.columns):
-            raise ValueError('evidence contains data dimensions that are not modelled by this model')
+        partial_data = for_data
+        if partial_data is None:
+            partial_data = pd.DataFrame()
+        elif not self.isfieldname(partial_data.columns):
+            raise ValueError('partial_data contains data dimensions that are not modelled by this model')
 
         if isinstance(predict, (str, tuple)):
             predict = [predict]
@@ -1622,17 +1623,17 @@ class Model:
         aggrs, aggr_ids, aggr_input_names, aggr_dims, \
         predict_ids, predict_names, \
         split_names, name2split, \
-        evidence, evidence_names\
-            = models_predict.create_data_structures_for_clauses(self, predict, where, splitby, evidence)
+        partial_data, partial_data_names\
+            = models_predict.create_data_structures_for_clauses(self, predict, where, splitby, partial_data)
         # set of names of dimensions that we need values for in the input data frame
-        input_names = aggr_input_names | set(split_names) | set(evidence_names)
+        input_names = aggr_input_names | set(split_names) | set(partial_data_names)
 
         # (1) derive base model, i.e. a model on all requested fields and measures respecting filters
         basenames = input_names.union(aggr_dims)
         basemodel = self.copy().model(model=basenames, where=where, as_=self.name + '_base')
 
         # (2) generate all input data
-        partial_data, split_data = models_predict.generate_all_input(basemodel, input_names, splitby, split_names, evidence)
+        partial_data, split_data = models_predict.generate_all_input(basemodel, splitby, split_names, partial_data)
 
         # (3) execute each aggregation
         aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
@@ -1676,13 +1677,13 @@ class Model:
 
         # reduce to one final data frame
         if len(result_list) == 0:
-            # no actual model query involved - simply a join of splits and evidence
+            # no actual model query involved - simply a join of splits and partial_data
             # -> generate input (i.e. join) for requested output (i.e. predict_ids)
-            evidence_res = evidence.loc[:, evidence.columns & set(predict_ids)]
+            partial_data_res = partial_data.loc[:, partial_data.columns & set(predict_ids)]
             split_res = (split_data[name] for name in predict_ids if name in split_data)
-            dataframe = models_predict._crossjoin3(*split_res, evidence_res)
+            dataframe = models_predict.crossjoin(*split_res, partial_data_res)
         elif len(input_names) == 0:
-            # there is no index to merge on, because there was no spits or evidence
+            # there is no index to merge on, because there was no spits or partial_data
             assert all(1 == len(res.columns) for res in result_list)
             dataframe = pd.concat(result_list, axis=1, copy=False)
         elif len(result_list) == 1:
@@ -1694,7 +1695,7 @@ class Model:
         # (4) Fix domain valued splits.
         # Some splits result in domains (i.e. tuples, and not just single, scalar values). However,
         # I cannot currently handle intervals on the client side easily. Therefore we turn it back into scalars. Note
-        # that only splits may result in tuples, but evidence is currently not allowed to have tuples
+        # that only splits may result in tuples, but partial_data is currently not allowed to have tuples
         for name, split in name2split.items():
             if split['return_type'] == 'domain':
                 dataframe[name] = dataframe[name].apply(split['down_cast_fct'])

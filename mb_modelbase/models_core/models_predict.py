@@ -2,7 +2,7 @@
 """
 @author: Philipp Lucas
 
-This module contains helper functions methods to do prediction on models.
+This module contains functions and methods to help do prediction on models with Model.predict.
 """
 import functools
 import logging
@@ -20,9 +20,12 @@ from mb_modelbase.utils import utils
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-# https://stackoverflow.com/questions/53699012/performant-cartesian-product-cross-join-with-pandas
-# form here ...
+
 def cartesian_product(*arrays):
+    """Compute cartesian product
+
+    Taken from here: https://stackoverflow.com/questions/53699012/performant-cartesian-product-cross-join-with-pandas
+    """
     la = len(arrays)
     dtype = np.result_type(*arrays)
     arr = np.empty([len(a) for a in arrays] + [la], dtype=dtype)
@@ -31,28 +34,34 @@ def cartesian_product(*arrays):
     return arr.reshape(-1, la)
 
 
-def cartesian_product_multi(*dfs):
+def crossjoin2(*dfs):
+    """Compute cartesian product
+
+    Taken from here: https://stackoverflow.com/questions/53699012/performant-cartesian-product-cross-join-with-pandas
+    """
     idx = cartesian_product(*[np.ogrid[:len(df)] for df in dfs])
     return pd.DataFrame(
         np.column_stack([df.values[idx[:,i]] for i,df in enumerate(dfs)]))
-# ... till here
-
-def _crossjoin2(*dfs):
-    return cartesian_product_multi(*dfs)
 
 
-def _crossjoin(df1, df2):
-    return pd.merge(df1, df2, on='__my_cross_index__', copy=False)
+def _crossjoin_binary(df1, df2, join_on='__my_cross_index__'):
+    """Computes the cartesian product of the two pd.DataFrames.
+
+    Note, that the data frames are joined on a 'utility' column, which must exist in both data frames.
+    """
+    return pd.merge(df1, df2, on=join_on, copy=False)
 
 
-def _crossjoin3(*dfs):
+def crossjoin(*dfs):
+    """Compute cartesian product of all pd.DataFrame provided.
+    """
     dfs = (pd.DataFrame(data=df).assign(__my_cross_index__=1) for df in dfs if not df.empty)
     try:
         initial = next(dfs)
     except StopIteration:
         return pd.DataFrame()
     else:
-        return functools.reduce(_crossjoin, dfs, initial).drop('__my_cross_index__', axis=1)
+        return functools.reduce(_crossjoin_binary, dfs, initial).drop('__my_cross_index__', axis=1)
 
 
 def _tuple2str(tuple_):
@@ -74,9 +83,19 @@ def type_of_clause(clause):
 
 
 def add_split_for_defaulting_field(dim, splitby, split_names, where, filter_names):
-    """ A add a filter and identity split for the defaulting field `dim`, if possible.
+    """ A add a identity split and a condition for the defaulting field `dim`, if possible.
 
-    TODO: fix documentation!
+    Args:
+        dim: Field
+            The defaulting dimension.
+        splityby: [SplitTuple]
+            List of splits.
+        split_names: [str]
+            List of names of the splits in splitby.
+        where: [ConditionTuple]
+            List of conditions.
+        filter_names: [str]
+            List of names of conditions.
 
     Returns:
         the value/subset `dim` defaults to.
@@ -107,52 +126,49 @@ def add_split_for_defaulting_field(dim, splitby, split_names, where, filter_name
     return def_
 
 
-def create_data_structures_for_clauses(model, predict, where, splitby, evidence):
-    """
-    TODO: fix documentation!
-    :param model:
-    :param predict:
-    :param where:
-    :param splitby:
-    :param evidence:
-    :return:
-    """
+def create_data_structures_for_clauses(model, predict, where, splitby, partial_data):
+    """ Derive utility data structures from clauses of a predict query.
 
-    # the following convention for naming of variables is used:
-    #  * 'input' means we require values of that dimension as input
-    #  * 'output' means values of that dimension will be the result of a prediction
-    #  * 'split' means dimension that are split by in order to create 'input'
-    #  * 'dims' means dimensions that are required to be included in the model
-    #
-    # furthermore:
-    #  * 'names' hold names of dimensions (which are unique along dimensions of a model, but multiple FieldUsages
-    #    of one dimension may be part of a predict query). There is the special case of names of the
-    #    Density/Probability Field Usages, which are not (and cannot be) names of dimensions as such.
-    #  * 'ids' hold unique ids (which are unique for that particular FieldUsage across this call to `.predict()`)
-    #
-    # note also that if anything is a list it is in the same order than the corresponding arguments to `.predict()`
+    General note: If anything is a list it is in the same order than the corresponding arguments to `.predict()`
 
+    Args:
+        model: Model
+            Model that the predict query is run on.
+        predict: []
+            List of 'things' to predict. See header of Model.predict.
+        where: [ConditionTuple]
+            List of conditions. See header of Model.predict.
+        splitby: [SplitTuple]
+            List of splits. See header of Model.predict.
+        partial_data: pd.DataFrame
+            Partial data provided. See header of Model.predict.
+
+    Return: (aggrs, aggr_ids, aggr_input_names, aggr_dims, predict_ids, predict_names, split_names, name2split,
+           partial_data, partial_data_names)
+        A long list of utility data structures. See inline documentation for an explanation of the names.
+    """
     idgen = utils.linear_id_generator()
-
-    # init utility data structures for the various clauses: splits, aggr-predicions, density-predicions, ...
     filter_names = [f[NAME_IDX] for f in where]
 
     # predict.* is about the dimensions and columns of the pd.DataFrame to be returned as query result
-    predict_ids = []  # labels for columns in result data frames. splits/evidence is labelled by just their name, aggr have an id
-    predict_names = []  # names of columns as to be returned. In correct order. For renaming of columns.
+    # labels for columns in result data frames. splits/partial_data is labelled by just their name, aggr have an id
+    predict_ids = []
+    # names of columns as to be returned, in same order. For renaming of columns before returning the final data frame.
+    predict_names = []
 
-    # split.* is about the splits to to in order to generate necessary input
+    # split.* is about the splits to generate necessary input
     split_names = [f[NAME_IDX] for f in splitby]  # name of fields to split by. Same order as in split-by clause.
 
     # aggr.* is about the aggregations to do
     aggrs = []  # list of aggregation tuples, in same order as in the predict-clause
-    aggr_ids = []  # ids for columns of fields to aggregate. Same order as in predict-clause
-    aggr_dims = []  # names of the dims averaged or maximized over
-    aggr_input_names = set()  # names of the dims requires as input for density / probability
-    aggr_output_names = []  # name of the dim predicted by each aggregation, in same order as aggr
+    aggr_ids = []  # ids for columns of fields that are aggregated. Same order as in predict-clause
+    aggr_output_names = []  # name of the dims predicted by each aggregation, in same order as aggr
 
-    # evidence.* is about the data points to use as input
-    evidence_names = evidence.columns
+    aggr_dims = []  # names of the dims averaged or maximized over (not density/probability!)
+    aggr_input_names = set()  # names of the dims requires as input for density / probability (not average/max!)
+
+    # partial_data.* is about the user provided data points to use as input
+    partial_data_names = partial_data.columns
 
     # check / normalize each predict clause
     for clause in predict:
@@ -160,18 +176,29 @@ def create_data_structures_for_clauses(model, predict, where, splitby, evidence)
                              splitby, split_names,
                              where, filter_names,
                              predict_ids, predict_names,
-                             evidence_names,
+                             partial_data_names,
                              idgen)
 
+    # maps name of splits to splits and meta data
     name2split = make_name2split(model, splitby)
 
     return aggrs, aggr_ids, aggr_input_names, aggr_dims, \
-        predict_ids, predict_names, \
-        split_names, name2split, \
-        evidence, evidence_names
+           predict_ids, predict_names, \
+           split_names, name2split, \
+           partial_data, partial_data_names
 
 
 def make_name2split(model, splitby):
+    """Make map of split name to split with meta data.
+
+    Args:
+        model: Model
+            A model.
+        splitby: [SplitTuple]
+            List of splits to map.
+
+    Returns: dict
+    """
     name2split = {}
     for s in splitby:
         name = s[NAME_IDX]
@@ -205,15 +232,20 @@ def make_name2split(model, splitby):
 
 def normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_input_names, aggr_output_names,
                              splitby, split_names, where, filter_names, predict_ids, predict_names,
-                             evidence_names, idgen):
-    """
-    TODO: fix documentation!
+                             partial_data_names, idgen):
+    """Normalizes the arguments given as 'clauses' to Model.predict.
+
+    In particular it:
+     * detects missing `Split`s. A typcial mistake when a query is issued.
+     * generates explicit `Split`s for defaulting dimensions.
+     * derives the values for (note that these are not returned but changed in place):
+        predict_ids, predict_names, aggrs, aggr_ids aggr, aggr_output_names, aggr_dims, aggr_input_names
     """
     clause_type = type_of_clause(clause)
     if clause_type == 'split':
         # t is a string, i.e. name of a field that is split by
         name = clause
-        if name not in split_names and name not in evidence_names:
+        if name not in split_names and name not in partial_data_names:
             dim = model.byname(name)
             add_split_for_defaulting_field(dim, splitby, split_names, where, filter_names)
         predict_names.append(name)
@@ -241,10 +273,10 @@ def normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_inp
 
             # all input dimensions for a density/probability aggregation must be available:
             #  * as a split (i.e. splitby), or
-            #  * from data (i.e. evidence)
+            #  * from data (i.e. partial data)
             # if that is not the case: add a default split for it
             for name in input_names:
-                if name not in evidence_names and name not in split_names:
+                if name not in partial_data_names and name not in split_names:
                     add_split_for_defaulting_field(model.byname(name),
                                                    splitby, split_names,
                                                    where, filter_names)
@@ -256,10 +288,15 @@ def derive_aggregation_model(model, aggr, input_names, model_name=None):
     """Derive a model from model for the aggregation `aggr` considering that we have input along dimensions in
     `input_names`.
 
-    TODO: fix documentation!
+    Args:
+        model: mb_modelbase.Model
+        aggr: AggregationTuple
+        input_names: set(str)
+        model_name: str, optional.
 
     Returns: mb_modelbase.Model
     """
+
     aggr_names = set(aggr[NAME_IDX])
     clause_type = type_of_clause(aggr)
     if clause_type == 'density' or clause_type == 'probability':
@@ -273,6 +310,14 @@ def derive_aggregation_model(model, aggr, input_names, model_name=None):
 
 
 def get_split_values(model, split):
+    """Returns the values of `split` executed on `model`.
+
+    Args:
+        model: mb_modelbase.Model
+        split: SplitTuple
+    Returns: list
+        List with values of the applied split.
+    """
     field = model.byname(split[NAME_IDX])
     domain = field['domain'].bounded(field['extent'])
     try:
@@ -282,10 +327,18 @@ def get_split_values(model, split):
     return splitfct(domain.values(), split[ARGS_IDX])
 
 
-def data_splits_to_evidence(model, splitby, evidence):
-    """Convert data splits into evidence and return that evidence.
+def data_splits_to_partial_data(model, splitby, partial_data):
+    """Convert data splits into partial_data and return that partial_data.
 
-    Careful: splitby is not modified.
+    Note: splitby is not modified, i.e. data splits are NOT removed.
+
+    Args:
+        model: mb_modelbase.Model
+        splityby: [SplitTuple]
+        partial_data: pd.DataFrame
+
+    Returns: pd.DataFrame
+        The (possibly) modified partial data.
     """
 
     # find data_splits
@@ -295,74 +348,78 @@ def data_splits_to_evidence(model, splitby, evidence):
     if len(data_split_names) > 0:
         data_split_data = model.test_data.loc[:, data_split_names].sort_values(by=data_split_names, ascending=True)
         #TODO:!? data_split_data.columns = data_ids  # rename to data split ids!
-
-        # add to evidence
-        if evidence.empty:
-            evidence = data_split_data
-        elif evidence.columns == data_split_names:
+        # add to partial_data
+        if partial_data.empty:
+            partial_data = data_split_data
+        elif partial_data.columns == data_split_names:
             # may only add if column are identical
-            evidence = pd.concat([evidence, data_split_data])
+            partial_data = pd.concat([partial_data, data_split_data])
         else:
-            raise ValueError("cannot merge evidence with data splits if dimensions and their order are not identical.")
+            raise ValueError("cannot merge partial_data with data splits if dimensions and their order are not identical.")
 
-    return evidence
+    return partial_data
 
 
-def generate_all_input(model, input_names, splits, split_names, evidence):
-    """Returns a tuple of two pd.DataFrames of input for the prediction query execution.
+def generate_all_input(model, splits, split_names, partial_data):
+    """Prepare input for the prediction query execution.
 
-    The first is for partial data, i.e. data of (a subspace of) the data space that is used item-wise as input. That
-    means columns of it are combined using concatenation.
-
-    The second is for split data, i.e. data that is used column wise. That means columns of it are combined using
-    cross-joins.
-
-    The two data frames have no common columns.
+    There is two 'types' of input:
+    1) split data: comes from splits. Multiple splits are combined using cross-joins.
+    2) partial data: given by user. It's data of (a subspace of) the data space. It is intended to be used item-wise
+       as input. Hence, its columns are not combined by cross join but used as is.
 
     Args:
-        model: md_modelbase.Model
-        input_names: sequence of str
-            The names of the dimensions to generate input series' for.
-    TODO: missing ARGS
+        model: mb_modelbase.Model
+        splits: [SplitTuple]
+            The splits of the query.
+        split_names: [str]
+            The names of the split to generate input series for.
+        partial_data: pd.DataFrame
+            the partial input data.
 
-    Returns: pd.DataFrame, pd.DataFrame
-        The generated dict of <input dimension name : series of input values>
+    Returns: pd.DataFrame, dict<str:pd.Series>
+        A 2-tuple of `partial_data` and a dict of <input split dimension name : generated pd.Series of values>
     """
 
-    # normalize splits with method 'data' to evidence
-    evidence = data_splits_to_evidence(model, splits, evidence)
-    #OLD: assert set(evidence.columns).isdisjoint(set(input_names))
+    # normalize splits with method 'data' to partial_data
+    partial_data = data_splits_to_partial_data(model, splits, partial_data)
 
     # generate input series for each input name
     name2split = dict(zip(split_names, splits))
-    #data_dict = {name: generate_input_series_for_dim(model, name, split_names, name2split, evidence) for name in input_names}
-    data_dict = {name: generate_input_series_for_dim(model, name, split_names, name2split, evidence) for name in split_names}
+    data_dict = {name: generate_input_series_for_dim(model, name, split_names, name2split, partial_data) for name in split_names}
 
-    return evidence, data_dict
+    return partial_data, data_dict
 
 
-def generate_input_series_for_dim(model, input_dim_name, split_names, name2split, evidence):
-    """
-    TODO document
-    :param model:
-    :param input_dim_name:
-    :param split_names:
-    :param name2split:
-    :param evidence:
-    :return:
+def generate_input_series_for_dim(model, input_dim_name, split_names, name2split, partial_data):
+    """Generate a pd.Series of input values for `input_dim_name`.
+
+    Args:
+        model: mb_modelbase.Model
+        input_dim_name: str
+            The name of the dimension to generate input for
+        split_names: [str]
+            The names of the split to generate input series for.
+        name2split: dict<str, SplitTuple>
+            dict of <name of dimension split> to <SplitTuple>
+        partial_data: pd.DataFrame
+            partial input data
+
+    Returns: pd.Series
     """
     name = input_dim_name
     split_names = set(split_names)
 
-    # if evidence is available: use evidence
-    if name in evidence.columns:
-        series = evidence.loc[:, name]
+    # if partial_data is available: use partial_data
+    if name in partial_data.columns:
+        series = partial_data.loc[:, name]
 
-        # if split is available: modify evidence
+        # if split is available: modify partial_data
         if name in split_names:
-            raise NotImplementedError('tbd')
+            raise NotImplementedError('to be implemented. Currently overlapping partial data and splits are not '
+                                      'possible')
 
-    # if no evidence is available but split: use split
+    # if no partial_data is available but split: use split
     elif name in split_names:
         series = pd.Series(data=get_split_values(model, name2split[name]), name=name)
 
@@ -388,8 +445,11 @@ def generate_input_series_for_dim(model, input_dim_name, split_names, name2split
 
 
 def divide_df(df, colnames):
-    """Returns a tuple of two pd.DataFrames where the first one contains all columns with names in `colnames` and the
-    second all other.
+    """Splits df by colnames.
+
+    Returns: (pd.DataFrame, pd.DataFrame)
+        A tuple of two pd.DataFrames where the first one contains all columns with names in `colnames` and the second
+        all other.
     """
     if df.empty:
         return pd.DataFrame(), pd.DataFrame
@@ -405,39 +465,48 @@ def divide_df(df, colnames):
     return df[list(names_intersect)], df[list(names_other)]
 
 
-def condition_ops_and_names(name2split, cond_out_names, split_dims, partial_dims):
+def condition_ops_and_names(cond_names, name2split, split_dims, partial_dims):
+    """Build operator list for `cond_names`.
+
+    Builds a list of operators (string descriptors) for use in ConditionTuples for the names in `cond_names`.
+
+    Args:
+        name2split: dict
+            Dictionary of split names to meta information.
+        cond_names: list
+            List of names of dimensions to to condition out. All names that is split by (i.e. names that are in name2split)
+            occur first.
+        split_dims: int
+            number of split dimensions to condition on. Will be filled with operator from name2split.
+        partial_dims: int
+            number of partial data dimensions to condition on. Will be filled with operator "==".
+
+    Returns: list(str)
+        List of operators.
     """
-    Derive operator list
-    :param name2split: dict
-        Dictionairy of split names to meta information.
-    :param cond_out_names: list
-        List of names of dimensions to to condition out. All names that is split by (i.e. names that are in name2split)
-        occur first.
-    :param split_dims: int
-        number of split dimensions to condition on. Will be filled with operator from name2split.
-    :param partial_dims: int
-        number of partial data dimensions to condition on. Will be filled with operator "==".
-    :return:
-    """
-    return [name2split[name]['cond_op'] for name in cond_out_names[:split_dims]] + ['==']*partial_dims
+    return [name2split[name]['cond_op'] for name in cond_names[:split_dims]] + ['=='] * partial_dims
 
 
-def validate_input_data_for_density_probability(aggr, split_df_input, partial_df, name2split):
-    """
-    Validates and if possible 'corrects' input data for use with a density or probability aggregation.
+def validate_input_data_for_density_probability(aggr, split_dfs, partial_df, name2split):
+    """Validates and if possible 'corrects' input data for use with a density or probability aggregation.
 
     Density and probability aggregations require scalar- and domain-valued input, respectively. This method validates
     this. If it is violated it automatically corrects it using up-cast (scalar to domain) or down-cast (domain to
     scalar) functions. The casting methods are given as part of in `name2split`.
 
-    TODO: currently the evidence is assumed to be given at points only, not domains. Overcome this limitation and
-     allow domains for evidence as well.
+    TODO: currently the partial_data is assumed to be given at points only, not domains. Overcome this limitation and
+     allow domains for partial_data as well.
 
-    :param aggr:
-    :param split_df_input:
-    :param partial_df:
-    :param name2split:
-    :return:
+    Args:
+        aggr: AggregationTuple
+        split_dfs: list(pd.Series)
+        partial_df: pd.DataFrame
+        name2split: dict<str, dict>
+            Map of a name of a split to the split with meta information. See `make_name2split()`.
+            
+    Returns: list(pd.Series), pd.DataFrame 
+        Possibly modified split_df_input and partial_df
+
     """
 
     method = aggr[METHOD_IDX]
@@ -463,62 +532,85 @@ def validate_input_data_for_density_probability(aggr, split_df_input, partial_df
             return series
 
     if aggr[METHOD_IDX] == 'density':
-        split_df_input = map(density_map_fct, split_df_input)
+        split_dfs = map(density_map_fct, split_dfs)
         # check partial input
         # TODO
     else:
         # check split input
-        split_df_input = map(probability_map_fct, split_df_input)
+        split_dfs = map(probability_map_fct, split_dfs)
         # check partial input
         # TODO
 
-    return split_df_input, partial_df
+    return split_dfs, partial_df
 
 
-def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, name2split, aggr_id='aggr_id'):  # , name2id):
-    """
-    Compute density or probability aggregation `aggr` for `model` on given data.
-    :param model:
-    :param aggr:
-    :param partial_df: pd.DataFrame
-    :param split_data_dict: dict
-    :param name2id:
-    :return:
+def aggregate_density_or_probability(model, aggr, partial_df, split_series_dict, name2split, aggr_id='aggr_id'):
+    """Compute density or probability aggregation `aggr` for `model` on given data.
+    
+    Args:
+        model: mb_modelbase.Model
+        aggr: AggregationTuple
+        partial_df: pd.DataFrame
+        split_series_dict: dict<str,pd.Series>
+        name2split: dict<str, dict>
+            Map of a name of a split to the split with meta information. See `make_name2split()`.
+        aggr_id: str, optional, defaults to 'aggr_id'.
+            name of column of the aggregation result in the resulting data frame.
+    
+    Returns: pd.DataFrame
+        The result of the aggregation as a pd.DataFrame with input and output included and correctly named columns
     """
 
     # data has two 'types' of dimension:
     #  * `input_names`: input to the density query
     #  * `cond_out_names`: to be conditioned out
     input_names = model.sorted_names(aggr[NAME_IDX])
-    cond_out_names = (set(partial_df.columns) | set(split_data_dict.keys())) - set(input_names)
+    cond_out_names = (set(partial_df.columns) | set(split_series_dict.keys())) - set(input_names)
 
-    # divide evidence and split data into those for conditioning out and for querying
+    # divide partial_data and split data into those for conditioning out and for querying
     partial_df_cond_out, partial_df_input = divide_df(partial_df, cond_out_names)
     split_df_cond_out, split_df_input = [], []
-    for name, df in split_data_dict.items():
+    for name, df in split_series_dict.items():
         if name in cond_out_names:
             split_df_cond_out.append(df)
         else:
             split_df_input.append(df)
 
     # build cond out data and op list
-    cond_out_data = _crossjoin3(*split_df_cond_out, partial_df_cond_out)
+    cond_out_data = crossjoin(*split_df_cond_out, partial_df_cond_out)
     cond_out_names = model.sorted_names(cond_out_names)
     cond_out_data = cond_out_data[cond_out_names]
-    cond_out_ops = condition_ops_and_names(name2split, cond_out_names, len(split_df_cond_out),
+    cond_out_ops = condition_ops_and_names(cond_out_names, name2split, len(split_df_cond_out),
                                            len(partial_df_cond_out.columns))
 
     # compute original, uncorrected input data. We will return this instead of the corrected input (below).
     # Doing differently causes inconsistency:
     #  - we might try to downcast/upcast later which would fail because it's been done already
     #  - merging with other results based on these inputs might fail because not all have been down/up casted the same
-    input_data_orig = _crossjoin3(*split_df_input, partial_df_input)
+    input_data_orig = crossjoin(*split_df_input, partial_df_input)
     input_data_orig = input_data_orig[input_names]
+
+    # TODO:
+    #  model.predict(['sex', 'RW', Density([sex])], for_data=pd.DataFrame(data={'RW': [5, 10, 15], 'sex':['Male', 'Male', 'Female']}))
+    #  this returns:
+    #       sex  RW     density(['sex'])
+    #      Male   5    0.495187393205537
+    #      Male   5    0.495187393205537
+    #    Female   5    0.504812606794463
+    #      Male  10   0.6659190887603108
+    #      Male  10   0.6659190887603108
+    #    Female  10   0.3340809112396892
+    #      Male  15  0.40305780181766876
+    #      Male  15  0.40305780181766876
+    #    Female  15   0.5969421981823313
+    #   which is not what we want.
+    #   The problem is that a cartesian product of the two partial data columns is taken because one is 'input' to
+    #   the density query and the other is conditioned on. I didn't take this twist into consideration yet. Fix it!
 
     # validate and build input data
     split_df_input, partial_df_input = validate_input_data_for_density_probability(aggr, split_df_input,
                                                                                    partial_df_input, name2split)
-    input_data = _crossjoin3(*split_df_input, partial_df_input)
+    input_data = crossjoin(*split_df_input, partial_df_input)
     input_data = input_data[input_names]  # reorder to match model ordering
 
     # TODO: make the outer loop parallel
@@ -538,13 +630,13 @@ def aggregate_density_or_probability(model, aggr, partial_df, split_data_dict, n
     # TODO: use multi indexes. this should give some speed up
     #  problem right now is: the columns for the keys are not hashable, because they contains lists
     #  solution: turn lists into tuples. Not sure how deep required changes would be
-    # foo = _crossjoin3(cond_out_data, input_data)
+    # foo = crossjoin(cond_out_data, input_data)
     # df_index = pd.MultiIndex.from_frame(foo)
     # return_df = pd.DataFrame(data={aggr_id: results}, index=df_index)
     # return return_df
 
     # return full data frame of input and output
-    return _crossjoin3(cond_out_data, input_data_orig).assign(**{aggr_id: results})
+    return crossjoin(cond_out_data, input_data_orig).assign(**{aggr_id: results})
 
 
 def aggr_density_probability_inner(model, method, input_data):
@@ -590,24 +682,26 @@ def aggr_density_probability_inner(model, method, input_data):
     return results
 
 
-def aggregate_maximum_or_average(model, aggr, partial_data, split_data_dict, name2split, aggr_id='aggr_id'):
-    """
-    TODO: fix documentation
+def aggregate_maximum_or_average(model, aggr, partial_data, split_series_dict, name2split, aggr_id='aggr_id'):
+    """Compute maximum or average aggregation `aggr` for `model` on given data.
 
-    :param model:
-    :param aggr:
-    :param partial_data:
-    :param split_data_dict:
-    :param input_names:
-    :param name2split :
-    :param aggr_id:
-    :return:
-    """
+        Args:
+            model: mb_modelbase.Model
+            aggr: AggregationTuple
+            partial_df: pd.DataFrame
+            split_series_dict: dict<str,pd.Series>
+            name2split: dict<str, dict>
+                Map of a name of a split to the split with meta information. See `make_name2split()`.
+            aggr_id: str, optional, defaults to 'aggr_id'.
+                name of column of the aggregation result in the resulting data frame.
 
-    split_data_list = (df for name, df in split_data_dict.items())
-    cond_out_data = _crossjoin3(*split_data_list, partial_data)
+        Returns: pd.DataFrame
+            The result of the aggregation as a pd.DataFrame with input and output included and correctly named columns
+    """
+    split_data_list = (df for name, df in split_series_dict.items())
+    cond_out_data = crossjoin(*split_data_list, partial_data)
     cond_out_names = cond_out_data.columns
-    cond_out_ops = condition_ops_and_names(name2split, cond_out_names, len(split_data_dict), len(partial_data.columns))
+    cond_out_ops = condition_ops_and_names(cond_out_names, name2split, len(split_series_dict), len(partial_data.columns))
 
     # TODO: make the outer loop parallel
     # TODO: speed up results = np.empty(len(input_frame))
