@@ -4,8 +4,11 @@
 
 """
 
-import mb_modelbase.models_core.models
+import numpy as np
+from sklearn import metrics
 
+import mb_modelbase.models_core.models
+from mb_modelbase.models_core.base import *
 
 def eliminate(model, df, elim_dims, **kwargs):
     """ Eliminate influence on data in one representation from certain dimensions in the other representation.
@@ -60,47 +63,24 @@ def eliminate(model, df, elim_dims, **kwargs):
     return df - influence
 
 
-def data_predict(model, predict, for_data, **kwargs):
-    """
+def rmse(model, input_df, groundtruth_df):
 
-    In `.eliminate` it turned our that we need a prediction method that takes data items as input which will be used
-    as evidence for prediction. This is indeed a very common operation, e.g. imagine the iris data set where we want
-    to check the quality of the model and hence compare the predicted value of 'species' with the actual one. Then,
-    for each data item we need to predict the species, given the known values of the other dimensions.
+    predict_names = list(groundtruth_df.columns)
 
-    We want to be able to do it like this:
+    if 0 != len(set(input_df.columns) & set(predict_names)):
+        raise ValueError("colums of given dataframes may not overlap")
 
-    data_predict(self, what='species', for_data=<df>)
+    predict_aggrs = [Aggregation(predict_names, yields=name) for name in predict_names]  # construct all Aggregations
 
-    The `for_data` arguments really is just a different, more convinient way of providing list of list of
-    conditions, where each element of the other list is the sequence of conditions to hold.
+    # pred = model.predict(predict=predict_aggrs, for_data=input_df)
 
-    Probably this would be the naive implementation. And really, for the gauss-based models I don't really
-    see a better option anyway.
+    preds = []
+    for name in predict_names:
+        pred = model.predict(predict=Aggregation(predict_names, yields=name), for_data=input_df)
+        preds.append(pred)
+    print(preds)
 
-    TODO: Is it better to integrate it into existing `.predict()` or write a new class method?
-    """
-
-    if not isinstance(model, mb_modelbase.Model):
-        raise TypeError("model is not of type mb_modelbase.Model .")
-
-    if isinstance(predict, (str, tuple)):
-        predict = [predict]
-    if not model.isfieldname(predict):
-        raise ValueError("predict is not a single or sequence of dimension names of model")
-    data_dim_names = for_data.colnames
-    if not model.isfieldname(data_dim_names):
-        raise ValueError("for_data has data dimensions that are not modelled by model")
-
-    # marginalize model to the dims in `predict` and `for_data`
-    base_names = data_dim_names + predict
-    base_model = model.marginalize(keep=base_names)
-
-    # predict
-    for item in for_data.itertuple()
-        pass
-
-    pass
+    return metrics.mean_squared_error(y_true=groundtruth_df.values, y_pred=preds)
 
 
 if __name__ == '__main__':
@@ -111,20 +91,20 @@ if __name__ == '__main__':
     m = mb_modelbase.Model.load('/home/luca_ph/Documents/projects/graphical_models/code/data_models/mcg_iris_map.mdl')
 
     data = m.data
-    data_evidence = data.iloc[:, 1:]
-    print(data_evidence.head())
 
-    # predict species from all other attributes
-    data_prediction = data_predict(m, 'species', data_evidence)
+    # prediction of categorical species
+    # data_evidence = data.iloc[:, 1:]
+    # data_ground_truth = data.iloc[:, 0]
+    # data_prediction = m.predict(Aggregation('species'), for_data=data_evidence)
+    #
+    # cm = metrics.confusion_matrix(data_ground_truth, data_prediction, labels=data_ground_truth.unique())
+    # print('confusion matrix:\n{}'.format(cm))
 
-    # count the number of false prediction
-    data_ground_truth = data.iloc[:,0]
+    # prediction of some quantitative dim
+    # err = rmse(m, data.iloc[:,:-1], data.iloc[:,-1:] )
+    # print('rsme (1dim):\n{}'.format(err))
 
-    # perf = pd.DataFrame(
-    #     data={'species': data['species'],
-    #           'predicted': data_prediction,
-    #           'ground_truth': data_ground_truth
-    #           })
+    m.parallel_processing = False
 
-    cm = metrics.confusion_matrix(data_ground_truth, data_prediction, labels=data_ground_truth.unique())
-    print(cm)
+    err = rmse(m, data.iloc[:,:-2], data.iloc[:,-2:] )
+    print('rsme (2dim):\n{}'.format(err))
