@@ -1528,39 +1528,50 @@ class Model:
             .marginalize(keep=model)
 
     def predict(self, predict, where=None, splitby=None, for_data=None, returnbasemodel=False):
-        """Calculate the prediction against the model and returns its result by means of a data frame.
+        """Calculate the prediction against the model and returns its result as a pd.DataFrame.
 
         The data frame contains exactly those fields which are specified in 'predict'. Its order is preserved.
 
         It does NOT modify the model it is called on.
 
         Args:
-            predict: A sequence of strings and
-                This is list of fields (either by name or names of fields (strings) and 'AggregationTuple's.
-                This is the list of fields and aggregations to be included in the returned data frame. They are referenced either by their nam
-            where: A list of `ConditionTuple`s, representing the conditions to
-                adhere.
-            splitby: A list of 'SplitTuple's, i.e. a list of fields on which to
-                split the model and the method how to do the split.
+            predict: list
+                A list of 'things' to predict. Each of these 'things' may be: a `Field`, a str identifying a `Field`,
+                or an 'AggregationTuple'.
+                These 'things' are included in the returned data frame, in the same order as specified here.
+
+            where: list[ConditionTuple], optional.
+                A list of `ConditionTuple`s, representing the conditions to adhere.
+
+            splitby: list[SplitTuple], optional.
+                A list of 'SplitTuple's, i.e. a list of fields on which to split the model and the method how to
+                do the split.
+
             for_data: pd.DataFrame, optional.
-            returnbasemodel: A boolean flag. If set this method will return the
-                pair (result-dataframe, basemodel-for-the-prediction).
-                Defaults to False.
+                Set of data points to do prediction for. Is combined with the values of `splitby` (if they overlap).
+                The columns of the dataframe must be labelled with the corresponding names of the dimensions in self.
+
+            returnbasemodel: bool
+                If set this method will return the pair (result-dataframe, basemodel-for-the-prediction). Defaults to
+                False.
+
         Returns:
-            A dataframe with the fields as given in 'predict', or a tuple (see
-            returnbasemodel).
+
+            A `pd.DataFrame` with the fields as given in 'predict', or a tuple (see returnbasemodel).
 
         Evidence and splits:
 
             While both may be used in parallel, they may currently not share any dimensions.
 
         Hidden fields:
-            TODO: fix?
+
             You may not include any hidden field in the predict-clause and such queries will result in a
             ValueError().
+            TODO: fix?
             TODO: raise error
 
         Default Values:
+
             You may leave out splits for fields that have a default value, like this:
 
                 # let model be a model with the default value of X set to 1.
@@ -1575,10 +1586,46 @@ class Model:
                 # let model be a model with the default value of X set to 1.
                 model.predict(X, Y, Density('X','Y'), splitby=Split('Y', 'equidist, 10))
 
+        for_data-clause:
+
+            You may provide data that a prediction is done for. See 'input generation'.
+
         Splits:
 
-            Splits may have scalars or domains as a result type.
+            Splits may have scalars or domains as a result type. See 'input generation'.
 
+        Input generation:
+
+            Many queries require 'input' that a query is computed on. E.g. a density can only be computed at a given
+            point. There is two ways to provide input: using splits (`SplitTuple`) and with the `for_data`-clause.
+
+            In case of the `for_data` clause the data points are taken as they are and the query is computed on them.
+            E.g.:
+
+            > model.predict(['RW', Density([RW])], for_data=pd.DataFrame(data={'RW': [5, 10, 15]}))
+            >
+            >   RW  density(['RW'])
+            >   5         0.005603
+            >  10         0.248187
+            >  15         0.250418
+
+            In the case of splits, each split is 'expanded' into a series of values of its dimension. Then these
+            splits are combined as their cartesian product, i.e. a cross-join is done. This allows to create all
+            sorts of 'meshes' across dimensions. For example:
+
+            > model.predict(['sex', 'FL', Probability([FL, sex])], splitby=[Split(sex), Split(FL)])
+            >
+            >        sex         FL  @probability(['FL', 'sex'])
+            >   0   Female   3.450144                     0.000545
+            >   1   Female   4.472832                     0.001566
+            > ...
+            >   24  Female  27.994656                     0.000781
+            >   25    Male   3.450144                     0.000633
+            >   26    Male   4.472832                     0.001634
+            >   27    Male   5.495520                     0.003874
+            >   28    Male   6.518208                     0.008429
+            > ...
+            >   49    Male  27.994656                     0.000844
 
         Ideas for Improvement:
 

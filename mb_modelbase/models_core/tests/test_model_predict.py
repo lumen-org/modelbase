@@ -23,9 +23,16 @@ if __name__ == '__main__':
     FL = model.byname('FL')
     RW = model.byname('RW')
 
+    res = model.predict(['sex', 'FL', Probability([FL, sex])], splitby=[Split(sex), Split(FL)])
+    print(res)
+    exit(1)
+
     # res = model.predict(['sex', 'RW', Density(sex)], splitby=[Split(sex), Split(RW)])
     # res = model.predict(['sex', 'RW', Density([sex, RW])], for_data=pd.DataFrame(data={'RW': [5, 10, 15], 'sex':['Male', 'Male', 'Female']}))
-    res = model.predict(['sex', 'RW', Density([sex])], for_data=pd.DataFrame(data={'RW': [5, 10, 15], 'sex':['Male', 'Male', 'Female']}))
+    # res = model.predict(['sex', 'RW', Density([sex])], for_data=pd.DataFrame(data={'RW': [5, 10, 15], 'sex':['Male', 'Male', 'Female']}))
+
+    res = model.predict(['RW', Density([RW])], for_data=pd.DataFrame(data={'RW': [5, 10, 15]}))
+
     print(res)
     # exit(1)
 
@@ -33,6 +40,8 @@ if __name__ == '__main__':
     res = model.predict(['sex', 'FL', 'RW', Density([FL, RW, sex])], splitby=[Split(sex), Split(RW)], for_data=pd.DataFrame(data={'FL': [3, 5, 7, 10, 12]}))
     print(res)
     # exit(1)
+
+
 
     # check result of very simple split
     res = model.predict(['sex'], splitby=[Split(sex)])
