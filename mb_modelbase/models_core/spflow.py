@@ -127,7 +127,7 @@ class SPNModel(Model):
         #print(input.shape)
         res = likelihood(self._spn, input)
         #print(res)
-        return res[0]
+        return res[0][0]
 
     def __density(self, x):
         print("--- Density")
