@@ -1,9 +1,15 @@
+# Copyright (c) 2019 Philipp Lucas (philipp.lucas@dlr.de)
+"""
+@author: Philipp Lucas
+
+Some test queries that should not raise an execption.
+"""
+
 import pandas as pd
 
 from mb_modelbase.models_core import Model
 from mb_modelbase.models_core.base import *
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel as MixCondGauss
-
 from mb_modelbase.models_core.tests import test_crabs as crabs
 
 if __name__ == '__main__':
@@ -23,25 +29,12 @@ if __name__ == '__main__':
     FL = model.byname('FL')
     RW = model.byname('RW')
 
-    res = model.predict(['sex', 'FL', Probability([FL, sex])], splitby=[Split(sex), Split(FL)])
-    print(res)
-    exit(1)
-
-    # res = model.predict(['sex', 'RW', Density(sex)], splitby=[Split(sex), Split(RW)])
-    # res = model.predict(['sex', 'RW', Density([sex, RW])], for_data=pd.DataFrame(data={'RW': [5, 10, 15], 'sex':['Male', 'Male', 'Female']}))
-    # res = model.predict(['sex', 'RW', Density([sex])], for_data=pd.DataFrame(data={'RW': [5, 10, 15], 'sex':['Male', 'Male', 'Female']}))
-
     res = model.predict(['RW', Density([RW])], for_data=pd.DataFrame(data={'RW': [5, 10, 15]}))
-
     print(res)
-    # exit(1)
 
     # use some evidence
     res = model.predict(['sex', 'FL', 'RW', Density([FL, RW, sex])], splitby=[Split(sex), Split(RW)], for_data=pd.DataFrame(data={'FL': [3, 5, 7, 10, 12]}))
     print(res)
-    # exit(1)
-
-
 
     # check result of very simple split
     res = model.predict(['sex'], splitby=[Split(sex)])

@@ -1627,6 +1627,9 @@ class Model:
             > ...
             >   49    Male  27.994656                     0.000844
 
+            Both, splits and for_data may used at the same time. They are combined as their cross product.
+
+
         Ideas for Improvement:
 
            How to efficiently query the model? how can I vectorize it? I believe that depends on the query. A typical
