@@ -449,7 +449,7 @@ class Model:
             self
         """
         default_opts = {
-            'pci_graph': True,
+            'pci_graph': False,
         }
         valid_opts = {
             'pci_graph': [True, False]
@@ -1309,6 +1309,7 @@ class Model:
         vol = functools.reduce(operator.mul, [high - low for low, high in num_domains], 1)
         # map quantitative domains to their mid
         y = [(high + low) / 2 for low, high in num_domains]
+        #y = [int((high + low) / 2) for low, high in num_domains]
 
         # sum up density over all elements of the cartesian product of the categorical part of the event
         # TODO: generalize
