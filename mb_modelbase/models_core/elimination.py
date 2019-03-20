@@ -4,11 +4,13 @@
 
 """
 
+import pandas as pd
 import numpy as np
-from sklearn import metrics
 
 import mb_modelbase.models_core.models
+import mb_modelbase.models_core.validation as validation
 from mb_modelbase.models_core.base import *
+
 
 def eliminate(model, df, elim_dims, **kwargs):
     """ Eliminate influence on data in one representation from certain dimensions in the other representation.
@@ -63,48 +65,21 @@ def eliminate(model, df, elim_dims, **kwargs):
     return df - influence
 
 
-def rmse(model, input_df, groundtruth_df):
-
-    predict_names = list(groundtruth_df.columns)
-
-    if 0 != len(set(input_df.columns) & set(predict_names)):
-        raise ValueError("colums of given dataframes may not overlap")
-
-    predict_aggrs = [Aggregation(predict_names, yields=name) for name in predict_names]  # construct all Aggregations
-
-    # pred = model.predict(predict=predict_aggrs, for_data=input_df)
-
-    preds = []
-    for name in predict_names:
-        pred = model.predict(predict=Aggregation(predict_names, yields=name), for_data=input_df)
-        preds.append(pred)
-    print(preds)
-
-    return metrics.mean_squared_error(y_true=groundtruth_df.values, y_pred=preds)
-
-
 if __name__ == '__main__':
     import pandas as pd
     from sklearn import metrics
 
     # load conditional gaussian model on iris data
     m = mb_modelbase.Model.load('/home/luca_ph/Documents/projects/graphical_models/code/data_models/mcg_iris_map.mdl')
-
     data = m.data
 
-    # prediction of categorical species
-    # data_evidence = data.iloc[:, 1:]
-    # data_ground_truth = data.iloc[:, 0]
-    # data_prediction = m.predict(Aggregation('species'), for_data=data_evidence)
-    #
-    # cm = metrics.confusion_matrix(data_ground_truth, data_prediction, labels=data_ground_truth.unique())
+    # _, cm= validation.confusion_matrix(m, data.iloc[:, 1:], data.iloc[:, 0])
     # print('confusion matrix:\n{}'.format(cm))
 
-    # prediction of some quantitative dim
-    # err = rmse(m, data.iloc[:,:-1], data.iloc[:,-1:] )
-    # print('rsme (1dim):\n{}'.format(err))
+    # prediction of 1 quantitative dim
+    err = validation.rmse(m, data.iloc[:,:-1], data.iloc[:,-1:] )
+    print('rsme (1dim):\n{}'.format(err))
 
     m.parallel_processing = False
-
-    err = rmse(m, data.iloc[:,:-2], data.iloc[:,-2:] )
+    err = validation.rmse(m, data.iloc[:,:-2], data.iloc[:,-2:])
     print('rsme (2dim):\n{}'.format(err))

@@ -1739,8 +1739,29 @@ class Model:
         elif len(result_list) == 1:
             dataframe = result_list[0]
         else:
-            dataframe = functools.reduce(lambda df1, df2: df1.merge(df2, on=list(input_names), how='inner', copy=False),
-                                          result_list[1:], result_list[0])
+            # create ground truth input data for alignment with input data frams of all aggregations
+            partial_data_res = partial_data.loc[:, partial_data.columns & set(predict_ids)]
+            split_res = (split_data[name] for name in predict_ids if name in split_data)
+            base_df = models_predict.crossjoin(*split_res, partial_data_res)  # this is the 'ground truth' ordering
+            n = len(input_names)
+
+            # get permutations
+            # TODO: save aggr res and input separately in the first place
+            # TODO: don't save them as data frames, just as a list of tuples (then I wouldnot need to create the tuples here)
+            # TODO: apply reordering right away when the column is computed
+            perms = utils.alignment_permutation(list(base_df.itertuples(index=False, name=None)),
+                                                *[list(r.iloc[:, :n].itertuples(index=False, name=None)) for r in result_list])
+
+            # apply permutations (to aggr results only)
+            aggr_df = (res.iloc[perm.list(), n:] for perm, res in zip(perms, result_list))
+
+            # concat with input
+            dataframe = pd.concat([base_df, *aggr_df], axis=1, copy=False)
+            #dataframe = base_df.assign(**dict(zip(aggr_ids, aggr_series)))
+
+            # OLD
+            # dataframe = functools.reduce(lambda df1, df2: df1.merge(df2, on=list(input_names), how='inner', copy=False),
+            #                               result_list[1:], result_list[0])
 
         # (4) Fix domain valued splits.
         # Some splits result in domains (i.e. tuples, and not just single, scalar values). However,
