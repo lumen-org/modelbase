@@ -76,10 +76,13 @@ if __name__ == '__main__':
     # _, cm= validation.confusion_matrix(m, data.iloc[:, 1:], data.iloc[:, 0])
     # print('confusion matrix:\n{}'.format(cm))
 
+    print(list(data.columns))
+
     # prediction of 1 quantitative dim
-    err = validation.rmse(m, data.iloc[:,:-1], data.iloc[:,-1:] )
+    p, err = validation.rmse(m, data.iloc[:,:-1], data.iloc[:,-1:] )
     print('rsme (1dim):\n{}'.format(err))
 
-    m.parallel_processing = False
-    err = validation.rmse(m, data.iloc[:,:-2], data.iloc[:,-2:])
+    #m.parallel_processing = True
+    p, err = validation.rmse(m, data.iloc[:,:-2], data.iloc[:,-2:])
     print('rsme (2dim):\n{}'.format(err))
+    print(p)

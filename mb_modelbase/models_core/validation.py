@@ -5,6 +5,7 @@ from sklearn import metrics
 
 from mb_modelbase.models_core.base import *
 
+# TODO: see https://scikit-learn.org/stable/modules/classes.html#module-sklearn.metrics
 
 def confusion_matrix(model, input_df, groundtruth_series):
     """Returns the predicted values and their confusion matrix on given input and groundtruth using model.
@@ -31,4 +32,4 @@ def rmse(model, input_df, groundtruth_df):
     #     preds.append(pred)
     # print(preds)
 
-    return metrics.mean_squared_error(y_true=groundtruth_df.values, y_pred=preds.values)
+    return preds, metrics.mean_squared_error(y_true=groundtruth_df.values, y_pred=preds.values,multioutput='raw_values')

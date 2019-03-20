@@ -1756,7 +1756,7 @@ class Model:
             aggr_df = (res.iloc[perm.list(), n:] for perm, res in zip(perms, result_list))
 
             # concat with input
-            dataframe = pd.concat([base_df, *aggr_df], axis=1, copy=False)
+            dataframe = pd.concat([base_df, *aggr_df], axis=1, copy=False).reset_index()
             #dataframe = base_df.assign(**dict(zip(aggr_ids, aggr_series)))
 
             # OLD
