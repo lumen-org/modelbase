@@ -62,10 +62,18 @@ def add_modelbase_module():
     # hooks for plug-ins
     if c.get('spn_model_load_hook', False):
         import spflow_dev
+        # load allbus model
         _, spn_model = spflow_dev.spn_allbus()
-        spn_model.parallel_processing = False
+        # spn_model.parallel_processing = False
         mb.add(spn_model)
-        print(spn_model.density([0,0,0,0,0,0,0,0,0,0]))
+
+        #load iris model
+        _, spn_model = spflow_dev.spn_iris()
+        # spn_model.parallel_processing = False
+        mb.add(spn_model)
+
+
+
 
     @app.route(c['route'], methods=['GET', 'POST'])
     @cross_origin()  # allows cross origin requests
