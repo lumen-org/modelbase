@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+import pandas as pd
 
 from mb_modelbase.models_core import domains as dm
 from mb_modelbase.models_core.base import Field
@@ -17,16 +18,18 @@ def split_training_test_data(df):
     The first returned data frame will contain 5% of the data, but not less than 25 item and not more than 50 items,
     and not more than 50% items.
     """
-    n = df.shape[0]
+    # n = df.shape[0]
 
     # select training and test data
-    limit = int(min(max(n * 0.05, 25), 50,
-                    n))  # 5% of the data, but not less than 25 and not more than 50, and not more than 50% test
-    if limit > n / 2:
-        limit = n // 2
+    # limit = int(min(max(n * 0.05, 25), 50, n))  # 5% of the data, but not less than 25 and not more than 50, and not more than 50% test
+    # if limit > n / 2:
+    #     limit = n // 2
 
-    test_data = df.iloc[:limit, :]
-    data = df.iloc[limit:, :]
+    # test_data = df.iloc[:limit, :]
+    # data = df.iloc[limit:, :]
+    data = df
+    test_data = pd.DataFrame(columns=df.columns)
+
     return test_data, data
 
 
