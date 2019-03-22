@@ -1401,14 +1401,21 @@ class Model:
 
         return zip(names, cond_values) if pairflag else cond_values
 
-    @staticmethod
-    def save(model, filename):
+    def save(self, filename):
         """Store the model to a file at `filename`.
 
         You can load a stored model using `Model.load()`.
         """
         with open(filename, 'wb') as output:
-            pickle.dump(model, output, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def save_static(model, filename, *args, **kwargs):
+        """Store the model to a file at `filename`.
+
+        You can load a stored model using `Model.load()`.
+        """
+        model.save(model, filename, *args, **kwargs)
 
     @staticmethod
     def load(filename):

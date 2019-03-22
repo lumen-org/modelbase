@@ -10,7 +10,7 @@ Created on Tue Mar 13:49:15 2019
 from mb_modelbase.models_core import Model
 from spn.structure.Base import Context
 from spn.algorithms.LearningWrappers import learn_parametric, learn_mspn
-#from spn.algorithms.Marginalization import marginalize
+from spn.algorithms.Marginalization import marginalize
 #from spn.algorithms.Condition import condition
 #from spn.algorithms.Inference import eval_spn_bottom_up
 from spn.algorithms.Inference import likelihood
@@ -22,6 +22,7 @@ import numpy as np
 import functools
 import pandas as pd
 import copy as cp
+import dill
 
 class SPNModel(Model):
     """
@@ -41,8 +42,7 @@ class SPNModel(Model):
         super().__init__(name)
         self._spn_type = spn_type
         self._aggrMethods = {
-            'maximum': self._maximum,
-            'average': self._maximum
+            'maximum': self._maximum
         }
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
@@ -136,7 +136,7 @@ class SPNModel(Model):
 
     def _marginalizeout(self, keep, remove):
         self._marginalized = self._marginalized.union(remove)
-        #self._spn = marginalize(self._spn, self.asindex(keep))
+        # self._spn = marginalize(self._spn, self.asindex(keep))
         return self._unbound_updater,
 
     def _conditionout(self, keep, remove):
@@ -149,13 +149,14 @@ class SPNModel(Model):
 
     def _density(self, x):
         # map all inputs from categorical to numeric values
-        #x = self._categorical_to_numeric(x)
         for i in range(len(x)):
             if self.names[i] in self._categorical_variables:
-                print(self.names[i])
                 inverse_mapping = self._categorical_variables[self.names[i]]['name_to_int']
                 x[i] = inverse_mapping[x[i]]
-                #x[i] = round(x[i])
+
+            # if
+            elif self.data.dtypes[i] == int:
+                x[i] = round(x[i])
 
         # Copy the current state of the network
         input = self._density_mask.copy()
@@ -174,8 +175,16 @@ class SPNModel(Model):
         res = likelihood(self._spn, input)
         return res[0][0]
 
+    def save(model, filename):
+        """Store the model to a file at `filename`.
+
+        You can load a stored model using `Model.load()`.
+        """
+        with open(filename, 'wb') as output:
+            dill.dump(model, output, dill.HIGHEST_PROTOCOL)
+
     def _maximum(self):
-        return 3
+        return 0.1
 
     def _sample(self, random_state=RandomState(123)):
         placeholder = self._condition.copy()
