@@ -11,17 +11,18 @@ from mb_modelbase.models_core import Model
 from spn.structure.Base import Context
 from spn.algorithms.LearningWrappers import learn_parametric, learn_mspn
 from spn.algorithms.Marginalization import marginalize
-from spn.algorithms.Condition import condition
-from spn.algorithms.Inference import eval_spn_bottom_up
+#from spn.algorithms.Condition import condition
+#from spn.algorithms.Inference import eval_spn_bottom_up
 from spn.algorithms.Inference import likelihood
 from spn.algorithms.Sampling import sample_instances
 from numpy.random.mtrand import RandomState
 from mb_modelbase.utils import data_import_utils as diu
-from spn.io.Graphics import plot_spn
+
 import numpy as np
 import functools
 import pandas as pd
 import copy as cp
+import dill
 
 class SPNModel(Model):
     """
@@ -41,8 +42,7 @@ class SPNModel(Model):
         super().__init__(name)
         self._spn_type = spn_type
         self._aggrMethods = {
-            'maximum': self._maximum,
-            'average': self._maximum
+            'maximum': self._maximum
         }
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
@@ -68,34 +68,38 @@ class SPNModel(Model):
 
         # Construct inverse dictionary for all categorical variables to use in the function _density
         for k,v in self._categorical_variables.items():
+            name_to_int = dict()
+            int_to_name = dict()
+
             inverse_mapping = dict()
             categorical = v['categorical']
+            expressions = categorical.unique()
+            for i, name in enumerate(expressions):
+                name_to_int[name] = i
+                int_to_name[i] = name
+
             codes = categorical.codes
-            for i, code in enumerate(codes):
-                inv = categorical[i]
-                inverse_mapping[inv] = code
-            v['inverse_mapping'] = inverse_mapping
+
+            #for i, code in enumerate(codes):
+            #    inv = categorical[i]
+            #    inverse_mapping[inv] = code
+            #v['inverse_mapping'] = inverse_mapping
+            v['name_to_int'] = name_to_int
+            v['int_to_name'] = int_to_name
 
         self._set_data_mixed(df, drop_silently)
 
-    def _categorical_to_numeric(self, x):
-        """bla"""
-        for i in range(len(x)):
-            if self.names[i] in self._categorical_columns:
-                discrete = 5
-                x[i] = round(x[i])
-        return x
-
     def _fit(self, var_types = None):
-
         df = self.data.copy()
         # Exchange all object columns for their codes
         for key, value in self._categorical_variables.items():
             df[key] = value['categorical'].codes
 
         self._nameToVarType = var_types
+
         #Check if variable types are given
         assert self._nameToVarType != None
+
         #Check if enough
         assert len(self._nameToVarType) == len(self.fields)
 
@@ -132,7 +136,7 @@ class SPNModel(Model):
 
     def _marginalizeout(self, keep, remove):
         self._marginalized = self._marginalized.union(remove)
-        #self._spn = marginalize(self._spn, self.asindex(keep))
+        # self._spn = marginalize(self._spn, self.asindex(keep))
         return self._unbound_updater,
 
     def _conditionout(self, keep, remove):
@@ -145,13 +149,14 @@ class SPNModel(Model):
 
     def _density(self, x):
         # map all inputs from categorical to numeric values
-        #x = self._categorical_to_numeric(x)
-
         for i in range(len(x)):
             if self.names[i] in self._categorical_variables:
-                inverse_mapping = self._categorical_variables[self.names[i]]['inverse_mapping']
+                inverse_mapping = self._categorical_variables[self.names[i]]['name_to_int']
                 x[i] = inverse_mapping[x[i]]
-                #x[i] = round(x[i])
+
+            # if
+            elif self.data.dtypes[i] == int:
+                x[i] = round(x[i])
 
         # Copy the current state of the network
         input = self._density_mask.copy()
@@ -170,8 +175,16 @@ class SPNModel(Model):
         res = likelihood(self._spn, input)
         return res[0][0]
 
+    def save(model, filename):
+        """Store the model to a file at `filename`.
+
+        You can load a stored model using `Model.load()`.
+        """
+        with open(filename, 'wb') as output:
+            dill.dump(model, output, dill.HIGHEST_PROTOCOL)
+
     def _maximum(self):
-        return 3
+        return 0.1
 
     def _sample(self, random_state=RandomState(123)):
         placeholder = self._condition.copy()
@@ -182,7 +195,7 @@ class SPNModel(Model):
 
         for i in range(len(result)):
             if self.names[i] in self._categorical_variables:
-                result[i] = self._categorical_variables[self.names[i]]['categorical'][round(result[i])]
+                result[i] = self._categorical_variables[self.names[i]]['int_to_name'][round(result[i])]
         return result
 
     def copy(self, name=None):
@@ -201,7 +214,5 @@ class SPNModel(Model):
         mycopy._initial_names_to_index = self._initial_names_to_index.copy()
         return mycopy
 
-    def plot(self, filename):
-        plot_spn(self._spn,filename)
 
 
