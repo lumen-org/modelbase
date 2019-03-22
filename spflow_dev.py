@@ -11,11 +11,14 @@ from mb_data import mpg as mpg_ds
 from mb_modelbase.models_core import base
 import numpy as np
 import matplotlib.pyplot as plt
+import dill
+import pickle
 
+from scipy.optimize import minimize
 
 def spn_allbus():
     """Train and return some spn model based on the allbus data set."""
-    spn = SPNModel('spn_allbus', spn_type='spn')
+    spn = SPNModel('spn_pickled_with_dill', spn_type='spn')
     allbus = allbus_ds.mixed()
     spn.set_data(allbus, True)
     spn.fit(var_types=allbus_ds.spn_parameters())
@@ -48,13 +51,38 @@ def spn_iris():
 
 if __name__ == '__main__':
     allbus,spn = spn_allbus()
+
+    def spn_objective(x):
+        -1 * spn.density(x.tolist())
+
+    res = minimize(spn_objective,[0,0,0,0,0,0,0,0,0,0],method='Nelder-Mead',tol=1e-6)
+
+    with open('/home/leng_ch/apps/lumen/repos/fitted_models/spn_dill.mdl', 'wb') as f:
+        dill.dump(spn, f)
+
     #p1 = spn.density([0,0,0,0,0,0,0,0,0,0])
     #s = spn.sample().values.tolist()[0]
-    t = spn.data.iloc[0,:].values.tolist()
-    p = spn.density(t)
-    for i in range(1000):
-        p = spn.density(spn.sample().values.tolist()[0])
-        print(p)
+    #t = spn.data.iloc[0, :].values.tolist()
+    #p = spn.density(t)
+    #for i in range(1000):
+    #    s = spn.sample()
+    #    p = spn.density(s.values.tolist()[0])
+
+    # Was ist die Summe der Wahrscheinlichkeiten über alle Ausprägungen eines categoricals
+    #inc = spn.copy().marginalize('income')
+    #expressions =  np.unique(spn.data['income'])
+    #query = ['Female', 'West', 'No', 'Center-Right', 49.0, 4.0, 1210.0, 8.0, 3.0, 6.0]
+    #p = []
+    #for i in range(len(expressions)):
+    #    q_i = query.copy()
+    #    q_i[7] = expressions[i]
+    #    print(q_i)
+    #    p.append(inc.density(q_i))
+    #print(np.sum(p))
+
+    #with open('/tmp/test.spn', 'wb') as f:
+    #    pickle.dump(spn, f)
+
     #p = spn.density([53, 'Male', 2, 1240, 'East', 7, 5, 'No', 2, 'Center-Right'])
     #bla = 4
     #p = spn.denstiy(s)
@@ -83,6 +111,7 @@ if __name__ == '__main__':
     #
     #
     # age = spn.copy().marginalize(['age'])
+    # inc = spn.copy().marginalize(['income'])
     # x = list(range(100))
     # y = [age.density([v]) for v in x]
     # plt.plot(x,y)
