@@ -1126,7 +1126,8 @@ class Model:
             conditions.update(conditions_subset)
 
             model = self._cond_default_model = self.copy().model(where=conditions)
-        # TODO: CONTINUE HERE. make use of "model"!
+            # TODO: CONTINUE HERE. make use of "model"!
+            raise NotImplementedError()
 
         model_res = self.aggregate_model(method, opts)
 
@@ -1414,7 +1415,7 @@ class Model:
 
         You can load a stored model using `Model.load()`.
         """
-        model.save(model, filename, *args, **kwargs)
+        model.save(filename, *args, **kwargs)
 
     @staticmethod
     def load(filename):

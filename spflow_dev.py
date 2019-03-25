@@ -16,22 +16,25 @@ import pickle
 
 from scipy.optimize import minimize
 
-def spn_allbus():
+
+def spn_allbus(model_name='spn_allbus'):
     """Train and return some spn model based on the allbus data set."""
-    spn = SPNModel('spn_allbus', spn_type='spn')
+    spn = SPNModel(model_name, spn_type='spn')
     allbus = allbus_ds.mixed()
     spn.set_data(allbus, True)
     spn.fit(var_types=allbus_ds.spn_parameters())
 
     return allbus, spn
 
-def spn_iris():
+
+def spn_iris(model_name='spn_iris'):
     """Train and return some spn model based on the iris data set."""
     iris = iris_ds.mixed()
-    spn = SPNModel('spn_iris', spn_type='spn')
+    spn = SPNModel(model_name, spn_type='spn')
     spn.set_data(iris, True)
     spn.fit(var_types=iris_ds.spn_paramaters())
     return iris, spn
+
 
 #def spn_titanic():
 #    """Train and return some spn model based on the titanic data set."""
@@ -40,6 +43,7 @@ def spn_iris():
 #    spn.set_data(titanic)
 #    spn.fit(var_types=titanic_ds.spn_paramaters())
 #    return titanic, spn
+
 
 #def spn_mpg():
 #    """Train and return some spn model based on the mpg data set."""

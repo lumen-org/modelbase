@@ -668,14 +668,15 @@ def aggr_density_probability_inner(model, method, input_data):
 
     else:  # aggr_method == 'probability'
         assert (method == 'probability')
+        _probability = model.probability
+        _input_tuples = input_data.itertuples(index=False, name=None)
         if model.parallel_processing:
             with mp.Pool() as p:
-                results = p.map(model.probability, input_data.itertuples(index=False, name=None))
+                results = p.map(_probability, _input_tuples)
         else:
             # TODO: use DataFrame.apply instead? What is faster?
-            _probability = model.probability
             _append = results.append
-            for row in input_data.itertuples(index=False, name=None):
+            for row in _input_tuples:
                 _append(_probability(domains=row))
 
     assert(len(input_data) == len(results))
@@ -718,20 +719,23 @@ def aggregate_maximum_or_average(model, aggr, partial_data, split_series_dict, n
         row_id_gen = utils.linear_id_generator(prefix="_row")
         rowmodel_name = model.name + next(row_id_gen)
 
-        # TODO: I think this can be speed up: no need to recompute `i`, i is identical for all iteration of for loop
-
         def pred_max_func(row, cond_out_names=cond_out_names, operator_list=cond_out_ops,
                                    rowmodel_name=rowmodel_name, model=model):
             pairs = zip(cond_out_names, operator_list, row)
-            rowmodel = model.copy(name=rowmodel_name).condition(pairs).marginalize(keep=aggr[NAME_IDX])
+            rowmodel = model\
+                .copy(name=rowmodel_name)\
+                .condition(pairs)\
+                .marginalize(keep=aggr[NAME_IDX])
             res = rowmodel.aggregate(aggr[METHOD_IDX], opts=aggr[ARGS_IDX + 1])
             i = rowmodel.asindex(aggr[YIELDS_IDX])
             return res[i]
 
+        _input_tuples = cond_out_data.itertuples(index=False, name=None)
+
         if model.parallel_processing:
             with mp_dill.Pool() as p:
-                results = p.map(pred_max_func, cond_out_data.itertuples(index=False, name=None))
+                results = p.map(pred_max_func, _input_tuples)
         else:
-            results = [pred_max_func(row) for row in cond_out_data.itertuples(index=False, name=None)]
+            results = [pred_max_func(row) for row in _input_tuples]
 
     return cond_out_data.assign(**{aggr_id: results})

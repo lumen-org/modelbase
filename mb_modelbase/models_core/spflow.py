@@ -176,13 +176,13 @@ class SPNModel(Model):
         res = likelihood(self._spn, input)
         return res[0][0]
 
-    def save(model, filename):
+    def save(self, filename, *args, **kwargs):
         """Store the model to a file at `filename`.
 
         You can load a stored model using `Model.load()`.
         """
         with open(filename, 'wb') as output:
-            dill.dump(model, output, dill.HIGHEST_PROTOCOL)
+            dill.dump(self, output, dill.HIGHEST_PROTOCOL)
 
     def _maximum(self):
         return 0.1
