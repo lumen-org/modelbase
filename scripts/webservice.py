@@ -64,12 +64,10 @@ def add_modelbase_module():
         import spflow_dev
         # load allbus model
         _, spn_model = spflow_dev.spn_allbus()
-        # spn_model.parallel_processing = False
         mb.add(spn_model)
 
         #load iris model
         _, spn_model = spflow_dev.spn_iris()
-        # spn_model.parallel_processing = False
         mb.add(spn_model)
 
 

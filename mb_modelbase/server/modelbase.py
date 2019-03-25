@@ -151,7 +151,7 @@ class ModelBase:
         self.model_dir = model_dir
 
         self.settings = {
-            'float_format': '%.5f',
+            'float_format': '%.8f',
         }
 
         # load some initial models to play with

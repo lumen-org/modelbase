@@ -6,8 +6,12 @@ Automatically determines suitable extents of dimensions such that the
 extent covers the non-zero interval of the marginal model for that
 dimension.
 
-
 """
+
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 from mb_modelbase.models_core import domains as dm
 
@@ -63,6 +67,11 @@ def adopt_all_extents(model, how=field_to_auto_extent):
 
     for field in model.fields:
         if field['dtype'] != 'string':
-            extent = how(model.copy(), field['name'])
-            field['extent'] = dm.NumericDomain(extent)  # modifies model!
+            try:
+                extent = how(model.copy(), field['name'])
+            except:
+                logger.warning('failed to automatically determine extent of field "{}".'.format(field['name']))
+            else:
+                field['extent'] = dm.NumericDomain(extent)  # modifies model!
     return model
+

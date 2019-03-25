@@ -24,6 +24,7 @@ import pandas as pd
 import copy as cp
 import dill
 
+
 class SPNModel(Model):
     """
     Parameters:
