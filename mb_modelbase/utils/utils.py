@@ -12,7 +12,7 @@ from numpy import matrix, ix_, isfinite, linalg
 from xarray import DataArray
 import numpy as np
 import collections
-
+from sympy.combinatorics import Permutation
 
 def assert_all_psd(S, len_num):
     for s in S.reshape(-1, len_num, len_num):
@@ -366,4 +366,33 @@ def all_numeric(df):
     Returns: bool
     """
     return all(np.issubdtype(df[name].dtype, np.number) for name in df.columns)
+
+
+def alignment_permutation(target, *source):
+    """
+    Returns the list of permutations that would permute the elements in source to base.
+
+    Assumes that target and all elements of source are permutations of each other.
+
+    Args:
+        target: sequence
+        source: sequence of sequences
+
+    Returns: [Permutation]
+        The sequence of permutations
+    """
+
+    # base permutation
+    p_base = Permutation.from_sequence(target)
+
+    # perms = []
+    # for seq in source:
+    #     p_seq = Permutation.from_sequence(seq)
+    #     perms.append(p_base*~p_seq)
+
+    # to reorder seq to target we do:
+    # 1. inv seq-permutation: will permute to 'normal' ordering
+    # 2. p_base permutation: will permute from 'normal' ordering to target ordering
+    return [p_base*~Permutation.from_sequence(seq) for seq in source]
+
 

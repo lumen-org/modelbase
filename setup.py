@@ -20,6 +20,8 @@ setup(name='mb_modelbase',
           'graphviz',
           'multiprocessing_on_dill',
           'pyopenssl',
-          'spflow'
+          'spflow',
+          'pyopenssl',
+          'sympy',
       ],
       zip_safe=False)
