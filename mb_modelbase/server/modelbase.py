@@ -222,7 +222,7 @@ class ModelBase:
 
         for key, model in self.models.items():
             filepath = dir_.joinpath(model.name + ext)
-            gm.Model.save(model, str(filepath))
+            gm.Model.save_static(model, str(filepath))
 
     def add(self, model, name=None):
         """ Adds a model to the model base using the given name or the models name. """

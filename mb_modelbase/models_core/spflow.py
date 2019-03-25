@@ -155,7 +155,7 @@ class SPNModel(Model):
                 inverse_mapping = self._categorical_variables[self.names[i]]['name_to_int']
                 x[i] = inverse_mapping[x[i]]
 
-            # if
+            # if variable has integer representation round
             elif self.data.dtypes[i] == int:
                 x[i] = round(x[i])
 
