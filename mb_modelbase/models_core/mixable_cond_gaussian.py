@@ -129,9 +129,12 @@ def _maximum_cg(mus, Sinvs, Sdets, ps, num_len):
 
 
 class Normalizer():
-    """A normalizer provides methods to (de-) normalize a data vector according to a provided set of zscore normalization parameters.
+    """A normalizer provides methods to (de-) normalize a data vector according to a provided set of zscore
+    normalization parameters.
 
-    It is meant to be used as a plug-in component to a mixable conditional gaussian model, in the case that model has been learned on normalized data but is intended to be used as a model of the unnormalized data. Note that usually zscore normalization is applied in order to avoid numerical issues, and not for semantical reasons.
+    It is meant to be used as a plug-in component to a mixable conditional gaussian model, in the case that model has
+    been learned on normalized data but is intended to be used as a model of the unnormalized data. Note that usually
+    zscore normalization is applied in order to avoid numerical issues, and not for semantical reasons.
 
     See also the 'normalized_models.ipynb' in the notebook documentation directory.
     """

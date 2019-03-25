@@ -356,3 +356,14 @@ def deep_update(d, u):
         else:
             d[k] = v
     return d
+
+
+def all_numeric(df):
+    """Returns true iff all columns in `df` are of type np.numeric and False else
+
+    Ars:
+        df: pd.DataFrame
+    Returns: bool
+    """
+    return all(np.issubdtype(df[name].dtype, np.number) for name in df.columns)
+
