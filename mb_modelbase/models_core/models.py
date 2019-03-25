@@ -447,9 +447,11 @@ class Model:
         """
         default_opts = {
             'pci_graph': True,
+            'split_data': True
         }
         valid_opts = {
-            'pci_graph': [True, False]
+            'pci_graph': [True, False],
+            'split_data':[True, False]
         }
         kwargs = utils.update_opts(kwargs, default_opts, valid_opts)
 
@@ -495,7 +497,7 @@ class Model:
         """
         raise NotImplementedError("your model must implement this method")
 
-    def _set_data_mixed(self, df, silently_drop, num_names=None, cat_names=None, **kwargs):
+    def _set_data_mixed(self, df, silently_drop, split_data, num_names=None, cat_names=None, **kwargs):
         """See Model._set_data"""
 
         # split in categorical and numeric columns
@@ -513,8 +515,10 @@ class Model:
 
         # shuffle and set data frame
         df = df.sample(frac=1, random_state=42).reset_index(drop=True)
-        self.test_data, self.data = data_import_utils.split_training_test_data(df)
-
+        if split_data:
+            self.test_data, self.data = data_import_utils.split_training_test_data(df)
+        else:
+            self.data = df
         # derive and set fields
         self.fields = data_import_utils.get_discrete_fields(df, self._categoricals) + \
                       data_import_utils.get_numerical_fields(df, self._numericals)
