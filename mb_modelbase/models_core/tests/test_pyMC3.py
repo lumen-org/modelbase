@@ -28,17 +28,24 @@ import unittest
 # data = pd.DataFrame({'X': X})
 
 #testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_coal_mining_disaster_model.mdl'
-testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_coal_mining_disaster_model.mdl'
+# testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/pymc3_coal_mining_disaster_model.mdl'
+#
+# disasters = np.array([4, 5, 4, 0, 1, 4, 3, 4, 0, 6, 3, 3, 4, 0, 2, 6,
+#                             3, 3, 5, 4, 5, 3, 1, 4, 4, 1, 5, 5, 3, 4, 2, 5,
+#                             2, 2, 3, 4, 2, 1, 3, 3, 2, 1, 1, 1, 1, 3, 0, 0,
+#                             1, 0, 1, 1, 0, 0, 3, 1, 0, 3, 2, 2, 0, 1, 1, 1,
+#                             0, 1, 0, 1, 0, 0, 0, 2, 1, 0, 0, 0, 1, 1, 0, 2,
+#                             3, 3, 1, 2, 2, 1, 1, 1, 1, 2, 4, 2, 0, 0, 1, 4,
+#                             0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1])
+# years = np.arange(1851, 1962)
+# data = pd.DataFrame({'years': years, 'disasters': disasters})
 
-disasters = np.array([4, 5, 4, 0, 1, 4, 3, 4, 0, 6, 3, 3, 4, 0, 2, 6,
-                            3, 3, 5, 4, 5, 3, 1, 4, 4, 1, 5, 5, 3, 4, 2, 5,
-                            2, 2, 3, 4, 2, 1, 3, 3, 2, 1, 1, 1, 1, 3, 0, 0,
-                            1, 0, 1, 1, 0, 0, 3, 1, 0, 3, 2, 2, 0, 1, 1, 1,
-                            0, 1, 0, 1, 0, 0, 0, 2, 1, 0, 0, 0, 1, 1, 0, 2,
-                            3, 3, 1, 2, 2, 1, 1, 1, 1, 2, 4, 2, 0, 0, 1, 4,
-                            0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1])
-years = np.arange(1851, 1962)
-data = pd.DataFrame({'years': years, 'disasters': disasters})
+#testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/eight_schools_model.mdl'
+testcasemodel_path = '/home/philipp/Documents/projects/graphical_models/code/mb_data/data_models/eight_schools_model.mdl'
+
+scores = [28.39,7.94,-2.75,6.82,-0.64,0.63,18.01,12.16]
+standard_errors = [14.9,10.2,16.3,11.0,9.4,11.4,10.4,17.6]
+data = pd.DataFrame({'test_scores': scores, 'standard_errors': standard_errors})
 
 class Test_methods_on_initialized_model(unittest.TestCase):
     """
