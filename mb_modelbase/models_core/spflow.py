@@ -90,7 +90,7 @@ class SPNModel(Model):
 
         self._set_data_mixed(df, drop_silently)
 
-    def _fit(self, var_types = None):
+    def _fit(self, var_types=None):
         df = self.data.copy()
         # Exchange all object columns for their codes
         for key, value in self._categorical_variables.items():
@@ -99,10 +99,8 @@ class SPNModel(Model):
         self._nameToVarType = var_types
 
         #Check if variable types are given
-        assert self._nameToVarType != None
-
-        #Check if enough
-        assert len(self._nameToVarType) == len(self.fields)
+        if self._nameToVarType is None:
+            raise ValueError("missing argument 'var_types'")
 
         self._initial_names = self.names.copy()
         self._initial_names_count = len(self._initial_names)
@@ -122,7 +120,10 @@ class SPNModel(Model):
         self._marginalized = set()
         self._conditioned = set()
 
-        var_types = [self._nameToVarType[name] for name in self.names]
+        try:
+            var_types = [self._nameToVarType[name] for name in self.names]
+        except KeyError as err:
+            raise ValueError('missing var type information for some dimension {}.'.format(err.args[0]))
 
         if self._spn_type == 'spn':
             context = Context(parametric_types=var_types).add_domains(df.values)
