@@ -4,9 +4,9 @@ We mostly follow the google python style guide.
 
 https://github.com/google/styleguide/blob/gh-pages/pyguide.md#38-comments-and-docstrings
 
-Notable intended exceptions are:
+Notable and intended exceptions are:
  
- * use \`my_variable\` to refer to a variable in comments. This helps distinguish words that refer to variables from 
+ * use \`my_obj\` to refer to a variable, class or function in comments, i.e. use backticks This helps distinguish words that refer to variables from 
  normal words of the sentence. 
  * use numpy style argument description, which uses this form:
 ```
@@ -15,11 +15,11 @@ def foo(bar):
     
     Args:
         bar: string or sequence of strings
-            Crucial input.
+            semantic description of bar
     """
 ``` 
 
 Furthmore:
- *  Note that not all souce code is yet styled in this way.
+ *  Note that not all souce code is yet styled in this way... it's work in progress
 
 

@@ -16,6 +16,8 @@ import pickle as pickle
 import numpy as np
 import pandas as pd
 import logging
+import warnings
+from itertools import compress
 
 from mb_modelbase.models_core import base
 from mb_modelbase.models_core.base import Condition, Split, Density
@@ -714,7 +716,9 @@ class Model:
         # Data marginalization
         if self.mode == 'both' or self.mode == 'data':
             # Note: we never need to copy data, since we never change data. creating views is enough
-            self.data = self.data.loc[:, keep]
+            # Set up an adjusted keep variable that only contains names of data dimensions
+            keep_data = [name for name in keep if name in self.data.columns]
+            self.data = self.data.loc[:, keep_data]
             self.test_data = self.test_data.loc[:, keep]
             if self.mode == 'data':
                 # need to call this, since it will not be called later in this particular case
@@ -810,7 +814,9 @@ class Model:
         # TODO: if conditions is a zip: how can it be reused a 2nd and 3rd time below!??
         # condition data
         if self.mode == 'data' or self.mode == 'both':
-            self.data = data_operations.condition_data(self.data, conditions)
+            for condition in conditions:
+                if condition.name in self.data.columns.tolist():
+                    self.data = data_operations.condition_data(self.data, conditions)
             self.test_data = data_operations.condition_data(self.test_data, conditions)
 
         self._update_extents(names)
@@ -1074,6 +1080,7 @@ class Model:
             except KeyError:
                 raise ValueError("Your model does not provide the requested aggregation: '" + method + "'")
             other_res = aggr_function()
+
 
             # 4. clamp to values within domain
             # TODO bug/mistake: should we really clamp?
@@ -1838,7 +1845,15 @@ class Model:
 
         # check that all columns to select are in data
         if any((label not in self.data.columns for label in what)):
-            raise KeyError('at least on of ' + str(what) + ' is not a column label of the data.')
+            if any((label not in self.names for label in what)):
+                raise KeyError('at least one of ' + str(what) + ' is not a column label of the data.')
+            else:
+                opts = utils.update_opts({'data_category': 'training data'}, kwargs)
+                if opts['data_category'] == 'training data':
+                    warnings.warn('at least one of ' + str(what) + ' is not a column label of the data.  '
+                        'There might be latent variables among' + str(what) + 'for which no data was observed.')
+                    # Remove labels from selection that are not in the data
+                    what = list(compress(what, [element in self.data.columns for element in what]))
 
         # select data
         data = self._select_data(what, where, **kwargs)
