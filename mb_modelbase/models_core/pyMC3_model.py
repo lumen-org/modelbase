@@ -1,8 +1,4 @@
 # Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de), Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
-import os
-path = '/home/philipp/Desktop/code/modelbase'
-#path = '/home/guet_jn/Desktop/modelbase'
-os.chdir(path)
 
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.utils.data_import_utils import get_numerical_fields
@@ -163,6 +159,11 @@ if __name__ == '__main__':
     import pandas as pd
     import pymc3 as pm
     import mb_modelbase as mbase
+
+    import os
+    path = '/home/philipp/Desktop/code/modelbase'
+    # path = '/home/guet_jn/Desktop/modelbase'
+    os.chdir(path)
 
     # Generate data
     np.random.seed(2)
