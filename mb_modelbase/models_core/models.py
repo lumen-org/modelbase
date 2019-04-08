@@ -497,7 +497,7 @@ class Model:
         """
         raise NotImplementedError("your model must implement this method")
 
-    def _set_data_mixed(self, df, silently_drop, split_data, num_names=None, cat_names=None, **kwargs):
+    def _set_data_mixed(self, df, silently_drop, split_data=True, num_names=None, cat_names=None, **kwargs):
         """See Model._set_data"""
 
         # split in categorical and numeric columns
