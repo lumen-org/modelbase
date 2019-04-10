@@ -51,13 +51,6 @@ class ProbabilisticPymc3Model(Model):
             self._update_all_field_derivatives()
             self._init_history()
 
-            # Remove names and fields that are not in the samples
-            self.names = [name for name in self.names if name in self.samples.columns.values]
-            self.fields = [field for field in self.fields if field['name'] in self.samples.columns.values]
-            # Update name2idx and dim
-            self._update_name2idx_dict()
-            self.dim = len(self.fields)
-
             # Change order of sample columns so that it matches order of fields
             self.samples = self.samples[self.names]
             self.test_data = self.samples
