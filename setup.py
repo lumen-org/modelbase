@@ -25,3 +25,4 @@ setup(name='mb_modelbase',
           'sympy',
       ],
       zip_safe=False)
+

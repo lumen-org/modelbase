@@ -28,17 +28,14 @@ class ProbabilisticPymc3Model(Model):
         }
         self.parallel_processing = False
 
-
     def _set_data(self, df, drop_silently, **kwargs):
-        self._set_data_mixed(df, drop_silently)
+        self._set_data_mixed(df, drop_silently, split_data=False)
         self._update_all_field_derivatives()
         return ()
 
     def _fit(self):
         with self.model_structure:
             # Draw samples
-            #colnames = self.names
-            #self.samples = pd.DataFrame(columns=colnames)
             nr_of_samples = 500
             trace = pm.sample(nr_of_samples,chains=1,cores=1,progressbar=False)
             for varname in trace.varnames:
@@ -131,14 +128,13 @@ class ProbabilisticPymc3Model(Model):
     def copy(self, name=None):
         name = self.name if name is None else name
         mycopy = self.__class__(name, self.model_structure)
-        mycopy.data = self.data  # .copy()
+        mycopy.data = self.data.copy()
         mycopy.test_data = self.test_data.copy()
         mycopy.fields = cp.deepcopy(self.fields)
         mycopy.mode = self.mode
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples.copy()
-        #mycopy.model_structure = self.model_structure
         return mycopy
 
     def _maximum(self):
@@ -150,43 +146,5 @@ class ProbabilisticPymc3Model(Model):
         x0 = np.zeros(len(self.fields))
         maximum = sciopt.minimize(self._negdensity,x0,method='nelder-mead',options={'xtol': 1e-8, 'disp': False}).x
         return maximum
-
-
-if __name__ == '__main__':
-    from mb_modelbase.models_core.pyMC3_model import *
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import pandas as pd
-    import pymc3 as pm
-    import mb_modelbase as mbase
-
-    import os
-    path = '/home/philipp/Desktop/code/modelbase'
-    # path = '/home/guet_jn/Desktop/modelbase'
-    os.chdir(path)
-
-    # Generate data
-    np.random.seed(2)
-    size = 100
-    mu = np.random.normal(0, 1, size=size)
-    sigma = 1
-    X = np.random.normal(mu, sigma, size=size)
-    data = pd.DataFrame({'X': X})
-
-
-    # Specify model
-    basic_model = pm.Model()
-    with basic_model:
-        sigma = 1
-        mu = pm.Normal('mu', mu=0, sd=sigma)
-        X = pm.Normal('X', mu=mu, sd=sigma, observed=data['X'])
-
-        nr_of_samples = 10000
-        trace = pm.sample(nr_of_samples, tune=1000, cores=4)
-
-    modelname = 'my_pymc3_model'
-    m = ProbabilisticPymc3Model(modelname,basic_model)
-    m.fit(data)
-    Model.save(m, '../mb_data/data_models/{}.mdl'.format(modelname))
 
 
