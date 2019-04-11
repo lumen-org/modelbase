@@ -32,8 +32,8 @@ class Test(unittest.TestCase):
         Test if samples were drawn for independent variables. There should be no samples for these variables,
         which automatically ensures that no marginal distribution and no density for those variables can be computed.
         """
-        self.assertTrue(len(mymod.samples['X1']) == 0, "There should be no samples for independent variables: X1")
-        self.assertTrue(len(mymod.samples['X2']) == 0, "There should be no samples for independent variables: X2")
+        self.assertTrue(mymod.samples['X1'].isnull().all(), "There should be no samples for independent variables: X1")
+        self.assertTrue(mymod.samples['X2'].isnull().all(), "There should be no samples for independent variables: X2")
 
     def test_prediction_dependent(self):
         """
