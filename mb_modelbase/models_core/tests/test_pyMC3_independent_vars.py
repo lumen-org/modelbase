@@ -24,8 +24,8 @@ class Test(unittest.TestCase):
         """
         Test if test data for independent variables exists
         """
-        self.assertTrue(len(mymod.data['X1']) == 0, "Test data for independent variables should not exist:X1")
-        self.assertTrue(len(mymod.data['X2']) == 0, "Test data for independent variables should not exist:X2")
+        self.assertTrue(mymod.test_data['X1'].isnull().all(), "Test data for independent variables should not exist:X1")
+        self.assertTrue(mymod.test_data['X2'].isnull().all(), "Test data for independent variables should not exist:X2")
 
     def test_samples(self):
         """
