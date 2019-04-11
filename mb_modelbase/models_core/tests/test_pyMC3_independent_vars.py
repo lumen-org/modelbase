@@ -39,10 +39,6 @@ class Test(unittest.TestCase):
         """
         Test if predictions of dependent variables work as intended
         """
-        # I imagine that for prediction in the frontend, first all other variables than the ones in the visualization are marginalized out.
-        # Then, for each interval of the variable to condition on, the target variable is conditioned on that interval and the maximum density is returned
-        # Does the predict-method already do the marginalization and conditioning?? maybe this is specified by where and splitby
-        # Ich nehme jetzt mal an, dass das marginalisieren automatisch erledigt wird, und marginalisiere daher nicht vorher
         self.assertTrue(len(mymod.predict(mbase.models_core.base.Aggregation('Y'),
                                           splitby=mbase.models_core.base.Split('X1', 'equiinterval'))) > 0,
                         'It should be possible to predict a dependent variable conditioned on an independent one')
@@ -54,10 +50,12 @@ class Test(unittest.TestCase):
         """
         Test if predictions of independent variables work as intended
         """
-        self.assertTrue(len(mymod.predict(mbase.models_core.base.Aggregation('X1'), splitby=mbase.models_core.base.Split('Y', 'equiinterval'))) == 0,
-                        'It should not be possible to predict an independent variable conditioned on a dependent one')
-        self.assertTrue(len(mymod.predict(mbase.models_core.base.Aggregation('X1'), splitby=mbase.models_core.base.Split('X2', 'equiinterval'))) == 0,
-                        'It should not be possible to predict an independent variable conditioned on another independent variable')
+        self.assertTrue(mymod.predict(mbase.models_core.base.Aggregation('X1'),
+                                      splitby=mbase.models_core.base.Split('Y', 'equiinterval')).isnull().all()[0],
+                        'There should be no predictions for an independent variable conditioned on a dependent one')
+        self.assertTrue(mymod.predict(mbase.models_core.base.Aggregation('X1'),
+                                      splitby=mbase.models_core.base.Split('X2', 'equiinterval')).isnull().all()[0],
+                        'There should be no predictions for an independent variable conditioned on a dependent one')
 
     def test_conditioning(self):
         # How is the feature implemented that sets an arbitrary interval for a variable?
