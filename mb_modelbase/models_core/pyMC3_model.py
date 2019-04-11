@@ -37,6 +37,8 @@ class ProbabilisticPymc3Model(Model):
         with self.model_structure:
             # Draw samples
             nr_of_samples = 500
+            for var in self.fields:
+                self.samples[var['name']] = np.full(nr_of_samples,np.NaN)
             trace = pm.sample(nr_of_samples,chains=1,cores=1,progressbar=False)
             for varname in trace.varnames:
                 self.samples[varname] = trace[varname]
