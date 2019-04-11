@@ -3,19 +3,10 @@ import pandas as pd
 import pymc3 as pm
 import mb_modelbase as mbase
 import unittest
-from mb_modelbase.models_core.base import Density, Split
 
 
-# Generate data and load model
-np.random.seed(123)
-alpha, sigma = 1, 1
-beta_0 = 1
-beta_1 = 2.5
-size = 100
-X1 = np.random.randn(size)
-X2 = np.random.randn(size) * 0.2
-Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
-data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
+
+# load model
 testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model_independent_vars_fitted.mdl'
 mymod = mbase.Model.load(testcasemodel_path)
 
@@ -44,12 +35,25 @@ class Test(unittest.TestCase):
         self.assertTrue(len(mymod.samples['X1']) == 0, "There should be no samples for independent variables: X1")
         self.assertTrue(len(mymod.samples['X2']) == 0, "There should be no samples for independent variables: X2")
 
-    def test_prediction(self):
+    def test_prediction_dependent(self):
         """
-        Test if predictions work as intended
+        Test if predictions of dependent variables work as intended
         """
-        self.assertIsNone(mymod.predict(Density('X1', 'Y'), splitby=Split('Y', 'equiinterval')), 'It should not be possible to predict an independent variable')
-        self.assertIsNone(mymod.predict(Density('X1', 'Y'), splitby=Split('X1', 'equiinterval')), 'It should be possible to predict a dependent variable')
+        # I imagine that for prediction in the frontend, first all other variables than the ones in the visualization are marginalized out.
+        # Then, for each interval of the variable to condition on, the target variable is conditioned on that interval and the maximum density is returned
+        # Does the predict-method already do the marginalization and conditioning?? maybe this is specified by where and splitby
+        # Ich nehme jetzt mal an, dass das marginalisieren automatisch erledigt wird, und marginalisiere daher nicht vorher
+        self.assertTrue(len(mymod.predict(mbase.models_core.base.Density('Y'), splitby=mbase.models_core.base.Split('X1', 'equiinterval'))) > 0, 'It should be possible to predict a dependent variable conditioned on an independent one')
+        self.assertTrue(len(mymod.predict(mbase.models_core.base.Density('Y'), splitby=mbase.models_core.base.Split('alpha', 'equiinterval'))) > 0, 'It should be possible to predict a dependent variable conditioned on another dependent variable')
+
+    def test_prediction_independent(self):
+        """
+        Test if predictions of independent variables work as intended
+        """
+        self.assertTrue(len(mymod.predict(mbase.models_core.base.Density('X1'), splitby=mbase.models_core.base.Split('Y', 'equiinterval'))) == 0,
+                        'It should not be possible to predict an independent variable conditioned on a dependent one')
+        self.assertTrue(len(mymod.predict(mbase.models_core.base.Density('X1'), splitby=mbase.models_core.base.Split('X2', 'equiinterval'))) == 0,
+                        'It should not be possible to predict an independent variable conditioned on another independent variable')
 
     def test_conditioning(self):
         # How is the feature implemented that sets an arbitrary interval for a variable?
