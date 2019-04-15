@@ -39,6 +39,11 @@ class ProbabilisticPymc3Model(Model):
             nr_of_samples = 500
             trace = pm.sample(nr_of_samples,chains=1,cores=1,progressbar=False)
             for varname in trace.varnames:
+                # if trace[varname].shape[1] == 1:
+                #   self.samples[varname] = trace[varname]
+                # else:
+                #   for subvarname in 1:trace[varname].shape[1]:
+                #       self.samples[varname+str(subvarname)] = [i[subvarname] for i in trace[varname]]
                 self.samples[varname] = trace[varname]
             ppc = pm.sample_ppc(trace)
             for varname in self.model_structure.observed_RVs:
