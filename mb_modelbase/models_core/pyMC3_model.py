@@ -7,6 +7,7 @@ from mb_modelbase.models_core import data_aggregation as data_aggr
 import pymc3 as pm
 import numpy as np
 import pandas as pd
+import math
 from mb_modelbase.models_core.empirical_model import EmpiricalModel
 from mb_modelbase.models_core import data_operations as data_op
 from sklearn.neighbors.kde import KernelDensity
@@ -93,14 +94,18 @@ class ProbabilisticPymc3Model(Model):
         return ()
 
     def _density(self, x):
-        if not self.samples.empty:
+        if self.samples.empty:
+            raise ValueError("There are no samples in the model")
+        elif all([math.isnan(i) for i in self.samples.values]):
+            return np.NaN
+        else:
             X = self.samples.values
             kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(X)
             x = np.reshape(x,(1,len(x)))
             logdensity = kde.score_samples(x)[0]
             return np.exp(logdensity).item()
-        else:
-            raise ValueError("There are no samples in the model")
+
+
 
     def _negdensity(self,x):
         return -self._density(x)
