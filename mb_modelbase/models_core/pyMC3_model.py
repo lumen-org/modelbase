@@ -20,7 +20,7 @@ class ProbabilisticPymc3Model(Model):
     A Bayesian model built by the PyMC3 library is treated here.
     """
 
-    def __init__(self, name, model_structure):
+    def __init__(self, name, model_structure, shared_vars=None):
         super().__init__(name)
         self.model_structure = model_structure
         self.samples = pd.DataFrame()
@@ -28,10 +28,15 @@ class ProbabilisticPymc3Model(Model):
             'maximum': self._maximum
         }
         self.parallel_processing = False
+        self.shared_vars = shared_vars
 
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently, split_data=False)
         self._update_all_field_derivatives()
+        # Set values for independent, shared variables
+        #for name in self.shared_vars.keys:
+        #   if name in df.cols:
+        #        self.shared_vars[name].set_value(df[name].values)
         return ()
 
     def _fit(self):
@@ -43,6 +48,13 @@ class ProbabilisticPymc3Model(Model):
             trace = pm.sample(nr_of_samples,chains=1,cores=1,progressbar=False)
             for varname in trace.varnames:
                 self.samples[varname] = trace[varname]
+            # Generate samples for independent variables
+            for key,val in self.shared_vars.items():
+                lower_bound = self.byname(key)['extent'].value()[0]
+                upper_bound = self.byname(key)['extent'].value()[1]
+                generated_samples = np.linspace(lower_bound, upper_bound, num=nr_of_samples)
+                self.shared_vars[key].set_value(generated_samples)
+                self.samples[key] = generated_samples
             ppc = pm.sample_ppc(trace)
             for varname in self.model_structure.observed_RVs:
                 # each sample has 100 draws in the ppc, so take only the first one for each sample
