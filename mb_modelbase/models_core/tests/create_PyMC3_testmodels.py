@@ -3,6 +3,7 @@ import pandas as pd
 import pymc3 as pm
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
+import theano
 import matplotlib.pyplot as plt
 from pylab import hist
 
@@ -82,6 +83,8 @@ X1 = np.random.randn(size)
 X2 = np.random.randn(size) * 0.2
 Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
 data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
+X1 = theano.shared(X1)
+X2 = theano.shared(X2)
 
 basic_model = pm.Model()
 
@@ -93,12 +96,12 @@ with basic_model:
     sigma = pm.HalfNormal('sigma', sd=1)
 
     # Expected value of outcome
-    mu = alpha + beta_0 * data['X1'] + beta_1 * data['X2']
+    mu = alpha + beta_0 * X1 + beta_1 * X2
 
     # Likelihood (sampling distribution) of observations
     Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
 
-m = ProbabilisticPymc3Model(modelname, basic_model)
+m = ProbabilisticPymc3Model(modelname, basic_model, {'X1': X1, 'X2': X2})
 m.fit(data)
 Model.save(m, testcasemodel_path + modelname + '.mdl')
 ######################################
