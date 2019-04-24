@@ -33,10 +33,6 @@ class ProbabilisticPymc3Model(Model):
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently, split_data=False)
         self._update_all_field_derivatives()
-        # Set values for independent, shared variables
-        #for name in self.shared_vars.keys:
-        #   if name in df.cols:
-        #        self.shared_vars[name].set_value(df[name].values)
         return ()
 
     def _fit(self):
@@ -114,8 +110,8 @@ class ProbabilisticPymc3Model(Model):
     def _density(self, x):
         if self.samples.empty:
             raise ValueError("There are no samples in the model")
-        elif all([math.isnan(i) for i in self.samples.values]):
-            return np.NaN
+        #elif all([math.isnan(i) for i in self.samples.values]):
+        #    return np.NaN
         else:
             X = self.samples.values
             kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(X)
