@@ -58,7 +58,7 @@ class ProbabilisticPymc3Model(Model):
             ppc = pm.sample_ppc(trace)
             for varname in self.model_structure.observed_RVs:
                 # each sample has 100 draws in the ppc, so take only the first one for each sample
-                self.samples[str(varname)] = [samples[0] for samples in np.asarray(ppc[str(varname)])]
+                self.samples[str(varname)] = ppc[str(varname)][0]
 
 
             # Add parameters to fields
