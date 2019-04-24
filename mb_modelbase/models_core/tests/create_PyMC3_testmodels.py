@@ -300,8 +300,6 @@ with pm.Model() as normal_normal_model:
     theta = pm.Normal('theta', mu=mu, sd=tau, shape=8)
     test_scores = pm.Normal('test_scores',mu=theta,sd=data['standard_errors'], observed=data['test_scores'])
 
-    trace = pm.sample(1000,chains=1,cores=1)
-    simulated_scores = np.asarray(pm.sample_ppc(trace)[str("test_scores")])
 m = ProbabilisticPymc3Model(modelname, normal_normal_model)
-# m.fit(data)
+#m.fit(data)
 Model.save(m, testcasemodel_path + modelname)
