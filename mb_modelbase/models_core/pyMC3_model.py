@@ -43,7 +43,12 @@ class ProbabilisticPymc3Model(Model):
                 self.samples[var['name']] = np.full(nr_of_samples,np.NaN)
             trace = pm.sample(nr_of_samples,chains=1,cores=1,progressbar=False)
             for varname in trace.varnames:
-                self.samples[varname] = trace[varname]
+                # check if trace consists of more than one variable
+                if len(trace[varname].shape) == 2:
+                    for i in range(trace[varname].shape[1]):
+                        self.samples[varname+'_'+str(i)] = [var[i] for var in trace[varname]]
+                else:
+                    self.samples[varname] = trace[varname]
             # Generate samples for independent variables
             for key,val in self.shared_vars.items():
                 lower_bound = self.byname(key)['extent'].value()[0]
