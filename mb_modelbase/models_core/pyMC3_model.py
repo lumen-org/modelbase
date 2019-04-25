@@ -18,6 +18,15 @@ import copy as cp
 class ProbabilisticPymc3Model(Model):
     """
     A Bayesian model built by the PyMC3 library is treated here.
+
+        Parameters:
+
+        model_structure : a PyMC3 Model() instance
+
+        shared_vars : dictionary of theano shared variables
+
+            If the model has independent variables, they have to be encoded as theano shared variables and provided
+            in this dictionary, additional to the general dataframe containing all observed data
     """
 
     def __init__(self, name, model_structure, shared_vars=None):
