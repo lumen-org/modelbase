@@ -74,7 +74,7 @@ class ProbabilisticPymc3Model(Model):
 
 
             # Add parameters to fields
-            self.fields = self.fields + get_numerical_fields(self.samples, trace.varnames)
+            self.fields = self.fields + get_numerical_fields(self.samples, self.samples.columns.values)
             self._update_all_field_derivatives()
             self._init_history()
 
