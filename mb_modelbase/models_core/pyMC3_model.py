@@ -59,7 +59,7 @@ class ProbabilisticPymc3Model(Model):
                 else:
                     self.samples[varname] = trace[varname]
             # Generate samples for independent variables
-            if self.shared_vars is not None:
+            if hasattr(self, 'shared_vars'):
                 for key, val in self.shared_vars.items():
                     lower_bound = self.byname(key)['extent'].value()[0]
                     upper_bound = self.byname(key)['extent'].value()[1]
