@@ -103,7 +103,7 @@ class ProbabilisticPymc3Model(Model):
         for varname in remove:
             if varname in list(self.samples.columns):
                 self.samples = self.samples.drop(varname,axis=1)
-            if self.shared_vars is not None:
+            if hasattr(self.'shared_vars'):
                 if varname in self.shared_vars:
                     del self.shared_vars[varname]
         return ()
