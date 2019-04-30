@@ -44,6 +44,7 @@ class ProbabilisticPymc3Model(Model):
         self._update_all_field_derivatives()
         return ()
 
+    @property
     def _fit(self):
         with self.model_structure:
             # Draw samples
@@ -59,7 +60,7 @@ class ProbabilisticPymc3Model(Model):
                 else:
                     self.samples[varname] = trace[varname]
             # Generate samples for independent variables
-            if hasattr(self, 'shared_vars'):
+            if self.shared_vars is not None:
                 for key, val in self.shared_vars.items():
                     lower_bound = self.byname(key)['extent'].value()[0]
                     upper_bound = self.byname(key)['extent'].value()[1]
@@ -103,10 +104,9 @@ class ProbabilisticPymc3Model(Model):
         for varname in remove:
             if varname in list(self.samples.columns):
                 self.samples = self.samples.drop(varname,axis=1)
-            if hasattr(self, 'shared_vars'):
-                if self.shared_vars is not None:
-                    if varname in self.shared_vars:
-                        del self.shared_vars[varname]
+            if self.shared_vars is not None:
+                if varname in self.shared_vars:
+                    del self.shared_vars[varname]
         return ()
 
     def _conditionout(self, keep, remove):
