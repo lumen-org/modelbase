@@ -44,7 +44,6 @@ class ProbabilisticPymc3Model(Model):
         self._update_all_field_derivatives()
         return ()
 
-    @property
     def _fit(self):
         with self.model_structure:
             # Draw samples
