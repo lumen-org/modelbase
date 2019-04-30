@@ -4,10 +4,12 @@ import pymc3 as pm
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 import theano
+import pickle
 import matplotlib.pyplot as plt
 from pylab import hist
 
 testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/'
+testcasedata_path = '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/'
 
 ######################################
 # pymc3_testcase_model
@@ -73,42 +75,44 @@ testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/'
 # pymc3_getting_started_model_independent vars
 ###############################################
 
-# modelname = 'pymc3_getting_started_model_independent_vars_fitted'
-# np.random.seed(123)
-# alpha, sigma = 1, 1
-# beta_0 = 1
-# beta_1 = 2.5
-# size = 100
-# X1 = np.random.randn(size)
-# X2 = np.random.randn(size) * 0.2
-# Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
-# data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
-# X1 = theano.shared(X1)
-# X2 = theano.shared(X2)
-#
-# basic_model = pm.Model()
-#
-# with basic_model:
-#     # Priors for unknown model parameters
-#     alpha = pm.Normal('alpha', mu=0, sd=10)
-#     beta_0 = pm.Normal('beta_0', mu=0, sd=10)
-#     beta_1 = pm.Normal('beta_1', mu=0, sd=10)
-#     sigma = pm.HalfNormal('sigma', sd=1)
-#
-#     # Expected value of outcome
-#     mu = alpha + beta_0 * X1 + beta_1 * X2
-#
-#     # Likelihood (sampling distribution) of observations
-#     Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
-#
-# m = ProbabilisticPymc3Model(modelname, basic_model, {'X1': X1, 'X2': X2})
-# m.fit(data)
-# Model.save(m, testcasemodel_path + modelname + '.mdl')
+modelname = 'pymc3_getting_started_model_independent_vars'
+np.random.seed(123)
+alpha, sigma = 1, 1
+beta_0 = 1
+beta_1 = 2.5
+size = 100
+X1 = np.random.randn(size)
+X2 = np.random.randn(size) * 0.2
+Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
+data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
+X1 = theano.shared(X1)
+X2 = theano.shared(X2)
+
+basic_model = pm.Model()
+
+with basic_model:
+    # Priors for unknown model parameters
+    alpha = pm.Normal('alpha', mu=0, sd=10)
+    beta_0 = pm.Normal('beta_0', mu=0, sd=10)
+    beta_1 = pm.Normal('beta_1', mu=0, sd=10)
+    sigma = pm.HalfNormal('sigma', sd=1)
+
+    # Expected value of outcome
+    mu = alpha + beta_0 * X1 + beta_1 * X2
+
+    # Likelihood (sampling distribution) of observations
+    Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
+
+m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1, 'X2': X2})
+#m.fit(data)
+Model.save(m, testcasemodel_path + modelname + '.mdl')
+data.to_csv(testcasedata_path + modelname + '.csv')
+#pickle.dump([X1, X2], open(testcasedata_path + modelname + '_shared_vars.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
 ######################################
 # pymc3_coal_mining_disaster_model
 ######################################
 
-# modelname = 'pymc3_coal_mining_disaster_model_fitted'
+# modelname = 'pymc3_coal_mining_disaster_model'
 #
 # disasters = np.array([4, 5, 4, 0, 1, 4, 3, 4, 0, 6, 3, 3, 4, 0, 2, 6,
 #                             3, 3, 5, 4, 5, 3, 1, 4, 4, 1, 5, 5, 3, 4, 2, 5,
@@ -120,33 +124,35 @@ testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/'
 # years = np.arange(1851, 1962)
 #
 # data = pd.DataFrame({'years': years, 'disasters': disasters})
+# years = theano.shared(years)
 # with pm.Model() as disaster_model:
 #
-#     switchpoint = pm.DiscreteUniform('switchpoint', lower=years.min(), upper=years.max(), testval=1900)
+#     switchpoint = pm.DiscreteUniform('switchpoint', lower=years.get_value().min(), upper=years.get_value().max(), testval=1900)
 #
 #     # Priors for pre- and post-switch rates number of disasters
 #     early_rate = pm.Exponential('early_rate', 1)
 #     late_rate = pm.Exponential('late_rate', 1)
 #
 #     # Allocate appropriate Poisson rates to years before and after current
-#     rate = pm.math.switch(switchpoint >= years, early_rate, late_rate)
+#     rate = pm.math.switch(switchpoint >= years.get_value(), early_rate, late_rate)
 #
 #     disasters = pm.Poisson('disasters', rate, observed=data['disasters'])
 #     #years = pm.Normal('years', mu=data['years'], sd=0.1, observed=data['years'])
 #
-# m = ProbabilisticPymc3Model(modelname, disaster_model)
-# m.fit(data)
+# m = ProbabilisticPymc3Model(modelname, disaster_model,shared_vars={'years':years})
+# #m.fit(data)
 # Model.save(m, testcasemodel_path + modelname + '.mdl')
 
 ######################################
 # eight_schools_model
 ######################################
 
-# modelname = 'eight_schools_model_fitted'
+# modelname = 'eight_schools_model'
 #
 # scores = [28.39,7.94,-2.75,6.82,-0.64,0.63,18.01,12.16]
 # standard_errors = [14.9,10.2,16.3,11.0,9.4,11.4,10.4,17.6]
 # data = pd.DataFrame({'test_scores': scores, 'standard_errors': standard_errors})
+# standard_errors = theano.shared(standard_errors)
 #
 # with pm.Model() as normal_normal_model:
 #     tau = pm.Uniform('tau',lower=0,upper=10)
@@ -160,10 +166,11 @@ testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/'
 #     theta_7 = pm.Normal('theta_7', mu=mu, sd=tau)
 #     theta_8 = pm.Normal('theta_8', mu=mu, sd=tau)
 #
-#     test_scores = pm.Normal('test_scores',mu=[theta_1,theta_2,theta_3,theta_4,theta_5,theta_6,theta_7,theta_8],sd=data['standard_errors'], observed=data['test_scores'])
-#
-#     trace = pm.sample(1000,chains=1,cores=1)
-#     simulated_scores = np.asarray(pm.sample_ppc(trace)[str("test_scores")])
+#     test_scores = pm.Normal('test_scores', mu=[theta_1, theta_2, theta_3, theta_4, theta_5, theta_6, theta_7, theta_8],
+#                             sd=standard_errors.get_value(), observed=data['test_scores'])
+
+#    trace = pm.sample(1000,chains=1,cores=1)
+#    simulated_scores = np.asarray(pm.sample_ppc(trace)[str("test_scores")])
 #
 # # Compute test statistics
 # disc_mean = [np.mean(simvals) for simvals in simulated_scores]
@@ -186,9 +193,9 @@ testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/'
 # hist(disc_std,bins=15,edgecolor='black',color='grey')
 # plt.title('standard deviation')
 
-# m = ProbabilisticPymc3Model(modelname, normal_normal_model)
-# m.fit(data)
-# Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+# m = ProbabilisticPymc3Model(modelname, normal_normal_model, shared_vars={'standard_errors': standard_errors})
+# # m.fit(data)
+# Model.save(m, testcasemodel_path + modelname + '.mdl')
 
 ######################################
 # more_than_eight_schools_model
@@ -288,18 +295,18 @@ testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/'
 # eight_schools_model_shape
 ######################################
 
-modelname = 'eight_schools_model_shape'
-
-scores = [28.39,7.94,-2.75,6.82,-0.64,0.63,18.01,12.16]
-standard_errors = [14.9,10.2,16.3,11.0,9.4,11.4,10.4,17.6]
-data = pd.DataFrame({'test_scores': scores, 'standard_errors': standard_errors})
-
-with pm.Model() as normal_normal_model:
-    tau = pm.Uniform('tau',lower=0,upper=10)
-    mu = pm.Uniform('mu',lower=0,upper=10)
-    theta = pm.Normal('theta', mu=mu, sd=tau, shape=8)
-    test_scores = pm.Normal('test_scores',mu=theta,sd=data['standard_errors'], observed=data['test_scores'])
-
-m = ProbabilisticPymc3Model(modelname, normal_normal_model)
-#m.fit(data)
-Model.save(m, testcasemodel_path + modelname)
+# modelname = 'eight_schools_model_shape'
+#
+# scores = [28.39,7.94,-2.75,6.82,-0.64,0.63,18.01,12.16]
+# standard_errors = [14.9,10.2,16.3,11.0,9.4,11.4,10.4,17.6]
+# data = pd.DataFrame({'test_scores': scores, 'standard_errors': standard_errors})
+#
+# with pm.Model() as normal_normal_model:
+#     tau = pm.Uniform('tau',lower=0,upper=10)
+#     mu = pm.Uniform('mu',lower=0,upper=10)
+#     theta = pm.Normal('theta', mu=mu, sd=tau, shape=8)
+#     test_scores = pm.Normal('test_scores',mu=theta,sd=data['standard_errors'], observed=data['test_scores'])
+#
+# m = ProbabilisticPymc3Model(modelname, normal_normal_model)
+# #m.fit(data)
+# Model.save(m, testcasemodel_path + modelname)
