@@ -83,7 +83,7 @@ These function help to get them in a uniform way internally: sequences of names.
 """
 
 
-def Field(name, domain, extent, dtype='numerical'):
+def Field(name, domain, extent, independent, dtype='numerical'):
     """ A factory for 'Field'-dicts.
 
     Fields represent the dimensions, random variables or attributes of models.
@@ -92,9 +92,11 @@ def Field(name, domain, extent, dtype='numerical'):
         'name': Same as the argument to this function.
         'domain': Same as the argument to this function.
         'extent': Same as the argument to this function.
+        'independent' : Same as the argument to this function.
         'dtype': Same as the argument to this function.
         'default_value': See `Model`.
         'default_subset': See `Model`.
+
 
     Args:
         name : string
@@ -104,8 +106,11 @@ def Field(name, domain, extent, dtype='numerical'):
         extent : `dm.Domain`
             The extent of the field. May not be unbounded. The extent of the field that will be used as a fallback
             for domain if domain is unbounded but a value for domain is required
+        independent : [True, False]
+            Describes if the according variable is an independent variable
         dtype : ['numerical', 'string'] , optional.
             A string identifier of the data type of this field.
+
 
     Returns : dict
         The constructed 'field dictionary'.
@@ -115,7 +120,7 @@ def Field(name, domain, extent, dtype='numerical'):
     if dtype not in ['numerical', 'string']:
         raise ValueError("dtype must be 'string' or 'numerical'")
     field = {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype, 'hidden': False, 'default_value': None,
-             'default_subset': None}
+             'default_subset': None, 'independent': independent}
     return field
 
 
