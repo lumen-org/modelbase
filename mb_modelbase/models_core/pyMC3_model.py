@@ -87,15 +87,21 @@ class ProbabilisticPymc3Model(Model):
                 for varname in self.model_structure.observed_RVs:
                     self.samples[str(varname)] = [samples[0] for samples in ppc[str(varname)]]
 
+        # Add parameters to fields
+        self.fields = self.fields + get_numerical_fields(self.samples, trace.varnames)
+        self._update_all_field_derivatives()
+        self._init_history()
 
-            # Add parameters to fields
-            self.fields = self.fields + get_numerical_fields(self.samples, trace.varnames)
-            self._update_all_field_derivatives()
-            self._init_history()
+        # Change order of sample columns so that it matches order of fields
+        self.samples = self.samples[self.names]
+        self.test_data = self.samples
 
-            # Change order of sample columns so that it matches order of fields
-            self.samples = self.samples[self.names]
-            self.test_data = self.samples
+        # Mark variables as independent. Independent variables are variables that appear in the data but
+        # not in the observed random variables of the model
+        for field in self.fields:
+            if field['name'] in self.data.columns and \
+                    field['name'] not in [str(var) for var in self.model_structure.observed_RVs]:
+                field['independent'] = True
         return ()
 
     def _marginalizeout(self, keep, remove):
