@@ -50,7 +50,7 @@ class ProbabilisticPymc3Model(Model):
             nr_of_samples = 500
             for var in self.fields:
                 self.samples[var['name']] = np.full(nr_of_samples,np.NaN)
-            trace = pm.sample(nr_of_samples,chains=1,cores=1,progressbar=False)
+            trace = pm.sample(nr_of_samples, chains=1, cores=1, progressbar=False)
             for varname in trace.varnames:
                 # check if trace consists of more than one variable
                 if len(trace[varname].shape) == 2:
@@ -80,7 +80,12 @@ class ProbabilisticPymc3Model(Model):
                     ppc = pm.sample_ppc(trace)
                     for varname in self.model_structure.observed_RVs:
                         self.samples[str(varname)] = [samples[0] for samples in ppc[str(varname)]]
-
+            else:
+                # when no shared vars are given, data and samples do not have the same length. In this case, the first
+                # point of each sequence is taken as new sample point
+                ppc = pm.sample_ppc(trace)
+                for varname in self.model_structure.observed_RVs:
+                    self.samples[str(varname)] = [samples[0] for samples in ppc[str(varname)]]
 
 
             # Add parameters to fields
