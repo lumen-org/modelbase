@@ -112,39 +112,39 @@ data.to_csv(testcasedata_path + modelname + '.csv', index=False)
 # pymc3_coal_mining_disaster_model
 ######################################
 
-# modelname = 'pymc3_coal_mining_disaster_model'
-#
-# disasters = np.array([4, 5, 4, 0, 1, 4, 3, 4, 0, 6, 3, 3, 4, 0, 2, 6,
-#                             3, 3, 5, 4, 5, 3, 1, 4, 4, 1, 5, 5, 3, 4, 2, 5,
-#                             2, 2, 3, 4, 2, 1, 3, 3, 2, 1, 1, 1, 1, 3, 0, 0,
-#                             1, 0, 1, 1, 0, 0, 3, 1, 0, 3, 2, 2, 0, 1, 1, 1,
-#                             0, 1, 0, 1, 0, 0, 0, 2, 1, 0, 0, 0, 1, 1, 0, 2,
-#                             3, 3, 1, 2, 2, 1, 1, 1, 1, 2, 4, 2, 0, 0, 1, 4,
-#                             0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1])
-# years = np.arange(1851, 1962)
-#
-# data = pd.DataFrame({'years': years, 'disasters': disasters})
-# years = theano.shared(years)
-# with pm.Model() as disaster_model:
-#
-#     switchpoint = pm.DiscreteUniform('switchpoint', lower=years.get_value().min(), upper=years.get_value().max(),
-#     testval=1900)
-#
-#     # Priors for pre- and post-switch rates number of disasters
-#     early_rate = pm.Exponential('early_rate', 1)
-#     late_rate = pm.Exponential('late_rate', 1)
-#
-#     # Allocate appropriate Poisson rates to years before and after current
-#     rate = pm.math.switch(switchpoint >= years.get_value(), early_rate, late_rate)
-#
-#     disasters = pm.Poisson('disasters', rate, observed=data['disasters'])
-#     #years = pm.Normal('years', mu=data['years'], sd=0.1, observed=data['years'])
-#
-# m = ProbabilisticPymc3Model(modelname, disaster_model,shared_vars={'years':years})
-# Model.save(m, testcasemodel_path + modelname + '.mdl')
-# m = ProbabilisticPymc3Model(modelname + '_fitted', disaster_model,shared_vars={'years':years})
-# m.fit(data)
-# Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+modelname = 'pymc3_coal_mining_disaster_model'
+
+disasters = np.array([4, 5, 4, 0, 1, 4, 3, 4, 0, 6, 3, 3, 4, 0, 2, 6,
+                            3, 3, 5, 4, 5, 3, 1, 4, 4, 1, 5, 5, 3, 4, 2, 5,
+                            2, 2, 3, 4, 2, 1, 3, 3, 2, 1, 1, 1, 1, 3, 0, 0,
+                            1, 0, 1, 1, 0, 0, 3, 1, 0, 3, 2, 2, 0, 1, 1, 1,
+                            0, 1, 0, 1, 0, 0, 0, 2, 1, 0, 0, 0, 1, 1, 0, 2,
+                            3, 3, 1, 2, 2, 1, 1, 1, 1, 2, 4, 2, 0, 0, 1, 4,
+                            0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1])
+years = np.arange(1851, 1962)
+
+data = pd.DataFrame({'years': years, 'disasters': disasters})
+years = theano.shared(years)
+with pm.Model() as disaster_model:
+
+    switchpoint = pm.DiscreteUniform('switchpoint', lower=years.get_value().min(), upper=years.get_value().max(),
+    testval=1900)
+
+    # Priors for pre- and post-switch rates number of disasters
+    early_rate = pm.Exponential('early_rate', 1.0)
+    late_rate = pm.Exponential('late_rate', 1.0)
+
+    # Allocate appropriate Poisson rates to years before and after current
+    rate = pm.math.switch(switchpoint >= years.get_value(), early_rate, late_rate)
+
+    disasters = pm.Poisson('disasters', rate, observed=data['disasters'])
+    #years = pm.Normal('years', mu=data['years'], sd=0.1, observed=data['years'])
+
+m = ProbabilisticPymc3Model(modelname, disaster_model,shared_vars={'years':years})
+Model.save(m, testcasemodel_path + modelname + '.mdl')
+m = ProbabilisticPymc3Model(modelname + '_fitted', disaster_model,shared_vars={'years':years})
+m.fit(data)
+Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 ######################################
 # eight_schools_model
 ######################################
