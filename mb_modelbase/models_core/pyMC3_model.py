@@ -67,7 +67,7 @@ class ProbabilisticPymc3Model(Model):
                         generated_samples = np.linspace(lower_bound, upper_bound, num=nr_of_samples)
                         # If the samples have another data type than the original data, problems can arise. Therefore,
                         # data types of the new samples are changed to the dtypes of the original data here
-                        if str(generated_samples.dtype) != self.shared_vars['years'].dtype:
+                        if str(generated_samples.dtype) != self.shared_vars[key].dtype:
                             generated_samples = generated_samples.astype(self.shared_vars['years'].dtype)
                         self.shared_vars[key].set_value(generated_samples)
                         self.samples[key] = generated_samples
