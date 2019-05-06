@@ -5,8 +5,10 @@
 
 import logging
 import os.path
+import pandas as pd
 
 from mb_modelbase.server import ModelBase
+import mb_modelbase as mb
 
 # setup logger
 logging.basicConfig(
@@ -18,6 +20,52 @@ logger = logging.getLogger(__name__)
 
 # resolve relative path of data for this script
 path_prefix = os.path.join(os.path.dirname(__file__), os.pardir, 'mb_data')
+
+
+def make_empirical_model(modelname, output_directory, input_file=None, df=None):
+    """A one-stop function to create an `EmpiricalModel` from data.
+
+    Args:
+        modelname: str
+            Name of the model
+        output_directory: str, optional.
+            path of directory where to store the model (not file name!). If set to None, model will not be saved on
+            filesystem.
+        input_file: str, optional.
+            path of csv file to read for data to use for training of model. Alternatively, directly specify the data
+            in `df`.
+        df: pd.DataFrame, optional.
+            Data to use for model fitting.
+    Return:
+        The learned model.
+
+    """
+    if input_file is None and df is None:
+        raise ValueError("you must specify at least one of `input_file` or `df`.")
+
+    if input_file is not None:
+        df = pd.read_csv(input_file, index_col=False, skip_blank_lines=True)
+        print("read data from file {}".format(input_file))
+        print("resuling data frame looks like this: \n{}".format(str(pd.head())))
+
+    # preprocess
+    df2 = df.dropna(axis=0, how="any")
+    dropped_rows = df.shape[0] - df2.shape[0]
+    if dropped_rows > 0:
+        print("dropped {} rows due to nans in data".format(dropped_rows))
+
+    # fit model
+    model = mb.EmpiricalModel(modelname)
+    model.fit()
+    print("fitted model!")
+
+    # save
+    if output_directory is not None:
+        output_file = os.path.join(output_directory, modelname + ".mdl")
+        model.save(output_file)
+        print("saved model in file: \n{}".format(output_file))
+
+    return model
 
 
 def save_models(models, directory):
