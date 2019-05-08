@@ -108,6 +108,43 @@ m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'X1
 m.fit(data)
 Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 data.to_csv(testcasedata_path + modelname + '.csv', index=False)
+###########################################################
+# pymc3_getting_started_model_independent vars_nosharedvars
+###########################################################
+
+modelname = 'pymc3_getting_started_model_independent_vars_nosharedvars'
+np.random.seed(123)
+alpha, sigma = 1, 1
+beta_0 = 1
+beta_1 = 2.5
+size = 100
+X1 = np.random.randn(size)
+X2 = np.random.randn(size) * 0.2
+Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
+data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
+
+
+basic_model = pm.Model()
+
+with basic_model:
+    # Priors for unknown model parameters
+    alpha = pm.Normal('alpha', mu=0, sd=10)
+    beta_0 = pm.Normal('beta_0', mu=0, sd=10)
+    beta_1 = pm.Normal('beta_1', mu=0, sd=10)
+    sigma = pm.HalfNormal('sigma', sd=1)
+
+    # Expected value of outcome
+    mu = alpha + beta_0 * X1 + beta_1 * X2
+
+    # Likelihood (sampling distribution) of observations
+    Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
+
+m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': data['X1'], 'X2': data['X2']})
+Model.save(m, testcasemodel_path + modelname + '.mdl')
+m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'X1': data['X1'], 'X2': data['X2']})
+m.fit(data)
+Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+data.to_csv(testcasedata_path + modelname + '.csv', index=False)
 ######################################
 # pymc3_coal_mining_disaster_model
 ######################################
@@ -151,8 +188,8 @@ Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 
 modelname = 'eight_schools_model'
 
-scores = [28.39,7.94,-2.75,6.82,-0.64,0.63,18.01,12.16]
-standard_errors = np.array([14.9,10.2,16.3,11.0,9.4,11.4,10.4,17.6])
+scores = np.array([28.39, 7.94, -2.75, 6.82, -0.64, 0.63, 18.01, 12.16])
+standard_errors = np.array([14.9, 10.2, 16.3, 11.0, 9.4, 11.4, 10.4, 17.6])
 data = pd.DataFrame({'test_scores': scores, 'standard_errors': standard_errors})
 standard_errors = theano.shared(standard_errors)
 
