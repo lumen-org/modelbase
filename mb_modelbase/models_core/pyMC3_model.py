@@ -42,6 +42,26 @@ class ProbabilisticPymc3Model(Model):
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently, split_data=False)
         self._update_all_field_derivatives()
+        # Enforce usage of theano shared variables for independent variables
+        # Independent variables are those variables which appear in the data but not in the RVs of the model structure
+        model_vars = [str(name) for name in self.model_structure.observed_RVs]
+        ind_vars = [varname for varname in self.data.columns.values if varname not in model_vars]
+        # When there are no shared variables, there should be no independent variables. Otherwise, raise an error
+        if not self.shared_vars:
+            assert len(ind_vars) == 0, \
+                'The model appears to include the following independent variables: ' + str(ind_vars) + ' It is '\
+                'required to pass the data for these variables as theano shared variables to the ' \
+                'ProbabilisticPymc3Model constructor'
+        # When there are shared variables, there should be independent variables. Otherwise, raise an error
+        else:
+            assert len(ind_vars) > 0, ' theano shared variables were passed to the ProbabilisticPymc3Model constructor'\
+                                      ' but the model does not appear to include independent variables. Only pass '\
+                                      'shared variables to the constructor if the according variables are independent'
+            # Each independent variable should appear in self.shared_vars. If not, raise an error
+            missing_vars = [varname for varname in ind_vars if varname not in self.shared_vars.keys()]
+            assert len(missing_vars) == 0, \
+                'The following independent variables do not appear in shared_vars:' + str(missing_vars) + ' Make sure '\
+                'that you pass the data for each independent variable as theano shared variable to the constructor'
         return ()
 
     def _fit(self):
