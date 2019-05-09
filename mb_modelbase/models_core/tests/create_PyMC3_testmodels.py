@@ -271,7 +271,7 @@ theta = Y + np.random.randn(size)
 X = theta * Y + np.random.randn(size)
 
 with pm.Model() as basic_model:
-    theta = pm.Normal('theta', mu=Y, sd=1)
+    theta = pm.Normal('theta', mu=np.mean(Y), sd=1)
     x = pm.Normal('x', mu=theta*Y, sd=1, observed=X)
 
 
