@@ -270,11 +270,12 @@ size = 100
 Y = np.random.randn(size)
 theta = Y + np.random.randn(size)
 X = theta * Y + np.random.randn(size)
-data = pd.DataFrame({'X':X, 'Y':Y})
+data = pd.DataFrame({'X': X, 'Y': Y})
+Y = theano.shared(Y)
 
 with pm.Model() as basic_model:
-    theta = pm.Normal('theta', mu=np.mean(Y), sd=1)
-    x = pm.Normal('x', mu=theta*Y, sd=1, observed=X)
+    theta = pm.Normal('theta', mu=Y.min(), sd=1)
+    X = pm.Normal('X', mu=theta*Y, sd=1, observed=X)
 
 m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'Y': Y})
 Model.save(m, testcasemodel_path + modelname)
