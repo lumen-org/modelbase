@@ -261,17 +261,36 @@ testcasedata_path = '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/'
 # Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 
 ################################################
-# parameter is dependent in independent variable
+# parameter is dependent on independent variable
 ################################################
+modelname = 'data_dependent_prior_model'
 
 np.random.seed(123)
 size = 100
 Y = np.random.randn(size)
 theta = Y + np.random.randn(size)
 X = theta * Y + np.random.randn(size)
+data = pd.DataFrame({'X':X, 'Y':Y})
 
 with pm.Model() as basic_model:
     theta = pm.Normal('theta', mu=np.mean(Y), sd=1)
     x = pm.Normal('x', mu=theta*Y, sd=1, observed=X)
 
+m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'Y': Y})
+Model.save(m, testcasemodel_path + modelname)
+m = ProbabilisticPymc3Model(modelname + '_fitted.mdl', basic_model, shared_vars={'Y': Y})
+m.fit(data)
+Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 
+################################################
+# parameter is dependent on independent variable
+################################################
+# np.random.seed(123)
+#
+# X = np.linspace(0, 100, num=100)
+# MU = np.random.normal(loc=X)
+# Y = np.random.normal(loc=MU)
+#
+# with pm.Model() as basic_model:
+#     mu = pm.Normal('mu', mu=X, sd=1)
+#     y = pm.Normal('y', mu=mu, sd=1, observed=Y)
