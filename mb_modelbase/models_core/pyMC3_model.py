@@ -71,11 +71,15 @@ class ProbabilisticPymc3Model(Model):
             for var in self.fields:
                 self.samples[var['name']] = np.full(nr_of_samples,np.NaN)
             trace = pm.sample(nr_of_samples, chains=1, cores=1, progressbar=False)
+            # Store varnames for later generation of fields
+            varnames = trace.varnames.copy()
             for varname in trace.varnames:
                 # check if trace consists of more than one variable
                 if len(trace[varname].shape) == 2:
+                    varnames.remove(varname)
                     for i in range(trace[varname].shape[1]):
                         self.samples[varname+'_'+str(i)] = [var[i] for var in trace[varname]]
+                        varnames.append(varname+'_'+str(i))
                 else:
                     self.samples[varname] = trace[varname]
             # Generate samples for independent variables
@@ -112,7 +116,7 @@ class ProbabilisticPymc3Model(Model):
                     self.samples[str(varname)] = [samples[0] for samples in ppc[str(varname)]]
 
         # Add parameters to fields
-        self.fields = self.fields + get_numerical_fields(self.samples, trace.varnames)
+        self.fields = self.fields + get_numerical_fields(self.samples, varnames)
         self._update_all_field_derivatives()
         self._init_history()
 
