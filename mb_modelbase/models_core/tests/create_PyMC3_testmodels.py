@@ -209,8 +209,8 @@ testcasedata_path = '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/'
 #                             mu=[theta_1, theta_2, theta_3, theta_4, theta_5, theta_6, theta_7, theta_8],
 #                             sd=standard_errors, observed=data['test_scores'])
 
-#    trace = pm.sample(1000,chains=1,cores=1)
-#    simulated_scores = np.asarray(pm.sample_ppc(trace)[str("test_scores")])
+    # trace = pm.sample(1000,chains=1,cores=1)
+    # simulated_scores = np.asarray(pm.sample_ppc(trace)[str("test_scores")])
 #
 # # Compute test statistics
 # disc_mean = [np.mean(simvals) for simvals in simulated_scores]
@@ -240,48 +240,64 @@ testcasedata_path = '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/'
 # Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 
 ######################################
-# eight_schools_model_shape
+# getting_started_model_shape
 ######################################
-# modelname = 'eight_schools_model_shape'
-#
-# scores = [28.39,7.94,-2.75,6.82,-0.64,0.63,18.01,12.16]
-# standard_errors = [14.9,10.2,16.3,11.0,9.4,11.4,10.4,17.6]
-# data = pd.DataFrame({'test_scores': scores, 'standard_errors': standard_errors})
-#
-# with pm.Model() as normal_normal_model:
-#     tau = pm.Uniform('tau',lower=0,upper=10)
-#     mu = pm.Uniform('mu',lower=0,upper=10)
-#     theta = pm.Normal('theta', mu=mu, sd=tau, shape=8)
-#     test_scores = pm.Normal('test_scores',mu=theta,sd=data['standard_errors'], observed=data['test_scores'])
-#
-# m = ProbabilisticPymc3Model(modelname, normal_normal_model)
-# Model.save(m, testcasemodel_path + modelname)
-# m = ProbabilisticPymc3Model(modelname + '_fitted', normal_normal_model)
-# m.fit(data)
-# Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+modelname = 'pymc3_getting_started_model_shape'
+np.random.seed(123)
+alpha, sigma = 1, 1
+beta_0 = 1
+beta_1 = 2.5
+size = 100
+X1 = np.random.randn(size)
+X2 = np.random.randn(size) * 0.2
+Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
+data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
+X1 = theano.shared(X1)
+X2 = theano.shared(X2)
+
+basic_model = pm.Model()
+
+with basic_model:
+    # Priors for unknown model parameters
+    alpha = pm.Normal('alpha', mu=0, sd=10)
+    beta = pm.Normal('beta_0', mu=0, sd=10, shape=2)
+    sigma = pm.HalfNormal('sigma', sd=1)
+
+    # Expected value of outcome
+    mu = alpha + beta[0] * X1 + beta[1] * X2
+
+    # Likelihood (sampling distribution) of observations
+    Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
+
+m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1, 'X2': X2})
+Model.save(m, testcasemodel_path + modelname + '.mdl')
+m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'X1': X1, 'X2': X2})
+m.fit(data)
+Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+data.to_csv(testcasedata_path + modelname + '.csv', index=False)
 
 ################################################
 # parameter is dependent on independent variable
 ################################################
-modelname = 'data_dependent_prior_model'
-
-np.random.seed(123)
-size = 100
-Y = np.random.randn(size)
-theta = Y + np.random.randn(size)
-X = theta * Y + np.random.randn(size)
-data = pd.DataFrame({'X': X, 'Y': Y})
-Y = theano.shared(Y)
-
-with pm.Model() as basic_model:
-    theta = pm.Normal('theta', mu=Y.min(), sd=1)
-    X = pm.Normal('X', mu=theta*Y, sd=1, observed=X)
-
-m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'Y': Y})
-Model.save(m, testcasemodel_path + modelname)
-m = ProbabilisticPymc3Model(modelname + '_fitted.mdl', basic_model, shared_vars={'Y': Y})
-m.fit(data)
-Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+# modelname = 'data_dependent_prior_model'
+#
+# np.random.seed(123)
+# size = 100
+# Y = np.random.randn(size)
+# theta = Y + np.random.randn(size)
+# X = theta * Y + np.random.randn(size)
+# data = pd.DataFrame({'X': X, 'Y': Y})
+# Y = theano.shared(Y)
+#
+# with pm.Model() as basic_model:
+#     theta = pm.Normal('theta', mu=Y.min(), sd=1)
+#     X = pm.Normal('X', mu=theta*Y, sd=1, observed=X)
+#
+# m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'Y': Y})
+# Model.save(m, testcasemodel_path + modelname)
+# m = ProbabilisticPymc3Model(modelname + '_fitted.mdl', basic_model, shared_vars={'Y': Y})
+# m.fit(data)
+# Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 
 ################################################
 # parameter is dependent on independent variable
