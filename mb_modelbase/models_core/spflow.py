@@ -64,11 +64,11 @@ class SPNModel(Model):
 
         # Construct pandas categorical for each categorical variable
         self._categorical_variables = {
-            name: { 'categorical':pd.Categorical(df[name])} for name in cat
+            name: { 'categorical': pd.Categorical(df[name])} for name in cat
         }
 
         # Construct inverse dictionary for all categorical variables to use in the function _density
-        for k,v in self._categorical_variables.items():
+        for k, v in self._categorical_variables.items():
             name_to_int = dict()
             int_to_name = dict()
 
@@ -81,10 +81,6 @@ class SPNModel(Model):
 
             codes = categorical.codes
 
-            #for i, code in enumerate(codes):
-            #    inv = categorical[i]
-            #    inverse_mapping[inv] = code
-            #v['inverse_mapping'] = inverse_mapping
             v['name_to_int'] = name_to_int
             v['int_to_name'] = int_to_name
 
@@ -138,7 +134,7 @@ class SPNModel(Model):
 
     def _marginalizeout(self, keep, remove):
         self._marginalized = self._marginalized.union(remove)
-        # self._spn = marginalize(self._spn, self.asindex(keep))
+        self._spn = marginalize(self._spn, [self._initial_names_to_index[x] for x in keep])
         return self._unbound_updater,
 
     def _conditionout(self, keep, remove):
@@ -186,15 +182,17 @@ class SPNModel(Model):
             dill.dump(self, output, dill.HIGHEST_PROTOCOL)
 
     def _maximum(self):
-        return 0.1
+        raise NotImplementedError()
 
     def _sample(self, random_state=RandomState(123)):
         placeholder = self._condition.copy()
         s = sample_instances(self._spn, placeholder, random_state)
+        print(s)
         indices = [self._initial_names_to_index[name] for name in self.names]
+        print(indices)
         result = s[:, indices]
         result = result.reshape(len(self.names)).tolist()
-
+        print(result)
         for i in range(len(result)):
             if self.names[i] in self._categorical_variables:
                 result[i] = self._categorical_variables[self.names[i]]['int_to_name'][round(result[i])]
