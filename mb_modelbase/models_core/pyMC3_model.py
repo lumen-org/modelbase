@@ -85,9 +85,20 @@ class ProbabilisticPymc3Model(Model):
             # Generate samples for independent variables
             if hasattr(self, 'shared_vars'):
                 if self.shared_vars is not None:
+                    nr_of_shared_vars = len(self.shared_vars)
                     for key, val in self.shared_vars.items():
                         lower_bound = self.byname(key)['extent'].value()[0]
                         upper_bound = self.byname(key)['extent'].value()[1]
+                        # We want to cover the whole space of the independent variables with our samples. However, when
+                        # we have only unique values for each variable in the samples, the whole variable space will
+                        # not be covered. Therefore, each value in the samples should be duplicated so that every
+                        # combination of values appears once in the generated samples
+                        # Generate the unique values
+                        #nr_of_unique_values = nr_of_samples ** (1./nr_of_shared_vars)
+                        #generated_samples = np.linspace(lower_bound, upper_bound, num=nr_of_unique_values)
+                        # Duplicate the values
+                        #generated_samples = np.repeat(generated_samples, nr_of_unique_values **  )
+                        # Adjust order of values
                         generated_samples = np.linspace(lower_bound, upper_bound, num=nr_of_samples)
                         # If the samples have another data type than the original data, problems can arise. Therefore,
                         # data types of the new samples are changed to the dtypes of the original data here
