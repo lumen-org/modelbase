@@ -67,7 +67,9 @@ class ProbabilisticPymc3Model(Model):
     def _fit(self):
         with self.model_structure:
             # Draw samples
-            nr_of_samples = 500
+            # Number of samples drawn in one iteration should be equal to the length of the data since in some models
+            # the data vectors are required to have a certain length
+            nr_of_samples = len(self.data.iloc[:, 0])
             for var in self.fields:
                 self.samples[var['name']] = np.full(nr_of_samples,np.NaN)
             trace = pm.sample(nr_of_samples, chains=1, cores=1, progressbar=False)
