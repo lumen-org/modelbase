@@ -14,7 +14,6 @@ class Cache():
     def set(self, key, value):
         """ Stores object with given key"""
 
-
 class DictCache(Cache):
     def __init__(self, *args, **kwargs):
         Cache.__init__(self,*args, **kwargs)
@@ -31,7 +30,6 @@ class MemcachedCache(Cache):
         Cache.__init__(*args, **kwargs)
 
         self._expire_time = kwargs.get('memcached_expire_time', 0)
-
 
         self._cache = memcBase.Client((
             kwargs.get('hostname', 'localhost'),
@@ -69,9 +67,12 @@ class RedisCache(Cache):
 
 if __name__ == '__main__':
 
+
+    vals = range(1000)
+
     dictCache = DictCache()
-    [dictCache.set(str(x), True) for x in range(1000)]
-    res = [dictCache.get(str(x)) for x in range(1000)]
+    [dictCache.set(str(x), True) for x in vals]
+    res = [dictCache.get(str(x)) for x in vals]
 
     # docker run --name memcached -d memcached:alpine
     memCache = MemcachedCache({
@@ -79,8 +80,8 @@ if __name__ == '__main__':
         'port': 11211
     })
 
-    [memCache.set(str(x), str(x)) for x in range(1000)]
-    res = [memCache.get(str(x)) for x in range(1000)]
+    [memCache.set(str(x), str(x)) for x in vals]
+    res = [memCache.get(str(x)) for x in vals]
 
     # docker run -p 6379:6379 --name lumen_redis_cache -d redis
     redisCache = RedisCache({
@@ -88,5 +89,5 @@ if __name__ == '__main__':
         'port': 6379
     })
 
-    [redisCache.set( str(x), str(x)) for x in range(1000)]
-    res = [redisCache.get(str(x)) for x in range(1000)]
+    [redisCache.set( str(x), str(x)) for x in vals]
+    res = [redisCache.get(str(x)) for x in vals]
