@@ -82,7 +82,7 @@ if __name__ == '__main__':
     [memCache.set(str(x), str(x)) for x in range(1000)]
     res = [memCache.get(str(x)) for x in range(1000)]
 
-    # docker run --name lumen_redis_cache -d redis
+    # docker run -p 6379:6379 --name lumen_redis_cache -d redis
     redisCache = RedisCache({
         'hostname': 'localhost',
         'port': 6379
