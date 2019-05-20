@@ -131,12 +131,6 @@ class ProbabilisticPymc3Model(Model):
                         # the data dimension
                         self.samples[str(varname)] = \
                             [ppc[str(varname)][i][i % nr_of_samples] for i in range(nr_of_samples_total)]
-                else:
-                    # when no shared vars are given, data and samples do not have the same length. In this case, the first
-                    # point of each sequence is taken as new sample point
-                    ppc = pm.sample_ppc(trace)
-                    for varname in self.model_structure.observed_RVs:
-                        self.samples[str(varname)] = [samples[0] for samples in ppc[str(varname)]]
             else:
                 # when no shared vars are given, data and samples do not have the same length. In this case, the first
                 # point of each sequence is taken as new sample point
