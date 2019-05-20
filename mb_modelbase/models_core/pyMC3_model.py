@@ -68,9 +68,13 @@ class ProbabilisticPymc3Model(Model):
         with self.model_structure:
             # Draw samples
             # Number of samples drawn in one iteration should be equal to the length of the data since in some models
-            # the data vectors are required to have a certain length
+            # the data vectors are required to have a certain length. If the length of the input data is more than
+            # 500, the total length of the posterior samples is set to the length of the data
             nr_of_samples = len(self.data.iloc[:, 0])
-            nr_of_samples_total = 500
+            if nr_of_samples < 500:
+                nr_of_samples_total = nr_of_samples
+            else:
+                nr_of_samples_total =
             for var in self.fields:
                 self.samples[var['name']] = np.full(nr_of_samples_total,np.NaN)
             trace = pm.sample(nr_of_samples_total, chains=1, cores=1, progressbar=False)
