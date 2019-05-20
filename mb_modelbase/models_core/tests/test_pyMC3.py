@@ -3,20 +3,21 @@ import pandas as pd
 import mb_modelbase as mbase
 import unittest
 
-model_paths = ['/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl',
-               '/home/guet_jn/Desktop/mb_data/data_models/pymc3_testcase_model.mdl',
-               #'/home/guet_jn/Desktop/mb_data/data_models/pymc3_coal_mining_disaster_model.mdl',
-               #'/home/guet_jn/Desktop/mb_data/data_models/eight_schools_model.mdl',
-               '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model_independent_vars.mdl']
+model_paths = [
+               '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl',
+               '/home/guet_jn/Desktop/mb_data/data_models/pymc3_simplest_model.mdl',
+               '/home/guet_jn/Desktop/mb_data/data_models/pymc3_coal_mining_disaster_model.mdl',
+               '/home/guet_jn/Desktop/mb_data/data_models/eight_schools_model.mdl',
+               '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model_independent_vars.mdl'
+               ]
 
-data_paths = ['/home/guet_jn/Desktop/mb_data/mb_data/pymc3/getting_started.csv',
+data_paths = [
+              '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/getting_started.csv',
               '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/simplest_testcase.csv',
-              #'/home/guet_jn/Desktop/mb_data/mb_data/pymc3/coal_mining_disasters.csv',
-              #'/home/guet_jn/Desktop/mb_data/mb_data/pymc3/eight_schools.csv',
-              '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/pymc3_getting_started_model_independent_vars.csv']
-
-model_paths = ['/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model_independent_vars.mdl']
-data_paths = ['/home/guet_jn/Desktop/mb_data/mb_data/pymc3/pymc3_getting_started_model_independent_vars.csv']
+              '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/coal_mining_disasters.csv',
+              '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/eight_schools.csv',
+              '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/pymc3_getting_started_model_independent_vars.csv'
+             ]
 
 class Test_methods_on_initialized_model(unittest.TestCase):
     """
