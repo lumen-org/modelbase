@@ -186,28 +186,28 @@ testcasedata_path = '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/'
 # eight_schools_model
 ######################################
 
-# modelname = 'eight_schools_model'
-#
-# scores = np.array([28.39, 7.94, -2.75, 6.82, -0.64, 0.63, 18.01, 12.16])
-# standard_errors = np.array([14.9, 10.2, 16.3, 11.0, 9.4, 11.4, 10.4, 17.6])
-# data = pd.DataFrame({'test_scores': scores, 'standard_errors': standard_errors})
-# standard_errors = theano.shared(standard_errors)
-#
-# with pm.Model() as normal_normal_model:
-#     tau = pm.Uniform('tau',lower=0,upper=10)
-#     mu = pm.Uniform('mu',lower=0,upper=10)
-#     theta_1 = pm.Normal('theta_1', mu=mu, sd=tau)
-#     theta_2 = pm.Normal('theta_2', mu=mu, sd=tau)
-#     theta_3 = pm.Normal('theta_3', mu=mu, sd=tau)
-#     theta_4 = pm.Normal('theta_4', mu=mu, sd=tau)
-#     theta_5 = pm.Normal('theta_5', mu=mu, sd=tau)
-#     theta_6 = pm.Normal('theta_6', mu=mu, sd=tau)
-#     theta_7 = pm.Normal('theta_7', mu=mu, sd=tau)
-#     theta_8 = pm.Normal('theta_8', mu=mu, sd=tau)
-#
-#     test_scores = pm.Normal('test_scores',
-#                             mu=[theta_1, theta_2, theta_3, theta_4, theta_5, theta_6, theta_7, theta_8],
-#                             sd=standard_errors, observed=data['test_scores'])
+modelname = 'eight_schools_model'
+
+scores = np.array([28.39, 7.94, -2.75, 6.82, -0.64, 0.63, 18.01, 12.16])
+standard_errors = np.array([14.9, 10.2, 16.3, 11.0, 9.4, 11.4, 10.4, 17.6])
+data = pd.DataFrame({'test_scores': scores, 'standard_errors': standard_errors})
+standard_errors = theano.shared(standard_errors)
+
+with pm.Model() as normal_normal_model:
+    tau = pm.Uniform('tau', lower=0, upper=10)
+    mu = pm.Uniform('mu', lower=0, upper=10)
+    theta_1 = pm.Normal('theta_1', mu=mu, sd=tau)
+    theta_2 = pm.Normal('theta_2', mu=mu, sd=tau)
+    theta_3 = pm.Normal('theta_3', mu=mu, sd=tau)
+    theta_4 = pm.Normal('theta_4', mu=mu, sd=tau)
+    theta_5 = pm.Normal('theta_5', mu=mu, sd=tau)
+    theta_6 = pm.Normal('theta_6', mu=mu, sd=tau)
+    theta_7 = pm.Normal('theta_7', mu=mu, sd=tau)
+    theta_8 = pm.Normal('theta_8', mu=mu, sd=tau)
+
+    test_scores = pm.Normal('test_scores',
+                            mu=[theta_1, theta_2, theta_3, theta_4, theta_5, theta_6, theta_7, theta_8],
+                            sd=standard_errors, observed=data['test_scores'])
 
     # trace = pm.sample(1000,chains=1,cores=1)
     # simulated_scores = np.asarray(pm.sample_ppc(trace)[str("test_scores")])
@@ -233,48 +233,48 @@ testcasedata_path = '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/'
 # hist(disc_std,bins=15,edgecolor='black',color='grey')
 # plt.title('standard deviation')
 
-# m = ProbabilisticPymc3Model(modelname, normal_normal_model, shared_vars={'standard_errors': standard_errors})
-# Model.save(m, testcasemodel_path + modelname + '.mdl')
-# m = ProbabilisticPymc3Model(modelname + '_fitted', normal_normal_model, shared_vars={'standard_errors': standard_errors})
-# m.fit(data)
-# Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+m = ProbabilisticPymc3Model(modelname, normal_normal_model, shared_vars={'standard_errors': standard_errors})
+Model.save(m, testcasemodel_path + modelname + '.mdl')
+m = ProbabilisticPymc3Model(modelname + '_fitted', normal_normal_model, shared_vars={'standard_errors': standard_errors})
+m.fit(data)
+Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 
 ######################################
 # getting_started_model_shape
 ######################################
-modelname = 'pymc3_getting_started_model_shape'
-np.random.seed(123)
-alpha, sigma = 1, 1
-beta_0 = 1
-beta_1 = 2.5
-size = 100
-X1 = np.random.randn(size)
-X2 = np.random.randn(size) * 0.2
-Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
-data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
-X1 = theano.shared(X1)
-X2 = theano.shared(X2)
-
-basic_model = pm.Model()
-
-with basic_model:
-    # Priors for unknown model parameters
-    alpha = pm.Normal('alpha', mu=0, sd=10)
-    beta = pm.Normal('beta_0', mu=0, sd=10, shape=2)
-    sigma = pm.HalfNormal('sigma', sd=1)
-
-    # Expected value of outcome
-    mu = alpha + beta[0] * X1 + beta[1] * X2
-
-    # Likelihood (sampling distribution) of observations
-    Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
-
-m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1, 'X2': X2})
-Model.save(m, testcasemodel_path + modelname + '.mdl')
-m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'X1': X1, 'X2': X2})
-m.fit(data)
-Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
-data.to_csv(testcasedata_path + modelname + '.csv', index=False)
+# modelname = 'pymc3_getting_started_model_shape'
+# np.random.seed(123)
+# alpha, sigma = 1, 1
+# beta_0 = 1
+# beta_1 = 2.5
+# size = 100
+# X1 = np.random.randn(size)
+# X2 = np.random.randn(size) * 0.2
+# Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
+# data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
+# X1 = theano.shared(X1)
+# X2 = theano.shared(X2)
+#
+# basic_model = pm.Model()
+#
+# with basic_model:
+#     # Priors for unknown model parameters
+#     alpha = pm.Normal('alpha', mu=0, sd=10)
+#     beta = pm.Normal('beta', mu=0, sd=10, shape=2)
+#     sigma = pm.HalfNormal('sigma', sd=1)
+#
+#     # Expected value of outcome
+#     mu = alpha + beta[0] * X1 + beta[1] * X2
+#
+#     # Likelihood (sampling distribution) of observations
+#     Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
+#
+# m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1, 'X2': X2})
+# Model.save(m, testcasemodel_path + modelname + '.mdl')
+# m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'X1': X1, 'X2': X2})
+# m.fit(data)
+# Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+# data.to_csv(testcasedata_path + modelname + '.csv', index=False)
 
 ################################################
 # parameter is dependent on independent variable
@@ -302,12 +302,16 @@ data.to_csv(testcasedata_path + modelname + '.csv', index=False)
 ################################################
 # parameter is dependent on independent variable
 ################################################
+
+# Generate data
 # np.random.seed(123)
-#
 # X = np.linspace(0, 100, num=100)
 # MU = np.random.normal(loc=X)
 # Y = np.random.normal(loc=MU)
 #
+# # Specify model
 # with pm.Model() as basic_model:
-#     mu = pm.Normal('mu', mu=X, sd=1)
-#     y = pm.Normal('y', mu=mu, sd=1, observed=Y)
+#     #mu = pm.Normal('mu', mu=0, sd=1)
+#     #rv = X + mu
+#     #tau = pm.Normal('mu', mu=X, sd=1)
+#     y = pm.Normal('y', mu=X, sd=1, observed=Y)
