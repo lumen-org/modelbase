@@ -175,7 +175,7 @@ class ProbabilisticPymc3Model(Model):
     def _conditionout(self, keep, remove):
         keep_not_in_names = [name for name in keep if name not in self.names]
         if len(keep_not_in_names) > 0:
-            raise ValueError('The following variables in keep do not appear in the model: ' + str(keep_not_in_names) )
+            raise ValueError('The following variables in keep do not appear in the model: ' + str(keep_not_in_names))
         remove_not_in_names = [name for name in remove if name not in self.names]
         if len(remove_not_in_names) > 0:
             raise ValueError('The following variables in remove do not appear in the model: ' + str(remove_not_in_names))
