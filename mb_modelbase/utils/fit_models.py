@@ -7,8 +7,8 @@ import logging
 import os.path
 import pandas as pd
 
+from mb_modelbase.models_core.empirical_model import EmpiricalModel
 from mb_modelbase.server import ModelBase
-import mb_modelbase as mb
 
 # setup logger
 logging.basicConfig(
@@ -55,7 +55,7 @@ def make_empirical_model(modelname, output_directory, input_file=None, df=None):
         print("dropped {} rows due to nans in data".format(dropped_rows))
 
     # fit model
-    model = mb.EmpiricalModel(modelname)
+    model = EmpiricalModel(modelname)
     model.fit()
     print("fitted model!")
 
