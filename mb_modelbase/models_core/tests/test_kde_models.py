@@ -26,7 +26,6 @@ class kde_test(unittest.TestCase):
         kde_model.fit()
         self.assertIsNotNone(kde_model.kde, "After fitting there should be a kde object")
 
-    # what should happen for categoricals?
     def test_fit_categoricals(self):
         data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
         kde_model = KDEModel('kde_model')
@@ -35,5 +34,21 @@ class kde_test(unittest.TestCase):
         kde_model.fit()
         self.assertIsNotNone(kde_model.kde, "After fitting there should be a kde object")
 
-
+    def test_conditionout(self):
+        data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
+        kde_model = KDEModel('kde_model')
+        kde_model.fit(data)
+        model_data = pd.concat([kde_model.data, kde_model.test_data]).sort_index()
+        self.assertEqual(model_data, data, "input data was not passed properly to the model")
+        # Change domains of dimension A
+        kde_model.fields[1]['domain'].setlowerbound(2)
+        kde_model.fields[1]['domain'].setupperbound(4)
+        # Condition and marginalize model
+        kde_model.conditionout(keep='B', remove='A')
+        # Generate control data
+        condition_upper = data['A'] <= 4
+        condition_lower = data['A'] >= 2
+        data_cond = data[condition_upper & condition_lower]
+        data_cond = data_cond['B']
+        self.assertEqual(data_cond, kde_model.data, "model data was not marginalized and conditioned properly")
 
