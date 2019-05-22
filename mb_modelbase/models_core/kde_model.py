@@ -4,6 +4,8 @@ from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core import data_operations as data_op
 from mb_modelbase.models_core import data_aggregation as data_aggr
 from sklearn.neighbors.kde import KernelDensity
+import copy
+import numpy as np
 
 class KDEModel(Model):
     """
@@ -23,7 +25,7 @@ class KDEModel(Model):
         return ()
 
     def _fit(self):
-        self.kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(self.data)
+        self.kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(self.data.values)
         return()
 
     def _conditionout(self, keep, remove):
@@ -34,3 +36,14 @@ class KDEModel(Model):
         """Marginalizes the dimensions in remove, keeping all those in keep"""
 
         return ()
+
+    def _density(self, x):
+        """Returns the density at x"""
+        x = np.reshape(x, (1, len(x)))
+        logdensity = self.kde.score_samples(x)[0]
+        return np.exp(logdensity).item()
+
+    def copy(self, name=None):
+        mycopy = self._defaultcopy(name)
+        mycopy.kde = copy.deepcopy(self.kde)
+        return mycopy
