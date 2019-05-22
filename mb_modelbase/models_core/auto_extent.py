@@ -60,11 +60,6 @@ def auto_range_by_sample(**kwargs):
 def adopt_all_extents(model, how=field_to_auto_extent):
 
     for field in model.fields:
-        if model.samples is not None:
-            # special case for probabilistic PyMC3 models: Do not set the extent if each element of a variable's
-            # posterior samples is NaN. That means that it is an independent variable for which no samples were drawn
-            if model.samples[field['name']].isnull().all():
-                continue
         if field['dtype'] != 'string':
             extent = how(model.copy(), field['name'])
             field['extent'] = dm.NumericDomain(extent)  # modifies model!
