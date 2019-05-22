@@ -31,10 +31,8 @@ class KDEModel(Model):
     def _conditionout(self, keep, remove):
         """Conditions the random variables with name in remove on their domain and marginalizes them out.
         """
-
     def _marginalizeout(self, keep, remove):
         """Marginalizes the dimensions in remove, keeping all those in keep"""
-
         return ()
 
     def _density(self, x):
