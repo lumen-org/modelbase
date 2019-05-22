@@ -33,6 +33,9 @@ class KDEModel(Model):
         """
     def _marginalizeout(self, keep, remove):
         """Marginalizes the dimensions in remove, keeping all those in keep"""
+        # Fit the model to the current data. The data dimension to marginalize over
+        # should have been removed before
+        self._fit()
         return ()
 
     def _density(self, x):
