@@ -59,7 +59,7 @@ class KDEModel(Model):
         logdensity = self.kde.score_samples(x)[0]
         return np.exp(logdensity).item()
 
-    def _mean(self):
+    def _arithmetic_mean(self):
         """Returns the point of the average density"""
         maximum = data_aggr.aggregate_data(self.data, 'maximum')
         return maximum
