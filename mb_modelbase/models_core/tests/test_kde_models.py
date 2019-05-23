@@ -47,10 +47,8 @@ class kde_test(unittest.TestCase):
         # Condition and marginalize model
         kde_model._conditionout(keep='B', remove='A')
         # Generate control data
-        condition_upper = data['A'] <= 4
-        condition_lower = data['A'] >= 2
-        data_cond = data[condition_upper & condition_lower]
-        data_cond = data_cond['B']
+        data_cond = pd.DataFrame({'B':np.array(['2', '3', '3', '3', '4'])})
+        model_data = pd.concat([kde_model.data, kde_model.test_data]).sort_values('B').reset_index(drop=True)
         self.assertTrue(model_data.equals(data_cond), "model data was not marginalized and conditioned properly")
 
 # TODO: Also write a test for discrete domains
