@@ -51,4 +51,12 @@ class kde_test(unittest.TestCase):
         model_data = pd.concat([kde_model.data, kde_model.test_data]).sort_values('B').reset_index(drop=True)
         self.assertTrue(model_data.equals(data_cond), "model data was not marginalized and conditioned properly")
 
-# TODO: Also write a test for discrete domains
+    def test_maximum(self):
+        data = pd.DataFrame({'B': np.array(['1', '2', '3', '3', '3', '4', '5']), 'A': np.array([1, 2, 3, 3, 3, 4, 5])},
+                            columns=['B', 'A'])
+        maximum = ['3', 3]
+        kde_model = KDEModel('kde_model')
+        kde_model.fit(data)
+        self.assertEqual(kde_model._maximum(), maximum, 'Point of maximum density was not correctly computed')
+
+# TODO: Also write a test for conditioning with discrete domains
