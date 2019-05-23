@@ -59,6 +59,16 @@ class KDEModel(Model):
         logdensity = self.kde.score_samples(x)[0]
         return np.exp(logdensity).item()
 
+    def _mean(self):
+        """Returns the point of the average density"""
+        maximum = data_aggr.aggregate_data(self.data, 'maximum')
+        return maximum
+
+    def _sample(self):
+        """Returns random point of the distribution"""
+        sample = self.kde.sample()
+        return sample
+
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)
         mycopy.kde = copy.deepcopy(self.kde)
