@@ -21,3 +21,5 @@ from mb_modelbase.models_core.splitter import *
 # from mb_modelbase.models_core.mspn import *
 from mb_modelbase.models_core.tests import *
 from mb_modelbase.models_core.pyMC3_model import *
+from mb_modelbase.models_core.kde_model import *
+
