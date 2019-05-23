@@ -38,20 +38,19 @@ class kde_test(unittest.TestCase):
         data = pd.DataFrame({'B': np.array(['1', '2', '3', '3', '3', '4', '5']), 'A': np.array([1, 2, 3, 3, 3, 4, 5])},
                             columns=['B', 'A'])
         kde_model = KDEModel('kde_model')
-        kde_model._set_data_mixed(data, silently_drop=False, split_data=False)
-        kde_model.fit()
-        #model_data = pd.concat([kde_model.data, kde_model.test_data]).sort_index()
-        self.assertTrue(kde_model.data.equals(data), "input data was not passed properly to the model")
+        kde_model.fit(data)
+        model_data = pd.concat([kde_model.data, kde_model.test_data]).sort_values('A').reset_index(drop=True)
+        self.assertTrue(model_data.equals(data), "input data was not passed properly to the model")
         # Change domains of dimension A
         kde_model.fields[1]['domain'].setlowerbound(2)
         kde_model.fields[1]['domain'].setupperbound(4)
         # Condition and marginalize model
-        kde_model.conditionout(keep='B', remove='A')
+        kde_model._conditionout(keep='B', remove='A')
         # Generate control data
         condition_upper = data['A'] <= 4
         condition_lower = data['A'] >= 2
         data_cond = data[condition_upper & condition_lower]
         data_cond = data_cond['B']
-        self.assertTrue(kde_model.data.equals(data_cond), "model data was not marginalized and conditioned properly")
+        self.assertTrue(model_data.equals(data_cond), "model data was not marginalized and conditioned properly")
 
 # TODO: Also write a test for discrete domains
