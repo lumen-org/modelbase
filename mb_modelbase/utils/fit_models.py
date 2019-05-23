@@ -27,7 +27,7 @@ def make_empirical_model(modelname, output_directory, input_file=None, df=None):
 
     Args:
         modelname: str
-            Name of the model
+            Name of the model. Will be used as the the name of the model and for the filename of the saved model.
         output_directory: str, optional.
             path of directory where to store the model (not file name!). If set to None, model will not be saved on
             filesystem.
@@ -35,7 +35,7 @@ def make_empirical_model(modelname, output_directory, input_file=None, df=None):
             path of csv file to read for data to use for training of model. Alternatively, directly specify the data
             in `df`.
         df: pd.DataFrame, optional.
-            Data to use for model fitting.
+            Data to use for model fitting. Alternatively specify a csv file in `input_file`.
     Return:
         The learned model.
 
@@ -46,7 +46,8 @@ def make_empirical_model(modelname, output_directory, input_file=None, df=None):
     if input_file is not None:
         df = pd.read_csv(input_file, index_col=False, skip_blank_lines=True)
         print("read data from file {}".format(input_file))
-        print("resuling data frame looks like this: \n{}".format(str(pd.head())))
+
+    print("Your data frame looks like this: \n{}".format(str(df.head())))
 
     # preprocess
     df2 = df.dropna(axis=0, how="any")
@@ -56,14 +57,15 @@ def make_empirical_model(modelname, output_directory, input_file=None, df=None):
 
     # fit model
     model = EmpiricalModel(modelname)
-    model.fit()
-    print("fitted model!")
+    model.fit(df2)
+    print("Successfully fitted empirical model!")
 
     # save
     if output_directory is not None:
         output_file = os.path.join(output_directory, modelname + ".mdl")
+        output_file = os.path.abspath(output_file)
         model.save(output_file)
-        print("saved model in file: \n{}".format(output_file))
+        print("Saved model in file: \n{}".format(output_file))
 
     return model
 
