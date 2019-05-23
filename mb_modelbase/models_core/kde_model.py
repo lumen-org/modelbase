@@ -7,6 +7,7 @@ from sklearn.neighbors.kde import KernelDensity
 import copy
 import numpy as np
 
+
 class KDEModel(Model):
     """
     A Kernel Density Estimator (KDE) model is a model whose distribution is determined by using a kernel
@@ -73,3 +74,19 @@ class KDEModel(Model):
         mycopy = self._defaultcopy(name)
         mycopy.kde = copy.deepcopy(self.kde)
         return mycopy
+
+
+# Create model for testing
+if __name__ == "__main__":
+    import pandas as pd
+    import mb_modelbase as mb
+
+    size = 200
+    a = 3*np.random.normal(2, 1, size) + np.random.normal(5, 0.1, size) + np.random.normal(6, 10, size)
+    b = np.random.normal(0, 1, size)
+    data = pd.DataFrame({'A': a, 'B': b})
+    kde_model = mb.KDEModel('kde_model_multimodal_gaussian')
+    kde_model.fit(data)
+    Model.save(kde_model, '/home/guet_jn/Desktop/mb_data/data_models/kde_model_multimodal_gaussian.mdl')
+
+
