@@ -56,7 +56,9 @@ class kde_test(unittest.TestCase):
                             columns=['B', 'A'])
         maximum = ['3', 3]
         kde_model = KDEModel('kde_model')
-        kde_model.fit(data)
-        self.assertEqual(kde_model._maximum(), maximum, 'Point of maximum density was not correctly computed')
+        kde_model.set_data(data)
+        kde_model._set_data_mixed(data, silently_drop=False, split_data=False)
+        kde_model.fit()
+        self.assertEqual(kde_model._mean(), maximum, 'Point of maximum density was not correctly computed')
 
 # TODO: Also write a test for conditioning with discrete domains
