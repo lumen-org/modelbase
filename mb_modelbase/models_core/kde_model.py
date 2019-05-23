@@ -31,6 +31,15 @@ class KDEModel(Model):
     def _conditionout(self, keep, remove):
         """Conditions the random variables with name in remove on their domain and marginalizes them out.
         """
+        for name in remove:
+            # Remove all rows from the data that are outside the domain in name
+            lower_bound = self.byname(name)['domain'].values()[0]
+            upper_bound = self.byname(name)['domain'].values()[1]
+            lower_cond = self.data[name] >= lower_bound
+            upper_cond = self.data[name] <= upper_bound
+            self.data = self.data[lower_cond & upper_cond]
+        self._marginalizeout(keep, remove)
+
     def _marginalizeout(self, keep, remove):
         """Marginalizes the dimensions in remove, keeping all those in keep"""
         # Fit the model to the current data. The data dimension to marginalize over
