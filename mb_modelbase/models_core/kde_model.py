@@ -38,6 +38,10 @@ class KDEModel(Model):
             lower_cond = self.data[name] >= lower_bound
             upper_cond = self.data[name] <= upper_bound
             self.data = self.data[lower_cond & upper_cond]
+            # DO the same for the test data
+            lower_cond = self.test_data[name] >= lower_bound
+            upper_cond = self.test_data[name] <= upper_bound
+            self.test_data = self.test_data[lower_cond & upper_cond]
         self._marginalizeout(keep, remove)
 
     def _marginalizeout(self, keep, remove):
