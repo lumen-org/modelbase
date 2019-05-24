@@ -61,4 +61,21 @@ class kde_test(unittest.TestCase):
         kde_model.fit()
         self.assertEqual(kde_model._arithmetic_mean(), maximum, 'Point of maximum density was not correctly computed')
 
+    def test_predict(self):
+        data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]),
+                             'B': np.array([1, 2, 3, 3, 3, 4, 5]),
+                             'C': np.array([1, 2, 3, 3, 3, 4, 5]),
+                             'D': np.array([0, 3, 3, 4, 4, 6, 7])},
+                            columns=['A', 'B', 'C', 'D'])
+        kde_model = KDEModel('kde_model')
+        kde_model.fit(data)
+        # marginalize out all but two dimensions
+        kde_model.marginalize(keep=['C', 'D'])
+        # condition out one of the remaining dimensions
+        kde_model.byname('C')['domain'].setupperbound(3)
+        kde_model.byname('C')['domain'].setlowerbound(2)
+        kde_model.marginalize(keep=['D'])
+        # For the remaining dimension: get point of maximum/average probability density
+        self.assertEqual(kde_model._arithmetic_mean(), 3.5, 'prediction is not correct')
+
 # TODO: Also write a test for conditioning with discrete domains
