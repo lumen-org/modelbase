@@ -21,6 +21,11 @@ class KDEModel(Model):
         super().__init__(name)
         self.kde = None
         self._emp_data = None
+        self._aggrMethods = {
+            'maximum': self._arithmetic_mean,
+            'average': self._arithmetic_mean
+        }
+        self.parallel_processing = False
 
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently, split_data=False)
@@ -96,6 +101,7 @@ class KDEModel(Model):
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)
         mycopy.kde = copy.deepcopy(self.kde)
+        mycopy._emp_data = self._emp_data.copy()
         return mycopy
 
 
