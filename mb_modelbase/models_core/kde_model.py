@@ -24,6 +24,7 @@ class KDEModel(Model):
 
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently, split_data=False)
+        self.test_data = self.data.iloc[0:0, :]
         return ()
 
     def _fit(self):
@@ -67,6 +68,7 @@ class KDEModel(Model):
         # transfer condition from _emp_data to data
         self.data = self.data.loc[list(self._emp_data.index.values), :]
         self._marginalizeout(keep, remove)
+        return()
 
     def _marginalizeout(self, keep, remove):
         """Marginalizes the dimensions in remove, keeping all those in keep"""
