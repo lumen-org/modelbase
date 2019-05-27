@@ -40,7 +40,8 @@ class kde_test(unittest.TestCase):
                             columns=['B', 'A'])
         kde_model = KDEModel('kde_model')
         kde_model.fit(data)
-        self.assertTrue(kde_model.data.equals(data), "input data was not passed properly to the model")
+        self.assertTrue(kde_model.data.sort_values(by='A').reset_index(drop=True).equals(data),
+                        "input data was not passed properly to the model")
         # Change domains of dimension A
         kde_model.fields[1]['domain'].setlowerbound(2)
         kde_model.fields[1]['domain'].setupperbound(4)
@@ -49,7 +50,7 @@ class kde_test(unittest.TestCase):
         # Generate control data
         data_cond = pd.DataFrame({'B': np.array(['2', '3', '3', '3', '4']), 'A': np.array([2, 3, 3, 3, 4])},
                                  columns=['B', 'A'])
-        self.assertTrue(kde_model.data.equals(data_cond), "model data was not marginalized and conditioned properly")
+        self.assertTrue(kde_model.data.sort_values(by='A').reset_index(drop=True).equals(data_cond), "model data was not marginalized and conditioned properly")
 
     def test_maximum(self):
         data = pd.DataFrame({'B': np.array(['1', '2', '3', '3', '3', '4', '5']), 'A': np.array([1, 2, 3, 3, 3, 4, 5])},
