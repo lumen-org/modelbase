@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd
 import mb_modelbase as mbase
 import unittest
+import theano
+import pymc3 as pm
+from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 
 model_paths = [
                '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl',
@@ -338,6 +341,24 @@ class Test_more_combinations_on_model(unittest.TestCase):
             self.assertEqual(len(mymod._maximum()), len(mymod.names),
                              "Dimensions of the maximum and the model variables do not match. Model: " + mymod.name)
 
+
+class Test_model_with_datadependent_priors(unittest.TestCase):
+
+    def test(self):
+        # create model
+        np.random.seed(123)
+        size = 100
+        Y = np.random.randn(size)
+        theta = Y + np.random.randn(size)
+        X = theta * Y + np.random.randn(size)
+        data = pd.DataFrame({'X': X, 'Y': Y})
+        Y = theano.shared(Y)
+        with pm.Model() as basic_model:
+            theta = pm.Normal('theta', mu=Y.min(), sd=1)
+            X = pm.Normal('X', mu=theta * Y, sd=1, observed=X)
+        m = ProbabilisticPymc3Model('modelname' , basic_model, shared_vars={'Y': Y})
+        #m.fit(data)
+        self.assertRaises(ValueError, m.fit, data, 'data dependent prior is not detected')
 
 if __name__ == "__main__":
 
