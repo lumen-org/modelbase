@@ -89,6 +89,10 @@ class ProbabilisticPymc3Model(Model):
                         varnames.append(varname+'_'+str(i))
                 else:
                     self.samples[varname] = trace[varname]
+                data_dependent_prior = False
+                if data_dependent_prior:
+                    raise ValueError('A parameter of the model seems to be directly parametrized by data. '
+                                     'This kind of model is not supported')
             # Generate samples for independent variables
             if hasattr(self, 'shared_vars'):
                 if self.shared_vars is not None:
