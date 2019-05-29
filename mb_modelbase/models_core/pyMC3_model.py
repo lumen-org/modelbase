@@ -64,7 +64,32 @@ class ProbabilisticPymc3Model(Model):
                 'that you pass the data for each independent variable as theano shared variable to the constructor'
         return ()
 
+    def _check_for_datadependent_priors(self):
+        if self.shared_vars:
+            data_dependent_prior = False
+            for varname in self.model_structure.unobserved_RVs:
+                # Get a probability from the prior
+                logp1 = varname.distribution.logp(0)
+                # Change independent data
+                old_ind = cp.deepcopy(self.shared_vars)
+                for key,value in self.shared_vars:
+                    new_ind = np.random.uniform(0,1,size=len(value))
+                    self.shared_vars[key].set_value(new_ind)
+                # Get a second probability from the prior
+                logp2 = varname.distribution.logp(0)
+                # The two probabilities should be equal, if the prior is not dependent on the data
+                if logp1 != logp2:
+                    data_dependent_prior = True
+                # Change independent variables back to previous values
+                for key,value in self.shared_vars:
+                    self.shared_vars[key].set_value(old_ind[key])
+
+            if data_dependent_prior:
+                raise ValueError('A parameter of the model seems to be directly parametrized by data. '
+                                 'This kind of model is not supported')
+
     def _fit(self):
+        #self._check_for_datadependent_priors()
         with self.model_structure:
             # Draw samples
             # Number of samples drawn in one iteration should be equal to the length of the data since in some models
@@ -89,10 +114,6 @@ class ProbabilisticPymc3Model(Model):
                         varnames.append(varname+'_'+str(i))
                 else:
                     self.samples[varname] = trace[varname]
-                data_dependent_prior = False
-                if data_dependent_prior:
-                    raise ValueError('A parameter of the model seems to be directly parametrized by data. '
-                                     'This kind of model is not supported')
             # Generate samples for independent variables
             if hasattr(self, 'shared_vars'):
                 if self.shared_vars is not None:
