@@ -41,27 +41,6 @@ class KDEModel(Model):
     def _conditionout(self, keep, remove):
         """Conditions the random variables with name in remove on their domain and marginalizes them out.
         """
-        # for name in remove:
-        #     # Remove all rows from the data that are outside the domain in name
-        #     lower_bound = self.byname(name)['domain'].values()[0]
-        #     upper_bound = self.byname(name)['domain'].values()[1]
-        #     lower_cond = self.data[name] >= lower_bound
-        #     upper_cond = self.data[name] <= upper_bound
-        #     self.data = self.data[lower_cond & upper_cond]
-        #     # Do the same for the test data
-        #     lower_cond = self.test_data[name] >= lower_bound
-        #     upper_cond = self.test_data[name] <= upper_bound
-        #     self.test_data = self.test_data[lower_cond & upper_cond]
-        # self.data = self.data.drop(remove, axis=1)
-        # self.test_data = self.test_data.drop(remove, axis=1)
-
-        # collect conditions
-        #values = [self.byname(r)['domain'].values() for r in remove]
-        #conditions = zip(remove, ['in']*len(values), values)
-        # condition
-        #self._emp_data = data_op.condition_data(self._emp_data, conditions)
-
-
         for name in remove:
             # Remove all rows from the _emp_data that are outside the domain in name
             lower_bound = self.byname(name)['domain'].values()[0]
@@ -110,8 +89,11 @@ if __name__ == "__main__":
     import pandas as pd
     import mb_modelbase as mb
 
-    size = 200
-    a = 3*np.random.normal(2, 1, size) + np.random.normal(5, 0.1, size) + np.random.normal(6, 10, size)
+    size = 10000
+    a1 = np.random.normal(6, 3, int(size*0.75))
+    a2 = np.random.normal(1, 0.5, int(size*0.25))
+    a = np.concatenate((a1, a2))
+    np.random.shuffle(a)
     b = np.random.normal(0, 1, size)
     data = pd.DataFrame({'A': a, 'B': b})
     kde_model = mb.KDEModel('kde_model_multimodal_gaussian')
