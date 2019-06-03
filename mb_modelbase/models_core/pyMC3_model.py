@@ -88,6 +88,23 @@ class ProbabilisticPymc3Model(Model):
                 raise ValueError('A parameter of the model seems to be directly parametrized by data. '
                                  'This kind of model is not supported')
 
+    def _generate_samples_for_independent_variable(self, key, size):
+        lower_bound = self.byname(key)['extent'].value()[0]
+        upper_bound = self.byname(key)['extent'].value()[1]
+        generated_samples = np.linspace(lower_bound, upper_bound, num=size)
+        # If the samples have another data type than the original data, problems can arise. Therefore,
+        # data types of the new samples are changed to the dtypes of the original data here
+        if str(generated_samples.dtype) != self.shared_vars[key].dtype:
+            generated_samples = generated_samples.astype(self.shared_vars['years'].dtype)
+        return generated_samples
+
+    def _cartesian_product_of_ind_var_samples(self):
+        # Make df from each item in shared vars
+        dfs = [pd.DataFrame({key: val.get_value(), 'key': 1}) for key, val in self.shared_vars.items()]
+        # cross join all dfs
+        samples_independent_vars = reduce(lambda left, right: pd.merge(left, right, on='key'), dfs)
+        return samples_independent_vars
+
     def _fit(self):
         #self._check_for_datadependent_priors()
         with self.model_structure:
@@ -114,48 +131,28 @@ class ProbabilisticPymc3Model(Model):
                         varnames.append(varname+'_'+str(i))
                 else:
                     self.samples[varname] = trace[varname]
-            # Generate samples for independent variables
+            # Generate samples for observed variables
             if hasattr(self, 'shared_vars'):
                 if self.shared_vars is not None:
-                    nr_of_shared_vars = len(self.shared_vars)
+                    nr_of_ind_vars = len(self.shared_vars)
+                    nr_of_unique_values = nr_of_samples ** (1. / nr_of_ind_vars)
                     for key, val in self.shared_vars.items():
-                        lower_bound = self.byname(key)['extent'].value()[0]
-                        upper_bound = self.byname(key)['extent'].value()[1]
-                        # We want to cover the whole space of the independent variables with our samples. However, when
-                        # we have only unique values for each variable in the samples, the whole variable space will
-                        # not be covered. Therefore, each value in the samples should be duplicated so that every
-                        # combination of values appears once in the generated samples
-                        # Generate the unique values
-                        nr_of_unique_values = nr_of_samples ** (1./nr_of_shared_vars)
-                        #generated_samples = np.linspace(lower_bound, upper_bound, num=nr_of_unique_values)
-                        # Duplicate the values
-                        #generated_samples = np.repeat(generated_samples, nr_of_unique_values **  )
-                        # Adjust order of values
-                        #
-                        generated_samples = np.linspace(lower_bound, upper_bound, num=nr_of_unique_values)
-                        # If the samples have another data type than the original data, problems can arise. Therefore,
-                        # data types of the new samples are changed to the dtypes of the original data here
-                        if str(generated_samples.dtype) != self.shared_vars[key].dtype:
-                            generated_samples = generated_samples.astype(self.shared_vars['years'].dtype)
+                        generated_samples = self._generate_samples_for_independent_variable(key, nr_of_unique_values)
                         self.shared_vars[key].set_value(generated_samples)
                     # Build cartesian product of the samples
-                    # Make df from each item in shared vars
-                    dfs = [pd.DataFrame({key: val.get_value(), 'key': 1}) for key, val in self.shared_vars.items()]
-                    # cross join all dfs
-                    samples_independent_vars = reduce(lambda left, right: pd.merge(left, right, on='key'), dfs)
+                    samples_independent_vars = self._cartesian_product_of_ind_var_samples()
+                    # Replicate samples until prespecified total number of samples is reached
                     for key, val in self.shared_vars.items():
-                        self.shared_vars[key].set_value(samples_independent_vars[key])
-                        # New values for independent variables are replicated until the prespecified total number of
-                        # samples is reached
-                        sample_vals = val.get_value()
-                        rest = nr_of_samples % len(sample_vals)
+                        sample_vals = samples_independent_vars[key]
                         # Fill up the rest
+                        rest = nr_of_samples % len(sample_vals)
                         if rest > 0:
                             sample_vals = np.append(sample_vals, sample_vals[0:rest])
+                        # Replicate from nr_of_samples to nr_of_samples_total
                         for i in range(0, int(nr_of_samples_total/nr_of_samples)):
                             self.samples[key][i*nr_of_samples:(i+1)*nr_of_samples] = sample_vals
-                        rest = nr_of_samples_total % nr_of_samples
                         # Fill up the rest
+                        rest = nr_of_samples_total % nr_of_samples
                         if rest > 0:
                             self.samples[key][nr_of_samples_total-rest:nr_of_samples_total] = sample_vals[0:rest]
                         self.shared_vars[key].set_value(self.samples[key])
