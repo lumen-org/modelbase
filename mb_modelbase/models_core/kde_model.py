@@ -4,6 +4,7 @@ from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core import data_operations as data_op
 from mb_modelbase.models_core import data_aggregation as data_aggr
 from sklearn.neighbors.kde import KernelDensity
+from mb_modelbase.utils import data_import_utils
 import copy
 import numpy as np
 
@@ -28,7 +29,9 @@ class KDEModel(Model):
         self.parallel_processing = False
 
     def _set_data(self, df, drop_silently, **kwargs):
-        self._set_data_mixed(df, drop_silently, split_data=False)
+        assert data_import_utils.get_columns_by_dtype(df)[1] == [], \
+            'kernel density estimation is possible only for continuous data'
+        self._set_data_continuous(df, drop_silently, split_data=False)
         self.test_data = self.data.iloc[0:0, :]
         return ()
 
@@ -89,14 +92,18 @@ if __name__ == "__main__":
     import pandas as pd
     import mb_modelbase as mb
 
-    size = 10000
-    a1 = np.random.normal(6, 3, int(size*0.75))
-    a2 = np.random.normal(1, 0.5, int(size*0.25))
-    a = np.concatenate((a1, a2))
-    np.random.shuffle(a)
-    b = np.random.normal(0, 1, size)
-    data = pd.DataFrame({'A': a, 'B': b})
-    kde_model = mb.KDEModel('kde_model_multimodal_gaussian')
+    # size = 10000
+    # a1 = np.random.normal(6, 3, int(size*0.75))
+    # a2 = np.random.normal(1, 0.5, int(size*0.25))
+    # a = np.concatenate((a1, a2))
+    # np.random.shuffle(a)
+    # b = np.random.normal(0, 1, size)
+    # data = pd.DataFrame({'A': a, 'B': b})
+
+    data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/iris/iris.csv')
+    kde_model = mb.KDEModel('kde_model_iris')
+
+
     kde_model.fit(data)
     Model.save(kde_model, '/home/guet_jn/Desktop/mb_data/data_models/kde_model_multimodal_gaussian.mdl')
 
