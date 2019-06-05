@@ -7,6 +7,7 @@ from sklearn.neighbors.kde import KernelDensity
 from mb_modelbase.utils import data_import_utils
 import copy
 import numpy as np
+import scipy.optimize as sciopt
 
 
 class KDEModel(Model):
@@ -23,8 +24,7 @@ class KDEModel(Model):
         self.kde = None
         self._emp_data = None
         self._aggrMethods = {
-            'maximum': self._arithmetic_mean,
-            'average': self._arithmetic_mean
+            'maximum': self._maximum,
         }
         self.parallel_processing = False
 
@@ -70,9 +70,18 @@ class KDEModel(Model):
         logdensity = self.kde.score_samples(x)[0]
         return np.exp(logdensity).item()
 
-    def _arithmetic_mean(self):
-        """Returns the point of the average density"""
-        maximum = data_aggr.aggregate_data(self.data, 'maximum')
+    # def _arithmetic_mean(self):
+    #     """Returns the point of the average density"""
+    #     maximum = data_aggr.aggregate_data(self.data, 'maximum')
+    #     return maximum
+
+    def _negdensity(self,x):
+        return -self._density(x)
+
+    def _maximum(self):
+        """Compute the point of maximum density"""
+        x0 = np.zeros(len(self.fields))
+        maximum = sciopt.minimize(self._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False}).x
         return maximum
 
     def _sample(self):
