@@ -31,7 +31,7 @@ class KDEModel(Model):
     def _set_data(self, df, drop_silently, **kwargs):
         assert data_import_utils.get_columns_by_dtype(df)[1] == [], \
             'kernel density estimation is possible only for continuous data'
-        self._set_data_continuous(df, drop_silently, split_data=False)
+        self._set_data_mixed(df, drop_silently, split_data=False)
         self.test_data = self.data.iloc[0:0, :]
         return ()
 
