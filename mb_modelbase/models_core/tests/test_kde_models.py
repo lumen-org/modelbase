@@ -53,7 +53,7 @@ class kde_test(unittest.TestCase):
                         "model data was not marginalized and conditioned properly")
 
     def test_maximum(self):
-        data = pd.DataFrame({'B': np.array([0, 2, 3, 4, 4, 5, 3]), 'A': np.array([1, 2, 3, 3, 3, 4, 5])},
+        data = pd.DataFrame({'B': np.array([0, 2, 2, 3, 3, 3, 4, 4, 6]), 'A': np.array([1, 2, 3, 3, 3, 3, 3, 4, 5])},
                             columns=['B', 'A'])
         maximum = [3, 3]
         kde_model = KDEModel('kde_model')
