@@ -30,13 +30,12 @@ class kde_test(unittest.TestCase):
     def test_fit_categoricals(self):
         data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
         kde_model = KDEModel('kde_model')
-        self.assertIsNone(kde_model.kde, "Before fitting there should be no kde object")
-        kde_model.set_data(data)
-        kde_model.fit()
-        self.assertIsNotNone(kde_model.kde, "After fitting there should be a kde object")
+        with self.assertRaises(AssertionError) as context:
+            kde_model.fit(data)
+
 
     def test_conditionout(self):
-        data = pd.DataFrame({'B': np.array(['1', '2', '3', '3', '3', '4', '5']), 'A': np.array([1, 2, 3, 3, 3, 4, 5])},
+        data = pd.DataFrame({'B': np.array([2, 4, 7, 7, 7, 4, 1]), 'A': np.array([1, 2, 3, 3, 3, 4, 5])},
                             columns=['B', 'A'])
         kde_model = KDEModel('kde_model')
         kde_model.fit(data)
@@ -48,17 +47,18 @@ class kde_test(unittest.TestCase):
         # Condition and marginalize model
         kde_model._conditionout(keep='B', remove='A')
         # Generate control data
-        data_cond = pd.DataFrame({'B': np.array(['2', '3', '3', '3', '4']), 'A': np.array([2, 3, 3, 3, 4])},
+        data_cond = pd.DataFrame({'B': np.array([4, 7, 7, 7, 4]), 'A': np.array([2, 3, 3, 3, 4])},
                                  columns=['B', 'A'])
-        self.assertTrue(kde_model.data.sort_values(by='A').reset_index(drop=True).equals(data_cond), "model data was not marginalized and conditioned properly")
+        self.assertTrue(kde_model.data.sort_values(by='A').reset_index(drop=True).equals(data_cond),
+                        "model data was not marginalized and conditioned properly")
 
     def test_maximum(self):
-        data = pd.DataFrame({'B': np.array(['1', '2', '3', '3', '3', '4', '5']), 'A': np.array([1, 2, 3, 3, 3, 4, 5])},
+        data = pd.DataFrame({'B': np.array([0, 2, 3, 4, 4, 5, 3]), 'A': np.array([1, 2, 3, 3, 3, 4, 5])},
                             columns=['B', 'A'])
-        maximum = ['3', 3]
+        maximum = [3, 3]
         kde_model = KDEModel('kde_model')
         kde_model.fit(data)
-        self.assertEqual(kde_model._arithmetic_mean(), maximum, 'Point of maximum density was not correctly computed')
+        self.assertTrue(all(kde_model._arithmetic_mean() == maximum), 'Point of maximum density was not correctly computed')
 
     def test_predict(self):
         data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]),
@@ -77,13 +77,13 @@ class kde_test(unittest.TestCase):
         # For the remaining dimension: get point of maximum/average probability density
         self.assertEqual(kde_model._arithmetic_mean(), 3.5, 'prediction is not correct')
 
-    def test_discrete_domains(self):
-        data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
-        kde_model = KDEModel('kde_model')
-        self.assertIsNone(kde_model.kde, "Before fitting there should be no kde object")
-        kde_model.set_data(data)
-        kde_model.fit()
-        kde_model.byname('B')['domain']._value = ['2', '4']
-        kde_model.marginalize(keep=['A'])
-        self.assertEqual(kde_model._arithmetic_mean(), 3.0, 'prediction is not correct')
+    # def test_discrete_domains(self):
+    #     data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
+    #     kde_model = KDEModel('kde_model')
+    #     self.assertIsNone(kde_model.kde, "Before fitting there should be no kde object")
+    #     kde_model.set_data(data)
+    #     kde_model.fit()
+    #     kde_model.byname('B')['domain']._value = ['2', '4']
+    #     kde_model.marginalize(keep=['A'])
+    #     self.assertEqual(kde_model._arithmetic_mean(), 3.0, 'prediction is not correct')
 
