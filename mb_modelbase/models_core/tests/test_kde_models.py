@@ -3,6 +3,7 @@ import pandas as pd
 import mb_modelbase as mbase
 import unittest
 from mb_modelbase.models_core.kde_model import KDEModel
+import math
 
 
 class kde_test(unittest.TestCase):
@@ -55,10 +56,15 @@ class kde_test(unittest.TestCase):
     def test_maximum(self):
         data = pd.DataFrame({'B': np.array([0, 2, 2, 3, 3, 3, 4, 4, 6]), 'A': np.array([1, 2, 3, 3, 3, 3, 3, 4, 5])},
                             columns=['B', 'A'])
-        maximum = [3, 3]
+        maximum = np.array([3., 3.])
         kde_model = KDEModel('kde_model')
         kde_model.fit(data)
-        self.assertTrue(all(kde_model._arithmetic_mean() == maximum), 'Point of maximum density was not correctly computed')
+        #self.assertTrue(all(kde_model._maximum() == maximum),
+        #                'Point of maximum density was not correctly computed')
+        model_max = kde_model._maximum()
+
+        for i in range(len(kde_model.fields)):
+            self.assertAlmostEqual(model_max[i], maximum[i])
 
     def test_predict(self):
         data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]),
@@ -75,7 +81,7 @@ class kde_test(unittest.TestCase):
         kde_model.byname('C')['domain'].setlowerbound(2)
         kde_model.marginalize(keep=['D'])
         # For the remaining dimension: get point of maximum/average probability density
-        self.assertEqual(kde_model._arithmetic_mean(), 3.5, 'prediction is not correct')
+        self.assertEqual(kde_model._maximum(), 3.5, 'prediction is not correct')
 
     # def test_discrete_domains(self):
     #     data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
