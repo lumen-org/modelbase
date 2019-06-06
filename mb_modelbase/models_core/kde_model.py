@@ -36,7 +36,16 @@ class KDEModel(Model):
         return ()
 
     def _fit(self):
-        self.kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(self.data.values)
+        # Split data into numerical and categorical variables
+        num_idx = []
+        #cat_idx = []
+        for idx, dtype in enumerate(self.data.dtypes):
+            if np.issubdtype(dtype, np.number):
+                num_idx.append(idx)
+            #else:
+            #    cat_idx.append(idx)
+        # Perform kernel density estimation for numerical dimensions
+        self.kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(self.data.iloc[:, num_idx])
         # This is necessary for conditioning on the data later
         self._emp_data = self.data.copy()
         return()
@@ -66,9 +75,27 @@ class KDEModel(Model):
 
     def _density(self, x):
         """Returns the density at x"""
-        x = np.reshape(x, (1, len(x)))
-        logdensity = self.kde.score_samples(x)[0]
-        return np.exp(logdensity).item()
+        # Split data into numerical and categorical variables
+        num_idx = []
+        cat_idx = []
+        for idx, dtype in enumerate(self.data.dtypes):
+            if np.issubdtype(dtype, np.number):
+                num_idx.append(idx)
+            else:
+                cat_idx.append(idx)
+        x_num = x[num_idx]
+        x_cat = x[cat_idx]
+        # get density for numeric dimensions from kde
+        x_num = np.reshape(x_num, (1, len(x_num)))
+        logdensity_num = self.kde.score_samples(x_num)[0]
+        density_num = np.exp(logdensity_num).item()
+        # get density for categorical dimensions by selecting the most frequent element
+        density_cat = data_aggr.most_frequent(self.data.iloc[:, x_cat])
+        # Combine densities for numerical and categorical dimensions
+        densities = np.zeros(len(self.fields))
+        densities[cat_idx] = density_cat
+        densities[num_idx] = density_num
+        return densities
 
     def _negdensity(self,x):
         return -self._density(x)
@@ -107,7 +134,19 @@ class KDEModel(Model):
 
     def _sample(self):
         """Returns random point of the distribution"""
-        sample = self.kde.sample()
+        sample = np.zeros(len(self.fields))
+        # Split data into numerical and categorical variables
+        num_idx = []
+        cat_idx = []
+        for idx, dtype in enumerate(self.data.dtypes):
+            if np.issubdtype(dtype, np.number):
+                num_idx.append(idx)
+            else:
+                cat_idx.append(idx)
+        # get samples for numerical dimensions
+        sample[num_idx]= self.kde.sample()
+        # get samples for categorical dimensions
+        sample[cat_idx] = self.data.iloc[:, cat_idx].sample().tolist() #[0] ?
         return sample
 
     def copy(self, name=None):
@@ -122,17 +161,17 @@ if __name__ == "__main__":
     import pandas as pd
     import mb_modelbase as mb
 
-    # size = 10000
-    # a1 = np.random.normal(6, 3, int(size*0.75))
-    # a2 = np.random.normal(1, 0.5, int(size*0.25))
-    # a = np.concatenate((a1, a2))
-    # np.random.shuffle(a)
-    # b = np.random.normal(0, 1, size)
-    # data = pd.DataFrame({'A': a, 'B': b})
+    size = 10000
+    a1 = np.random.normal(6, 3, int(size*0.75))
+    a2 = np.random.normal(1, 0.5, int(size*0.25))
+    a = np.concatenate((a1, a2))
+    np.random.shuffle(a)
+    b = np.random.normal(0, 1, size)
+    data = pd.DataFrame({'A': a, 'B': b})
+    kde_model = mb.KDEModel('kde_model_multimodel_gaussian')
 
-    data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/iris/iris.csv')
-    kde_model = mb.KDEModel('kde_model_iris')
-
+    #data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/iris/iris.csv')
+    #kde_model = mb.KDEModel('kde_model_iris')
 
     kde_model.fit(data)
     Model.save(kde_model, '/home/guet_jn/Desktop/mb_data/data_models/kde_model_multimodal_gaussian.mdl')
