@@ -86,12 +86,14 @@ class KDEModel(Model):
         x_num = [x[i] for i in num_idx]
         x_cat = [x[i] for i in cat_idx]
         # get density for numeric dimensions from kde
+        # TODO: Condition numeric data on categorical data, then get the density
+        # condition copy of the model on x_cat
         x_num = np.reshape(x_num, (1, len(x_num)))
         logdensity_num = self.kde.score_samples(x_num)[0]
         density_num = np.exp(logdensity_num).item()
         # get density for categorical dimensions
         density_cat = data_op.density(self.data.iloc[:, x_cat], x_cat)
-        # Combine densities for numerical and categorical dimensions by multiplying them. #TODO: Is this even correct?
+        # Combine densities for numerical and categorical dimensions by multiplying them. #TODO: Is this even correct? --> No it is not, only when there is independence
         density = density_num * density_cat
         return density
 
