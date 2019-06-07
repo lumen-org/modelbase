@@ -83,21 +83,21 @@ class KDEModel(Model):
                 num_idx.append(idx)
             else:
                 cat_idx.append(idx)
-        x_num = x[num_idx]
-        x_cat = x[cat_idx]
+        x_num = [x[i] for i in num_idx]
+        x_cat = [x[i] for i in cat_idx]
         # get density for numeric dimensions from kde
         x_num = np.reshape(x_num, (1, len(x_num)))
         logdensity_num = self.kde.score_samples(x_num)[0]
         density_num = np.exp(logdensity_num).item()
-        # get density for categorical dimensions by selecting the most frequent element
-        density_cat = data_aggr.most_frequent(self.data.iloc[:, x_cat])
+        # get density for categorical dimensions
+        density_cat = data_op.density(self.data.iloc[:, x_cat], x_cat)
         # Combine densities for numerical and categorical dimensions
         densities = np.zeros(len(self.fields))
         densities[cat_idx] = density_cat
         densities[num_idx] = density_num
         return densities
 
-    def _negdensity(self,x):
+    def _negdensity(self, x):
         return -self._density(x)
 
     def _maximum(self):
