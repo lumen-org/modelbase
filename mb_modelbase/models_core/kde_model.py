@@ -91,11 +91,9 @@ class KDEModel(Model):
         density_num = np.exp(logdensity_num).item()
         # get density for categorical dimensions
         density_cat = data_op.density(self.data.iloc[:, x_cat], x_cat)
-        # Combine densities for numerical and categorical dimensions
-        densities = np.zeros(len(self.fields))
-        densities[cat_idx] = density_cat
-        densities[num_idx] = density_num
-        return densities
+        # Combine densities for numerical and categorical dimensions by multiplying them. #TODO: Is this even correct?
+        density = density_num * density_cat
+        return density
 
     def _negdensity(self, x):
         return -self._density(x)
