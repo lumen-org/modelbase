@@ -13,10 +13,18 @@ import scipy.optimize as sciopt
 class KDEModel(Model):
     """
     A Kernel Density Estimator (KDE) model is a model whose distribution is determined by using a kernel
-    density estimator. KDE work in a way that to each point of the observed data a distribution is
+    density estimator. KDE work in a way that to each point of the observed data a so-called kernel distribution is
     assigned centered at that point (e.g. a normal distribution). The distributions from all data points
     are then summed up and build up the joint distribution for the model
     (see https://scikit-learn.org/stable/modules/density.html#kernel-density)
+    TODOs:
+     - model with categorical variables are not yet supported. The standard scikit kernel density estimator used here
+       only supports continuous data
+     - Calculating the point of maximum density is very slow, since a number of optimization problems is solved that
+       quadratically increases with the number of dimensions. Try different approaches: Maybe guess one starting point
+       and then only solve one optimization problem
+     - bandwidth parameter for the kernel density estimation is currently always set to 0.1. I couldN#t find a
+       heuristic for multidemsnional models. A good value for the bandwidth probably has to be calculated dynamically
     """
 
     def __init__(self, name):
@@ -161,14 +169,14 @@ if __name__ == "__main__":
     import pandas as pd
     import mb_modelbase as mb
 
-    size = 10000
-    a1 = np.random.normal(6, 3, int(size*0.75))
-    a2 = np.random.normal(1, 0.5, int(size*0.25))
-    a = np.concatenate((a1, a2))
-    np.random.shuffle(a)
-    b = np.random.normal(0, 1, size)
-    data = pd.DataFrame({'A': a, 'B': b})
-    kde_model = mb.KDEModel('kde_model_multimodel_gaussian')
+    # size = 10000
+    # a1 = np.random.normal(6, 3, int(size*0.75))
+    # a2 = np.random.normal(1, 0.5, int(size*0.25))
+    # a = np.concatenate((a1, a2))
+    # np.random.shuffle(a)
+    # b = np.random.normal(0, 1, size)
+    # data = pd.DataFrame({'A': a, 'B': b})
+    # kde_model = mb.KDEModel('kde_model_multimodel_gaussian')
 
     # data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/iris/iris_numeric.csv')
     # kde_model = mb.KDEModel('kde_model_iris')
@@ -176,10 +184,10 @@ if __name__ == "__main__":
     # data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/mpg/mpg_numeric.csv')
     # kde_model = mb.KDEModel('kde_model_mpg')
 
-    # data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/crabs/crabs_numeric.csv')
-    # kde_model = mb.KDEModel('kde_model_crabs')
+    data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/crabs/crabs_numeric.csv')
+    kde_model = mb.KDEModel('kde_model_crabs')
 
     kde_model.fit(data)
-    Model.save(kde_model, '/home/guet_jn/Desktop/mb_data/data_models/kde_model_multimodal_gaussian.mdl')
+    Model.save(kde_model, '/home/guet_jn/Desktop/mb_data/data_models/kde_model_crabs.mdl')
 
 
