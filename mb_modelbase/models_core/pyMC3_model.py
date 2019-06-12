@@ -235,10 +235,11 @@ class ProbabilisticPymc3Model(Model):
         return ()
 
     def _density(self, x):
-        if self.samples.empty:
+        if any([self.fields[i]['independent'] for i in range(len(self.fields))]):
+            #raise ValueError("Density is queried for a model with independent variables")
+            return np.NaN
+        elif self.samples.empty:
             raise ValueError("There are no samples in the model")
-        #elif all([math.isnan(i) for i in self.samples.values]):
-        #    return np.NaN
         else:
             X = self.samples.values
             kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(X)
