@@ -110,30 +110,33 @@ class KDEModel(Model):
 
     def _maximum(self):
         """Compute the point of maximum density """
-        # The problem is not convex, so try different starting points and return the biggest of the found maxima
-
-        # Generate starting points
-        nr_of_points_per_dim = 20
-        total_nr_of_points = nr_of_points_per_dim ** len(self.fields)
-        max_vals = [self.fields[i]['extent'].values()[1] for i in range(len(self.fields))]
-        min_vals = [self.fields[i]['extent'].values()[0] for i in range(len(self.fields))]
-        extent_range = [x_max - x_min for x_max, x_min in zip(max_vals, min_vals)]
-        stepsize = [i/nr_of_points_per_dim for i in extent_range]
-        stepsize_re = np.reshape(stepsize, (len(stepsize), 1))
-        points_re = np.reshape(np.arange(nr_of_points_per_dim), (1, nr_of_points_per_dim))
-        min_vals_re = np.reshape(min_vals, (len(self.fields), 1))
-        points_per_dim = np.inner(stepsize_re, points_re.T) + min_vals_re
-        # Perform cross join
-        starting_points = np.array(np.meshgrid(*points_per_dim)).T.reshape(total_nr_of_points, len(self.fields))
-
-        global_max = starting_points[0]
-
-        for point in starting_points:
-            local_max = sciopt.minimize(self._negdensity, point, method='nelder-mead',
-                                        options={'xatol': 1e-8, 'disp': False}).x
-            if self._density(local_max) > self._density(global_max):
-                global_max = local_max
-        return global_max
+        # # The problem is not convex, so try different starting points and return the biggest of the found maxima
+        #
+        # # Generate starting points
+        # nr_of_points_per_dim = 20
+        # total_nr_of_points = nr_of_points_per_dim ** len(self.fields)
+        # max_vals = [self.fields[i]['extent'].values()[1] for i in range(len(self.fields))]
+        # min_vals = [self.fields[i]['extent'].values()[0] for i in range(len(self.fields))]
+        # extent_range = [x_max - x_min for x_max, x_min in zip(max_vals, min_vals)]
+        # stepsize = [i/nr_of_points_per_dim for i in extent_range]
+        # stepsize_re = np.reshape(stepsize, (len(stepsize), 1))
+        # points_re = np.reshape(np.arange(nr_of_points_per_dim), (1, nr_of_points_per_dim))
+        # min_vals_re = np.reshape(min_vals, (len(self.fields), 1))
+        # points_per_dim = np.inner(stepsize_re, points_re.T) + min_vals_re
+        # # Perform cross join
+        # starting_points = np.array(np.meshgrid(*points_per_dim)).T.reshape(total_nr_of_points, len(self.fields))
+        #
+        # global_max = starting_points[0]
+        #
+        # for point in starting_points:
+        #     local_max = sciopt.minimize(self._negdensity, point, method='nelder-mead',
+        #                                 options={'xatol': 1e-8, 'disp': False}).x
+        #     if self._density(local_max) > self._density(global_max):
+        #         global_max = local_max
+        # return global_max
+        x0 = [np.mean(self.samples[col]) for col in self.samples]
+        maximum = sciopt.minimize(self._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False}).x
+        return maximum
 
     def _arithmetic_mean(self):
         """Returns the point of the average density"""
