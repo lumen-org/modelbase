@@ -215,28 +215,17 @@ class ProbabilisticPymc3Model(Model):
         remove_not_in_names = [name for name in remove if name not in self.names]
         if len(remove_not_in_names) > 0:
             raise ValueError('The following variables in remove do not appear in the model: ' + str(remove_not_in_names))
-        # new approach. Do not filter samples. Instead generate new samples from conditioned model
-        #
-        #
-        #
         names = remove
         fields = [] if names is None else self.byname(names)
+        # Konditioniere auf die Domäne der Variablen in remove
         for field in fields:
-            domain_min = field['domain'].value()[0]
-            domain_max = field['domain'].value()[1]
-            if not np.isinf(domain_min) and not np.isinf(domain_max):
-                cond_value = np.mean(field['domain'].values())
-            else:
-                cond_value = np.mean(field['extent'].values())
-        # Here: Konditioniere auf die Domäne der Variablen in remove
-        # for field in fields:
-        #     # filter out values smaller than domain minimum
-        #     filter = self.samples.loc[:,str(field['name'])] > field['domain'].value()[0]
-        #     self.samples.where(filter, inplace = True)
-        #     # filter out values bigger than domain maximum
-        #     filter = self.samples.loc[:,str(field['name'])] < field['domain'].value()[1]
-        #     self.samples.where(filter, inplace = True)
-        # self.samples.dropna(inplace=True)
+            # filter out values smaller than domain minimum
+            filter = self.samples.loc[:, str(field['name'])] > field['domain'].value()[0]
+            self.samples.where(filter, inplace=True)
+            # filter out values bigger than domain maximum
+            filter = self.samples.loc[:, str(field['name'])] < field['domain'].value()[1]
+            self.samples.where(filter, inplace=True)
+        self.samples.dropna(inplace=True)
         self._marginalizeout(keep, remove)
         return ()
 
