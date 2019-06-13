@@ -134,7 +134,7 @@ class KDEModel(Model):
         #     if self._density(local_max) > self._density(global_max):
         #         global_max = local_max
         # return global_max
-        x0 = [np.mean(self.samples[col]) for col in self.samples]
+        x0 = [np.mean(self.data[col]) for col in self.data]
         maximum = sciopt.minimize(self._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False}).x
         return maximum
 
