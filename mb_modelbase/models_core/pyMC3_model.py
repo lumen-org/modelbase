@@ -281,7 +281,7 @@ class ProbabilisticPymc3Model(Model):
             # can not compute any aggregation. return nan
             return [None] * col_cnt
         # Set starting point for optimization problem
-        x0 = [np.mean(field['extent'].values()) for field in self.fields]
+        x0 = [np.mean(self.samples[col]) for col in self.samples]
         maximum = sciopt.minimize(self._negdensity, x0, method='nelder-mead',options={'xtol': 1e-8, 'disp': False}).x
         return maximum
 
