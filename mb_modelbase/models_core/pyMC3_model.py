@@ -280,8 +280,9 @@ class ProbabilisticPymc3Model(Model):
         if row_cnt == 0:
             # can not compute any aggregation. return nan
             return [None] * col_cnt
-        x0 = np.zeros(len(self.fields))
-        maximum = sciopt.minimize(self._negdensity,x0,method='nelder-mead',options={'xtol': 1e-8, 'disp': False}).x
+        # Set starting point for optimization problem
+        x0 = [np.mean(field['extent'].values()) for field in self.fields]
+        maximum = sciopt.minimize(self._negdensity, x0, method='nelder-mead',options={'xtol': 1e-8, 'disp': False}).x
         return maximum
 
 
