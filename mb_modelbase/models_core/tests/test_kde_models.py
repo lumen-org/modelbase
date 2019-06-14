@@ -65,8 +65,8 @@ class kde_test(unittest.TestCase):
             self.assertAlmostEqual(model_max[i], maximum[i])
 
     def test_predict(self):
-        data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]),
-                             'B': np.array([1, 2, 3, 3, 3, 4, 5]),
+        data = pd.DataFrame({'A': np.array([1, 2, 3, 2, 3, 4, 5]),
+                             'B': np.array([1, 2, 2, 3, 3, 4, 5]),
                              'C': np.array([1, 2, 3, 3, 3, 4, 5]),
                              'D': np.array([0, 3, 3, 4, 4, 6, 7])},
                             columns=['A', 'B', 'C', 'D'])
