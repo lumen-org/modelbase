@@ -3,7 +3,7 @@
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core import data_operations as data_op
 from mb_modelbase.models_core import data_aggregation as data_aggr
-from sklearn.neighbors.kde import KernelDensity
+from scipy import stats
 from mb_modelbase.utils import data_import_utils
 import copy
 import numpy as np
@@ -50,10 +50,9 @@ class KDEModel(Model):
         for idx, dtype in enumerate(self.data.dtypes):
             if np.issubdtype(dtype, np.number):
                 num_idx.append(idx)
-            #else:
-            #    cat_idx.append(idx)
         # Perform kernel density estimation for numerical dimensions
-        self.kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(self.data.iloc[:, num_idx])
+        self.kde = stats.gaussian_kde(self.data.iloc[:, num_idx].T)
+        #self.kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(self.data.iloc[:, num_idx])
         # This is necessary for conditioning on the data later
         self._emp_data = self.data.copy()
         return()
@@ -97,8 +96,7 @@ class KDEModel(Model):
         # TODO: Condition numeric data on categorical data, then get the density
         # condition copy of the model on x_cat
         x_num = np.reshape(x_num, (1, len(x_num)))
-        logdensity_num = self.kde.score_samples(x_num)[0]
-        density_num = np.exp(logdensity_num).item()
+        density_num = self.kde.evaluate(x_num)
         # get density for categorical dimensions
         density_cat = data_op.density(self.data.iloc[:, x_cat], x_cat)
         # Combine densities for numerical and categorical dimensions by multiplying them. #TODO: Is this even correct? --> No it is not, only when there is independence
