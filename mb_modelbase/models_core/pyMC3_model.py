@@ -10,7 +10,7 @@ import pandas as pd
 import math
 from mb_modelbase.models_core.empirical_model import EmpiricalModel
 from mb_modelbase.models_core import data_operations as data_op
-from sklearn.neighbors.kde import KernelDensity
+from scipy import stats
 import scipy.optimize as sciopt
 import copy as cp
 from functools import reduce
@@ -237,12 +237,10 @@ class ProbabilisticPymc3Model(Model):
             raise ValueError("There are no samples in the model")
         else:
             X = self.samples.values
-            kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(X)
-            x = np.reshape(x,(1,len(x)))
-            logdensity = kde.score_samples(x)[0]
-            return np.exp(logdensity).item()
-
-
+            kde = stats.gaussian_kde(X.T)
+            x = np.reshape(x, (1, len(x)))
+            density = kde.evaluate(x)
+            return density
 
     def _negdensity(self,x):
         return -self._density(x)
