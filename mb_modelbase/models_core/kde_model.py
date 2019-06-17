@@ -52,7 +52,6 @@ class KDEModel(Model):
                 num_idx.append(idx)
         # Perform kernel density estimation for numerical dimensions
         self.kde = stats.gaussian_kde(self.data.iloc[:, num_idx].T)
-        #self.kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(self.data.iloc[:, num_idx])
         # This is necessary for conditioning on the data later
         self._emp_data = self.data.copy()
         return()
@@ -92,15 +91,19 @@ class KDEModel(Model):
                 cat_idx.append(idx)
         x_num = [x[i] for i in num_idx]
         x_cat = [x[i] for i in cat_idx]
-        # get density for numeric dimensions from kde
-        # TODO: Condition numeric data on categorical data, then get the density
-        # condition copy of the model on x_cat
+        # Condition numeric data on categorical data
+        m = self.copy()
+        for i in cat_idx:
+            m.fields[i]['domain'].setlowerbound(x_cat[i])
+            m.fields[i]['domain'].setupperbound(x_cat[i])
+        m._conditionout(keep=self.names[x_num])
+        # Get density of conditioned model p(num|cat)
         x_num = np.reshape(x_num, (1, len(x_num)))
-        density_num = self.kde.evaluate(x_num)
-        # get density for categorical dimensions
-        density_cat = data_op.density(self.data.iloc[:, x_cat], x_cat)
-        # Combine densities for numerical and categorical dimensions by multiplying them. #TODO: Is this even correct? --> No it is not, only when there is independence
-        density = density_num * density_cat
+        cond_density = m.kde.evaluate(x_num)
+        # Get density of categorical variables p(cat)
+        cat_density = len(m.data)/len(self.data)
+        # p(num,cat) = p(num|cat) * p(cat)
+        density = cond_density * cat_density
         return density
 
     def _negdensity(self, x):
