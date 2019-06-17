@@ -37,8 +37,8 @@ class KDEModel(Model):
         self.parallel_processing = False
 
     def _set_data(self, df, drop_silently, **kwargs):
-        assert data_import_utils.get_columns_by_dtype(df)[1] == [], \
-            'kernel density estimation is possible only for continuous data'
+        #assert data_import_utils.get_columns_by_dtype(df)[1] == [], \
+        #    'kernel density estimation is possible only for continuous data'
         self._set_data_mixed(df, drop_silently, split_data=False)
         self.test_data = self.data.iloc[0:0, :]
         return ()
@@ -46,7 +46,6 @@ class KDEModel(Model):
     def _fit(self):
         # Split data into numerical and categorical variables
         num_idx = []
-        #cat_idx = []
         for idx, dtype in enumerate(self.data.dtypes):
             if np.issubdtype(dtype, np.number):
                 num_idx.append(idx)
@@ -96,7 +95,7 @@ class KDEModel(Model):
         for i in cat_idx:
             m.fields[i]['domain'].setlowerbound(x_cat[i])
             m.fields[i]['domain'].setupperbound(x_cat[i])
-        m._conditionout(keep=[self.names[i] for i in num_idx], remove=[self.names [i] for i in cat_idx])
+        m._conditionout(keep=[self.names[i] for i in num_idx], remove=[self.names[i] for i in cat_idx])
         # Get density of conditioned model p(num|cat)
         x_num = np.reshape(x_num, (1, len(x_num)))
         cond_density = m.kde.evaluate(x_num)
