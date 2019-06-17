@@ -28,13 +28,6 @@ class kde_test(unittest.TestCase):
         kde_model.fit()
         self.assertIsNotNone(kde_model.kde, "After fitting there should be a kde object")
 
-    def test_fit_categoricals(self):
-        data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
-        kde_model = KDEModel('kde_model')
-        with self.assertRaises(AssertionError) as context:
-            kde_model.fit(data)
-
-
     def test_conditionout(self):
         data = pd.DataFrame({'B': np.array([2, 4, 7, 7, 7, 4, 1]), 'A': np.array([1, 2, 3, 3, 3, 4, 5])},
                             columns=['B', 'A'])
@@ -79,7 +72,16 @@ class kde_test(unittest.TestCase):
         kde_model.byname('C')['domain'].setlowerbound(2)
         kde_model.marginalize(keep=['D'])
         # For the remaining dimension: get point of maximum/average probability density
-        self.assertEqual(kde_model._maximum(), np.array([3.0]), 'prediction is not correct')
+        self.assertAlmostEqual(kde_model._maximum(), np.array([3.0]), 'prediction is not correct')
+
+
+def test_mixed_categorical_numerical_model(self):
+    data = pd.DataFrame({'A': np.array([1, 2, 3, 2, 3, 4, 5]),
+                         'B': np.array(['foo', 'bar', 'foo', 'foo', 'bar', 'foo', 'bar'])},
+                        columns=['A', 'B'])
+    kde_model = KDEModel('kde_model')
+    kde_model.fit(data)
+    self.assertAlmostEqual(kde_model._density([1, 'foo']), 0.4, 'density is not calculated correctly')
 
     # def test_discrete_domains(self):
     #     data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
