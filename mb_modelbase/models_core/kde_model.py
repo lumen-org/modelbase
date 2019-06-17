@@ -100,7 +100,7 @@ class KDEModel(Model):
         # Get density of conditioned model p(num|cat)
         x_num = np.reshape(x_num, (1, len(x_num)))
         cond_density = m.kde.evaluate(x_num)
-        # Get density of categorical variables p(cat)
+        # Get marginal density of categorical variables p(cat)
         cat_density = len(m.data)/len(self.data)
         # p(num,cat) = p(num|cat) * p(cat)
         density = cond_density * cat_density
