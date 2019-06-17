@@ -93,9 +93,8 @@ class KDEModel(Model):
         # Condition numeric data on categorical data
         m = self.copy()
         for i in cat_idx:
-            m.fields[i]['domain'].setlowerbound(x_cat[i])
-            m.fields[i]['domain'].setupperbound(x_cat[i])
-        m._conditionout(keep=[self.names[i] for i in num_idx], remove=[self.names[i] for i in cat_idx])
+            m.data = m.data
+            pass
         # Get density of conditioned model p(num|cat)
         x_num = np.reshape(x_num, (1, len(x_num)))
         cond_density = m.kde.evaluate(x_num)
