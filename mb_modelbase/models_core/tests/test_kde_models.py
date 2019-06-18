@@ -81,7 +81,7 @@ class kde_test(unittest.TestCase):
                             columns=['A', 'B'])
         kde_model = KDEModel('kde_model')
         kde_model.fit(data)
-        self.assertAlmostEqual(kde_model._density([1, 'foo']), 0.4, 'density is not calculated correctly')
+        self.assertAlmostEqual(kde_model._density([1, 'foo']), 0.1, 2, 'density is not calculated correctly')
 
     # def test_discrete_domains(self):
     #     data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
