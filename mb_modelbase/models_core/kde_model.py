@@ -108,7 +108,7 @@ class KDEModel(Model):
         cat_density = len(m.data)/len(self.data)
         # p(num,cat) = p(num|cat) * p(cat)
         density = cond_density * cat_density
-        return density
+        return density[0]
 
     def _negdensity(self, x):
         return -self._density(x)
