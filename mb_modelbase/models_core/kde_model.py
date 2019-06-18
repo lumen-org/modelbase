@@ -7,6 +7,7 @@ from scipy import stats
 from mb_modelbase.utils import data_import_utils
 import copy
 import numpy as np
+import pandas as pd
 import scipy.optimize as sciopt
 
 
@@ -80,6 +81,11 @@ class KDEModel(Model):
 
     def _density(self, x):
         """Returns the density at x"""
+        # Sort x in the same way as the data
+        x_df = pd.DataFrame([x])
+        _, cat_names, num_names = data_import_utils.get_columns_by_dtype(x_df)
+        x_df = x_df[cat_names + num_names]
+        x = x_df.values.tolist()[0]
         # Split data into numerical and categorical variables
         num_idx = []
         cat_idx = []
@@ -93,9 +99,9 @@ class KDEModel(Model):
         # Condition numeric data on categorical data
         m = self.copy()
         for i in cat_idx:
-            m.data = m.data
-            pass
+            m.data = m.data[m.data.iloc[:, i] == x[i]]
         # Get density of conditioned model p(num|cat)
+        m.kde = stats.gaussian_kde(m.data.iloc[:, num_idx].T)
         x_num = np.reshape(x_num, (1, len(x_num)))
         cond_density = m.kde.evaluate(x_num)
         # Get marginal density of categorical variables p(cat)
