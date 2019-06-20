@@ -90,8 +90,7 @@ class kde_test(unittest.TestCase):
                             columns=['A', 'B', 'C'])
         kde_model = KDEModel('kde_model')
         kde_model.fit(data)
-        self.assertTrue(kde_model._maximum()[0] in [[2, 'foo', 'hey'], [3, 'foo', 'hey']],
-                        'maximum was not correctly calculated')
+        self.assertTrue(kde_model._maximum() == ['foo', 'hey', 2.5], 'maximum was not correctly calculated')
     # def test_discrete_domains(self):
     #     data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
     #     kde_model = KDEModel('kde_model')
