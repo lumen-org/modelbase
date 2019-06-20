@@ -72,7 +72,7 @@ class kde_test(unittest.TestCase):
         kde_model.byname('C')['domain'].setlowerbound(2)
         kde_model.marginalize(keep=['D'])
         # For the remaining dimension: get point of maximum/average probability density
-        self.assertAlmostEqual(kde_model._maximum()[0], 3.0, 'prediction is not correct')
+        self.assertAlmostEqual(kde_model._maximum()[0], 3.0, places=2, msg='prediction is not correct')
 
 
     def test_mixed_categorical_numerical_model(self):
@@ -81,7 +81,8 @@ class kde_test(unittest.TestCase):
                             columns=['A', 'B'])
         kde_model = KDEModel('kde_model')
         kde_model.fit(data)
-        self.assertAlmostEqual(kde_model._density([1, 'foo']), 0.1, 2, 'density is not calculated correctly')
+        self.assertAlmostEqual(kde_model._density([1, 'foo']), 0.1, places=2, msg='density is not calculated correctly')
+        self.assertTrue(kde_model._maximum()[0] in [[2, 'foo'], [3, 'foo']], 'maximum was not correctly calculated')
 
     # def test_discrete_domains(self):
     #     data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
