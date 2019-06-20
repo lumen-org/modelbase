@@ -9,6 +9,7 @@ import copy
 import numpy as np
 import pandas as pd
 import scipy.optimize as sciopt
+import itertools
 
 
 class KDEModel(Model):
@@ -139,8 +140,27 @@ class KDEModel(Model):
         #     if self._density(local_max) > self._density(global_max):
         #         global_max = local_max
         # return global_max
-        x0 = [np.mean(self.data[col]) for col in self.data]
-        maximum = sciopt.minimize(self._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False}).x
+
+        # Get all combinations of categorical values
+        unique_vals = [self.fields[i]['extent'].values() for i in range(len(self._categoricals))]
+        cartesian_prod = list(itertools.product(*unique_vals))
+        # Solve an optimization problem for each of the values
+        x0 = [np.mean(self.data[col]) for col in self._numericals]
+        for cat_val in cartesian_prod:
+            m = self.copy()
+            # Condition on categorical values
+            for i, val in enumerate(cat_val):
+                m.data = m.data[m.data.iloc[:, i] == val]
+            m.marginalize(m._numericals, m._categoricals)
+            local_max = sciopt.minimize(m._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False}).x
+            local_max_density =
+
+        #def find_mode(lst):
+            return max(lst, key=lst.count)
+        #x0_cat = [find_mode(self.data[col].tolist()) for col in self._categoricals]
+        #x0_num = [np.mean(self.data[col]) for col in self._numericals]
+        #x0 = x0_cat + x0_num
+        #maximum = sciopt.minimize(self._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False}).x
         return maximum
 
     def _arithmetic_mean(self):
