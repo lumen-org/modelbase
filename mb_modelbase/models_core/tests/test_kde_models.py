@@ -83,7 +83,7 @@ class kde_test(unittest.TestCase):
         kde_model.fit(data)
         self.assertAlmostEqual(kde_model._density([1, 'foo']), 0.1, places=2, msg='density is not calculated correctly')
 
-    def test_maximum_for_categorical_model(self):
+    def test_maximum_for_mixed_model(self):
         data = pd.DataFrame({'A': np.array([1, 2, 3, 2, 3, 4, 5]),
                              'B': np.array(['foo', 'bar', 'foo', 'foo', 'bar', 'foo', 'bar']),
                              'C': np.array(['hey', 'hey', 'hey', 'hey', 'hey', 'hey', 'ho'])},
@@ -91,6 +91,15 @@ class kde_test(unittest.TestCase):
         kde_model = KDEModel('kde_model')
         kde_model.fit(data)
         self.assertTrue(kde_model._maximum() == ['foo', 'hey', 2.5], 'maximum was not correctly calculated')
+
+    def test_maximum_for_categorical_model(self):
+        data = pd.DataFrame({'B': np.array(['foo', 'bar', 'foo', 'foo', 'bar', 'foo', 'bar']),
+                             'C': np.array(['hey', 'hey', 'hey', 'hey', 'hey', 'hey', 'ho'])},
+                            columns=['B', 'C'])
+        kde_model = KDEModel('kde_model')
+        kde_model.fit(data)
+        self.assertTrue(kde_model._maximum() == ['foo', 'hey'], 'maximum was not correctly calculated')
+
     # def test_discrete_domains(self):
     #     data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
     #     kde_model = KDEModel('kde_model')
