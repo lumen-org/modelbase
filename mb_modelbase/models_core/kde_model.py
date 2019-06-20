@@ -78,6 +78,9 @@ class KDEModel(Model):
         # Fit the model to the current data. The data dimension to marginalize over
         # should have been removed before
         self._fit()
+        _, cat_names, num_names = data_import_utils.get_columns_by_dtype(self.data)
+        self._categoricals = cat_names
+        self._numericals = num_names
         return ()
 
     def _density(self, x):
@@ -145,23 +148,28 @@ class KDEModel(Model):
         unique_vals = [self.fields[i]['extent'].values() for i in range(len(self._categoricals))]
         cartesian_prod = list(itertools.product(*unique_vals))
         # Solve an optimization problem for each of the values
-        x0 = [np.mean(self.data[col]) for col in self._numericals]
+        global_max_num = [np.mean(self.data[col]) for col in self._numericals]
+        global_max_density = 0
         for cat_val in cartesian_prod:
             m = self.copy()
             # Condition on categorical values
             for i, val in enumerate(cat_val):
                 m.data = m.data[m.data.iloc[:, i] == val]
-            m.marginalize(m._numericals, m._categoricals)
-            local_max = sciopt.minimize(m._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False}).x
-            local_max_density =
-
-        #def find_mode(lst):
-            return max(lst, key=lst.count)
-        #x0_cat = [find_mode(self.data[col].tolist()) for col in self._categoricals]
-        #x0_num = [np.mean(self.data[col]) for col in self._numericals]
-        #x0 = x0_cat + x0_num
-        #maximum = sciopt.minimize(self._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False}).x
-        return maximum
+            # kde can't handle datasets with only one row
+            if m.data.shape[0] < 2:
+                continue
+            m.marginalize(m._numericals)
+            # Solve the optimization problem
+            x0 = [np.mean(m.data[col]) for col in m._numericals]
+            local_max = sciopt.minimize(m._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False})
+            local_max_cond_density = -local_max.fun
+            local_max_marginal_density = len(m.data)/len(self.data)
+            local_max_joint_density = local_max_cond_density * local_max_marginal_density
+            if local_max_joint_density > global_max_density:
+                global_max_density = local_max_joint_density
+                global_max_num = local_max.x.tolist()
+                global_max_cat = list(cat_val)
+        return global_max_cat + global_max_num
 
     def _arithmetic_mean(self):
         """Returns the point of the average density"""
@@ -189,6 +197,8 @@ class KDEModel(Model):
         mycopy = self._defaultcopy(name)
         mycopy.kde = copy.deepcopy(self.kde)
         mycopy._emp_data = self._emp_data.copy()
+        mycopy._categoricals = self._categoricals.copy()
+        mycopy._numericals = self._numericals.copy()
         return mycopy
 
 
