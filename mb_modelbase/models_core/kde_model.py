@@ -51,9 +51,10 @@ class KDEModel(Model):
         for idx, dtype in enumerate(self.data.dtypes):
             if np.issubdtype(dtype, np.number):
                 num_idx.append(idx)
-        # Perform kernel density estimation for numerical dimensions
-        self.kde = stats.gaussian_kde(self.data.iloc[:, num_idx].T)
-        # This is necessary for conditioning on the data later
+        if num_idx:
+            # Perform kernel density estimation for numerical dimensions
+            self.kde = stats.gaussian_kde(self.data.iloc[:, num_idx].T)
+            # This is necessary for conditioning on the data later
         self._emp_data = self.data.copy()
         return()
 
@@ -83,6 +84,11 @@ class KDEModel(Model):
         self._numericals = num_names
         return ()
 
+    def get_relative_frequency(self, value):
+        freq = self.data[self.data == value].shape[0]
+        rel_freq = freq/ self.data.shape[0]
+        return rel_freq
+
     def _density(self, x):
         """Returns the density at x"""
         # Sort x in the same way as the data
@@ -90,29 +96,32 @@ class KDEModel(Model):
         _, cat_names, num_names = data_import_utils.get_columns_by_dtype(x_df)
         x_df = x_df[cat_names + num_names]
         x = x_df.values.tolist()[0]
-        # Split data into numerical and categorical variables
-        num_idx = []
-        cat_idx = []
-        for idx, dtype in enumerate(self.data.dtypes):
-            if np.issubdtype(dtype, np.number):
-                num_idx.append(idx)
-            else:
-                cat_idx.append(idx)
-        x_num = [x[i] for i in num_idx]
-        x_cat = [x[i] for i in cat_idx]
-        # Condition numeric data on categorical data
-        m = self.copy()
-        for i in cat_idx:
-            m.data = m.data[m.data.iloc[:, i] == x[i]]
-        # Get density of conditioned model p(num|cat)
-        m.kde = stats.gaussian_kde(m.data.iloc[:, num_idx].T)
-        x_num = np.reshape(x_num, (1, len(x_num)))
-        cond_density = m.kde.evaluate(x_num)
-        # Get marginal density of categorical variables p(cat)
-        cat_density = len(m.data)/len(self.data)
-        # p(num,cat) = p(num|cat) * p(cat)
-        density = cond_density * cat_density
-        return density[0]
+        if not num_names:
+            return self.get_relative_frequency(x)
+        else:
+            # Split data into numerical and categorical variables
+            num_idx = []
+            cat_idx = []
+            for idx, dtype in enumerate(self.data.dtypes):
+                if np.issubdtype(dtype, np.number):
+                    num_idx.append(idx)
+                else:
+                    cat_idx.append(idx)
+            x_num = [x[i] for i in num_idx]
+            x_cat = [x[i] for i in cat_idx]
+            # Condition numeric data on categorical data
+            m = self.copy()
+            for i in cat_idx:
+                m.data = m.data[m.data.iloc[:, i] == x[i]]
+            # Get density of conditioned model p(num|cat)
+            m.kde = stats.gaussian_kde(m.data.iloc[:, num_idx].T)
+            x_num = np.reshape(x_num, (1, len(x_num)))
+            cond_density = m.kde.evaluate(x_num)
+            # Get marginal density of categorical variables p(cat)
+            cat_density = len(m.data)/len(self.data)
+            # p(num,cat) = p(num|cat) * p(cat)
+            density = cond_density * cat_density
+            return density[0]
 
     def _negdensity(self, x):
         return -self._density(x)
@@ -134,42 +143,39 @@ class KDEModel(Model):
         # points_per_dim = np.inner(stepsize_re, points_re.T) + min_vals_re
         # # Perform cross join
         # starting_points = np.array(np.meshgrid(*points_per_dim)).T.reshape(total_nr_of_points, len(self.fields))
-        #
-        # global_max = starting_points[0]
-        #
-        # for point in starting_points:
-        #     local_max = sciopt.minimize(self._negdensity, point, method='nelder-mead',
-        #                                 options={'xatol': 1e-8, 'disp': False}).x
-        #     if self._density(local_max) > self._density(global_max):
-        #         global_max = local_max
-        # return global_max
+
 
         # Get all combinations of categorical values
         unique_vals = [self.fields[i]['extent'].values() for i in range(len(self._categoricals))]
         cartesian_prod = list(itertools.product(*unique_vals))
-        # Solve an optimization problem for each of the values
-        global_max_num = [np.mean(self.data[col]) for col in self._numericals]
-        global_max_density = 0
-        for cat_val in cartesian_prod:
-            m = self.copy()
-            # Condition on categorical values
-            for i, val in enumerate(cat_val):
-                m.data = m.data[m.data.iloc[:, i] == val]
-            # kde can't handle datasets with only one row
-            if m.data.shape[0] < 2:
-                continue
-            m.marginalize(m._numericals)
-            # Solve the optimization problem
-            x0 = [np.mean(m.data[col]) for col in m._numericals]
-            local_max = sciopt.minimize(m._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False})
-            local_max_cond_density = -local_max.fun
-            local_max_marginal_density = len(m.data)/len(self.data)
-            local_max_joint_density = local_max_cond_density * local_max_marginal_density
-            if local_max_joint_density > global_max_density:
-                global_max_density = local_max_joint_density
-                global_max_num = local_max.x.tolist()
-                global_max_cat = list(cat_val)
-        return global_max_cat + global_max_num
+        if self._numericals:
+            # Solve an optimization problem for each of the values
+            global_max_num = [np.mean(self.data[col]) for col in self._numericals]
+            global_max_density = 0
+            for cat_val in cartesian_prod:
+                m = self.copy()
+                # Condition on categorical values
+                for i, val in enumerate(cat_val):
+                    m.data = m.data[m.data.iloc[:, i] == val]
+                # kde can't handle datasets with only one row
+                if m.data.shape[0] < 2:
+                    continue
+                m.marginalize(m._numericals)
+                # Solve the optimization problem
+                x0 = [np.mean(m.data[col]) for col in m._numericals]
+                local_max = sciopt.minimize(m._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False})
+                local_max_cond_density = -local_max.fun
+                local_max_marginal_density = len(m.data)/len(self.data)
+                local_max_joint_density = local_max_cond_density * local_max_marginal_density
+                if local_max_joint_density > global_max_density:
+                    global_max_density = local_max_joint_density
+                    global_max_num = local_max.x.tolist()
+                    global_max_cat = list(cat_val)
+            return global_max_cat + global_max_num
+        else:
+            densities = [self.get_relative_frequency(i) for i in cartesian_prod]
+            idx = densities.index(max(densities))[0]
+            return cartesian_prod[idx]
 
     def _arithmetic_mean(self):
         """Returns the point of the average density"""
