@@ -85,8 +85,10 @@ class KDEModel(Model):
         return ()
 
     def get_relative_frequency(self, value):
-        freq = self.data[self.data == value].shape[0]
-        rel_freq = freq/ self.data.shape[0]
+        value = list(value)
+        occurence = [row == value for row in self.data.values.tolist()]
+        freq = sum(occurence)
+        rel_freq = freq / self.data.shape[0]
         return rel_freq
 
     def _density(self, x):
@@ -174,8 +176,8 @@ class KDEModel(Model):
             return global_max_cat + global_max_num
         else:
             densities = [self.get_relative_frequency(i) for i in cartesian_prod]
-            idx = densities.index(max(densities))[0]
-            return cartesian_prod[idx]
+            idx = densities.index(max(densities))
+            return list(cartesian_prod[idx])
 
     def _arithmetic_mean(self):
         """Returns the point of the average density"""
