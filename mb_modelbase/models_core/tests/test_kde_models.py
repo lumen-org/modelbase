@@ -10,23 +10,23 @@ class kde_test(unittest.TestCase):
     """
     Test the KDEModel
     """
-    def test_fit_onedim(self):
-        data = pd.DataFrame({'X': np.array([1, 2, 3, 3, 3, 4, 5])})
-        kde_model = KDEModel('kde_model')
-        self.assertIsNone(kde_model.kde, "Before fitting there should be no kde object")
-        kde_model.set_data(data)
-        kde_model.fit()
-        self.assertIsNotNone(kde_model.kde, "After fitting there should be a kde object")
-
-    def test_fit_multidim(self):
-        data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array([1, 1, 1, 3, 3, 4, 5]),
-                             'C': np.array([1, 2, 2, 2, 2, 2, 5]), 'D': np.array([2, 2, 3, 3, 3, 2, 5]),
-                             'E': np.array([1, 5, 3, 3, 3, 5, 5]), 'F': np.array([1, 8, 3, 3, 5, 1, 5])})
-        kde_model = KDEModel('kde_model')
-        self.assertIsNone(kde_model.kde, "Before fitting there should be no kde object")
-        kde_model.set_data(data)
-        kde_model.fit()
-        self.assertIsNotNone(kde_model.kde, "After fitting there should be a kde object")
+    # def test_fit_onedim(self):
+    #     data = pd.DataFrame({'X': np.array([1, 2, 3, 3, 3, 4, 5])})
+    #     kde_model = KDEModel('kde_model')
+    #     self.assertIsNone(kde_model.kde, "Before fitting there should be no kde object")
+    #     kde_model.set_data(data)
+    #     kde_model.fit()
+    #     self.assertIsNotNone(kde_model.kde, "After fitting there should be a kde object")
+    #
+    # def test_fit_multidim(self):
+    #     data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array([1, 1, 1, 3, 3, 4, 5]),
+    #                          'C': np.array([1, 2, 2, 2, 2, 2, 5]), 'D': np.array([2, 2, 3, 3, 3, 2, 5]),
+    #                          'E': np.array([1, 5, 3, 3, 3, 5, 5]), 'F': np.array([1, 8, 3, 3, 5, 1, 5])})
+    #     kde_model = KDEModel('kde_model')
+    #     self.assertIsNone(kde_model.kde, "Before fitting there should be no kde object")
+    #     kde_model.set_data(data)
+    #     kde_model.fit()
+    #     self.assertIsNotNone(kde_model.kde, "After fitting there should be a kde object")
 
     def test_conditionout(self):
         data = pd.DataFrame({'B': np.array([2, 4, 7, 7, 7, 4, 1]), 'A': np.array([1, 2, 3, 3, 3, 4, 5])},
@@ -100,13 +100,13 @@ class kde_test(unittest.TestCase):
         kde_model.fit(data)
         self.assertTrue(kde_model._maximum() == ['foo', 'hey'], 'maximum was not correctly calculated')
 
-    # def test_discrete_domains(self):
-    #     data = pd.DataFrame({'A': np.array([1, 2, 3, 3, 3, 4, 5]), 'B': np.array(['1', '2', '3', '3', '3', '4', '5'])})
-    #     kde_model = KDEModel('kde_model')
-    #     self.assertIsNone(kde_model.kde, "Before fitting there should be no kde object")
-    #     kde_model.set_data(data)
-    #     kde_model.fit()
-    #     kde_model.byname('B')['domain']._value = ['2', '4']
-    #     kde_model.marginalize(keep=['A'])
-    #     self.assertEqual(kde_model._arithmetic_mean(), 3.0, 'prediction is not correct')
-
+    def test_kde_storage(self):
+        data = pd.DataFrame({'A': np.array([1, 2, 3, 2, 3, 4, 5]),
+                             'B': np.array(['foo', 'bar', 'foo', 'foo', 'bar', 'foo', 'bar']),
+                             'C': np.array(['hey', 'hey', 'hey', 'hey', 'hey', 'hey', 'ho'])},
+                            columns=['A', 'B', 'C'])
+        kde_model = KDEModel('kde_model')
+        kde_model.fit(data)
+        kde_model._density(['foo', 'hey', 2])
+        kde_model._density(['foo', 'hey', 3])
+        self.assertTrue(kde_model.kde['[\'foo\', \'hey\']'], 'kde storage does not work properly')
