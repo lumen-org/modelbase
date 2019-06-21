@@ -31,7 +31,8 @@ class KDEModel(Model):
 
     def __init__(self, name):
         super().__init__(name)
-        self.kde = None
+        self.kde = {}
+        self.marginals = {}
         self._emp_data = None
         self._aggrMethods = {
             'maximum': self._maximum,
@@ -39,22 +40,12 @@ class KDEModel(Model):
         self.parallel_processing = False
 
     def _set_data(self, df, drop_silently, **kwargs):
-        #assert data_import_utils.get_columns_by_dtype(df)[1] == [], \
-        #    'kernel density estimation is possible only for continuous data'
         self._set_data_mixed(df, drop_silently, split_data=False)
         self.test_data = self.data.iloc[0:0, :]
         return ()
 
     def _fit(self):
-        # Split data into numerical and categorical variables
-        num_idx = []
-        for idx, dtype in enumerate(self.data.dtypes):
-            if np.issubdtype(dtype, np.number):
-                num_idx.append(idx)
-        #if num_idx:
-            # Perform kernel density estimation for numerical dimensions
-            #self.kde = stats.gaussian_kde(self.data.iloc[:, num_idx].T)
-            # This is necessary for conditioning on the data later
+        # This is necessary for conditioning on the data later
         self._emp_data = self.data.copy()
         return()
 
@@ -98,6 +89,7 @@ class KDEModel(Model):
         _, cat_names, num_names = data_import_utils.get_columns_by_dtype(x_df)
         x_df = x_df[cat_names + num_names]
         x = x_df.values.tolist()[0]
+        # Without numerical variables there is no need for a kde
         if not num_names:
             return self.get_relative_frequency(x)
         else:
@@ -111,19 +103,31 @@ class KDEModel(Model):
                     cat_idx.append(idx)
             x_num = [x[i] for i in num_idx]
             x_cat = [x[i] for i in cat_idx]
-            # Condition numeric data on categorical data
-            m = self.copy()
-            for i in cat_idx:
-                m.data = m.data[m.data.iloc[:, i] == x[i]]
-            # Get density of conditioned model p(num|cat)
-            m.kde = stats.gaussian_kde(m.data.iloc[:, num_idx].T)
-            x_num = np.reshape(x_num, (1, len(x_num)))
-            cond_density = m.kde.evaluate(x_num)
-            # Get marginal density of categorical variables p(cat)
-            cat_density = len(m.data)/len(self.data)
-            # p(num,cat) = p(num|cat) * p(cat)
-            density = cond_density * cat_density
-            return density[0]
+            # If the necessary kde was already generated before, it can be taken from self.kde
+            if str(x_cat) in self.kde.keys():
+                kde = self.kde[str(x_cat)]
+                x_num = np.reshape(x_num, (1, len(x_num)))
+                cond_density = kde.evaluate(x_num)
+                cat_density = self.marginals[str(x_cat)]
+                density = cond_density * cat_density
+                return density[0]
+            # If the necessary kde was NOT already generated before, it has to be generated and then stored in self.kde
+            else:
+                # Condition numeric data on categorical data
+                cond_data = self.data.copy()
+                for i in cat_idx:
+                    cond_data = cond_data[cond_data.iloc[:, i] == x[i]]
+                # Get density of conditioned model p(num|cat)
+                kde = stats.gaussian_kde(cond_data.iloc[:, num_idx].T)
+                self.kde[str(x_cat)] = kde
+                x_num = np.reshape(x_num, (1, len(x_num)))
+                cond_density = kde.evaluate(x_num)
+                # Get marginal density of categorical variables p(cat)
+                cat_density = len(cond_data)/len(self.data)
+                self.marginals[str(x_cat)] = cat_density
+                # p(num,cat) = p(num|cat) * p(cat)
+                density = cond_density * cat_density
+                return density[0]
 
     def _negdensity(self, x):
         return -self._density(x)
