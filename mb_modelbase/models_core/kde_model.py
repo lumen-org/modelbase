@@ -51,9 +51,9 @@ class KDEModel(Model):
         for idx, dtype in enumerate(self.data.dtypes):
             if np.issubdtype(dtype, np.number):
                 num_idx.append(idx)
-        if num_idx:
+        #if num_idx:
             # Perform kernel density estimation for numerical dimensions
-            self.kde = stats.gaussian_kde(self.data.iloc[:, num_idx].T)
+            #self.kde = stats.gaussian_kde(self.data.iloc[:, num_idx].T)
             # This is necessary for conditioning on the data later
         self._emp_data = self.data.copy()
         return()
@@ -181,8 +181,8 @@ class KDEModel(Model):
 
     def _arithmetic_mean(self):
         """Returns the point of the average density"""
-        maximum = data_aggr.aggregate_data(self.data, 'maximum')
-        return maximum
+        mean = data_aggr.aggregate_data(self.data, 'maximum')
+        return mean
 
     def _sample(self):
         """Returns random point of the distribution"""
