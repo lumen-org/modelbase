@@ -17,16 +17,7 @@ class KDEModel(Model):
     A Kernel Density Estimator (KDE) model is a model whose distribution is determined by using a kernel
     density estimator. KDE work in a way that to each point of the observed data a so-called kernel distribution is
     assigned centered at that point (e.g. a normal distribution). The distributions from all data points
-    are then summed up and build up the joint distribution for the model
-    (see https://scikit-learn.org/stable/modules/density.html#kernel-density)
-    TODOs:
-     - model with categorical variables are not yet supported. The standard scikit kernel density estimator used here
-       only supports continuous data
-     - Calculating the point of maximum density is very slow, since a number of optimization problems is solved that
-       quadratically increases with the number of dimensions. Try different approaches: Maybe guess one starting point
-       and then only solve one optimization problem
-     - bandwidth parameter for the kernel density estimation is currently always set to 0.1. I couldN#t find a
-       heuristic for multidemsnional models. A good value for the bandwidth probably has to be calculated dynamically
+    are then summed up and build up the joint distribution for the model.
     """
 
     def __init__(self, name):
@@ -42,11 +33,13 @@ class KDEModel(Model):
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently, split_data=False)
         self.test_data = self.data.iloc[0:0, :]
+        # We need an additional structure for the model data, since the _conditionout method
+        # needs the data, however when it is called by _marginalize, the actual self.data
+        # is already marginalized abd thus not usable by _conditionout
+        self._emp_data = self.data.copy()
         return ()
 
     def _fit(self):
-        # This is necessary for conditioning on the data later
-        self._emp_data = self.data.copy()
         return()
 
     def _conditionout(self, keep, remove):
