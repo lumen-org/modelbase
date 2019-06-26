@@ -221,16 +221,16 @@ if __name__ == "__main__":
     # data = pd.DataFrame({'A': a, 'B': b})
     # kde_model = mb.KDEModel('kde_model_multimodel_gaussian')
 
-    # data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/iris/iris_numeric.csv')
-    # kde_model = mb.KDEModel('kde_model_iris')
+    #data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/iris/iris.csv')
+    #kde_model = mb.KDEModel('kde_model_iris')
 
-    # data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/mpg/mpg_numeric.csv')
-    # kde_model = mb.KDEModel('kde_model_mpg')
+    data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/allbus/allbus2016.csv', usecols=range(1, 11))
+    kde_model = mb.KDEModel('kde_model_allbus')
 
-    data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/crabs/crabs_numeric.csv')
-    kde_model = mb.KDEModel('kde_model_crabs')
+    #data = pd.read_csv('/home/guet_jn/Desktop/mb_data/mb_data/crabs/crabs.csv')
+    #kde_model = mb.KDEModel('kde_model_crabs')
 
     kde_model.fit(data)
-    Model.save(kde_model, '/home/guet_jn/Desktop/mb_data/data_models/kde_model_crabs.mdl')
+    Model.save(kde_model, '/home/guet_jn/Desktop/mb_data/data_models/kde_model_allbus.mdl')
 
 
