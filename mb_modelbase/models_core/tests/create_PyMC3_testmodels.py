@@ -4,10 +4,6 @@ import pymc3 as pm
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 import theano
-
-import matplotlib.pyplot as plt
-from pylab import hist
-
 from run_conf import cfg as user_cfg
 
 testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + '/'
@@ -209,7 +205,6 @@ with pm.Model() as normal_normal_model:
     test_scores = pm.Normal('test_scores',
                             mu=[theta_1, theta_2, theta_3, theta_4, theta_5, theta_6, theta_7, theta_8],
                             sd=standard_errors, observed=data['test_scores'])
-
 
 m = ProbabilisticPymc3Model(modelname, normal_normal_model, shared_vars={'standard_errors': standard_errors})
 Model.save(m, testcasemodel_path + modelname + '.mdl')
