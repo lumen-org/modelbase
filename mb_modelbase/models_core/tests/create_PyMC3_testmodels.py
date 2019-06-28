@@ -3,35 +3,38 @@ import pandas as pd
 import pymc3 as pm
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
-import theano
-import pickle
+
 import matplotlib.pyplot as plt
 from pylab import hist
 
-testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/'
-testcasedata_path = '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/'
+from run_conf import cfg as user_cfg
+
+#testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/'
+testcasemodel_path = '../../' + user_cfg['modules']['modelbase']['directory'] + '/'
+#testcasedata_path = '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/'
+testcasedata_path = '../../' + user_cfg['modules']['modelbase']['data_directory'] + '/pymc3/'
 
 ######################################
 # pymc3_testcase_model
 #####################################
-# modelname = 'pymc3_simplest_model'
-# np.random.seed(2)
-# size = 100
-# mu = np.random.normal(0, 1, size=size)
-# sigma = 1
-# X = np.random.normal(mu, sigma, size=size)
-# data = pd.DataFrame({'X': X})
-#
-# basic_model = pm.Model()
-# with basic_model:
-#     sigma = 1
-#     mu = pm.Normal('mu', mu=0, sd=sigma)
-#     X = pm.Normal('X', mu=mu, sd=sigma, observed=data['X'])
-# m = ProbabilisticPymc3Model(modelname, basic_model)
-# Model.save(m, testcasemodel_path + modelname + '.mdl')
-# m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model)
-# m.fit(data)
-# Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+modelname = 'pymc3_simplest_model'
+np.random.seed(2)
+size = 100
+mu = np.random.normal(0, 1, size=size)
+sigma = 1
+X = np.random.normal(mu, sigma, size=size)
+data = pd.DataFrame({'X': X})
+
+basic_model = pm.Model()
+with basic_model:
+    sigma = 1
+    mu = pm.Normal('mu', mu=0, sd=sigma)
+    X = pm.Normal('X', mu=mu, sd=sigma, observed=data['X'])
+m = ProbabilisticPymc3Model(modelname, basic_model)
+Model.save(m, testcasemodel_path + modelname + '.mdl')
+m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model)
+m.fit(data)
+Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 ######################################
 # pymc3_getting_started_model
 ######################################
@@ -74,40 +77,40 @@ testcasedata_path = '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/'
 # pymc3_getting_started_model_independent vars
 ###############################################
 
-modelname = 'pymc3_getting_started_model_independent_vars'
-np.random.seed(123)
-alpha, sigma = 1, 1
-beta_0 = 1
-beta_1 = 2.5
-size = 101
-X1 = np.random.randn(size)
-X2 = np.random.randn(size) * 0.2
-Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
-data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
-X1 = theano.shared(X1)
-X2 = theano.shared(X2)
-
-basic_model = pm.Model()
-
-with basic_model:
-    # Priors for unknown model parameters
-    alpha = pm.Normal('alpha', mu=0, sd=10)
-    beta_0 = pm.Normal('beta_0', mu=0, sd=10)
-    beta_1 = pm.Normal('beta_1', mu=0, sd=10)
-    sigma = pm.HalfNormal('sigma', sd=1)
-
-    # Expected value of outcome
-    mu = alpha + beta_0 * X1 + beta_1 * X2
-
-    # Likelihood (sampling distribution) of observations
-    Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
-
-m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1, 'X2': X2})
-Model.save(m, testcasemodel_path + modelname + '.mdl')
-m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'X1': X1, 'X2': X2})
-m.fit(data)
-Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
-data.to_csv(testcasedata_path + modelname + '.csv', index=False)
+# modelname = 'pymc3_getting_started_model_independent_vars'
+# np.random.seed(123)
+# alpha, sigma = 1, 1
+# beta_0 = 1
+# beta_1 = 2.5
+# size = 101
+# X1 = np.random.randn(size)
+# X2 = np.random.randn(size) * 0.2
+# Y = alpha + beta_0 * X1 + beta_1 * X2 + np.random.randn(size) * sigma
+# data = pd.DataFrame({'X1': X1, 'X2': X2, 'Y': Y})
+# X1 = theano.shared(X1)
+# X2 = theano.shared(X2)
+#
+# basic_model = pm.Model()
+#
+# with basic_model:
+#     # Priors for unknown model parameters
+#     alpha = pm.Normal('alpha', mu=0, sd=10)
+#     beta_0 = pm.Normal('beta_0', mu=0, sd=10)
+#     beta_1 = pm.Normal('beta_1', mu=0, sd=10)
+#     sigma = pm.HalfNormal('sigma', sd=1)
+#
+#     # Expected value of outcome
+#     mu = alpha + beta_0 * X1 + beta_1 * X2
+#
+#     # Likelihood (sampling distribution) of observations
+#     Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
+#
+# m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1, 'X2': X2})
+# Model.save(m, testcasemodel_path + modelname + '.mdl')
+# m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'X1': X1, 'X2': X2})
+# m.fit(data)
+# Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+# data.to_csv(testcasedata_path + modelname + '.csv', index=False)
 ###########################################################
 # pymc3_getting_started_model_independent vars_nosharedvars
 ###########################################################
