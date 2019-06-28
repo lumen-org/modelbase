@@ -9,9 +9,7 @@ from pylab import hist
 
 from run_conf import cfg as user_cfg
 
-#testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/'
 testcasemodel_path = '../../' + user_cfg['modules']['modelbase']['directory'] + '/'
-#testcasedata_path = '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/'
 testcasedata_path = '../../' + user_cfg['modules']['modelbase']['data_directory'] + '/pymc3/'
 
 ######################################
