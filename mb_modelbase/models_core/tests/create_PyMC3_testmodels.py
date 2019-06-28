@@ -3,6 +3,7 @@ import pandas as pd
 import pymc3 as pm
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
+import theano
 
 import matplotlib.pyplot as plt
 from pylab import hist
@@ -15,24 +16,24 @@ testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory'] + '/
 ######################################
 # pymc3_testcase_model
 #####################################
-modelname = 'pymc3_simplest_model'
-np.random.seed(2)
-size = 100
-mu = np.random.normal(0, 1, size=size)
-sigma = 1
-X = np.random.normal(mu, sigma, size=size)
-data = pd.DataFrame({'X': X})
-
-basic_model = pm.Model()
-with basic_model:
-    sigma = 1
-    mu = pm.Normal('mu', mu=0, sd=sigma)
-    X = pm.Normal('X', mu=mu, sd=sigma, observed=data['X'])
-m = ProbabilisticPymc3Model(modelname, basic_model)
-Model.save(m, testcasemodel_path + modelname + '.mdl')
-m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model)
-m.fit(data)
-Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+# modelname = 'pymc3_simplest_model'
+# np.random.seed(2)
+# size = 100
+# mu = np.random.normal(0, 1, size=size)
+# sigma = 1
+# X = np.random.normal(mu, sigma, size=size)
+# data = pd.DataFrame({'X': X})
+#
+# basic_model = pm.Model()
+# with basic_model:
+#     sigma = 1
+#     mu = pm.Normal('mu', mu=0, sd=sigma)
+#     X = pm.Normal('X', mu=mu, sd=sigma, observed=data['X'])
+# m = ProbabilisticPymc3Model(modelname, basic_model)
+# Model.save(m, testcasemodel_path + modelname + '.mdl')
+# m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model)
+# m.fit(data)
+# Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 ######################################
 # pymc3_getting_started_model
 ######################################
@@ -143,8 +144,6 @@ Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 # m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1})
 # Model.save(m, testcasemodel_path + modelname + '.mdl')
 # m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'X1': X1})
-# m.fit(data)
-# Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 # data.to_csv(testcasedata_path + modelname + '.csv', index=False)
 ######################################
 # pymc3_coal_mining_disaster_model
@@ -183,62 +182,40 @@ Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 # m = ProbabilisticPymc3Model(modelname + '_fitted', disaster_model, shared_vars={'years': years})
 # m.fit(data)
 # Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+#
 # ######################################
 # eight_schools_model
 ######################################
 
-# modelname = 'eight_schools_model'
-#
-# scores = np.array([28.39, 7.94, -2.75, 6.82, -0.64, 0.63, 18.01, 12.16])
-# standard_errors = np.array([14.9, 10.2, 16.3, 11.0, 9.4, 11.4, 10.4, 17.6])
-# data = pd.DataFrame({'test_scores': scores, 'standard_errors': standard_errors})
-# standard_errors = theano.shared(standard_errors)
-#
-# with pm.Model() as normal_normal_model:
-#     tau = pm.Uniform('tau',lower=0,upper=10)
-#     mu = pm.Uniform('mu',lower=0,upper=10)
-#     theta_1 = pm.Normal('theta_1', mu=mu, sd=tau)
-#     theta_2 = pm.Normal('theta_2', mu=mu, sd=tau)
-#     theta_3 = pm.Normal('theta_3', mu=mu, sd=tau)
-#     theta_4 = pm.Normal('theta_4', mu=mu, sd=tau)
-#     theta_5 = pm.Normal('theta_5', mu=mu, sd=tau)
-#     theta_6 = pm.Normal('theta_6', mu=mu, sd=tau)
-#     theta_7 = pm.Normal('theta_7', mu=mu, sd=tau)
-#     theta_8 = pm.Normal('theta_8', mu=mu, sd=tau)
-#
-#     test_scores = pm.Normal('test_scores',
-#                             mu=[theta_1, theta_2, theta_3, theta_4, theta_5, theta_6, theta_7, theta_8],
-#                             sd=standard_errors, observed=data['test_scores'])
+modelname = 'eight_schools_model'
 
-    # trace = pm.sample(1000,chains=1,cores=1)
-    # simulated_scores = np.asarray(pm.sample_ppc(trace)[str("test_scores")])
-#
-# # Compute test statistics
-# disc_mean = [np.mean(simvals) for simvals in simulated_scores]
-# disc_min = [min(simvals) for simvals in simulated_scores]
-# disc_max = [max(simvals) for simvals in simulated_scores]
-# disc_std = [np.std(simvals) for simvals in simulated_scores]
-#
-# # Plot test statistics
-# vis_grid = plt.GridSpec(2, 2, wspace=0.3, hspace=0.3)
-# plt.subplot(vis_grid[0, 0])
-# hist(disc_mean,bins=15,edgecolor='black',color='grey')
-# plt.title('mean')
-# plt.subplot(vis_grid[1, 0])
-# hist(disc_min,bins=15,edgecolor='black',color='grey')
-# plt.title('min')
-# plt.subplot(vis_grid[1, 1])
-# hist(disc_max,bins=15,edgecolor='black',color='grey')
-# plt.title('max')
-# plt.subplot(vis_grid[0, 1])
-# hist(disc_std,bins=15,edgecolor='black',color='grey')
-# plt.title('standard deviation')
+scores = np.array([28.39, 7.94, -2.75, 6.82, -0.64, 0.63, 18.01, 12.16])
+standard_errors = np.array([14.9, 10.2, 16.3, 11.0, 9.4, 11.4, 10.4, 17.6])
+data = pd.DataFrame({'test_scores': scores, 'standard_errors': standard_errors})
+standard_errors = theano.shared(standard_errors)
 
-# m = ProbabilisticPymc3Model(modelname, normal_normal_model, shared_vars={'standard_errors': standard_errors})
-# Model.save(m, testcasemodel_path + modelname + '.mdl')
-# m = ProbabilisticPymc3Model(modelname + '_fitted', normal_normal_model, shared_vars={'standard_errors': standard_errors})
-# m.fit(data)
-# Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+with pm.Model() as normal_normal_model:
+    tau = pm.Uniform('tau',lower=0,upper=10)
+    mu = pm.Uniform('mu',lower=0,upper=10)
+    theta_1 = pm.Normal('theta_1', mu=mu, sd=tau)
+    theta_2 = pm.Normal('theta_2', mu=mu, sd=tau)
+    theta_3 = pm.Normal('theta_3', mu=mu, sd=tau)
+    theta_4 = pm.Normal('theta_4', mu=mu, sd=tau)
+    theta_5 = pm.Normal('theta_5', mu=mu, sd=tau)
+    theta_6 = pm.Normal('theta_6', mu=mu, sd=tau)
+    theta_7 = pm.Normal('theta_7', mu=mu, sd=tau)
+    theta_8 = pm.Normal('theta_8', mu=mu, sd=tau)
+
+    test_scores = pm.Normal('test_scores',
+                            mu=[theta_1, theta_2, theta_3, theta_4, theta_5, theta_6, theta_7, theta_8],
+                            sd=standard_errors, observed=data['test_scores'])
+
+
+m = ProbabilisticPymc3Model(modelname, normal_normal_model, shared_vars={'standard_errors': standard_errors})
+Model.save(m, testcasemodel_path + modelname + '.mdl')
+m = ProbabilisticPymc3Model(modelname + '_fitted', normal_normal_model, shared_vars={'standard_errors': standard_errors})
+m.fit(data)
+Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 
 ######################################
 # getting_started_model_shape
