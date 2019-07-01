@@ -281,7 +281,12 @@ class ProbabilisticPymc3Model(Model):
             return [None] * col_cnt
         # Set starting point for optimization problem
         x0 = [np.mean(self.samples[col]) for col in self.samples]
-        maximum = sciopt.minimize(self._negdensity, x0, method='nelder-mead',options={'xtol': 1e-8, 'disp': False}).x
+        opt = sciopt.minimize(self._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False})
+        maximum = opt.x
+        # Do not return a value if the density of the found maximum is NaN. In this case it is assumed that all
+        # density values are NaN, so there should not be returned a maximum
+        if np.isnan(opt.fun):
+            return np.full(len(x0), np.nan)
         return maximum
 
 
