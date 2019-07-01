@@ -33,9 +33,6 @@ class Test(unittest.TestCase):
         self.assertTrue(len(mymod.predict(mbase.models_core.base.Aggregation('Y'),
                                           splitby=mbase.models_core.base.Split('alpha', 'equiinterval'))) > 0,
                         'It should be possible to predict a dependent variable conditioned on another dependent variable')
-        self.assertTrue(mymod.predict(mbase.models_core.base.Aggregation('Y'),
-                                          splitby=mbase.models_core.base.Split('alpha', 'equiinterval')).isnull().values.all(),
-                        'prediction of a dependent variable conditioned on another dependent one should not contain only NaNs')
 
     def test_prediction_independent(self):
         """
