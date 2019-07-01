@@ -5,22 +5,32 @@ import unittest
 import theano
 import pymc3 as pm
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
+from run_conf import cfg as user_cfg
+import os
 
-model_paths = [
-               '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model.mdl',
-               '/home/guet_jn/Desktop/mb_data/data_models/pymc3_simplest_model.mdl',
-               '/home/guet_jn/Desktop/mb_data/data_models/pymc3_coal_mining_disaster_model.mdl',
-               '/home/guet_jn/Desktop/mb_data/data_models/eight_schools_model.mdl',
-               '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model_independent_vars.mdl'
+
+model_basepath = user_cfg['modules']['modelbase']['test_model_directory']
+data_basepath = user_cfg['modules']['modelbase']['test_data_directory']
+
+
+model_filenames = [
+               'pymc3_getting_started_model.mdl',
+               'pymc3_simplest_model.mdl',
+               'pymc3_coal_mining_disaster_model.mdl',
+               'eight_schools_model.mdl',
+               'pymc3_getting_started_model_independent_vars.mdl'
                ]
 
-data_paths = [
-              '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/getting_started.csv',
-              '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/simplest_testcase.csv',
-              '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/coal_mining_disasters.csv',
-              '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/eight_schools.csv',
-              '/home/guet_jn/Desktop/mb_data/mb_data/pymc3/pymc3_getting_started_model_independent_vars.csv'
+data_filenames = [
+              'getting_started.csv',
+              'simplest_testcase.csv',
+              'coal_mining_disasters.csv',
+              'eight_schools.csv',
+              'pymc3_getting_started_model_independent_vars.csv'
              ]
+
+model_paths = [model_basepath + '/' + name for name in model_filenames]
+data_paths = [data_basepath + '/' + name for name in data_filenames]
 
 class Test_methods_on_initialized_model(unittest.TestCase):
     """
@@ -342,25 +352,6 @@ class Test_more_combinations_on_model(unittest.TestCase):
                              "Dimensions of the maximum and the model variables do not match. Model: " + mymod.name)
 
 
-class Test_model_with_datadependent_priors(unittest.TestCase):
-
-    def test(self):
-        # generate data
-        np.random.seed(123)
-        size = 100
-        Y = np.random.randn(size)
-        theta = Y + np.random.randn(size)
-        X = theta * Y + np.random.randn(size)
-        data = pd.DataFrame({'X': X, 'Y': Y})
-        Y = theano.shared(Y)
-        # Describe model
-        with pm.Model() as basic_model:
-            theta = pm.Normal('theta', mu=Y.min(), sd=1)
-            X = pm.Normal('X', mu=theta * Y, sd=1, observed=X)
-        m = ProbabilisticPymc3Model('modelname' , basic_model, shared_vars={'Y': Y})
-        m.fit(data)
-        with self.assertRaises(ValueError):
-            m.fit(data)
 
 if __name__ == "__main__":
 
