@@ -22,12 +22,6 @@ class Test(unittest.TestCase):
         self.assertTrue(len(mymod.data['X1']) > 0, "Data for independent variables should exist:X1")
         self.assertTrue(len(mymod.data['X2']) > 0, "Data for independent variables should exist:X2")
 
-    def test_test_data(self):
-        """
-        Test if test data for independent variables exists
-        """
-        self.assertTrue(mymod.test_data['X1'].isnull().all(), "Test data for independent variables should not exist:X1")
-        self.assertTrue(mymod.test_data['X2'].isnull().all(), "Test data for independent variables should not exist:X2")
 
     def test_prediction_dependent(self):
         """
