@@ -6,12 +6,12 @@ import theano
 import pymc3 as pm
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 from run_conf import cfg as user_cfg
-import os
 
+
+# The models that are tested here have first to be created by create_PyMC3_testmodels.py
 
 model_basepath = user_cfg['modules']['modelbase']['test_model_directory']
 data_basepath = user_cfg['modules']['modelbase']['test_data_directory']
-
 
 model_filenames = [
                'pymc3_getting_started_model.mdl',
