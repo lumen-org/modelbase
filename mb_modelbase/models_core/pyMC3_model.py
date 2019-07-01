@@ -234,8 +234,9 @@ class ProbabilisticPymc3Model(Model):
         if any([self.fields[i]['independent'] for i in range(len(self.fields))]):
             #raise ValueError("Density is queried for a model with independent variables")
             return np.NaN
-        elif self.samples.empty:
-            raise ValueError("There are no samples in the model")
+        elif self.samples.empty | len(self.samples) == 1:
+            #raise ValueError("There are not enough samples in the model")
+            return np.NaN
         else:
             X = self.samples.values
             kde = stats.gaussian_kde(X.T)
