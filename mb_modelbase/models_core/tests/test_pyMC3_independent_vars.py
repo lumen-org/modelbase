@@ -3,11 +3,13 @@ import pandas as pd
 import pymc3 as pm
 import mb_modelbase as mbase
 import unittest
+from run_conf import cfg as user_cfg
 
 
+# Load model. The model first has to be created by create_PyMC3_testmodels.py
 
-# load model
-testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model_independent_vars_fitted.mdl'
+testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + \
+                     '/pymc3_getting_started_model_independent_vars_fitted.mdl'
 mymod = mbase.Model.load(testcasemodel_path)
 
 
@@ -27,14 +29,6 @@ class Test(unittest.TestCase):
         self.assertTrue(mymod.test_data['X1'].isnull().all(), "Test data for independent variables should not exist:X1")
         self.assertTrue(mymod.test_data['X2'].isnull().all(), "Test data for independent variables should not exist:X2")
 
-    def test_samples(self):
-        """
-        Test if samples were drawn for independent variables. There should be no samples for these variables,
-        which automatically ensures that no marginal distribution and no density for those variables can be computed.
-        """
-        self.assertTrue(mymod.samples['X1'].isnull().all(), "There should be no samples for independent variables: X1")
-        self.assertTrue(mymod.samples['X2'].isnull().all(), "There should be no samples for independent variables: X2")
-
     def test_prediction_dependent(self):
         """
         Test if predictions of dependent variables work as intended
@@ -43,8 +37,8 @@ class Test(unittest.TestCase):
                                           splitby=mbase.models_core.base.Split('X1', 'equiinterval'))) > 0,
                         'It should be possible to predict a dependent variable conditioned on an independent one')
         self.assertTrue(mymod.predict(mbase.models_core.base.Aggregation('Y'),
-                                          splitby=mbase.models_core.base.Split('X1', 'equiinterval')).isnull().values.all(),
-                        'prediction of a dependent variable conditioned on an independent one should not contain only NaNs')
+                                         splitby=mbase.models_core.base.Split('X1', 'equiinterval')).isnull().values.all(),
+                       'prediction of a dependent variable conditioned on an independent one should not contain only NaNs')
         self.assertTrue(len(mymod.predict(mbase.models_core.base.Aggregation('Y'),
                                           splitby=mbase.models_core.base.Split('alpha', 'equiinterval'))) > 0,
                         'It should be possible to predict a dependent variable conditioned on another dependent variable')
