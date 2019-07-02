@@ -204,19 +204,6 @@ class Test_methods_on_model_with_data(unittest.TestCase):
             self.assertEqual(mymod.samples.empty, 1, "There should be no samples. Model: " + mymod.name)
             self.assertEqual(mymod.mode, "data",
                              "Mode of just instantiated model should be set to data. Model: " + mymod.name)
-
-    def test_density(self):
-        """
-        Calculate a probability density on a model.
-        An error should be thrown since the model does not yet know any variables
-        """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
-            mymod.set_data(data)
-            with self.assertRaises(ValueError):
-                mymod.density([0])
-
     def test_maximum(self):
         """
         Calculate the maximum probability of a model without samples. It should return an empty array
