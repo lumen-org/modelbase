@@ -47,10 +47,11 @@ class Test(unittest.TestCase):
 
     def test_compare_full_data_with_samples(self):
         for var in mymod.data:
-            self.assertAlmostEqual(np.mean(mymod.data[var]), np.mean(mymod.samples[var]), 0,
-                                   'Mean of data and posterior samples for ' + var + ' should be similar')
-            self.assertAlmostEqual(np.var(mymod.data[var]), np.var(mymod.samples[var]), 0,
-                                   'Variance of data and posterior samples for ' + var + ' should be similar')
+            if not mymod.byname(var)['independent']:
+                self.assertAlmostEqual(np.mean(mymod.data[var]), np.mean(mymod.samples[var]), 0,
+                                       'Mean of data and posterior samples for ' + var + ' should be similar')
+                self.assertAlmostEqual(np.var(mymod.data[var]), np.var(mymod.samples[var]), 0,
+                                       'Variance of data and posterior samples for ' + var + ' should be similar')
 
     def test_compare_conditioned_data_with_samples(self):
         covariates = [field['name'] for field in mymod.fields if field['independent']]
