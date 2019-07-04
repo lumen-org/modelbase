@@ -16,6 +16,8 @@ from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import pci_graph
 
+import mb_modelbase.cache.cache as mc
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -143,7 +145,7 @@ class ModelBase:
             .float_format : The float format used to encode floats in a result. Defaults to '%.5f'
     """
 
-    def __init__(self, name, model_dir='data_models', load_all=True):
+    def __init__(self, name, model_dir='data_models', load_all=True, cache=mc.DictCache()):
         """ Creates a new instance and loads models from some directory. """
 
         self.name = name
@@ -153,6 +155,8 @@ class ModelBase:
         self.settings = {
             'float_format': '%.8f',
         }
+
+        self.cache = cache
 
         # load some initial models to play with
         if load_all:
@@ -276,15 +280,28 @@ class ModelBase:
         # basic syntax and semantics checking of the given query is done in the _extract* methods
         if 'MODEL' in query:
             base = self._extractFrom(query)
-            # maybe copy
-            derived_model = base if base.name == query["AS"] else base.copy(query["AS"])
-            # derive submodel
-            derived_model.model(
+
+            key = mc.key(
                 model=self._extractModel(query),
-                where=self._extractWhere(query),
-                default_values=self._extractDefaultValue(query),
-                default_subsets=self._extractDefaultSubset(query),
-                hide=self._extractHide(query)),
+                where=self._extractWhere(query)
+            )
+
+            derived_model = self.cache.get(key)
+
+            if derived_model == None:
+                # maybe copy
+                derived_model = base if base.name == query["AS"] else base.copy(query["AS"])
+                # derive submodel
+                derived_model.model(
+                    model=self._extractModel(query),
+                    where=self._extractWhere(query),
+                    default_values=self._extractDefaultValue(query),
+                    default_subsets=self._extractDefaultSubset(query),
+                    hide=self._extractHide(query)),
+                self.cache.set(key, derived_model)
+            else:
+                 # TODO Write defaults and hide into loaded model
+
             # add to modelbase
             self.add(derived_model, query["AS"])
             # return header
