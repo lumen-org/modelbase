@@ -282,6 +282,7 @@ class ModelBase:
             base = self._extractFrom(query)
 
             key = mc.key(
+                name = query["AS"],
                 model=self._extractModel(query),
                 where=self._extractWhere(query)
             )
@@ -300,7 +301,9 @@ class ModelBase:
                     hide=self._extractHide(query)),
                 self.cache.set(key, derived_model)
             else:
-                 # TODO Write defaults and hide into loaded model
+                derived_model.set_default_value(self._extractDefaultValue(query)) \
+            .set_default_subset(self._extractDefaultSubset(query)) \
+            .hide(self._extractHide(query))
 
             # add to modelbase
             self.add(derived_model, query["AS"])

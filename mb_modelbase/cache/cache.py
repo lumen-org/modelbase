@@ -1,10 +1,10 @@
 import abc
 from pymemcache.client import base
-import pickle
+import dill
 
-def key(model,where):
+def key(name, model,where):
     # Use naive key for testing
-    return str(model) + str(where)
+    return (str(name) + ':' + str(model).strip('[]') + ':' + str(where).strip('[]')).replace(' ', '')
 
 class CacheBase(abc.ABC):
     def get(self, key, default=None):
@@ -14,7 +14,7 @@ class CacheBase(abc.ABC):
             return model
         else:
             print("CACHE HIT!")
-            return pickle.loads(model)
+            return dill.loads(model)
 
     @abc.abstractmethod
     def _get(self, key, default=None):
@@ -22,7 +22,7 @@ class CacheBase(abc.ABC):
 
     def set(self, key, model):
         print(self.keys())
-        self._set(key, pickle.dumps(model))
+        self._set(key, dill.dumps(model))
 
     @abc.abstractmethod
     def _set(self, key, value):

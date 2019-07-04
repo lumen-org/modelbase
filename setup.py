@@ -23,7 +23,8 @@ setup(name='mb_modelbase',
           'spflow',
           'pyopenssl',
           'sympy',
-            'pymemcache'
+            'pymemcache',
+          'dill'
       ],
       zip_safe=False)
 
