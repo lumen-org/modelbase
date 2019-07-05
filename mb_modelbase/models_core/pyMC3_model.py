@@ -99,28 +99,22 @@ class ProbabilisticPymc3Model(Model):
             generated_samples = generated_samples.astype(self.shared_vars['years'].dtype)
         return generated_samples
 
-    def _cartesian_product_of_ind_var_samples(self):
-        # Make df from each item in shared vars
-        dfs = [pd.DataFrame({key: val.get_value(), 'key': 1}) for key, val in self.shared_vars.items()]
+    def _cartesian_product_of_samples(self, df):
+        # Split up df in its columns
+        dfs = [pd.DataFrame(df[col]) for col in df]
+        # Add equal column to each split
+        [df.insert(1, 'key', 1) for df in dfs]
         # cross join all dfs
-        samples_independent_vars = reduce(lambda left, right: pd.merge(left, right, on='key'), dfs)
-        return samples_independent_vars
+        cartesian_prod = reduce(lambda left, right: pd.merge(left, right, on='key'), dfs)
+        cartesian_prod = cartesian_prod.drop('key', 1)
+        return cartesian_prod
 
     def _fit(self):
         # Generate samples for latent random variables
         with self.model_structure:
-            # Number of samples drawn in one iteration should be equal to the length of the data since in some models
-            # the data vectors are required to have a certain length.
-            nr_of_samples = len(self.data.iloc[:, 0])
-            # If the length of the input data is greater than the originally specified length of the posterior samples,
-            # a new length for the posterior samples has to be set.
-            if nr_of_samples < self.nr_of_posterior_samples:
-                nr_of_samples_total = self.nr_of_posterior_samples
-            else:
-                nr_of_samples_total = nr_of_samples
             for var in self.fields:
-                self.samples[var['name']] = np.full(nr_of_samples_total, np.NaN)
-            trace = pm.sample(nr_of_samples_total, chains=1, cores=1, progressbar=False)
+                self.samples[var['name']] = np.full(self.nr_of_posterior_samples, np.NaN)
+            trace = pm.sample(self.nr_of_posterior_samples, chains=1, cores=1, progressbar=False)
             # Store varnames for later generation of fields
             varnames = trace.varnames.copy()
             for varname in trace.varnames:
@@ -132,48 +126,40 @@ class ProbabilisticPymc3Model(Model):
                         varnames.append(varname+'_'+str(i))
                 else:
                     self.samples[varname] = trace[varname]
-        # Generate samples for observed variables
+        # Generate samples for observed independent variables
         with self.model_structure:
-            #if hasattr(self, 'shared_vars'):
             if self.shared_vars is not None:
+                # Values at equal intervals over the domain of each independent variable are generated. Then a grid of
+                # values is constructed so that each combination of values between the different variables is covered
                 nr_of_ind_vars = len(self.shared_vars)
-                nr_of_unique_values = nr_of_samples ** (1. / nr_of_ind_vars)
+                nr_of_unique_values = self.nr_of_posterior_samples ** (1. / nr_of_ind_vars)
+                generated_samples = pd.DataFrame(columns=self.shared_vars.keys())
                 for key, val in self.shared_vars.items():
-                    generated_samples = self._generate_samples_for_independent_variable(key, nr_of_unique_values)
-                    self.shared_vars[key].set_value(generated_samples)
-                # Build cartesian product of the samples
-                samples_independent_vars = self._cartesian_product_of_ind_var_samples()
-                # Replicate samples until prespecified total number of samples is reached
-                for key, val in self.shared_vars.items():
-                    sample_vals = samples_independent_vars[key]
-                    # Fill up the rest
-                    rest = nr_of_samples % len(sample_vals)
-                    if rest > 0:
-                        sample_vals = np.append(sample_vals, sample_vals[0:rest])
-                    # Replicate from nr_of_samples to nr_of_samples_total
-                    for i in range(0, int(nr_of_samples_total/nr_of_samples)):
-                        self.samples[key][i*nr_of_samples:(i+1)*nr_of_samples] = sample_vals
-                    # Fill up the rest
-                    rest = nr_of_samples_total % nr_of_samples
-                    if rest > 0:
-                        self.samples[key][nr_of_samples_total-rest:nr_of_samples_total] = sample_vals[0:rest]
-                    #self.shared_vars[key].set_value(self.samples[key])
-                ppc = pm.sample_ppc(trace)
+                    generated_samples[key] = self._generate_samples_for_independent_variable(key, nr_of_unique_values)
+                samples_independent_vars = self._cartesian_product_of_samples(generated_samples)
+                # number of samples in samples_independent_vars may now be lesser than self.nr_of_posterior_samples.
+                # The first x rows of samples_independent_vars are therefore attached again at the end of the
+                # dataframe, where x is the difference to self.nr_of_posterior_samples
+                diff = self.nr_of_posterior_samples - len(samples_independent_vars)
+                samples_independent_vars = samples_independent_vars.append(samples_independent_vars.iloc[0:diff, :])
+                #
+                for col in samples_independent_vars:
+                    self.shared_vars[col].set_value(samples_independent_vars[col])
+                    self.samples[col] = samples_independent_vars[col]
+        # Generate samples for observed dependent variables
+        with self.model_structure:
+            ppc = pm.sample_ppc(trace)
+            if self.shared_vars is not None:
+                # sample_ppc works the following way: For each parameter set generated by sample(), a sequence
+                # of points is generated with the same length as the observed data.
                 for varname in self.model_structure.observed_RVs:
-                    # sample_ppc works the following way: For each parameter set generated by sample(), a sequence
-                    # of points is generated with the same length as the observed data. So, in the i-th row of the
-                    # samples df, we want to write the new data point that was generated by the i-th parameter set
-                    # and the i-th row of the given data: ppc[...][i][i]. Since the length of the data can be
-                    # shorter then the length of the new generated parameters, we also have to take the modulo for
-                    # the data dimension
-                    self.samples[str(varname)] = \
-                        [ppc[str(varname)][i][i % int(nr_of_unique_values)] for i in range(nr_of_samples_total)]
+                    [ppc[str(varname)][i][i] for i in range(self.nr_of_posterior_samples)]
             else:
                 # when no shared vars are given, data and samples do not have the same length. In this case, the first
                 # point of each sequence is taken as new sample point
-                ppc = pm.sample_ppc(trace)
                 for varname in self.model_structure.observed_RVs:
                     self.samples[str(varname)] = [samples[0] for samples in ppc[str(varname)]]
+
 
         # Add parameters to fields
         self.fields = self.fields + get_numerical_fields(self.samples, varnames)
