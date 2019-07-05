@@ -185,13 +185,15 @@ class ProbabilisticPymc3Model(Model):
                     for varname in self.model_structure.observed_RVs:
                         self.samples[str(varname)] = [samples[0] for samples in ppc[str(varname)]]
             # In most cases there will be a rest left that has to be filled
-            if nr_of_partitions*obs_per_partition != self.nr_of_posterior_samples:
+            diff = self.nr_of_posterior_samples - int(nr_of_partitions * obs_per_partition)
+            if diff != 0:
                 for col in samples_independent_vars:
-                    self.shared_vars[col].set_value(samples_independent_vars[col][nr_of_partitions*obs_per_partition:])
+                    self.shared_vars[col].set_value(
+                        samples_independent_vars[col][self.nr_of_posterior_samples-len(self.data):])
                 ppc = pm.sample_ppc(trace)
                 for varname in self.model_structure.observed_RVs:
                     self.samples[str(varname)][nr_of_partitions*obs_per_partition:] = \
-                        [ppc[str(varname)][j][j] for j in range(ppc[str(varname)].shape[1])]
+                        [ppc[str(varname)][j][obs_per_partition-1-j] for j in range(diff)]
 
         # Add parameters to fields
         self.fields = self.fields + get_numerical_fields(self.samples, varnames)
