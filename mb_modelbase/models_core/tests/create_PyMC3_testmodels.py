@@ -30,9 +30,9 @@ Model.save(m, testcasemodel_path + modelname + '.mdl')
 m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model)
 m.fit(data)
 Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
-# ######################################
-# # pymc3_getting_started_model
-# ######################################
+######################################
+# pymc3_getting_started_model
+######################################
 
 modelname = 'pymc3_getting_started_model'
 np.random.seed(123)
@@ -68,9 +68,9 @@ Model.save(m, testcasemodel_path + modelname + '.mdl')
 m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model)
 m.fit(data)
 Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
-###############################################
+##############################################
 # pymc3_getting_started_model_independent vars
-###############################################
+##############################################
 
 modelname = 'pymc3_getting_started_model_independent_vars'
 np.random.seed(123)
@@ -141,9 +141,9 @@ m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1})
 Model.save(m, testcasemodel_path + modelname + '.mdl')
 m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'X1': X1})
 data.to_csv(testcasedata_path + modelname + '.csv', index=False)
-# ######################################
-# # pymc3_coal_mining_disaster_model
-# ######################################
+######################################
+# pymc3_coal_mining_disaster_model
+######################################
 
 modelname = 'pymc3_coal_mining_disaster_model'
 
@@ -179,9 +179,9 @@ m = ProbabilisticPymc3Model(modelname + '_fitted', disaster_model, shared_vars={
 m.fit(data)
 Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 
-# # ######################################
-# # eight_schools_model
-# ######################################
+########################################
+# eight_schools_model
+########################################
 
 modelname = 'eight_schools_model'
 
@@ -206,15 +206,17 @@ with pm.Model() as normal_normal_model:
                             mu=[theta_1, theta_2, theta_3, theta_4, theta_5, theta_6, theta_7, theta_8],
                             sd=standard_errors, observed=data['test_scores'])
 
-m = ProbabilisticPymc3Model(modelname, normal_normal_model, shared_vars={'standard_errors': standard_errors})
+m = ProbabilisticPymc3Model(modelname, normal_normal_model,
+                            shared_vars={'standard_errors': standard_errors}, fixed_data_length=True)
 Model.save(m, testcasemodel_path + modelname + '.mdl')
-m = ProbabilisticPymc3Model(modelname + '_fitted', normal_normal_model, shared_vars={'standard_errors': standard_errors})
+m = ProbabilisticPymc3Model(modelname + '_fitted', normal_normal_model,
+                            shared_vars={'standard_errors': standard_errors}, fixed_data_length=True)
 m.fit(data)
 Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 
-# ######################################
-# # getting_started_model_shape
-# ######################################
+######################################
+# getting_started_model_shape
+######################################
 modelname = 'pymc3_getting_started_model_shape'
 np.random.seed(123)
 alpha, sigma = 1, 1
