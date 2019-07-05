@@ -145,7 +145,7 @@ class ProbabilisticPymc3Model(Model):
                 #
                 for col in samples_independent_vars:
                     self.shared_vars[col].set_value(samples_independent_vars[col])
-                    self.samples[col] = samples_independent_vars[col]
+                    self.samples[col] = samples_independent_vars[col].values
         # Generate samples for observed dependent variables
         with self.model_structure:
             ppc = pm.sample_ppc(trace)
