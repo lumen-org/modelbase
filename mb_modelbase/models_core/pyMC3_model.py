@@ -138,6 +138,7 @@ class ProbabilisticPymc3Model(Model):
                     self.samples[varname] = trace[varname]
         # Generate samples for observed independent variables
         with self.model_structure:
+            samples_independent_vars = []
             if self.shared_vars is not None:
                 # Values at equal intervals over the domain of each independent variable are generated. Then a grid of
                 # values is constructed so that each combination of values between the different variables is covered
