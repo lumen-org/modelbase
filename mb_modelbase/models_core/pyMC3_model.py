@@ -31,9 +31,14 @@ class ProbabilisticPymc3Model(Model):
             during the _fit()-method
 
         nr_of_posterior_samples: integer scalar specifying the number of posterior samples to be generated
+
+        fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
+
+            Some probabilitsitc models require a fixed length of the data. This is important because normally
+            new data points are generated with a different length than the original data
     """
 
-    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=500, nr_of_partitions=1):
+    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=500, fixed_data_length=False):
         super().__init__(name)
         self.model_structure = model_structure
         self.samples = pd.DataFrame()
@@ -43,7 +48,7 @@ class ProbabilisticPymc3Model(Model):
         self.parallel_processing = False
         self.shared_vars = shared_vars
         self.nr_of_posterior_samples = nr_of_posterior_samples
-        self.nr_of_partitions = nr_of_partitions
+        self.fixed_data_length = fixed_data_length
 
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently, split_data=False)
@@ -153,8 +158,16 @@ class ProbabilisticPymc3Model(Model):
                     self.samples[col] = samples_independent_vars[col].values
         # Generate samples for observed dependent variables
         with self.model_structure:
-            obs_per_partition = int(self.nr_of_posterior_samples/self.nr_of_partitions)
-            for i in range(self.nr_of_partitions):
+            # If there is the special case that the model requires a fixed length of the data, the generation of the
+            # posterior predictive samples has to be partitioned into multiple steps
+            if self.fixed_data_length:
+                nr_of_partitions = int(self.nr_of_posterior_samples/len(self.data))
+            else:
+                nr_of_partitions = 1
+            # This is the length of the data if we have a model with fixed data length.
+            # Otherwise it is the number of posterior samples
+            obs_per_partition = int(self.nr_of_posterior_samples/nr_of_partitions)
+            for i in range(nr_of_partitions):
                 lower_idx = int(i * obs_per_partition)
                 upper_idx = int((i + 1) * obs_per_partition)
                 for col in samples_independent_vars:
@@ -165,13 +178,20 @@ class ProbabilisticPymc3Model(Model):
                     # of points is generated with the same length as the observed data.
                     for varname in self.model_structure.observed_RVs:
                         self.samples[str(varname)][lower_idx:upper_idx] = \
-                            [ppc[str(varname)][j][j] for j in range(obs_per_partition)]
+                            [ppc[str(varname)][j][j] for j in range(ppc[str(varname)].shape[1])]
                 else:
                     # when no shared vars are given, data and samples do not have the same length. In this case, the first
                     # point of each sequence is taken as new sample point
                     for varname in self.model_structure.observed_RVs:
                         self.samples[str(varname)] = [samples[0] for samples in ppc[str(varname)]]
-
+            # In most cases there will be a rest left that has to be filled
+            if nr_of_partitions*obs_per_partition != self.nr_of_posterior_samples:
+                for col in samples_independent_vars:
+                    self.shared_vars[col].set_value(samples_independent_vars[col][nr_of_partitions*obs_per_partition:])
+                ppc = pm.sample_ppc(trace)
+                for varname in self.model_structure.observed_RVs:
+                    self.samples[str(varname)][nr_of_partitions*obs_per_partition:] = \
+                        [ppc[str(varname)][j][j] for j in range(ppc[str(varname)].shape[1])]
 
         # Add parameters to fields
         self.fields = self.fields + get_numerical_fields(self.samples, varnames)
