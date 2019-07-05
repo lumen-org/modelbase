@@ -153,7 +153,7 @@ class ProbabilisticPymc3Model(Model):
                     self.samples[col] = samples_independent_vars[col].values
         # Generate samples for observed dependent variables
         with self.model_structure:
-            obs_per_partition = self.nr_of_posterior_samples/self.nr_of_partitions
+            obs_per_partition = int(self.nr_of_posterior_samples/self.nr_of_partitions)
             for i in range(self.nr_of_partitions):
                 lower_idx = int(i * obs_per_partition)
                 upper_idx = int((i + 1) * obs_per_partition)
