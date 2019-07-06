@@ -9,7 +9,7 @@ import pandas as pd
 
 from mb_modelbase.models_core import Model
 from mb_modelbase.models_core.base import *
-from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel as MixCondGauss
+from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel as CondGaussian
 from mb_modelbase.models_core.tests import test_crabs as crabs
 
 if __name__ == '__main__':
@@ -17,8 +17,8 @@ if __name__ == '__main__':
     model = Model.load('crabs_test.mdl')
     # model.parallel_processing = False
 
-    # data = crabs.mixed()
-    # model = MixCondGauss("TestMod").fit(df=data)
+    data = crabs.mixed()
+    # model = CondGaussian("TestMod").fit(df=data)
     # Model.save(model, 'crabs_test.mdl')
 
     print(str(model.names))
@@ -92,4 +92,6 @@ if __name__ == '__main__':
     res = model.predict(['sex', Density(sex), Aggregation(FL, method='maximum', yields='FL')], splitby=[Split(sex)])
     print(res)
 
-
+    model = CondGaussian("my_model").fit(df=data)
+    res = model.predict(['sex', Density(sex)], splitby=Split(sex))
+    print(res)
