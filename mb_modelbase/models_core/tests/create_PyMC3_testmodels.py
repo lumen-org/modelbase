@@ -6,8 +6,12 @@ from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 import theano
 from run_conf import cfg as user_cfg
 
-testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + '/'
-testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory'] + '/'
+try:
+    testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + '/'
+    testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory'] + '/'
+except KeyError:
+    print('Specify a test_model_directory and a test_data_direcory in run_conf.py')
+    raise
 
 ######################################
 # pymc3_testcase_model
