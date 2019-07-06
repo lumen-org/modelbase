@@ -10,8 +10,12 @@ from run_conf import cfg as user_cfg
 
 # The models that are tested here have first to be created by create_PyMC3_testmodels.py
 
-model_basepath = user_cfg['modules']['modelbase']['test_model_directory']
-data_basepath = user_cfg['modules']['modelbase']['test_data_directory']
+try:
+    model_basepath = user_cfg['modules']['modelbase']['test_model_directory']
+    data_basepath = user_cfg['modules']['modelbase']['test_data_directory']
+except KeyError:
+    print('Specify a test_model_directory and a test_data_direcory in run_conf.py')
+    raise
 
 model_filenames = [
                'pymc3_getting_started_model.mdl',
