@@ -282,7 +282,7 @@ class ModelBase:
             base = self._extractFrom(query)
 
             key = mc.key(
-                name = query["AS"],
+                name=query["AS"],
                 model=self._extractModel(query),
                 where=self._extractWhere(query)
             )
