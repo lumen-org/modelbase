@@ -295,12 +295,12 @@ class Model:
                 "names: " + str([self.names]) + "\n")
         # "fields: " + str([str(field) for field in self.fields]))
 
-    def __short_str__(self, max_fields=5):
+    def __short_str__(self, max_fields=10):
         """Return a short string representation. By default return a string representation of the first 5 fields. Set
         the max_fields parameter to change that.
         """
         fields = self.fields[:max_fields]
-        field_strs = [('#' if field.dtype == 'string' else '±') + field.name for field in fields]
+        field_strs = [('#' if field['dtype'] == 'string' else '±') + field['name'] for field in fields]
         return self.name + "(" + ",".join(field_strs) + ")"
 
     def asindex(self, names):

@@ -106,7 +106,7 @@ def get_discrete_fields(df, colnames):
         column = df[colname]
         domain = dm.DiscreteDomain()
         extent = dm.DiscreteDomain(sorted(column.unique()))
-        field = Field(colname, domain, extent, 'string')
+        field = Field(colname, domain, extent, False, 'string')
         fields.append(field)
     return fields
 
@@ -119,7 +119,7 @@ def get_numerical_fields(df, colnames):
         column = df[colname]
         mi, ma = column.min(), column.max()
         d = (ma - mi) * 0.1
-        field = Field(colname, dm.NumericDomain(), dm.NumericDomain(mi - d, ma + d), 'numerical')
+        field = Field(colname, dm.NumericDomain(), dm.NumericDomain(mi - d, ma + d), False, 'numerical')
         fields.append(field)
     return fields
 
