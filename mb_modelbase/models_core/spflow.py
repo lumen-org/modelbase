@@ -23,6 +23,7 @@ import functools
 import pandas as pd
 import copy as cp
 import dill
+from spn.algorithms.stats.Expectations import Expectation
 
 
 class SPNModel(Model):
@@ -182,17 +183,17 @@ class SPNModel(Model):
             dill.dump(self, output, dill.HIGHEST_PROTOCOL)
 
     def _maximum(self):
-        raise NotImplementedError()
+        e = Expectation(self._spn)
+        return e
 
     def _sample(self, random_state=RandomState(123)):
+        if self._spn_type == 'mspn':
+            raise NotImplementedError()
         placeholder = self._condition.copy()
         s = sample_instances(self._spn, placeholder, random_state)
-        print(s)
         indices = [self._initial_names_to_index[name] for name in self.names]
-        print(indices)
         result = s[:, indices]
         result = result.reshape(len(self.names)).tolist()
-        print(result)
         for i in range(len(result)):
             if self.names[i] in self._categorical_variables:
                 result[i] = self._categorical_variables[self.names[i]]['int_to_name'][round(result[i])]
