@@ -15,6 +15,7 @@ import operator
 import pickle as pickle
 import numpy as np
 import pandas as pd
+import os
 import logging
 import warnings
 from itertools import compress
@@ -1415,21 +1416,29 @@ class Model:
 
         return zip(names, cond_values) if pairflag else cond_values
 
-    def save(self, filename):
+    def _default_filename(self):
+        """Returns default filename of model for saving."""
+        return self.name + ".mdl"
+
+    def save(self, dir, filename=None):
         """Store the model to a file at `filename`.
 
         You can load a stored model using `Model.load()`.
         """
-        with open(filename, 'wb') as output:
+        if filename is None:
+            filename = self._default_filename()
+        path = os.path.join(dir, filename)
+        with open(path, 'wb') as output:
             pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+        return path
 
     @staticmethod
-    def save_static(model, filename, *args, **kwargs):
+    def save_static(model, dir, *args, **kwargs):
         """Store the model to a file at `filename`.
 
         You can load a stored model using `Model.load()`.
         """
-        model.save(filename, *args, **kwargs)
+        model.save(dir, *args, **kwargs)
 
     @staticmethod
     def load(filename):

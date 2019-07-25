@@ -11,7 +11,7 @@ if __name__ == '__main__':
     pl_model = iris_model.copy().marginalize(keep='petal_length')
 
     # compute ppc
-    reference, samples = eval.posterior_predictive_check(pl_model, np.min, n=100)
+    reference, samples = eval.posterior_predictive_check(pl_model, eval.mean, n=100)
 
     # make histogram
     plt.hist(samples, bins=15)

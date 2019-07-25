@@ -218,11 +218,11 @@ class ModelBase:
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        dir_ = Path(directory)
-
+        #dir_ = Path(directory)
         for key, model in self.models.items():
-            filepath = dir_.joinpath(model.name + ext)
-            gm.Model.save_static(model, str(filepath))
+            #filepath = dir_.joinpath(model.name + ext)
+            #gm.Model.save_static(model, str(filepath))
+            gm.Model.save_static(model, directory)
 
     def add(self, model, name=None):
         """ Adds a model to the model base using the given name or the models name. """
