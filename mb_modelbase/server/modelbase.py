@@ -15,6 +15,7 @@ import numpy
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import pci_graph
+from  mb_modelbase.models_core import models_predict
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -304,11 +305,31 @@ class ModelBase:
 
         elif 'PREDICT' in query:
             base = self._extractFrom(query)
+            predict_stmnt = self._extractPredict(query)
+            where_stmnt = self._extractWhere(query)
+            splitby_stmnt = self._extractSplitBy(query)
+
             resultframe = base.predict(
-                predict=self._extractPredict(query),
-                where=self._extractWhere(query),
-                splitby=self._extractSplitBy(query)
+                predict=predict_stmnt,
+                where=where_stmnt,
+                splitby=splitby_stmnt
             )
+
+            if 'DIFFERENCE_TO' in query: # query['DIFFERENCE_TO'] = 'mcg_iris_map'
+                base2 = self._extractDifferenceTo(query)
+                resultframe2 = base2.predict(
+                    predict=predict_stmnt,
+                    where=where_stmnt,
+                    splitby=splitby_stmnt
+                )
+                assert(resultframe.shape == resultframe2.shape)
+                aggr_idx = [i for i, o in enumerate(predict_stmnt)
+                            if models_predict.type_of_clause(o) != 'split']
+
+                # calculate the diff only on the _predicted_ variables
+                if len(aggr_idx) > 0:
+                    resultframe.iloc[:,aggr_idx] = resultframe.iloc[:,aggr_idx] - resultframe2.iloc[:,aggr_idx]
+
             return _json_dumps({"header": resultframe.columns.tolist(),
                                 "data": resultframe.to_csv(index=False, header=False,
                                                            float_format=self.settings['float_format'])})
@@ -351,15 +372,25 @@ class ModelBase:
     ### _extract* functions are helpers to extract a certain part of a PQL query
     #   and do some basic syntax and semantic checks
 
-    def _extractFrom(self, query):
-        """ Returns the model that the value of the "FROM"-statement of query
+    def _extractModelByStatement(self, query, keyword):
+        """ Returns the model that the value of the <keyword<-statement of query
         refers to. """
-        if 'FROM' not in query:
-            raise QuerySyntaxError("'FROM'-statement missing")
-        modelName = query['FROM']
+        if keyword not in query:
+            raise QuerySyntaxError("{}-statement missing".format(keyword))
+        modelName = query[keyword]
         if modelName not in self.models:
             raise QueryValueError("The specified model does not exist: " + modelName)
         return self.models[modelName]
+
+    def _extractFrom(self, query):
+        """ Returns the model that the value of the "FROM"-statement of query
+        refers to. """
+        return self._extractModelByStatement(query, 'FROM')
+
+    def _extractDifferenceTo(self, query):
+        """ Returns the model that the value of the "DIFFERENCE_TO"-statement of query
+        refers to. """
+        return self._extractModelByStatement(query, 'DIFFERENCE_TO')
 
     def _extractShow(self, query):
         """ Extracts the value of the "SHOW"-statement from query."""
