@@ -20,12 +20,12 @@ def median(a):
     return quantile(a, 0.5)
 
 
-def min(a):
-    np.min(a)
+def minimum(a):
+    return np.min(a)
 
 
-def max(a):
-    np.max(a)
+def maximum(a):
+    return np.max(a)
 
 
 

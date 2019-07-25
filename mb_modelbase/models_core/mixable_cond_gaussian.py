@@ -195,6 +195,7 @@ class Normalizer():
             raise ValueError("invalid mode")
 
     def denormalize (self, x, num_only=False):
+        # https: // stackoverflow.com / questions / 29318459 / python - function - that - handles - scalar - or -arrays
         if not num_only:
             cat_len = len(self._model._categoricals)
             x[cat_len:] = x[cat_len:] * self._stddev + self._mean
