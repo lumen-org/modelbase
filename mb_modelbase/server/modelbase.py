@@ -315,7 +315,7 @@ class ModelBase:
                 splitby=splitby_stmnt
             )
 
-            if 'DIFFERENCE_TO' in query: # query['DIFFERENCE_TO'] = 'mcg_iris_map'
+            if 'DIFFERENCE_TO' in query:  # query['DIFFERENCE_TO'] = 'mcg_iris_map'
                 base2 = self._extractDifferenceTo(query)
                 resultframe2 = base2.predict(
                     predict=predict_stmnt,
