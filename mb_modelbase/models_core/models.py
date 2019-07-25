@@ -589,10 +589,14 @@ class Model:
         On return of this method the attribute `.data` is filled with the appropriate data that
         was used to fit the model, i.e. if `df` is given it is set using `.set_data()`
 
-        Args:fit(
+        Args:
             df: pd.DataFrame, optional
                 The pandas data frame that holds the data to fit the model to. You can also
                 previously set the data to fit to using the set_data method.
+
+        Raises:
+            ValueError:
+                if no data is available to fit to and the models mode is different from 'data'
 
         Returns:
             The modified, fitted model.

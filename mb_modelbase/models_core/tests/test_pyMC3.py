@@ -2,12 +2,15 @@ import numpy as np
 import pandas as pd
 import mb_modelbase as mbase
 import unittest
-import theano
-import pymc3 as pm
-from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
+
+# TODO: run_conf is not available from anywhere. also see below, I think this test should be independent of custom config.
 from run_conf import cfg as user_cfg
 
+# TODO: tests should be self contained, i.e. they should be runnable independently and without _any_ user intervention.
+#  plese fix :) probably this involves generating the required ppl model here.
+#  for that you can also reuse testmodels_pymc3.py
 
+# TODO: exactly that is not desirable. any automatic test runner cannot handle this:
 # The models that are tested here have first to be created by create_PyMC3_testmodels.py
 
 try:
@@ -35,6 +38,8 @@ data_filenames = [
 
 model_paths = [model_basepath + '/' + name for name in model_filenames]
 data_paths = [data_basepath + '/' + name for name in data_filenames]
+
+# TODO: please adhere PEP8 convention for naming of classes, i.e. camelcase
 
 class Test_methods_on_initialized_model(unittest.TestCase):
     """
@@ -81,6 +86,8 @@ class Test_methods_on_initialized_model(unittest.TestCase):
             self.assertEqual(mymod.mode, 'data', "model mode should be set to data. Model: " + mymod.name)
 
     # TODO: What should happen, if the fit method is called on a model without data?
+    # Philipp:  this will raise an exception. see model.fit()
+
     # def test_fit(self):
     #     """
     #     Test if there are samples and test data in the model and if the mode is set to model
@@ -138,6 +145,7 @@ class Test_methods_on_initialized_model(unittest.TestCase):
             self.assertTrue(len(mymod._maximum()) == 0,
                             "maximum density point for a model without variables should be an empty array. "
                             "Model: " + mymod.name)
+
 
 class Test_methods_on_model_with_data(unittest.TestCase):
     """
@@ -320,6 +328,7 @@ class Test_methods_on_fitted_model(unittest.TestCase):
             self.assertEqual(len(mymod._maximum()), len(mymod.names),
                              "Dimension of the maximum does not match dimension of the model. Model: " + mymod.name)
 
+
 class Test_more_combinations_on_model(unittest.TestCase):
     """
     Test more complex cases, with more combinations of methods being applied to a already fitted model
@@ -343,16 +352,5 @@ class Test_more_combinations_on_model(unittest.TestCase):
                              "Dimensions of the maximum and the model variables do not match. Model: " + mymod.name)
 
 
-
 if __name__ == "__main__":
-
     unittest.main()
-
-
-
-
-
-
-
-
-

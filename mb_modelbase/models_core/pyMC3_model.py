@@ -262,14 +262,17 @@ class ProbabilisticPymc3Model(Model):
             density = kde.evaluate(x)[0]
             return density
 
-    def _negdensity(self,x):
+    def _negdensity(self, x):
         return -self._density(x)
 
-    def _sample(self):
+    def _sample(self, n):
+        # TODO: fix to allow for n samples at once
         sample = []
         with self.model_structure:
-            trace = pm.sample(1,chains=1,cores=1)
+            # TODO: why is it 1 and 1?
+            trace = pm.sample(n, chains=1, cores=1)
             ppc = pm.sample_ppc(trace)
+            # TODO: what does this do?
             for varname in self.names:
                 if varname in [str(name) for name in self.model_structure.free_RVs]:
                     sample.append(trace[varname][0])
@@ -277,8 +280,7 @@ class ProbabilisticPymc3Model(Model):
                     sample.append(ppc[str(varname)][0][0])
                 else:
                     raise ValueError("Unexpected error: variable name " + varname +  " is not found in the PyMC3 model")
-
-        return (sample)
+        return sample
 
     def copy(self, name=None):
         name = self.name if name is None else name
