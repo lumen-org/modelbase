@@ -1334,7 +1334,9 @@ class Model:
         """
         if self._isempty():
             raise ValueError('Cannot sample from 0-dimensional model')
-        samples = (self._sample() for i in range(n))
+        #PL: changed interface, all must implement parallel sampling
+        # samples = (self._sample() for i in np.arange(n))
+        samples = self._sample(n)
         hidden_dims = [f['name'] for f in self.fields if f['hidden']]
         return pd.DataFrame.from_records(data=samples, columns=self.names, exclude=hidden_dims)
 

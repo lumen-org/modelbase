@@ -684,7 +684,7 @@ class MixableCondGaussianModel(md.Model):
 
         # Calculating cumulative density
         cum_dens = utils.cumulative_density(self._p.values)
-        for i in range(0, k):
+        for i in range(0, int(k)):
             sample_point = []
 
             # Getting index via inverse transform sampling
@@ -702,6 +702,10 @@ class MixableCondGaussianModel(md.Model):
                 sample_point += sample.tolist()
 
             sample_points.append(sample_point)
+
+        # todo: vectorize denormalization
+        if self.opts['normalized']:
+            sample_points = map(lambda p: self._normalizer.denormalize(p), sample_points)
 
         return sample_points
 
