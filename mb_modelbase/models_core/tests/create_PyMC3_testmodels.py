@@ -257,10 +257,10 @@ Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
 data.to_csv(testcasedata_path + modelname + '.csv', index=False)
 
 ######################################
-# Chagos rats
+# Chagos rats d15N
 ######################################
 
-modelname = 'Chagos Rats'
+modelname = 'Chagos Rats d15N'
 # Return list of unique items and an index of their position in L
 def indexall(L):
     poo = []
@@ -316,6 +316,13 @@ Dshore[Dshore<0] = 0
 d15N = xdata.cal_d15N.values
 
 basic_model = pm.Model()
+It = It.astype(int)
+
+data = pd.DataFrame({'Is': Is, 'Io': Io, 'It': It, 'Dshore': Dshore, 'Yi': d15N})
+Is = theano.shared(Is)
+It = theano.shared(It)
+Io = theano.shared(Io)
+Dshore = theano.shared(Dshore)
 
 with basic_model:
     # Global prior
@@ -356,3 +363,67 @@ Model.save(m, testcasemodel_path + modelname + '.mdl')
 m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'Is': Is, 'Io': Io, 'It': It, 'Dshore': Dshore})
 m.fit(data)
 Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+
+######################################
+# Chagos rats vonB
+######################################
+
+modelname = 'Chagos Rats vonB'
+
+# Helper functions
+def indexall(L):
+    poo = []
+    for p in L:
+        if not p in poo:
+            poo.append(p)
+    Ix = np.array([poo.index(p) for p in L])
+    return poo,Ix
+
+def subindexall(short,long):
+    poo = []
+    out = []
+    for s,l in zip(short,long):
+        if not l in poo:
+            poo.append(l)
+            out.append(s)
+    return indexall(out)
+
+match = lambda a, b: np.array([ b.index(x) if x in b else None for x in a ])
+
+path = testcasedata_path + 'chagos_otolith.csv'
+if not os.path.isfile(path):
+    print('Training data for Chagos rats not found. Store the training data in ' + testcasedata_path)
+# Import age and growth data
+xdata = pd.read_csv(path)
+
+# Site
+site = xdata.Site.values
+
+# Fish ID
+ID = xdata.OtolithID.values
+
+# Length
+TL = xdata.TL.values
+lTL = np.log(TL)
+maxTL = max(TL)
+minTL = min(TL)
+
+# Bird or rat island
+Treatment,It = indexall(xdata.Treatment.values)
+
+# Age
+age = xdata.Age.values
+
+# Plotting age
+agex = np.linspace(min(age),max(age),num=100)
+
+Model = pm.Model()
+
+with Model:
+    Linf = pm.Uniform('Linf',maxTL, maxTL*2)
+    L0 = pm.Uniform('L0', 0, minTL)
+    k0 = pm.Uniform('k0', 0.001, 1)
+    k1 = pm.Normal('k1', 0, 10)
+    σ = pm.Uniform('σ', 0, 1000)
+    μ = theano.tensor.log(Linf-(Linf-L0)*theano.tensor.exp(-(k0+k1*It)*age))
+    yi = pm.Normal('yi',μ, σ, observed=lTL)
