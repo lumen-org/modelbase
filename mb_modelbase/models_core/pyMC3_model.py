@@ -293,7 +293,8 @@ class ProbabilisticPymc3Model(Model):
         mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples.copy()
 
-        mycopy.shared_vars = self.shared_vars.copy()
+        # TODO: how to copy shared_vars?
+        #mycopy.shared_vars = self.shared_vars.copy()
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
         mycopy.fixed_data_length = self.fixed_data_length
 

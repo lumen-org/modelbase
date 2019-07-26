@@ -46,7 +46,5 @@ if __name__ == '__main__':
 
     # coal mining desaster model
     cm,  cm_fitted = coal_mining_desaster()
-    Model.save(cm, testcasemodel_path)
-    Model.save(cm_fitted, testcasemodel_path)
-
-
+    cm.save(testcasemodel_path)
+    cm_fitted.save(testcasemodel_path)
