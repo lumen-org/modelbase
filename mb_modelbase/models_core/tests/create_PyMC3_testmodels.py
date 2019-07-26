@@ -269,7 +269,6 @@ def create_getting_started_model_shape(modelname='pymc3_getting_started_model_sh
 ######################################
 create_functions = [create_pymc3_simplest_model, create_pymc3_getting_started_model,
                     create_pymc3_getting_started_model_independent_vars,
-                    create_pymc3_getting_started_model_independent_vars_nosharedvars,
                     create_pymc3_coal_mining_disaster_model, create_pymc3_eight_schools_model,
                     create_getting_started_model_shape]
 
