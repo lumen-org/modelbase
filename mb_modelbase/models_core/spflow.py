@@ -23,6 +23,7 @@ import functools
 import pandas as pd
 import copy as cp
 import dill
+import scipy.optimize as scpo
 from spn.algorithms.stats.Expectations import Expectation
 
 
@@ -56,7 +57,11 @@ class SPNModel(Model):
         untouched variables are represented with 2
         """
         self._density_mask = np.array(
-            [np.nan if i in self._marginalized else 1 if i in self._conditioned else 2 for i in self._initial_names]
+            [
+                np.nan if i in self._marginalized else 1
+                if i in self._conditioned else 2
+                for i in self._initial_names
+            ]
         ).reshape(-1, self._initial_names_count).astype(float)
         return self
 
@@ -140,10 +145,18 @@ class SPNModel(Model):
 
     def _conditionout(self, keep, remove):
         self._conditioned = self._conditioned.union(remove)
-        condvalues = self._categorical_to_numeric(self._condition_values(remove))
+        condition_values = self._condition_values(remove)
+
+        # Exchange named expressions of categorical variables to int
+        condition_values = [
+            i if type(condition_values[i]) is str
+            else self._categorical_variables[remove[i]]['name_to_int'][condition_values[i]]
+            for i in range(len(remove))
+        ]
+
         old_indices = [self._initial_names_to_index[name] for name in remove]
         for i in range(len(remove)):
-            self._condition[0, old_indices[i]] = condvalues[i]
+            self._condition[0, old_indices[i]] = condition_values[i]
         return self._unbound_updater,
 
     def _density(self, x):
@@ -182,9 +195,22 @@ class SPNModel(Model):
         with open(filename, 'wb') as output:
             dill.dump(self, output, dill.HIGHEST_PROTOCOL)
 
-    def _maximum(self):
+    def _average(self):
         e = Expectation(self._spn)
         return e
+
+    def _maximum(self):
+        fun = lambda x : -1 * self._density(x)
+        xmax = None
+        xlength = len(self.names)
+
+        startVectors = self.data.sample(6).values
+
+        for x0 in startVectors:
+            xopt = scpo.minimize(fun, x0, method='Nelder-Mead')
+            if xmax is None or self._density(xmax) <= self._density(xopt.x):
+                xmax = xopt.x
+        return xmax
 
     def _sample(self, random_state=RandomState(123)):
         if self._spn_type == 'mspn':
@@ -211,7 +237,6 @@ class SPNModel(Model):
         mycopy._density_mask = self._density_mask.copy()
         mycopy._condition = self._condition.copy()
         mycopy._categorical_variables = self._categorical_variables.copy()
-        #mycopy._pandas_data_types = self._pandas_data_types.copy()
         mycopy._initial_names_to_index = self._initial_names_to_index.copy()
         return mycopy
 
