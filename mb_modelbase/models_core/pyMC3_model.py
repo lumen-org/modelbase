@@ -103,7 +103,7 @@ class ProbabilisticPymc3Model(Model):
         # If the samples have another data type than the original data, problems can arise. Therefore,
         # data types of the new samples are changed to the dtypes of the original data here
         if str(generated_samples.dtype) != self.shared_vars[key].dtype:
-            generated_samples = generated_samples.astype(self.shared_vars['years'].dtype)
+            generated_samples = generated_samples.astype(self.shared_vars[key].dtype)
         return generated_samples
 
     def _cartesian_product_of_samples(self, df):
