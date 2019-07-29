@@ -678,8 +678,7 @@ class MixableCondGaussianModel(md.Model):
         assert(result is not None)
         return self._normalizer.denormalize(result) if self.opts['normalized'] else result
 
-
-    def _sample(self, k=42):
+    def _sample(self, k):
         """Returns k sample points"""
         sample_points = []
 
