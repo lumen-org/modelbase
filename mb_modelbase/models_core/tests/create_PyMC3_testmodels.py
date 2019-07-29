@@ -4,7 +4,7 @@ import pymc3 as pm
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 import theano
-from run_conf import cfg as user_cfg
+from scripts.run_conf import cfg as user_cfg
 
 try:
     testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + '/'
