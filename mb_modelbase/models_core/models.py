@@ -1856,9 +1856,9 @@ class Model:
         }
         opts = utils.update_opts(default_opts, kwargs)
         # TODO: use validation argument for update_opts again, i.e. implement numerical ranges or such
-        # opts = utils.update_opts({'data_category': 'training data'}, kwargs, {'data_category': ['training data', 'test data', 'samples']})
+        # opts = utils.update_opts({'data_category': 'training data'}, kwargs, {'data_category': ['training data', 'test data', 'model samples']})
 
-        if opts['data_category'] == 'samples':
+        if opts['data_category'] == 'model samples':
             if 'data_point_limit' in opts:
                 n = min(opts['number_of_samples'], opts['data_point_limit'])
             else:
