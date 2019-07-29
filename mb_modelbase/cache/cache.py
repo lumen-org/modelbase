@@ -21,7 +21,6 @@ class CacheBase(abc.ABC):
         """ Check if cache has key """
 
     def set(self, key, model):
-        print(self.keys())
         self._set(key, dill.dumps(model))
 
     @abc.abstractmethod
@@ -49,7 +48,7 @@ class DictCache(CacheBase):
 class MemcachedCache(CacheBase):
     def __init__(self,
                  hostname='0.0.0.0',
-                 port= 11211):
+                 port=11211):
         CacheBase.__init__(self)
         self.hostname = hostname
         self.port = port

@@ -145,7 +145,7 @@ class ModelBase:
             .float_format : The float format used to encode floats in a result. Defaults to '%.5f'
     """
 
-    def __init__(self, name, model_dir='data_models', load_all=True, cache=mc.DictCache()):
+    def __init__(self, name, model_dir='data_models', load_all=True, cache=mc.MemcachedCache()):
         """ Creates a new instance and loads models from some directory. """
 
         self.name = name
@@ -257,6 +257,7 @@ class ModelBase:
         return list(self.models.keys())
 
     def execute(self, query):
+        print(query)
         """ Executes the given PQL query and returns the result as JSON (or None).
 
         Args:
@@ -287,7 +288,10 @@ class ModelBase:
                 where=self._extractWhere(query)
             )
 
-            derived_model = self.cache.get(key)
+            if self.cache is not None:
+                derived_model = self.cache.get(key)
+            else:
+                derived_model = None
 
             if derived_model == None:
                 # maybe copy
