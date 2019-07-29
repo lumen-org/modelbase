@@ -328,6 +328,15 @@ class Test_methods_on_fitted_model(unittest.TestCase):
             self.assertEqual(len(mymod._maximum()), len(mymod.names),
                              "Dimension of the maximum does not match dimension of the model. Model: " + mymod.name)
 
+    def test_sample(self):
+        for i,name in enumerate(model_paths):
+            mymod = mbase.Model.load(model_paths[i])
+            data = pd.read_csv(data_paths[i])
+            mymod.fit(data)
+            n = 10
+            self.assertEqual(mymod.sample(n).shape,  [n, len(mymod.free_RVs) + len(mymod.observed_RVs)],
+                             'Dimension of the sample is not correct')
+
 
 class Test_more_combinations_on_model(unittest.TestCase):
     """
