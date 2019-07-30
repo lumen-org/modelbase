@@ -284,6 +284,38 @@ def normalize_predict_clause(model, clause, aggrs, aggr_ids, aggr_dims, aggr_inp
             raise ValueError('invalid clause type: ' + str(clause_type))
 
 
+def normalize_splitby(model, splitby, partial_data, **kwargs):
+
+    # split splitBy into those with data splits and the remaining ones
+    data_split_names = []
+    remaining_splitbys = []
+    for s in splitby:
+        if s[METHOD_IDX] == 'data':
+            data_split_names.append(s[NAME_IDX])
+        else:
+            remaining_splitbys.append(s)
+
+    # get test/training data columns
+    data_id = kwargs.get('data category', 'training data')
+    if data_id == "training data":
+        data = model.data
+    else:
+        data = model.test_data
+
+    # determine number of points
+    length = data.shape[0]
+    nb_max = min(kwargs.get('point number maximum', length), length)
+    nb_min = min(kwargs.get('point number minimum', length), length)
+    nb_target = int(float(kwargs.get('point percentage target', 100))/100*length)
+    n = max(min(nb_max, nb_target), nb_min)
+
+    data_input = data.loc[:n, data_split_names]
+    # merge with other partial data
+    new_partial_data = crossjoin(data_input, partial_data)
+
+    return remaining_splitbys, new_partial_data
+
+
 def derive_aggregation_model(model, aggr, input_names, model_name=None):
     """Derive a model from model for the aggregation `aggr` considering that we have input along dimensions in
     `input_names`.
@@ -352,7 +384,7 @@ def data_splits_to_partial_data(model, splitby, partial_data):
         if partial_data.empty:
             partial_data = data_split_data
         elif partial_data.columns == data_split_names:
-            # may only add if column are identical
+            # may only add if columns are identical
             partial_data = pd.concat([partial_data, data_split_data])
         else:
             raise ValueError("cannot merge partial_data with data splits if dimensions and their order are not identical.")

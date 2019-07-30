@@ -312,9 +312,11 @@ class ModelBase:
             resultframe = base.predict(
                 predict=predict_stmnt,
                 where=where_stmnt,
-                splitby=splitby_stmnt
+                splitby=splitby_stmnt,
+                ** self._extractOpts(query)
             )
 
+            # TODO: is this working?
             if 'DIFFERENCE_TO' in query:  # query['DIFFERENCE_TO'] = 'mcg_iris_map'
                 base2 = self._extractDifferenceTo(query)
                 resultframe2 = base2.predict(

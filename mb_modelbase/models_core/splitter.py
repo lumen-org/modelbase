@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2017-2019 Philipp Lucas (philipp.lucas@uni-jena.de)
 """
 This is the splitter module, which provides splitters and domains:
 Splitters are functions that receive a domain and a number of parameters and 
@@ -67,8 +67,6 @@ def identity(domain, args):
     """ Given any domain returns the full domain itself. Note that for consistency it return a (single-element) list
     of domains. """
     return [domain]
-    # OLD:
-    # return [domain]
 
 
 def elements(domain, args):
@@ -78,13 +76,6 @@ def elements(domain, args):
         return [(domain,)]
     else:
         return [(e,) for e in domain]
-    # OLD:
-    #     if isinstance(domain, str):
-    #         return [(domain,)]
-    #         # raise TypeError('domain must be a list of values, not a single value')
-    #     else:
-    #         #return domain
-    #         return [(e,) for e in domain]
 
 
 """ A map from 'method id' to the actual splitter function. """

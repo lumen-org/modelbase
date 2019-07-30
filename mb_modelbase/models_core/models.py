@@ -429,8 +429,8 @@ class Model:
 
     def set_data(self, df, silently_drop=False, **kwargs):
         """Derives suitable, cleansed (and copied) data from df for a particular model, sets this as the models data
-         and also sets up auxiliary data structures if necessary. This is however, only concerned with the data
-         part of the model and does not do any fitting of the model.
+         and also sets up auxiliary data structures if necessary. This method is only concerned with the data part of
+         the model and does not do any fitting of the model.
 
         This method has the following effects:
          - the models mode is set to 'data'
@@ -1195,6 +1195,9 @@ class Model:
               * density (requiring a sequence of scalars)
 
             Currently, we only allow scalar values at input and instead we take care of it in `Model.predict()`.
+
+        TODO: this should not only receive a single, but a whole set of input values to speed up computation!
+            Overhead is currently huge.
         """
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
@@ -1575,7 +1578,7 @@ class Model:
             .hide(hide).condition(where) \
             .marginalize(keep=model)
 
-    def predict(self, predict, where=None, splitby=None, for_data=None, returnbasemodel=False):
+    def predict(self, predict, where=None, splitby=None, for_data=None, **kwargs):
         """Calculate the prediction against the model and returns its result as a pd.DataFrame.
 
         The data frame contains exactly those fields which are specified in 'predict'. Its order is preserved.
@@ -1690,7 +1693,7 @@ class Model:
         TODO:
             * just an idea: couldn't I merge the partial data given (takes higher priority) with all default of all
            variables and use this as a starting point for the input frame??
-            * can't we handle the the split-method 'data' (which uses .test_data as the result of the split) as partial
+            * can't we handle the split-method 'data' (which uses .test_data as the result of the split) as partial
              data. This seem more clean and versatile.
 
         """
@@ -1716,6 +1719,9 @@ class Model:
             where = []
         if splitby is None:
             splitby = []
+
+        # (-1) normalize data-splits to partial data
+        splitby, partial_data = models_predict.normalize_splitby(self, splitby, partial_data, **kwargs)
 
         # (0) create data structures for clauses
         aggrs, aggr_ids, aggr_input_names, aggr_dims, \
@@ -1805,11 +1811,6 @@ class Model:
 
             # concat with input
             dataframe = pd.concat([base_df, *aggr_df], axis=1, copy=False).reset_index()
-            #dataframe = base_df.assign(**dict(zip(aggr_ids, aggr_series)))
-
-            # OLD
-            # dataframe = functools.reduce(lambda df1, df2: df1.merge(df2, on=list(input_names), how='inner', copy=False),
-            #                               result_list[1:], result_list[0])
 
         # (4) Fix domain valued splits.
         # Some splits result in domains (i.e. tuples, and not just single, scalar values). However,
@@ -1828,7 +1829,10 @@ class Model:
         # (8) rename columns to be readable (but not unique anymore)
         dataframe.columns = predict_names
 
-        return (dataframe, basemodel) if returnbasemodel else dataframe
+        if ('returnbasemodel' in kwargs) and (kwargs['returnbasemodel']):
+            return (dataframe, basemodel)
+        else:
+            return dataframe
 
     def _select_data(self, what, where=None, **kwargs):
         """Select and return that subset of the models data in `self.data` that respect the conditions in `where` and the columns
