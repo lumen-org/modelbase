@@ -269,10 +269,12 @@ class ProbabilisticPymc3Model(Model):
         # TODO: fix to allow for n samples at once
         sample = []
         with self.model_structure:
-            # TODO: why is it 1 and 1?
+            # Create the samples for latent and observed variables.
+            # We only want to create the n samples one time, so set chains and cores to 1
             trace = pm.sample(n, chains=1, cores=1)
             ppc = pm.sample_ppc(trace)
             # TODO: what does this do?
+            # Concatenate the latent and observed variables.into one structure
             for varname in self.names:
                 if varname in [str(name) for name in self.model_structure.free_RVs]:
                     sample.append(trace[varname][0])
