@@ -266,22 +266,17 @@ class ProbabilisticPymc3Model(Model):
         return -self._density(x)
 
     def _sample(self, n):
-        # TODO: fix to allow for n samples at once
-        sample = []
+        sample = pd.DataFrame()
         with self.model_structure:
             # Create the samples for latent and observed variables.
             # We only want to create the n samples one time, so set chains and cores to 1
             trace = pm.sample(n, chains=1, cores=1)
             ppc = pm.sample_ppc(trace)
-            # TODO: what does this do?
-            # Concatenate the latent and observed variables.into one structure
-            for varname in self.names:
-                if varname in [str(name) for name in self.model_structure.free_RVs]:
-                    sample.append(trace[varname][0])
-                elif varname in [str(name) for name in self.model_structure.observed_RVs]:
-                    sample.append(ppc[str(varname)][0][0])
-                else:
-                    raise ValueError("Unexpected error: variable name " + varname +  " is not found in the PyMC3 model")
+            # Concatenate the latent and observed variables into one structure
+            for varname in ppc.keys():
+                sample[varname] = [elem[0] for elem in ppc[str(varname)]]
+            for varname in trace.varnames:
+                sample[varname] = trace[varname]
         return sample
 
     def copy(self, name=None):
