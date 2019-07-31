@@ -8,3 +8,4 @@ from mb_modelbase.models_core.tests.test_crabs import *
 from mb_modelbase.models_core.tests.test_mixable_cond_gaussian import *
 from mb_modelbase.models_core.tests.test_allbus import *
 from mb_modelbase.models_core.tests.test_iris import *
+from mb_modelbase.models_core.tests.testmodels_pymc3 import *

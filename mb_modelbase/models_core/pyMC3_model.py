@@ -1,25 +1,22 @@
-# Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de), Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
+# Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2019 Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
 
-from mb_modelbase.models_core.models import Model
-from mb_modelbase.utils.data_import_utils import get_numerical_fields
-from mb_modelbase.models_core import data_operations as data_op
-from mb_modelbase.models_core import data_aggregation as data_aggr
 import pymc3 as pm
 import numpy as np
 import pandas as pd
-import math
-from mb_modelbase.models_core.empirical_model import EmpiricalModel
-from mb_modelbase.models_core import data_operations as data_op
 from scipy import stats
 import scipy.optimize as sciopt
 import copy as cp
 from functools import reduce
 
-class ProbabilisticPymc3Model(Model):
-    """
-    A Bayesian model built by the PyMC3 library is treated here.
+from mb_modelbase.models_core.models import Model
+from mb_modelbase.utils.data_import_utils import get_numerical_fields
 
-        Parameters:
+
+class ProbabilisticPymc3Model(Model):
+    """A Bayesian model built by the PyMC3 library is treated here.
+
+    Parameters:
 
         model_structure : a PyMC3 Model() instance
 
@@ -34,7 +31,7 @@ class ProbabilisticPymc3Model(Model):
 
         fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
 
-            Some probabilitsitc models require a fixed length of the data. This is important because normally
+            Some probabilistic models require a fixed length of the data. This is important because normally
             new data points are generated with a different length than the original data
     """
 
@@ -265,14 +262,17 @@ class ProbabilisticPymc3Model(Model):
             density = kde.evaluate(x)[0]
             return density
 
-    def _negdensity(self,x):
+    def _negdensity(self, x):
         return -self._density(x)
 
-    def _sample(self):
+    def _sample(self, n):
+        # TODO: fix to allow for n samples at once
         sample = []
         with self.model_structure:
-            trace = pm.sample(1,chains=1,cores=1)
+            # TODO: why is it 1 and 1?
+            trace = pm.sample(n, chains=1, cores=1)
             ppc = pm.sample_ppc(trace)
+            # TODO: what does this do?
             for varname in self.names:
                 if varname in [str(name) for name in self.model_structure.free_RVs]:
                     sample.append(trace[varname][0])
@@ -280,8 +280,7 @@ class ProbabilisticPymc3Model(Model):
                     sample.append(ppc[str(varname)][0][0])
                 else:
                     raise ValueError("Unexpected error: variable name " + varname +  " is not found in the PyMC3 model")
-
-        return (sample)
+        return sample
 
     def copy(self, name=None):
         name = self.name if name is None else name
@@ -293,6 +292,12 @@ class ProbabilisticPymc3Model(Model):
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples.copy()
+
+        # TODO: how to copy shared_vars?
+        #mycopy.shared_vars = self.shared_vars.copy()
+        mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
+        mycopy.fixed_data_length = self.fixed_data_length
+
         return mycopy
 
     def _maximum(self):

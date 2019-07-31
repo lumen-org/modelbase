@@ -4,15 +4,23 @@ import pymc3 as pm
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 import theano
-from run_conf import cfg as user_cfg
+#from run_conf import cfg as user_cfg
 import os
 
 try:
-    testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + '/'
-    testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory'] + '/'
+    #testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + '/'
+    #testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory'] + '/'
+    # testcasemodel_path = '/home/luca_ph/Documents/projects/graphical_models/code/ppl_models/'
+    # testcasedata_path = '/home/luca_ph/Documents/projects/graphical_models/code/ppl_models/'
+    testcasemodel_path = '.'
+    testcasedata_path = '.'
+
 except KeyError:
     print('Specify a test_model_directory and a test_data_direcory in run_conf.py')
     raise
+
+# TODO: refactor to coding style like in testmodels_pymc3.py
+#  --> make it reusable and modular
 
 ######################################
 # pymc3_testcase_model
@@ -31,10 +39,10 @@ with basic_model:
     mu = pm.Normal('mu', mu=0, sd=sigma)
     X = pm.Normal('X', mu=mu, sd=sigma, observed=data['X'])
 m = ProbabilisticPymc3Model(modelname, basic_model)
-Model.save(m, testcasemodel_path + modelname + '.mdl')
+Model.save(m, testcasemodel_path)
 m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model)
 m.fit(data)
-Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+Model.save(m, testcasemodel_path)
 ######################################
 # pymc3_getting_started_model
 ######################################
@@ -58,7 +66,7 @@ with basic_model:
     alpha = pm.Normal('alpha', mu=0, sd=10)
     beta_0 = pm.Normal('beta_0', mu=0, sd=10)
     beta_1 = pm.Normal('beta_1', mu=0, sd=10)
-    sigma = pm.HalfNormal('sigma', sd=1)
+    sigma = pm.HalfNormal('sigma', sd=5)
 
     # Expected value of outcome
     mu = alpha + beta_0 * data['X1'] + beta_1 * data['X2']
@@ -69,10 +77,10 @@ with basic_model:
     X2 = pm.Normal('X2', mu=data['X2'], sd=sigma, observed=data['X2'])
 
 m = ProbabilisticPymc3Model(modelname, basic_model)
-Model.save(m, testcasemodel_path + modelname + '.mdl')
+Model.save(m, testcasemodel_path)
 m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model)
 m.fit(data)
-Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+Model.save(m, testcasemodel_path)
 ##############################################
 # pymc3_getting_started_model_independent vars
 ##############################################
@@ -106,10 +114,10 @@ with basic_model:
     Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
 
 m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1, 'X2': X2})
-Model.save(m, testcasemodel_path + modelname + '.mdl')
+Model.save(m, testcasemodel_path)
 m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'X1': X1, 'X2': X2})
 m.fit(data)
-Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+Model.save(m, testcasemodel_path)
 data.to_csv(testcasedata_path + modelname + '.csv', index=False)
 ###########################################################
 # pymc3_getting_started_model_independent vars_nosharedvars
@@ -143,7 +151,7 @@ with basic_model:
     Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
 
 m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1})
-Model.save(m, testcasemodel_path + modelname + '.mdl')
+Model.save(m, testcasemodel_path)
 m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'X1': X1})
 data.to_csv(testcasedata_path + modelname + '.csv', index=False)
 ######################################
@@ -179,10 +187,10 @@ with pm.Model() as disaster_model:
     #years = pm.Normal('years', mu=data['years'], sd=0.1, observed=data['years'])
 
 m = ProbabilisticPymc3Model(modelname, disaster_model, shared_vars={'years': years})
-Model.save(m, testcasemodel_path + modelname + '.mdl')
+Model.save(m, testcasemodel_path)
 m = ProbabilisticPymc3Model(modelname + '_fitted', disaster_model, shared_vars={'years': years})
 m.fit(data)
-Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+Model.save(m, testcasemodel_path)
 
 ########################################
 # eight_schools_model
@@ -213,11 +221,11 @@ with pm.Model() as normal_normal_model:
 
 m = ProbabilisticPymc3Model(modelname, normal_normal_model,
                             shared_vars={'standard_errors': standard_errors}, fixed_data_length=True)
-Model.save(m, testcasemodel_path + modelname + '.mdl')
+Model.save(m, testcasemodel_path)
 m = ProbabilisticPymc3Model(modelname + '_fitted', normal_normal_model,
                             shared_vars={'standard_errors': standard_errors}, fixed_data_length=True)
 m.fit(data)
-Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+Model.save(m, testcasemodel_path)
 
 ######################################
 # getting_started_model_shape
@@ -250,10 +258,10 @@ with basic_model:
     Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
 
 m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1, 'X2': X2})
-Model.save(m, testcasemodel_path + modelname + '.mdl')
+Model.save(m, testcasemodel_path)
 m = ProbabilisticPymc3Model(modelname + '_fitted', basic_model, shared_vars={'X1': X1, 'X2': X2})
 m.fit(data)
-Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
+Model.save(m, testcasemodel_path)
 data.to_csv(testcasedata_path + modelname + '.csv', index=False)
 
 ######################################

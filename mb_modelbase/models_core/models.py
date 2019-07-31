@@ -15,6 +15,7 @@ import operator
 import pickle as pickle
 import numpy as np
 import pandas as pd
+import os
 import logging
 import warnings
 from itertools import compress
@@ -588,10 +589,14 @@ class Model:
         On return of this method the attribute `.data` is filled with the appropriate data that
         was used to fit the model, i.e. if `df` is given it is set using `.set_data()`
 
-        Args:fit(
+        Args:
             df: pd.DataFrame, optional
                 The pandas data frame that holds the data to fit the model to. You can also
                 previously set the data to fit to using the set_data method.
+
+        Raises:
+            ValueError:
+                if no data is available to fit to and the models mode is different from 'data'
 
         Returns:
             The modified, fitted model.
@@ -904,7 +909,7 @@ class Model:
         return self
 
     def hidden_fields(self, invert=False):
-        """Return the sequence of names of fields that are hidden. Their rder matches the order of fields in the
+        """Return the sequence of names of fields that are hidden. Their order matches the order of fields in the
         model.
         """
         return [f['name'] for f in self.fields if (invert - f['hidden'])]
@@ -1334,17 +1339,31 @@ class Model:
         """
         if self._isempty():
             raise ValueError('Cannot sample from 0-dimensional model')
-        samples = (self._sample() for i in range(n))
-        hidden_dims = [f['name'] for f in self.fields if f['hidden']]
-        return pd.DataFrame.from_records(data=samples, columns=self.names, exclude=hidden_dims)
+        samples = self._sample(n)
 
-    def _sample(self):
-        """Returns a single sample drawn from the model.
+        # reorder to correct column order and only the non hidden dims
+        if type(samples) is not pd.DataFrame:
+            hidden_dims = self.hidden_fields()
+            samples = pd.DataFrame.from_records(data=samples, columns=self.names, exclude=hidden_dims)
+        else:
+            unhidden_dims = self.hidden_fields(invert=True)
+            samples = samples.loc[:, unhidden_dims]
+        return samples
+
+    def _sample(self, n=1):
+        """Returns n samples drawn from the model.
 
         This method must be implemented by any actual model that derives from the abstract Model class.
 
         This method is guaranteed to be _not_ called if any of the following conditions apply:
             * the model is empty
+
+        Args:
+            n: integer, optional.
+                The number of samples to draw. Defaults to 1.
+        Returns:
+            n samples drawn from the model. It may either return a pd.DataFrame with correctly names columns, or an
+            array-like object.
         """
         raise NotImplementedError()
 
@@ -1413,21 +1432,29 @@ class Model:
 
         return zip(names, cond_values) if pairflag else cond_values
 
-    def save(self, filename):
+    def _default_filename(self):
+        """Returns default filename of model for saving."""
+        return self.name + ".mdl"
+
+    def save(self, dir, filename=None):
         """Store the model to a file at `filename`.
 
         You can load a stored model using `Model.load()`.
         """
-        with open(filename, 'wb') as output:
+        if filename is None:
+            filename = self._default_filename()
+        path = os.path.join(dir, filename)
+        with open(path, 'wb') as output:
             pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+        return path
 
     @staticmethod
-    def save_static(model, filename, *args, **kwargs):
+    def save_static(model, dir, *args, **kwargs):
         """Store the model to a file at `filename`.
 
         You can load a stored model using `Model.load()`.
         """
-        model.save(filename, *args, **kwargs)
+        model.save(dir, *args, **kwargs)
 
     @staticmethod
     def load(filename):
@@ -1823,16 +1850,27 @@ class Model:
         """
 
         # todo: use update_opts also at other places where appropiate (search for validate_opts)
-        opts = utils.update_opts({'data_category': 'training data'}, kwargs)
+        default_opts = {
+            'data_category': 'training data',
+            'number_of_samples': 200,
+        }
+        opts = utils.update_opts(default_opts, kwargs)
         # TODO: use validation argument for update_opts again, i.e. implement numerical ranges or such
-        # opts = utils.update_opts({'data_category': 'training data'}, kwargs, {'data_category': ['training data', 'test data']})
-        df = self.data if opts['data_category'] == 'training data' else self.test_data
+        # opts = utils.update_opts({'data_category': 'training data'}, kwargs, {'data_category': ['training data', 'test data', 'model samples']})
 
-        selected_data = data_operations.condition_data(df, where).loc[:, what]
+        if opts['data_category'] == 'model samples':
+            if 'data_point_limit' in opts:
+                n = min(opts['number_of_samples'], opts['data_point_limit'])
+            else:
+                n = opts['number_of_samples']
+            selected_data = self.sample(n)
+        else:
+            df = self.data if opts['data_category'] == 'training data' else self.test_data
+            selected_data = data_operations.condition_data(df, where).loc[:, what]
 
-        # limit number of returned data points if requested
-        if 'data_point_limit' in kwargs:
-            selected_data = selected_data.iloc[:kwargs['data_point_limit'], :]
+            # limit number of returned data points if requested
+            if 'data_point_limit' in opts:
+                selected_data = selected_data.iloc[:opts['data_point_limit'], :]
 
         return selected_data
 

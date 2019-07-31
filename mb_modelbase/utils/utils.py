@@ -81,7 +81,8 @@ def validate_opts(opts, allowed):
 
 
 def update_opts(current_opts, updates, allowed_opts=None):
-    """Updates dictionary current_opts using the dictionary updates. The updated dictionary is returned for chaining, but anyway changed inplace. If allowed_opts is specfified updates is checked to be valid options.
+    """Updates dictionary current_opts using the dictionary updates. The updated dictionary is returned for chaining,
+    but anyway changed inplace. If allowed_opts is specfified updates is checked to be valid options.
     See also validate_opts.
 
     Note: currently only categorical allowed_opts are supported.
