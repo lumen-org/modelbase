@@ -427,3 +427,61 @@ with Model:
     σ = pm.Uniform('σ', 0, 1000)
     μ = theano.tensor.log(Linf-(Linf-L0)*theano.tensor.exp(-(k0+k1*It)*age))
     yi = pm.Normal('yi',μ, σ, observed=lTL)
+
+######################################
+# Flight delay
+######################################
+
+modelname = 'flight_delay'
+path = testcasedata_path + 'airlineDelayDataProcessed.csv'
+data = pd.read_csv(path)
+
+# Create dummy variables for day of week variable
+data['monday'] = data['DAY_OF_WEEK'] == 1
+data['tuesday'] = data['DAY_OF_WEEK'] == 2
+data['wednesday'] = data['DAY_OF_WEEK'] == 3
+data['thursday'] = data['DAY_OF_WEEK'] == 4
+data['friday'] = data['DAY_OF_WEEK'] == 5
+data['saturday'] = data['DAY_OF_WEEK'] == 6
+data['sunday'] = data['DAY_OF_WEEK'] == 7
+
+# Create shared variables
+distance = theano.shared(data['DISTANCE'])
+dow_mon = theano.shared(data['monday'])
+dow_tue = theano.shared(data['tuesday'])
+dow_wed = theano.shared(data['wednesday'])
+dow_thu = theano.shared(data['thursday'])
+dow_fri = theano.shared(data['friday'])
+dow_sat = theano.shared(data['saturday'])
+dow_sun = theano.shared(data['sunday'])
+deptime = theano.shared(data['DEP_TIME'])
+
+# Create model
+delay_model = pm.Model()
+
+with delay_model:
+    beta_dep = pm.Uniform('beta', 0, 1, shape=9)
+    beta_arr = pm.Uniform('beta_arr', 0, 1)
+    var = pm.Uniform('var', 0, 100, shape=2)
+    # I assume that depdelay is a function of dow and deptime
+    mu_depdelay = beta_dep[0] + beta_dep[1] * dow_mon + beta_dep[2] * dow_tue + beta_dep[3] * dow_wed + \
+                  beta_dep[4] * dow_thu + beta_dep[5] * dow_fri + beta_dep[6] * dow_sat + beta_dep[7] * dow_sun + \
+                  beta_dep[8] * deptime
+    depdelay = pm.Normal('depdelay', mu_depdelay, var[0], obs=data['DEP_DELAY'])
+    # I assume that arrdelay is a function of depdelay and distance
+    mu_arrdelay = depdelay + beta_arr * distance
+    arrdelay = pm.Normal('arrdelay', mu_arrdelay, var[1], obs=data['ARR_DELAY'])
+
+m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'distance': distance, 'dow_mon': dow_mon,
+                                                                 'dow_tue': dow_tue, 'dow_wed': dow_wed,
+                                                                 'dow_thu': dow_thu, 'dow_fri': dow_fri,
+                                                                 'dow_sat': dow_sat, 'dow_sun': dow_sun,
+                                                                 'deptime': deptime})
+Model.save(m, testcasemodel_path + modelname + '.mdl')
+m = ProbabilisticPymc3Model(modelname + '_fitted', delay_model, shared_vars={'distance': distance, 'dow_mon': dow_mon,
+                                                                 'dow_tue': dow_tue, 'dow_wed': dow_wed,
+                                                                 'dow_thu': dow_thu, 'dow_fri': dow_fri,
+                                                                 'dow_sat': dow_sat, 'dow_sun': dow_sun,
+                                                                 'deptime': deptime})
+m.fit(data)
+Model.save(m, testcasemodel_path + modelname + '_fitted.mdl')
