@@ -274,8 +274,9 @@ class ProbabilisticPymc3Model(Model):
             ppc = pm.sample_ppc(trace)
             # Concatenate the independent, latent and observed variables into one structure. In the current
             # implementation, only the first value of the independent variables is used here
-            for varname,data in self.shared_vars.items():
-                sample[varname] = np.repeat(data.get_value()[0],n)
+            if self.shared_vars:
+                for varname,data in self.shared_vars.items():
+                    sample[varname] = np.repeat(data.get_value()[0],n)
             for varname in ppc.keys():
                 sample[varname] = [elem[0] for elem in ppc[str(varname)]]
             for varname in trace.varnames:
