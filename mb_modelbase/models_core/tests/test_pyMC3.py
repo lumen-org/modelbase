@@ -5,13 +5,12 @@ import mb_modelbase.models_core.tests.create_PyMC3_testmodels as cr
 def create_testmodels():
     models = []
     # These functions return the model data and the corresponding model
-    #models.append(cr.create_pymc3_simplest_model(fit=False))
+    models.append(cr.create_pymc3_simplest_model(fit=False))
     models.append(cr.create_pymc3_getting_started_model(fit=False))
-    #models.append(cr.create_pymc3_getting_started_model_independent_vars(fit=False))
-    #models.append(cr.create_pymc3_getting_started_model_independent_vars_nosharedvars(fit=False))
-    #models.append(cr.create_pymc3_coal_mining_disaster_model(fit=False))
-    #models.append(cr.create_pymc3_eight_schools_model(fit=False))
-    #models.append(cr.create_getting_started_model_shape(fit=False))
+    models.append(cr.create_pymc3_getting_started_model_independent_vars(fit=False))
+    models.append(cr.create_pymc3_coal_mining_disaster_model(fit=False))
+    models.append(cr.create_pymc3_eight_schools_model(fit=False))
+    models.append(cr.create_getting_started_model_shape(fit=False))
     return models
 
 
