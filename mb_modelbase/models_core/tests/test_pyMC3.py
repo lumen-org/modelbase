@@ -267,7 +267,7 @@ class TestMethodsOnFittedModel(unittest.TestCase):
         for data, mymod in create_testmodels():
             mymod.fit(data)
             n = 10
-            self.assertEqual(mymod.sample(n).shape,  [n, len(mymod.model_structure.free_RVs) + len(mymod.model_structure.observed_RVs)],
+            self.assertEqual(mymod.sample(n).shape,  (n, len(mymod.model_structure.free_RVs) + len(mymod.model_structure.observed_RVs)),
                              'Dimension of the sample is not correct')
 
 
