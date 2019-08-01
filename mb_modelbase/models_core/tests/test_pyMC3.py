@@ -56,7 +56,7 @@ model_data.append(cr.create_getting_started_model_shape(fit=False)[0])
 
 # TODO: please adhere PEP8 convention for naming of classes, i.e. camelcase
 
-class Test_methods_on_initialized_model(unittest.TestCase):
+class TestMethodsOnInitializedModel(unittest.TestCase):
     """
     Test the ProbabilisticPymc3Model methods on a model that has just been initialized
     """
@@ -142,7 +142,7 @@ class Test_methods_on_initialized_model(unittest.TestCase):
                             "Model: " + mymod.name)
 
 
-class Test_methods_on_model_with_data(unittest.TestCase):
+class TestMethodsOnModelWithData(unittest.TestCase):
     """
     Test the ProbabilisticPymc3Model methods on a model that has been initialized and given data
     """
@@ -218,7 +218,7 @@ class Test_methods_on_model_with_data(unittest.TestCase):
                             "maximum density point for a model without samples should be an empty array. "
                             "Model: " + mymod.name)
 
-class Test_methods_on_fitted_model(unittest.TestCase):
+class TestMethodsOnFittedModel(unittest.TestCase):
     """
     Test the ProbabilisticPymc3Model methods on a model that has been initialized, given data and fitted
     """
@@ -322,7 +322,7 @@ class Test_methods_on_fitted_model(unittest.TestCase):
                              'Dimension of the sample is not correct')
 
 
-class Test_more_combinations_on_model(unittest.TestCase):
+class TestMoreCombinationsOnModel(unittest.TestCase):
     """
     Test more complex cases, with more combinations of methods being applied to a already fitted model
     """
