@@ -195,8 +195,9 @@ class ProbabilisticPymc3Model(Model):
                         [ppc[str(varname)][j][obs_per_partition-1-j] for j in range(diff)]
             # Set shared variables back to old values. This is necessary since PyMC3 sampling requires fixed dimensions
             # of the data
-            for key, value in self.shared_vars.items():
-                value.set_value(self.data[key].values.tolist())
+            if self.shared_vars:
+                for key, value in self.shared_vars.items():
+                    value.set_value(self.data[key].values.tolist())
         # Add parameters to fields
         self.fields = self.fields + get_numerical_fields(self.samples, varnames)
         self._update_all_field_derivatives()
