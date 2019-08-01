@@ -12,24 +12,21 @@ logger.setLevel(logging.DEBUG)
 """ Utility functions for data import. """
 
 
-def split_training_test_data(df):
+def split_training_test_data(df, enabled=True):
     """Split data frame `df` into two parts and return them as a 2-tuple.
 
     The first returned data frame will contain 5% of the data, but not less than 25 item and not more than 50 items,
     and not more than 50% items.
     """
-    # n = df.shape[0]
-
-    # select training and test data
-    # limit = int(min(max(n * 0.05, 25), 50, n))  # 5% of the data, but not less than 25 and not more than 50, and not more than 50% test
-    # if limit > n / 2:
-    #     limit = n // 2
-
-    # test_data = df.iloc[:limit, :]
-    # data = df.iloc[limit:, :]
-    data = df
-    test_data = pd.DataFrame(columns=df.columns)
-
+    if enabled:
+        # select training and test data
+        n = df.shape[0]
+        limit = int(min(n * 0.10, 250, n*0.50))  # 10% of the data, but not more than 250 or 50%
+        test_data = df.iloc[:limit, :]
+        data = df.iloc[limit:, :]
+    else:
+        test_data = pd.DataFrame(columns=df.columns)
+        data = df
     return test_data, data
 
 

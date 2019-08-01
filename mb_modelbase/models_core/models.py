@@ -730,6 +730,7 @@ class Model:
             keep_data = [name for name in keep if name in self.data.columns]
             self.data = self.data.loc[:, keep_data]
             self.test_data = self.test_data.loc[:, keep]
+            self.sample_data = self.test_data.loc[:, keep]
             if self.mode == 'data':
                 # need to call this, since it will not be called later in this particular case
                 self._update_remove_fields(remove)
@@ -1847,6 +1848,7 @@ class Model:
                     'data_category', with values:
                         'training data': return selection of training data
                         'test data': return selection of test data
+                        'model samples': returns samples of the model.
                         defaults to: 'training data'
 
         Returns : pd.DataFrame
@@ -1867,14 +1869,18 @@ class Model:
                 n = min(opts['number_of_samples'], opts['data_point_limit'])
             else:
                 n = opts['number_of_samples']
-            selected_data = self.sample(n)
+
+            # need to condition model before sampling, since otherwise we would most likely have not discard some of
+            # the samples and then not get the desired number of samples
+            cond_model = self if where is None else self.copy().condition(where).marginalize(keep=what)
+            selected_data = cond_model.sample(n)
         else:
             df = self.data if opts['data_category'] == 'training data' else self.test_data
             selected_data = data_operations.condition_data(df, where).loc[:, what]
 
-            # limit number of returned data points if requested
-            if 'data_point_limit' in opts:
-                selected_data = selected_data.iloc[:opts['data_point_limit'], :]
+        # limit number of returned data points if requested
+        if 'data_point_limit' in opts:
+            selected_data = selected_data.iloc[:opts['data_point_limit'], :]
 
         return selected_data
 

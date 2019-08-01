@@ -681,27 +681,42 @@ class MixableCondGaussianModel(md.Model):
     def _sample(self, k):
         """Returns k sample points"""
         sample_points = []
+        cat_len = len(self._categoricals)
+        num_len = len(self._numericals)
+        mrg_len = len(self._marginalized)
 
-        # Calculating cumulative density
-        cum_dens = utils.cumulative_density(self._p.values)
-        for i in range(0, int(k)):
-            sample_point = []
+        mu = self._mu
+        S = self._S
+        p = self._p
 
-            # Getting index via inverse transform sampling
-            index = utils.inverse_transform_sampling(cum_dens)
-            sample_cat = np.unravel_index(index, self._p.shape)
+        if cat_len + mrg_len == 0:
+            # no categoricals left, hence only a 'normal' multivariate gaussian to draw samples from
+            if num_len > 0:
+                for i in range(0, int(k)):
+                    sample = S.values.dot(np.random.randn(num_len)) + mu.values
+                    sample_points.append(sample.tolist())
 
-            # Get categoricals
-            cat_dict = self._p[sample_cat].to_dict()
-            sample_point += [cat_dict['coords'][cat]['data'] for cat in self._categoricals]
+        else:
+            # some categoricals are left
+            cum_dens = utils.cumulative_density(self._p.values)
+            for i in range(0, int(k)):
+                sample_point = []
 
-            # Sample from gaussian
-            if len(self._numericals) > 0:
-                sample = self._S[sample_cat].values.dot(np.random.randn(len(self._mu[sample_cat]))) + self._mu[sample_cat].values
+                # Getting index via inverse transform sampling
+                index = utils.inverse_transform_sampling(cum_dens)
+                sample_cat = np.unravel_index(index, p.shape)
 
-                sample_point += sample.tolist()
+                # Get categoricals
+                cat_dict = p[sample_cat].to_dict()
+                sample_point += [cat_dict['coords'][cat]['data'] for cat in self._categoricals]
 
-            sample_points.append(sample_point)
+                # Sample from gaussian
+                if num_len > 0:
+                    sample = S[sample_cat].values.dot(np.random.randn(num_len)) + mu[sample_cat].values
+                    # sample = self._S[sample_cat].values.dot(np.random.randn(len(mu[sample_cat]))) + mu[sample_cat].values
+                    sample_point += sample.tolist()
+
+                sample_points.append(sample_point)
 
         # todo: vectorize denormalization
         if self.opts['normalized']:
