@@ -1,47 +1,21 @@
 import numpy as np
-import pandas as pd
-import mb_modelbase as mbase
 import unittest
+import mb_modelbase.models_core.tests.create_PyMC3_testmodels as cr
 
-# TODO: run_conf is not available from anywhere. also see below, I think this test should be independent of custom config.
-from run_conf import cfg as user_cfg
+def create_testmodels():
+    models = []
+    # These functions return the model data and the corresponding model
+    models.append(cr.create_pymc3_simplest_model(fit=False))
+    models.append(cr.create_pymc3_getting_started_model(fit=False))
+    models.append(cr.create_pymc3_getting_started_model_independent_vars(fit=False))
+    models.append(cr.create_pymc3_coal_mining_disaster_model(fit=False))
+    models.append(cr.create_pymc3_eight_schools_model(fit=False))
+    models.append(cr.create_getting_started_model_shape(fit=False))
+    return models
 
-# TODO: tests should be self contained, i.e. they should be runnable independently and without _any_ user intervention.
-#  plese fix :) probably this involves generating the required ppl model here.
-#  for that you can also reuse testmodels_pymc3.py
 
-# TODO: exactly that is not desirable. any automatic test runner cannot handle this:
-# The models that are tested here have first to be created by create_PyMC3_testmodels.py
 
-try:
-    model_basepath = user_cfg['modules']['modelbase']['test_model_directory']
-    data_basepath = user_cfg['modules']['modelbase']['test_data_directory']
-except KeyError:
-    print('Specify a test_model_directory and a test_data_direcory in run_conf.py')
-    raise
-
-model_filenames = [
-               'pymc3_getting_started_model.mdl',
-               'pymc3_simplest_model.mdl',
-               'pymc3_coal_mining_disaster_model.mdl',
-               'eight_schools_model.mdl',
-               'pymc3_getting_started_model_independent_vars.mdl'
-               ]
-
-data_filenames = [
-              'getting_started.csv',
-              'simplest_testcase.csv',
-              'coal_mining_disasters.csv',
-              'eight_schools.csv',
-              'pymc3_getting_started_model_independent_vars.csv'
-             ]
-
-model_paths = [model_basepath + '/' + name for name in model_filenames]
-data_paths = [data_basepath + '/' + name for name in data_filenames]
-
-# TODO: please adhere PEP8 convention for naming of classes, i.e. camelcase
-
-class Test_methods_on_initialized_model(unittest.TestCase):
+class TestMethodsOnInitializedModel(unittest.TestCase):
     """
     Test the ProbabilisticPymc3Model methods on a model that has just been initialized
     """
@@ -50,8 +24,7 @@ class Test_methods_on_initialized_model(unittest.TestCase):
         """
         Test if newly initialized model has data, test data or samples and if mode is set to None
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
+        for data, mymod in create_testmodels():
             self.assertEqual(mymod.data.empty, 1, "There should be no data. Model:" + mymod.name)
             self.assertEqual(mymod.test_data.empty, 1, "There should be no test data. Model:" + mymod.name)
             self.assertEqual(mymod.samples.empty, 1, "There should be no samples. Model:" + mymod.name)
@@ -61,8 +34,7 @@ class Test_methods_on_initialized_model(unittest.TestCase):
         """
         Test if data, test data and samples of the copied model are the same as in the original model
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
+        for data, mymod in create_testmodels():
             mymod_copy = mymod.copy()
             self.assertEqual(mymod.data.equals(mymod_copy.data), 1,
                              "Copied model data is different than original model data. Model:" + mymod.name)
@@ -76,35 +48,19 @@ class Test_methods_on_initialized_model(unittest.TestCase):
         Test if the set_data() method gives any data to the model
         and if the model data has the same columns as the input data and if mode is set to data
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
+        for data, mymod in create_testmodels():
             mymod.set_data(data)
             self.assertEqual(mymod.data.empty, 0, "There is no data in the model. Model: " + mymod.name)
             self.assertEqual(mymod.data.columns.equals(data.columns), 1,
                              "model data has different columns than the original data. Model: " + mymod.name)
             self.assertEqual(mymod.mode, 'data', "model mode should be set to data. Model: " + mymod.name)
 
-    # TODO: What should happen, if the fit method is called on a model without data?
-    # Philipp:  this will raise an exception. see model.fit()
-
-    # def test_fit(self):
-    #     """
-    #     Test if there are samples and test data in the model and if the mode is set to model
-    #     """
-    #     mymod = mbase.Model.load(self.testcasemodel_path)
-    #     mymod.fit()
-    #     self.assertEqual(mymod.samples.empty, 0, "There are no samples in the model")
-    #     self.assertEqual(mymod.test_data.empty, 0, "There is no test data in the model")
-    #     self.assertEqual(mymod.mode, 'model', "mode should be set to model")
-
     def test_marginalizeout(self):
         """
         Call _marginalizeout on a model without any samples.
         An error should be thrown since the model does not yet know any variables
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
+        for data, mymod in create_testmodels():
             with self.assertRaises(ValueError):
                 mymod._marginalizeout(keep='A', remove='B')
             self.assertEqual(mymod.data.empty, 1, "There should be no data. Model: " + mymod.name)
@@ -117,8 +73,7 @@ class Test_methods_on_initialized_model(unittest.TestCase):
         Call _conditionout on a model without any samples.
         An error should be thrown since the model does not yet know any variables
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
+        for data, mymod in create_testmodels():
             with self.assertRaises(ValueError):
                 mymod._conditionout(keep='A', remove='B')
             self.assertEqual(mymod.data.empty, 1, "There should be no data. Model: " + mymod.name)
@@ -131,8 +86,7 @@ class Test_methods_on_initialized_model(unittest.TestCase):
         Calculate a probability density on a model.
         An error should be thrown since the model does not yet know any variables
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
+        for data, mymod in create_testmodels():
             with self.assertRaises(ValueError):
                 mymod.density([0])
 
@@ -140,14 +94,13 @@ class Test_methods_on_initialized_model(unittest.TestCase):
         """
         Calculate the maximum probability of a model without samples. It should return an empty array
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
+        for data, mymod in create_testmodels():
             self.assertTrue(len(mymod._maximum()) == 0,
                             "maximum density point for a model without variables should be an empty array. "
                             "Model: " + mymod.name)
 
 
-class Test_methods_on_model_with_data(unittest.TestCase):
+class TestMethodsOnModelWithData(unittest.TestCase):
     """
     Test the ProbabilisticPymc3Model methods on a model that has been initialized and given data
     """
@@ -156,9 +109,7 @@ class Test_methods_on_model_with_data(unittest.TestCase):
         """
         Test if data, test data and samples of the copied model are the same as in the original model
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
+        for data, mymod in create_testmodels():
             mymod.set_data(data)
             mymod_copy = mymod.copy()
             self.assertEqual(mymod.data.equals(mymod_copy.data), 1,
@@ -172,9 +123,7 @@ class Test_methods_on_model_with_data(unittest.TestCase):
         """
         Test if there are samples, data and test data in the model and if the mode is set to both
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
+        for data, mymod in create_testmodels():
             mymod.fit(data)
             self.assertEqual(mymod.data.empty, 0, "There is no data in the model. Model: " + mymod.name)
             self.assertEqual(mymod.test_data.empty, 0, "There is no test data in the model. Model: " + mymod.name)
@@ -190,9 +139,7 @@ class Test_methods_on_model_with_data(unittest.TestCase):
         Call _marginalizeout on a model without any samples for variables not in the model.
         An error should be thrown since the model does not have the variables
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
+        for data, mymod in create_testmodels():
             mymod.set_data(data)
             with self.assertRaises(ValueError):
                 mymod._marginalizeout(keep='A', remove='B')
@@ -206,9 +153,7 @@ class Test_methods_on_model_with_data(unittest.TestCase):
         Call _conditionout on a model without any samples for variables not in the model.
         An error should be thrown since the model does not have the variables
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
+        for data, mymod in create_testmodels():
             mymod.set_data(data)
             with self.assertRaises(ValueError):
                 mymod._conditionout(keep='A', remove='B')
@@ -220,15 +165,13 @@ class Test_methods_on_model_with_data(unittest.TestCase):
         """
         Calculate the maximum probability of a model without samples. It should return an empty array
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
+        for data, mymod in create_testmodels():
             mymod.set_data(data)
             self.assertTrue(len(mymod._maximum()) == 0,
                             "maximum density point for a model without samples should be an empty array. "
                             "Model: " + mymod.name)
 
-class Test_methods_on_fitted_model(unittest.TestCase):
+class TestMethodsOnFittedModel(unittest.TestCase):
     """
     Test the ProbabilisticPymc3Model methods on a model that has been initialized, given data and fitted
     """
@@ -237,9 +180,7 @@ class Test_methods_on_fitted_model(unittest.TestCase):
         """
         Test if data, test data and samples of the copied model are the same as in the original model
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
+        for data, mymod in create_testmodels():
             mymod.fit(data)
             mymod_copy = mymod.copy()
             self.assertEqual(mymod.data.equals(mymod_copy.data), 1,
@@ -253,9 +194,7 @@ class Test_methods_on_fitted_model(unittest.TestCase):
         """
         Call _marginalizeout on a fitted model. Check if the correct variables are removed from the model
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
+        for data, mymod in create_testmodels():
             mymod.fit(data)
             keep = mymod.names[1:]
             remove = [mymod.names[0]]
@@ -276,9 +215,7 @@ class Test_methods_on_fitted_model(unittest.TestCase):
         Call _conditionout on a fitted model. Check if the correct variables are removed from the model
         and if all the samples are within the variable domain
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
+        for data, mymod in create_testmodels():
             mymod.fit(data)
             keep = mymod.names[1:]
             remove = [mymod.names[0]]
@@ -309,9 +246,7 @@ class Test_methods_on_fitted_model(unittest.TestCase):
         """
         Calculate a probability density on a model. A single scalar should be the return value
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
+        for data, mymod in create_testmodels():
             mymod.fit(data)
             location = np.zeros(len(mymod.names))
             self.assertTrue(isinstance(mymod.density(location), float),
@@ -321,15 +256,19 @@ class Test_methods_on_fitted_model(unittest.TestCase):
         """
         Calculate the maximum probability of a model. Dimensions should match
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
+        for data, mymod in create_testmodels():
             mymod.fit(data)
             self.assertEqual(len(mymod._maximum()), len(mymod.names),
                              "Dimension of the maximum does not match dimension of the model. Model: " + mymod.name)
 
+    def test_sample(self):
+        for data, mymod in create_testmodels():
+            mymod.fit(data)
+            n = 10
+            self.assertEqual(mymod.sample(n).shape[0],  n, 'Number of samples is not correct')
 
-class Test_more_combinations_on_model(unittest.TestCase):
+
+class TestMoreCombinationsOnModel(unittest.TestCase):
     """
     Test more complex cases, with more combinations of methods being applied to a already fitted model
     """
@@ -342,9 +281,7 @@ class Test_more_combinations_on_model(unittest.TestCase):
         """
         Check if the density maximum of a marginalized model has the same dimensions as the model variables
         """
-        for i, name in enumerate(model_paths):
-            mymod = mbase.Model.load(model_paths[i])
-            data = pd.read_csv(data_paths[i])
+        for data, mymod in create_testmodels():
             mymod.fit(data)
             remove = mymod.names[0]
             mymod.marginalize(remove=remove)
