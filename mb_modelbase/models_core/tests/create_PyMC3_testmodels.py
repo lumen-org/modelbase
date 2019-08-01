@@ -6,15 +6,6 @@ from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 import theano
 from scripts.run_conf import cfg as user_cfg
 
-try:
-    testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + '/'
-    testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory'] + '/'
-    #testcasemodel_path = '/home/luca_ph/Documents/projects/graphical_models/code/ppl_models/'
-    #testcasedata_path = '/home/luca_ph/Documents/projects/graphical_models/code/ppl_models/'
-except KeyError:
-    print('Specify a test_model_directory and a test_data_direcory in run_conf.py')
-    raise
-
 ######################################
 # pymc3_testcase_model
 #####################################
@@ -264,14 +255,26 @@ def create_getting_started_model_shape(modelname='pymc3_getting_started_model_sh
 ######################################
 # Call all model generating functions
 ######################################
-create_functions = [create_pymc3_simplest_model, create_pymc3_getting_started_model,
-                    create_pymc3_getting_started_model_independent_vars,
-                    create_pymc3_coal_mining_disaster_model, create_pymc3_eight_schools_model,
-                    create_getting_started_model_shape]
 
-for func in create_functions:
-    data, m = func(fit=False)
-    data, m_fitted = func(fit=True)
-    Model.save(m, testcasemodel_path)
-    Model.save(m_fitted, testcasemodel_path)
-    data.to_csv(testcasedata_path + m.name + '.csv', index=False)
+if __name__ == '__main__':
+
+    try:
+        testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + '/'
+        testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory'] + '/'
+        #testcasemodel_path = '/home/luca_ph/Documents/projects/graphical_models/code/ppl_models/'
+        #testcasedata_path = '/home/luca_ph/Documents/projects/graphical_models/code/ppl_models/'
+    except KeyError:
+        print('Specify a test_model_directory and a test_data_direcory in run_conf.py')
+        raise
+
+    create_functions = [create_pymc3_simplest_model, create_pymc3_getting_started_model,
+                        create_pymc3_getting_started_model_independent_vars,
+                        create_pymc3_coal_mining_disaster_model, create_pymc3_eight_schools_model,
+                        create_getting_started_model_shape]
+
+    for func in create_functions:
+        data, m = func(fit=False)
+        data, m_fitted = func(fit=True)
+        Model.save(m, testcasemodel_path)
+        Model.save(m_fitted, testcasemodel_path)
+        data.to_csv(testcasedata_path + m.name + '.csv', index=False)
