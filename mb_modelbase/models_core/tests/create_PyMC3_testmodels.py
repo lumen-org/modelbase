@@ -36,7 +36,7 @@ def create_pymc3_simplest_model(modelname='pymc3_simplest_model', fit=True):
     m = ProbabilisticPymc3Model(modelname, basic_model)
     if fit:
         m.fit(data)
-    return m
+    return data, m
 
 ######################################
 # pymc3_getting_started_model
@@ -74,7 +74,7 @@ def create_pymc3_getting_started_model(modelname='pymc3_getting_started_model', 
         m = ProbabilisticPymc3Model(modelname, basic_model)
         if fit:
             m.fit(data)
-        return m
+        return data, m
 
 ##############################################
 # pymc3_getting_started_model_independent vars
@@ -111,10 +111,9 @@ def create_pymc3_getting_started_model_independent_vars (
         Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
 
     m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1, 'X2': X2})
-    data.to_csv(testcasedata_path + modelname + '.csv', index=False)
     if fit:
         m.fit(data)
-    return m
+    return data, m
 
 ###########################################################
 # pymc3_getting_started_model_independent vars_nosharedvars
@@ -148,11 +147,10 @@ def create_pymc3_getting_started_model_independent_vars_nosharedvars (
 
         # Likelihood (sampling distribution) of observations
         Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
-        data.to_csv(testcasedata_path + modelname + '.csv', index=False)
         m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1})
         if fit:
             m.fit(data)
-        return m
+        return data, m
 
 ######################################
 # pymc3_coal_mining_disaster_model
@@ -190,7 +188,7 @@ def create_pymc3_coal_mining_disaster_model(modelname='pymc3_coal_mining_disaste
     m = ProbabilisticPymc3Model(modelname, disaster_model, shared_vars={'years': years})
     if fit:
         m.fit(data)
-    return m
+    return data, m
 
 ########################################
 # eight_schools_model
@@ -224,7 +222,7 @@ def create_pymc3_eight_schools_model(modelname='pymc3_eight_schools_model', fit=
                                 shared_vars={'standard_errors': standard_errors}, fixed_data_length=True)
     if fit:
         m.fit(data)
-    return m
+    return data, m
 
 ######################################
 # getting_started_model_shape
@@ -259,10 +257,9 @@ def create_getting_started_model_shape(modelname='pymc3_getting_started_model_sh
         Y = pm.Normal('Y', mu=mu, sd=sigma, observed=data['Y'])
 
     m = ProbabilisticPymc3Model(modelname, basic_model, shared_vars={'X1': X1, 'X2': X2})
-    data.to_csv(testcasedata_path + modelname + '.csv', index=False)
     if fit:
         m.fit(data)
-    return m
+    return data, m
 
 ######################################
 # Call all model generating functions
@@ -273,7 +270,8 @@ create_functions = [create_pymc3_simplest_model, create_pymc3_getting_started_mo
                     create_getting_started_model_shape]
 
 for func in create_functions:
-    m = func(fit=False)
-    m_fitted = func(fit=True)
+    data, m = func(fit=False)
+    data, m_fitted = func(fit=True)
     Model.save(m, testcasemodel_path)
     Model.save(m_fitted, testcasemodel_path)
+    data.to_csv(testcasedata_path + m.name + '.csv', index=False)
