@@ -284,7 +284,12 @@ class ProbabilisticPymc3Model(Model):
             for varname in ppc.keys():
                 sample[varname] = [elem[0] for elem in ppc[str(varname)]]
             for varname in trace.varnames:
-                sample[varname] = trace[varname]
+                if len(trace[varname].shape) == 1:
+                    sample[varname] = trace[varname]
+                # One variable name in trace can hold multiple random variables
+                else:
+                    for i in range(trace[varname].shape[1]):
+                        sample[varname+'_'+str(i)] = [elem[i] for elem in trace[varname]]
         return sample
 
     def copy(self, name=None):
