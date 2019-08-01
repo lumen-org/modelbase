@@ -8,6 +8,7 @@ from scipy import stats
 import scipy.optimize as sciopt
 import copy as cp
 from functools import reduce
+import theano
 
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.utils.data_import_utils import get_numerical_fields
@@ -294,8 +295,10 @@ class ProbabilisticPymc3Model(Model):
         mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples.copy()
 
-        # TODO: how to copy shared_vars?
-        #mycopy.shared_vars = self.shared_vars.copy()
+        #Copy shared_vars
+        mycopy.shared_vars = {}
+        for key, value in self.shared_vars:
+            mycopy.shared_vars[key] = theano.shared(value.get_value().copy())
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
         mycopy.fixed_data_length = self.fixed_data_length
 
