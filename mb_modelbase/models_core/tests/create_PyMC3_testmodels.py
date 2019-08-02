@@ -260,8 +260,8 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
     if fit:
         modelname = modelname+'_fitted'
 
-    testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory'] + '/'
-    path = testcasedata_path + filename
+    testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory']
+    path = os.path.join(testcasedata_path, filename)
     data = pd.read_csv(path)
 
     # Create dummy variables for day of week variable
@@ -315,8 +315,8 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
 if __name__ == '__main__':
 
     try:
-        testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + '/'
-        testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory'] + '/'
+        testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory']
+        testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory']
         #testcasemodel_path = '/home/luca_ph/Documents/projects/graphical_models/code/ppl_models/'
         #testcasedata_path = '/home/luca_ph/Documents/projects/graphical_models/code/ppl_models/'
     except KeyError:
@@ -333,5 +333,5 @@ if __name__ == '__main__':
         data, m_fitted = func(fit=True)
         Model.save(m, testcasemodel_path)
         Model.save(m_fitted, testcasemodel_path)
-        data.to_csv(testcasedata_path + m.name + '.csv', index=False)
+        data.to_csv(os.path.join(testcasedata_path, m.name + '.csv'), index=False)
 
