@@ -6,6 +6,8 @@ from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 import theano
 from scripts.run_conf import cfg as user_cfg
 import os
+import timeit
+
 
 ######################################
 # pymc3_testcase_model
@@ -264,28 +266,34 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
     path = os.path.join(testcasedata_path, filename)
     data = pd.read_csv(path)
 
+    data = data.rename(columns={'ARR_DELAY': 'arrdelay', 'DEP_DELAY': 'depdelay'})
+
     # Create dummy variables for day of week variable
-    data['monday'] = data['DAY_OF_WEEK'] == 1
-    data['tuesday'] = data['DAY_OF_WEEK'] == 2
-    data['wednesday'] = data['DAY_OF_WEEK'] == 3
-    data['thursday'] = data['DAY_OF_WEEK'] == 4
-    data['friday'] = data['DAY_OF_WEEK'] == 5
-    data['saturday'] = data['DAY_OF_WEEK'] == 6
-    data['sunday'] = data['DAY_OF_WEEK'] == 7
+    data['monday'] = (data['DAY_OF_WEEK'] == 1).astype(int)
+    data['tuesday'] = (data['DAY_OF_WEEK'] == 2).astype(int)
+    data['wednesday'] = (data['DAY_OF_WEEK'] == 3).astype(int)
+    data['thursday'] = (data['DAY_OF_WEEK'] == 4).astype(int)
+    data['friday'] = (data['DAY_OF_WEEK'] == 5).astype(int)
+    data['saturday'] = (data['DAY_OF_WEEK'] == 6).astype(int)
+    data['sunday'] = (data['DAY_OF_WEEK'] == 7).astype(int)
+
+    # Drop variables that are not considered in the model
+    data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID', 'ACTUAL_ELAPSED_TIME'], axis=1)
 
     # Create shared variables
-    distance = theano.shared(data['DISTANCE'])
-    dow_mon = theano.shared(data['monday'])
-    dow_tue = theano.shared(data['tuesday'])
-    dow_wed = theano.shared(data['wednesday'])
-    dow_thu = theano.shared(data['thursday'])
-    dow_fri = theano.shared(data['friday'])
-    dow_sat = theano.shared(data['saturday'])
-    dow_sun = theano.shared(data['sunday'])
-    deptime = theano.shared(data['DEP_TIME'])
+    distance = theano.shared(np.array(data['DISTANCE']))
+    dow_mon = theano.shared(np.array(data['monday']))
+    dow_tue = theano.shared(np.array(data['tuesday']))
+    dow_wed = theano.shared(np.array(data['wednesday']))
+    dow_thu = theano.shared(np.array(data['thursday']))
+    dow_fri = theano.shared(np.array(data['friday']))
+    dow_sat = theano.shared(np.array(data['saturday']))
+    dow_sun = theano.shared(np.array(data['sunday']))
+    deptime = theano.shared(np.array(data['DEP_TIME']))
 
     # Create model
     delay_model = pm.Model()
+
 
     with delay_model:
         beta_dep = pm.Uniform('beta', 0, 1, shape=9)
@@ -295,16 +303,16 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
         mu_depdelay = beta_dep[0] + beta_dep[1] * dow_mon + beta_dep[2] * dow_tue + beta_dep[3] * dow_wed + \
                       beta_dep[4] * dow_thu + beta_dep[5] * dow_fri + beta_dep[6] * dow_sat + beta_dep[7] * dow_sun + \
                       beta_dep[8] * deptime
-        depdelay = pm.Normal('depdelay', mu_depdelay, var[0], obs=data['DEP_DELAY'])
+        depdelay = pm.Normal('depdelay', mu_depdelay, var[0], observed=data['depdelay'])
         # I assume that arrdelay is a function of depdelay and distance
         mu_arrdelay = depdelay + beta_arr * distance
-        arrdelay = pm.Normal('arrdelay', mu_arrdelay, var[1], obs=data['ARR_DELAY'])
+        arrdelay = pm.Normal('arrdelay', mu_arrdelay, var[1], observed=data['arrdelay'])
 
-    m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'distance': distance, 'dow_mon': dow_mon,
-                                                                     'dow_tue': dow_tue, 'dow_wed': dow_wed,
-                                                                     'dow_thu': dow_thu, 'dow_fri': dow_fri,
-                                                                     'dow_sat': dow_sat, 'dow_sun': dow_sun,
-                                                                     'deptime': deptime})
+    m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'DISTANCE': distance, 'monday': dow_mon,
+                                                                     'tuesday': dow_tue, 'wednesday': dow_wed,
+                                                                     'thursday': dow_thu, 'friday': dow_fri,
+                                                                     'saturday': dow_sat, 'sunday': dow_sun,
+                                                                     'DEP_TIME': deptime})
     if fit:
         m.fit(data)
     return data, m
@@ -313,6 +321,7 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
 # Call all model generating functions
 ######################################
 if __name__ == '__main__':
+
 
     try:
         testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory']
@@ -327,6 +336,8 @@ if __name__ == '__main__':
                         create_pymc3_getting_started_model_independent_vars,
                         create_pymc3_coal_mining_disaster_model, create_pymc3_eight_schools_model,
                         create_getting_started_model_shape, create_flight_delay_model]
+
+#    create_functions = [create_flight_delay_model]
 
     for func in create_functions:
         data, m = func(fit=False)
