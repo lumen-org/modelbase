@@ -322,6 +322,7 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
 ######################################
 if __name__ == '__main__':
 
+    start = timeit.default_timer()
 
     try:
         testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory']
@@ -346,3 +347,5 @@ if __name__ == '__main__':
         Model.save(m_fitted, testcasemodel_path)
         data.to_csv(os.path.join(testcasedata_path, m.name + '.csv'), index=False)
 
+    stop = timeit.default_timer()
+    print('Time: ', stop - start)
