@@ -4,7 +4,7 @@ import pymc3 as pm
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 import theano
-from scripts.run_conf_defaults import cfg as user_cfg
+from scripts.run_conf import cfg as user_cfg
 import os
 
 ######################################
