@@ -336,9 +336,10 @@ if __name__ == '__main__':
     create_functions = [create_pymc3_simplest_model, create_pymc3_getting_started_model,
                         create_pymc3_getting_started_model_independent_vars,
                         create_pymc3_coal_mining_disaster_model, create_pymc3_eight_schools_model,
-                        create_getting_started_model_shape, create_flight_delay_model]
+                        create_getting_started_model_shape]
 
 #    create_functions = [create_flight_delay_model]
+
 
     for func in create_functions:
         data, m = func(fit=False)
