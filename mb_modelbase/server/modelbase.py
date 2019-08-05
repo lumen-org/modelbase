@@ -344,7 +344,7 @@ class ModelBase:
             show = self._extractShow(query)
             if show == "HEADER":
                 model = self._extractFrom(query)
-                result = {"name": model.name,  "fields": model.json_fields()}
+                result = model.as_json()
             elif show == "MODELS":
                 result = {'models': self.list_models()}
             else:

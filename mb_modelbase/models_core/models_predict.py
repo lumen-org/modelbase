@@ -309,7 +309,7 @@ def normalize_splitby(model, splitby, partial_data, **kwargs):
     nb_target = int(float(kwargs.get('point percentage target', 100))/100*length)
     n = max(min(nb_max, nb_target), nb_min)
 
-    data_input = data.loc[:n, data_split_names]
+    data_input = data.iloc[:n,:].loc[:,data_split_names]
     # merge with other partial data
     new_partial_data = crossjoin(data_input, partial_data)
 

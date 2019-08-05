@@ -387,6 +387,7 @@ class Model:
         self.mode = None
         self.history = {}
         self.parallel_processing = True
+        self._empirical_model_name = None
 
     def _setempty(self):
         self._update_remove_fields()
@@ -399,6 +400,14 @@ class Model:
         """Returns a json-like representation of the fields of this model."""
         json_ = list(map(field_tojson, self.fields))
         return json_
+
+    def as_json(self):
+        json = {
+            "name": self.name,
+            "fields": self.json_fields(),
+            "empirical model": self._empirical_model_name
+        }
+        return json
 
     def set_model_params(self, **kwargs):
         """Sets explicitly the parameters of a model.
@@ -601,6 +610,10 @@ class Model:
         Returns:
             The modified, fitted model.
         """
+
+        if 'empirical_model_name' in kwargs:
+            self._empirical_model_name = kwargs['empirical_model_name']
+
         if df is not None:
             return self.set_data(df, **kwargs).fit(**kwargs)
 
