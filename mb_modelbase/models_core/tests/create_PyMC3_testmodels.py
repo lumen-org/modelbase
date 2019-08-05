@@ -278,7 +278,10 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
     data['sunday'] = (data['DAY_OF_WEEK'] == 7).astype(int)
 
     # Drop variables that are not considered in the model
-    data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID', 'ACTUAL_ELAPSED_TIME'], axis=1)
+    data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID', 'ACTUAL_ELAPSED_TIME', 'arrdelay'], axis=1)
+
+    # Reduce size of data to improve performance
+    data = data.sample(n=1000, random_state=1)
 
     # Create shared variables
     distance = theano.shared(np.array(data['DISTANCE']))
@@ -296,7 +299,7 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
 
 
     with delay_model:
-        beta_dep = pm.Uniform('beta', 0, 1, shape=9)
+        beta_dep = pm.Uniform('beta_dep', 0, 1, shape=9)
         beta_arr = pm.Uniform('beta_arr', 0, 1)
         var = pm.Uniform('var', 0, 100, shape=2)
         # I assume that depdelay is a function of dow and deptime
@@ -304,9 +307,9 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
                       beta_dep[4] * dow_thu + beta_dep[5] * dow_fri + beta_dep[6] * dow_sat + beta_dep[7] * dow_sun + \
                       beta_dep[8] * deptime
         depdelay = pm.Normal('depdelay', mu_depdelay, var[0], observed=data['depdelay'])
-        # I assume that arrdelay is a function of depdelay and distance
-        mu_arrdelay = depdelay + beta_arr * distance
-        arrdelay = pm.Normal('arrdelay', mu_arrdelay, var[1], observed=data['arrdelay'])
+        # I assume that arrdelay is a function of depdelay and distance. THIS DOES NOT WORK YET, EXCLUDE IT FROM THE MODEL
+        #mu_arrdelay = depdelay + beta_arr * distance
+        #arrdelay = pm.Normal('arrdelay', mu_arrdelay, var[1], observed=data['arrdelay'])
 
     m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'DISTANCE': distance, 'monday': dow_mon,
                                                                      'tuesday': dow_tue, 'wednesday': dow_wed,
@@ -336,9 +339,7 @@ if __name__ == '__main__':
     create_functions = [create_pymc3_simplest_model, create_pymc3_getting_started_model,
                         create_pymc3_getting_started_model_independent_vars,
                         create_pymc3_coal_mining_disaster_model, create_pymc3_eight_schools_model,
-                        create_getting_started_model_shape]
-
-#    create_functions = [create_flight_delay_model]
+                        create_getting_started_model_shape, create_flight_delay_model]
 
 
     for func in create_functions:
