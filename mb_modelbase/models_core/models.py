@@ -409,6 +409,9 @@ class Model:
         }
         return json
 
+    def set_empirical_model_name(self, name):
+        self._empirical_model_name = name
+
     def set_model_params(self, **kwargs):
         """Sets explicitly the parameters of a model.
 
