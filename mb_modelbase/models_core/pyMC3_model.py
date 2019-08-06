@@ -150,7 +150,9 @@ class ProbabilisticPymc3Model(Model):
                 # The first x rows of samples_independent_vars are therefore attached again at the end of the
                 # dataframe, where x is the difference to self.nr_of_posterior_samples
                 diff = self.nr_of_posterior_samples - len(samples_independent_vars)
-                samples_independent_vars = samples_independent_vars.append(samples_independent_vars.iloc[0:diff, :])
+                while diff > 0:
+                    samples_independent_vars = samples_independent_vars.append(samples_independent_vars.iloc[0:diff, :])
+                    diff = self.nr_of_posterior_samples - len(samples_independent_vars)
                 #
                 for col in samples_independent_vars:
                     #self.shared_vars[col].set_value(samples_independent_vars[col])

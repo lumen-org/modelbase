@@ -11,6 +11,7 @@ def create_testmodels():
     models.append(cr.create_pymc3_coal_mining_disaster_model(fit=False))
     models.append(cr.create_pymc3_eight_schools_model(fit=False))
     models.append(cr.create_getting_started_model_shape(fit=False))
+    models.append(cr.create_flight_delay_model(fit=False))
     return models
 
 
