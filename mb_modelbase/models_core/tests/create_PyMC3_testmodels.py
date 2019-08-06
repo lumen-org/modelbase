@@ -321,6 +321,29 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
     return data, m
 
 ######################################
+# Lambert Stan example
+######################################
+def create_lambert_stan_example(modelname='lambert_stan_example', fit=True):
+    # Generate data
+    size = 100
+    Y_data = np.random.normal(1.6, 0.2, size=size)
+    data = pd.DataFrame({'Y':Y_data})
+    # Specify model
+    lambert_model = pm.Model()
+    with lambert_model:
+        # Priors
+        mu = pm.Normal('mu', 1.7, 0.3)
+        sigma = pm.HalfCauchy('sigma', 1)
+        # Likelihood
+        Y = pm.Normal('Y', mu, sigma, observed=Y_data)
+
+    m = ProbabilisticPymc3Model(modelname, lambert_model)
+
+    if fit:
+        m.fit(data)
+    return data, m
+
+######################################
 # Call all model generating functions
 ######################################
 if __name__ == '__main__':
@@ -339,7 +362,7 @@ if __name__ == '__main__':
     create_functions = [create_pymc3_simplest_model, create_pymc3_getting_started_model,
                         create_pymc3_getting_started_model_independent_vars,
                         create_pymc3_coal_mining_disaster_model, create_pymc3_eight_schools_model,
-                        create_getting_started_model_shape, create_flight_delay_model]
+                        create_getting_started_model_shape, create_flight_delay_model, create_lambert_stan_example]
 
 
     for func in create_functions:
