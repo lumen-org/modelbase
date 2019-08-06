@@ -324,6 +324,8 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
 # Lambert Stan example
 ######################################
 def create_lambert_stan_example(modelname='lambert_stan_example', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
     # Generate data
     size = 100
     Y_data = np.random.normal(1.6, 0.2, size=size)
