@@ -387,6 +387,7 @@ class Model:
         self.mode = None
         self.history = {}
         self.parallel_processing = True
+        self._empirical_model_name = None
 
     def _setempty(self):
         self._update_remove_fields()
@@ -399,6 +400,17 @@ class Model:
         """Returns a json-like representation of the fields of this model."""
         json_ = list(map(field_tojson, self.fields))
         return json_
+
+    def as_json(self):
+        json = {
+            "name": self.name,
+            "fields": self.json_fields(),
+            "empirical model": self._empirical_model_name
+        }
+        return json
+
+    def set_empirical_model_name(self, name):
+        self._empirical_model_name = name
 
     def set_model_params(self, **kwargs):
         """Sets explicitly the parameters of a model.
@@ -429,8 +441,8 @@ class Model:
 
     def set_data(self, df, silently_drop=False, **kwargs):
         """Derives suitable, cleansed (and copied) data from df for a particular model, sets this as the models data
-         and also sets up auxiliary data structures if necessary. This is however, only concerned with the data
-         part of the model and does not do any fitting of the model.
+         and also sets up auxiliary data structures if necessary. This method is only concerned with the data part of
+         the model and does not do any fitting of the model.
 
         This method has the following effects:
          - the models mode is set to 'data'
@@ -601,6 +613,10 @@ class Model:
         Returns:
             The modified, fitted model.
         """
+
+        if 'empirical_model_name' in kwargs:
+            self._empirical_model_name = kwargs['empirical_model_name']
+
         if df is not None:
             return self.set_data(df, **kwargs).fit(**kwargs)
 
@@ -730,6 +746,7 @@ class Model:
             keep_data = [name for name in keep if name in self.data.columns]
             self.data = self.data.loc[:, keep_data]
             self.test_data = self.test_data.loc[:, keep]
+            self.sample_data = self.test_data.loc[:, keep]
             if self.mode == 'data':
                 # need to call this, since it will not be called later in this particular case
                 self._update_remove_fields(remove)
@@ -1195,6 +1212,9 @@ class Model:
               * density (requiring a sequence of scalars)
 
             Currently, we only allow scalar values at input and instead we take care of it in `Model.predict()`.
+
+        TODO: this should not only receive a single, but a whole set of input values to speed up computation!
+            Overhead is currently huge.
         """
         if self._isempty():
             raise ValueError('Cannot query density of 0-dimensional model')
@@ -1575,7 +1595,7 @@ class Model:
             .hide(hide).condition(where) \
             .marginalize(keep=model)
 
-    def predict(self, predict, where=None, splitby=None, for_data=None, returnbasemodel=False):
+    def predict(self, predict, where=None, splitby=None, for_data=None, **kwargs):
         """Calculate the prediction against the model and returns its result as a pd.DataFrame.
 
         The data frame contains exactly those fields which are specified in 'predict'. Its order is preserved.
@@ -1690,7 +1710,7 @@ class Model:
         TODO:
             * just an idea: couldn't I merge the partial data given (takes higher priority) with all default of all
            variables and use this as a starting point for the input frame??
-            * can't we handle the the split-method 'data' (which uses .test_data as the result of the split) as partial
+            * can't we handle the split-method 'data' (which uses .test_data as the result of the split) as partial
              data. This seem more clean and versatile.
 
         """
@@ -1716,6 +1736,9 @@ class Model:
             where = []
         if splitby is None:
             splitby = []
+
+        # (-1) normalize data-splits to partial data
+        splitby, partial_data = models_predict.normalize_splitby(self, splitby, partial_data, **kwargs)
 
         # (0) create data structures for clauses
         aggrs, aggr_ids, aggr_input_names, aggr_dims, \
@@ -1805,11 +1828,6 @@ class Model:
 
             # concat with input
             dataframe = pd.concat([base_df, *aggr_df], axis=1, copy=False).reset_index()
-            #dataframe = base_df.assign(**dict(zip(aggr_ids, aggr_series)))
-
-            # OLD
-            # dataframe = functools.reduce(lambda df1, df2: df1.merge(df2, on=list(input_names), how='inner', copy=False),
-            #                               result_list[1:], result_list[0])
 
         # (4) Fix domain valued splits.
         # Some splits result in domains (i.e. tuples, and not just single, scalar values). However,
@@ -1828,7 +1846,10 @@ class Model:
         # (8) rename columns to be readable (but not unique anymore)
         dataframe.columns = predict_names
 
-        return (dataframe, basemodel) if returnbasemodel else dataframe
+        if ('returnbasemodel' in kwargs) and (kwargs['returnbasemodel']):
+            return (dataframe, basemodel)
+        else:
+            return dataframe
 
     def _select_data(self, what, where=None, **kwargs):
         """Select and return that subset of the models data in `self.data` that respect the conditions in `where` and the columns
@@ -1843,6 +1864,7 @@ class Model:
                     'data_category', with values:
                         'training data': return selection of training data
                         'test data': return selection of test data
+                        'model samples': returns samples of the model.
                         defaults to: 'training data'
 
         Returns : pd.DataFrame
@@ -1863,14 +1885,18 @@ class Model:
                 n = min(opts['number_of_samples'], opts['data_point_limit'])
             else:
                 n = opts['number_of_samples']
-            selected_data = self.sample(n)
+
+            # need to condition model before sampling, since otherwise we would most likely have not discard some of
+            # the samples and then not get the desired number of samples
+            cond_model = self if where is None else self.copy().condition(where).marginalize(keep=what)
+            selected_data = cond_model.sample(n)
         else:
             df = self.data if opts['data_category'] == 'training data' else self.test_data
             selected_data = data_operations.condition_data(df, where).loc[:, what]
 
-            # limit number of returned data points if requested
-            if 'data_point_limit' in opts:
-                selected_data = selected_data.iloc[:opts['data_point_limit'], :]
+        # limit number of returned data points if requested
+        if 'data_point_limit' in opts:
+            selected_data = selected_data.iloc[:opts['data_point_limit'], :]
 
         return selected_data
 

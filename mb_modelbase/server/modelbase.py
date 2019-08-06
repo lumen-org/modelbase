@@ -312,9 +312,11 @@ class ModelBase:
             resultframe = base.predict(
                 predict=predict_stmnt,
                 where=where_stmnt,
-                splitby=splitby_stmnt
+                splitby=splitby_stmnt,
+                ** self._extractOpts(query)
             )
 
+            # TODO: is this working?
             if 'DIFFERENCE_TO' in query:  # query['DIFFERENCE_TO'] = 'mcg_iris_map'
                 base2 = self._extractDifferenceTo(query)
                 resultframe2 = base2.predict(
@@ -342,7 +344,7 @@ class ModelBase:
             show = self._extractShow(query)
             if show == "HEADER":
                 model = self._extractFrom(query)
-                result = {"name": model.name,  "fields": model.json_fields()}
+                result = model.as_json()
             elif show == "MODELS":
                 result = {'models': self.list_models()}
             else:

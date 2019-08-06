@@ -3,6 +3,7 @@ import pandas as pd
 import pymc3 as pm
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
+from mb_modelbase.models_core.empirical_model import EmpiricalModel
 import theano
 from scripts.run_conf import cfg as user_cfg
 import os
@@ -369,9 +370,19 @@ if __name__ == '__main__':
 
     for func in create_functions:
         data, m = func(fit=False)
-        data, m_fitted = func(fit=True)
-        Model.save(m, testcasemodel_path)
-        Model.save(m_fitted, testcasemodel_path)
+        data, m_fitted = func(fit=True)  # TODO: this overwrites data!
+
+        # create empirical model
+        name = "emp_" + m.name
+        m.set_empirical_model_name(name)
+        m_fitted.set_empirical_model_name(name)
+        emp_model = EmpiricalModel(name=name)
+        emp_model.fit(df=data)
+
+        m_fitted.save(testcasemodel_path)
+        m.save(testcasemodel_path)
+        emp_model.save(testcasemodel_path)
+
         data.to_csv(os.path.join(testcasedata_path, m.name + '.csv'), index=False)
 
     stop = timeit.default_timer()
