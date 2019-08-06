@@ -313,6 +313,7 @@ class ProbabilisticPymc3Model(Model):
                 mycopy.shared_vars[key] = theano.shared(value.get_value().copy())
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
         mycopy.fixed_data_length = self.fixed_data_length
+        mycopy.set_empirical_model_name(self._empirical_model_name)
 
         return mycopy
 
