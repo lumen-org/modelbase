@@ -344,7 +344,7 @@ if __name__ == '__main__':
 
     for func in create_functions:
         data, m = func(fit=False)
-        data, m_fitted = func(fit=True)  # TODO: this overwrites data!
+        data, m_fitted = func(fit=True)
 
         # create empirical model
         name = "emp_" + m.name
