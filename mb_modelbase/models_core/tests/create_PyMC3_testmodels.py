@@ -312,11 +312,10 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
         #mu_arrdelay = depdelay + beta_arr * distance
         #arrdelay = pm.Normal('arrdelay', mu_arrdelay, var[1], observed=data['arrdelay'])
 
-    m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'DISTANCE': distance, 'monday': dow_mon,
-                                                                     'tuesday': dow_tue, 'wednesday': dow_wed,
-                                                                     'thursday': dow_thu, 'friday': dow_fri,
-                                                                     'saturday': dow_sat, 'sunday': dow_sun,
-                                                                     'DEP_TIME': deptime})
+    m = ProbabilisticPymc3Model(modelname, delay_model, nr_of_posterior_samples=19000,
+                                shared_vars={'DISTANCE': distance, 'monday': dow_mon, 'tuesday': dow_tue,
+                                             'wednesday': dow_wed, 'thursday': dow_thu, 'friday': dow_fri,
+                                             'saturday': dow_sat, 'sunday': dow_sun, 'DEP_TIME': deptime})
     if fit:
         m.fit(data)
     return data, m
