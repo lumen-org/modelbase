@@ -356,8 +356,6 @@ if __name__ == '__main__':
     try:
         testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory']
         testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory']
-        #testcasemodel_path = '/home/luca_ph/Documents/projects/graphical_models/code/ppl_models/'
-        #testcasedata_path = '/home/luca_ph/Documents/projects/graphical_models/code/ppl_models/'
     except KeyError:
         print('Specify a test_model_directory and a test_data_direcory in run_conf.py')
         raise
