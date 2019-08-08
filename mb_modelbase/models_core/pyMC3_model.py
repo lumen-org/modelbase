@@ -179,7 +179,7 @@ class ProbabilisticPymc3Model(Model):
                     # of points is generated with the same length as the observed data.
                     for varname in self.model_structure.observed_RVs:
                         self.samples[str(varname)][lower_idx:upper_idx] = \
-                            [ppc[str(varname)][j][j] for j in range(ppc[str(varname)].shape[1])]
+                            [ppc[str(varname)][j][j] for j in range(ppc[str(varname)].shape[0])]
                 else:
                     # when no shared vars are given, data and samples do not have the same length. In this case, the first
                     # point of each sequence is taken as new sample point
