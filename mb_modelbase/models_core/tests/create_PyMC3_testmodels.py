@@ -269,48 +269,41 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
 
     data = data.rename(columns={'ARR_DELAY': 'arrdelay', 'DEP_DELAY': 'depdelay'})
 
-    # Create dummy variables for day of week variable
-    data['monday'] = (data['DAY_OF_WEEK'] == 1).astype(int)
-    data['tuesday'] = (data['DAY_OF_WEEK'] == 2).astype(int)
-    data['wednesday'] = (data['DAY_OF_WEEK'] == 3).astype(int)
-    data['thursday'] = (data['DAY_OF_WEEK'] == 4).astype(int)
-    data['friday'] = (data['DAY_OF_WEEK'] == 5).astype(int)
-    data['saturday'] = (data['DAY_OF_WEEK'] == 6).astype(int)
-    data['sunday'] = (data['DAY_OF_WEEK'] == 7).astype(int)
-
     # Drop variables that are not considered in the model
     data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID',
-                      'ACTUAL_ELAPSED_TIME', 'arrdelay', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday',
-                      'saturday', 'sunday', 'DISTANCE'], axis=1)
+                      'ACTUAL_ELAPSED_TIME', 'arrdelay', 'DISTANCE'], axis=1)
 
     # Reduce size of data to improve performance
     data = data.sample(n=1000, random_state=1)
 
+    # Improvement 3: Shift the delay data so that it is positive
+    shift = min(data['depdelay'])
+    data['depdelay'] -= shift
+    print('shift: ' + str(-shift))
+
+
     # Create shared variables
-    # distance = theano.shared(np.array(data['DISTANCE']))
-    # dow_mon = theano.shared(np.array(data['monday']))
-    # dow_tue = theano.shared(np.array(data['tuesday']))
-    # dow_wed = theano.shared(np.array(data['wednesday']))
-    # dow_thu = theano.shared(np.array(data['thursday']))
-    # dow_fri = theano.shared(np.array(data['friday']))
-    # dow_sat = theano.shared(np.array(data['saturday']))
-    # dow_sun = theano.shared(np.array(data['sunday']))
     deptime = theano.shared(np.array(data['DEP_TIME']))
 
     # Create model
     delay_model = pm.Model()
 
-
     with delay_model:
+        beta_var = pm.Uniform('beta_var', 0, 1, shape=2)
         beta_dep = pm.Uniform('beta_dep', 0, 1, shape=2)
-        #beta_arr = pm.Uniform('beta_arr', 0, 1)
-        var = pm.Uniform('var', 0, 100)
-        # I assume that depdelay is a function of dow and deptime
-        mu_depdelay = beta_dep[0] + beta_dep[1] * deptime
-        depdelay = pm.Normal('depdelay', mu_depdelay, var, observed=data['depdelay'])
-        # I assume that arrdelay is a function of depdelay and distance. THIS DOES NOT WORK YET, EXCLUDE IT FROM THE MODEL
-        #mu_arrdelay = depdelay + beta_arr * distance
-        #arrdelay = pm.Normal('arrdelay', mu_arrdelay, var[1], observed=data['arrdelay'])
+
+        # Improvement 1: Assume that variance is a linear function of time, instead of uniformly distributed
+        var = pm.math.abs_(beta_var[0] + beta_var[1] * deptime)
+
+        # Improvement 2: I assume that depdelay is  bounded at 0 and only the variance is a function of deptime
+        depdelay = pm.HalfNormal('depdelay', sd=var, observed=data['depdelay'])
+
+        # Improvement 3: Replace the HalfNormal distribution with a BoundedNormal distribution to account also for the negative values
+        #BoundeNormal = pm.Bound(pm.Normal, lower=-10)
+        #depdelay = BoundeNormal('depdelay', mu=0, sd=var, observed=data['depdelay'])
+
+
+
 
     m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'DEP_TIME': deptime})
     if fit:
