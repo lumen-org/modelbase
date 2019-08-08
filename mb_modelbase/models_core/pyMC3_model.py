@@ -134,6 +134,9 @@ class ProbabilisticPymc3Model(Model):
                         varnames.append(varname+'_'+str(i))
                 else:
                     self.samples[varname] = trace[varname]
+
+
+
         # Generate samples for observed independent variables
         with self.model_structure:
             samples_independent_vars = []
@@ -200,8 +203,13 @@ class ProbabilisticPymc3Model(Model):
             if self.shared_vars:
                 for key, value in self.shared_vars.items():
                     value.set_value(self.data[key].values.tolist())
+
         # Add parameters to fields
-        self.fields = self.fields + get_numerical_fields(self.samples, varnames)
+        latent_fields = get_numerical_fields(self.samples, varnames)
+        for f in latent_fields:
+            f['obstype'] = 'latent'
+
+        self.fields = self.fields + latent_fields
         self._update_all_field_derivatives()
         self._init_history()
 

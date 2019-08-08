@@ -110,7 +110,8 @@ def get_discrete_fields(df, colnames):
 
 def get_numerical_fields(df, colnames):
     """Returns numerical fields constructed from the columns in colname of dataframe df.
-    This assumes colnames only contains names of numerical columns of df."""
+    This assumes colnames only contains names of numerical columns of df. Also, since fields are constructed from
+    a data frame the variables are assumes to be 'observed' and not latent."""
     fields = []
     for colname in colnames:
         column = df[colname]
