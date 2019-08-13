@@ -13,6 +13,10 @@ logger.setLevel(logging.INFO)
 
 
 class ModelWatcher(PatternMatchingEventHandler):
+    """
+    Modelbase which watches a folder and reacts to newly created *.mdl files
+    """
+    # files to react to
     patterns = ["*.mdl"]
 
     def __init__(self, modelbase):
@@ -21,6 +25,7 @@ class ModelWatcher(PatternMatchingEventHandler):
 
     def on_created(self, event):
         """
+        Loads new models into database and ignores already known models
 
         :param event:  event_type, is_directory, src_path
                     event_type = modified, created, moved, deleted
@@ -53,7 +58,7 @@ class ModelWatchObserver():
     def __init__(self):
         self.observer = Observer()
 
-    def _init_watchdog(self, modelbase, path):
+    def init_watchdog(self, modelbase, path):
         self.observer.schedule(ModelWatcher(modelbase), path=path)
         self.observer.start()
         # cleans the observer up at the end of the program

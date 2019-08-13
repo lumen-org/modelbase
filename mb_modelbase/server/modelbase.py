@@ -166,14 +166,15 @@ class ModelBase:
             else:
                 logger.info("Successfully loaded " + str(len(loaded_models)) + " models into the modelbase: ")
                 logger.info(str([model[0] for model in loaded_models]))
+
+        # init watchdog who oversees a given folder for new models
         modle_watch_observer = model_watchdog.ModelWatchObserver()
         try:
             logger.info("Files under {} are watched".format(self.model_dir))
-            modle_watch_observer._init_watchdog(self, self.model_dir)
+            modle_watch_observer.init_watchdog(self, self.model_dir)
         except Exception as err:
-            logger.info("OKAY...")
-            logger.exception(err)
             logger.exception("Watchdog failed!")
+            logger.exception(err)
 
     def __str__(self):
         return " -- Model Base > " + self.name + " < -- \n" + \
