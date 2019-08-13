@@ -24,6 +24,7 @@ setup(name='mb_modelbase',
           'pymc3',
           'pyopenssl',
           'sympy',
+          'watchdog'
       ],
       zip_safe=False)
 
