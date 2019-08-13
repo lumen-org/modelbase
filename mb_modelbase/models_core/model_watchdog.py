@@ -33,7 +33,7 @@ class ModelWatcher(PatternMatchingEventHandler):
                     src_path = path/to/observer
         :return:
         """
-        if not event.is_directory and event.src_path.rsplit("/", 1)[-1][:-4] not in self.modelbase.models.keys():
+        if not event.is_directory and event.src_path.rsplit("/", 1)[-1][:-4] not in self.modelbase.list_models():
             try:
                 model = gm.Model.load(str(event.src_path))
                 logger.info("File {} added".format(event.src_path.rsplit("/", 1)[-1]))
@@ -51,7 +51,7 @@ class ModelWatcher(PatternMatchingEventHandler):
         else:
             if not event.is_directory:
                 logger.info("Ignoring Model. Model with same name already exists".format(event.src_path.rsplit("/", 1)[-1]))
-                logger.info(self.modelbase.models.keys())
+                logger.info(self.modelbase.list_models())
 
 
 class ModelWatchObserver():
