@@ -251,6 +251,12 @@ class ProbabilisticPymc3Model(Model):
                 for varname in self.model_structure.observed_RVs:
                     sample[str(varname)] = [ppc[str(varname)][j][0] for j in range(ppc[str(varname)].shape[0])]
 
+        # Restore independent variables to previous values. This is necessary since pm.sample() requires same length
+        # of all variables
+        if self.shared_vars:
+            for key, value in self.shared_vars.items():
+                value.set_value(self.data[key].values.tolist())
+
         return sample
 
     def copy(self, name=None):
