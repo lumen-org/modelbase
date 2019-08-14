@@ -1,25 +1,23 @@
-# Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de), Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
+# Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2019 Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
 
-from mb_modelbase.models_core.models import Model
-from mb_modelbase.utils.data_import_utils import get_numerical_fields
-from mb_modelbase.models_core import data_operations as data_op
-from mb_modelbase.models_core import data_aggregation as data_aggr
 import pymc3 as pm
 import numpy as np
 import pandas as pd
-import math
-from mb_modelbase.models_core.empirical_model import EmpiricalModel
-from mb_modelbase.models_core import data_operations as data_op
 from scipy import stats
 import scipy.optimize as sciopt
 import copy as cp
 from functools import reduce
+import theano
+
+from mb_modelbase.models_core.models import Model
+from mb_modelbase.utils.data_import_utils import get_numerical_fields
+
 
 class ProbabilisticPymc3Model(Model):
-    """
-    A Bayesian model built by the PyMC3 library is treated here.
+    """A Bayesian model built by the PyMC3 library is treated here.
 
-        Parameters:
+    Parameters:
 
         model_structure : a PyMC3 Model() instance
 
@@ -34,7 +32,7 @@ class ProbabilisticPymc3Model(Model):
 
         fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
 
-            Some probabilitsitc models require a fixed length of the data. This is important because normally
+            Some probabilistic models require a fixed length of the data. This is important because normally
             new data points are generated with a different length than the original data
     """
 
@@ -106,7 +104,7 @@ class ProbabilisticPymc3Model(Model):
         # If the samples have another data type than the original data, problems can arise. Therefore,
         # data types of the new samples are changed to the dtypes of the original data here
         if str(generated_samples.dtype) != self.shared_vars[key].dtype:
-            generated_samples = generated_samples.astype(self.shared_vars['years'].dtype)
+            generated_samples = generated_samples.astype(self.shared_vars[key].dtype)
         return generated_samples
 
     def _cartesian_product_of_samples(self, df):
@@ -136,6 +134,9 @@ class ProbabilisticPymc3Model(Model):
                         varnames.append(varname+'_'+str(i))
                 else:
                     self.samples[varname] = trace[varname]
+
+
+
         # Generate samples for observed independent variables
         with self.model_structure:
             samples_independent_vars = []
@@ -152,7 +153,9 @@ class ProbabilisticPymc3Model(Model):
                 # The first x rows of samples_independent_vars are therefore attached again at the end of the
                 # dataframe, where x is the difference to self.nr_of_posterior_samples
                 diff = self.nr_of_posterior_samples - len(samples_independent_vars)
-                samples_independent_vars = samples_independent_vars.append(samples_independent_vars.iloc[0:diff, :])
+                while diff > 0:
+                    samples_independent_vars = samples_independent_vars.append(samples_independent_vars.iloc[0:diff, :])
+                    diff = self.nr_of_posterior_samples - len(samples_independent_vars)
                 #
                 for col in samples_independent_vars:
                     #self.shared_vars[col].set_value(samples_independent_vars[col])
@@ -195,9 +198,18 @@ class ProbabilisticPymc3Model(Model):
                 for varname in self.model_structure.observed_RVs:
                     self.samples[str(varname)][nr_of_partitions*obs_per_partition:] = \
                         [ppc[str(varname)][j][obs_per_partition-1-j] for j in range(diff)]
+            # Set shared variables back to old values. This is necessary since PyMC3 sampling requires fixed dimensions
+            # of the data
+            if self.shared_vars:
+                for key, value in self.shared_vars.items():
+                    value.set_value(self.data[key].values.tolist())
 
         # Add parameters to fields
-        self.fields = self.fields + get_numerical_fields(self.samples, varnames)
+        latent_fields = get_numerical_fields(self.samples, varnames)
+        for f in latent_fields:
+            f['obstype'] = 'latent'
+
+        self.fields = self.fields + latent_fields
         self._update_all_field_derivatives()
         self._init_history()
 
@@ -265,23 +277,31 @@ class ProbabilisticPymc3Model(Model):
             density = kde.evaluate(x)[0]
             return density
 
-    def _negdensity(self,x):
+    def _negdensity(self, x):
         return -self._density(x)
 
-    def _sample(self):
-        sample = []
+    def _sample(self, n):
+        sample = pd.DataFrame()
         with self.model_structure:
-            trace = pm.sample(1,chains=1,cores=1)
+            # Create the samples for latent and observed variables.
+            # We only want to create the n samples one time, so set chains and cores to 1
+            trace = pm.sample(n, chains=1, cores=1)
             ppc = pm.sample_ppc(trace)
-            for varname in self.names:
-                if varname in [str(name) for name in self.model_structure.free_RVs]:
-                    sample.append(trace[varname][0])
-                elif varname in [str(name) for name in self.model_structure.observed_RVs]:
-                    sample.append(ppc[str(varname)][0][0])
+            # Concatenate the independent, latent and observed variables into one structure. In the current
+            # implementation, only the first value of the independent variables is used here
+            if self.shared_vars:
+                for varname,data in self.shared_vars.items():
+                    sample[varname] = np.repeat(data.get_value()[0],n)
+            for varname in ppc.keys():
+                sample[varname] = [elem[0] for elem in ppc[str(varname)]]
+            for varname in trace.varnames:
+                if len(trace[varname].shape) == 1:
+                    sample[varname] = trace[varname]
+                # One variable name in trace can hold multiple random variables
                 else:
-                    raise ValueError("Unexpected error: variable name " + varname +  " is not found in the PyMC3 model")
-
-        return (sample)
+                    for i in range(trace[varname].shape[1]):
+                        sample[varname+'_'+str(i)] = [elem[i] for elem in trace[varname]]
+        return sample
 
     def copy(self, name=None):
         name = self.name if name is None else name
@@ -293,6 +313,16 @@ class ProbabilisticPymc3Model(Model):
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples.copy()
+
+        #Copy shared_vars
+        mycopy.shared_vars = {}
+        if self.shared_vars:
+            for key, value in self.shared_vars.items():
+                mycopy.shared_vars[key] = theano.shared(value.get_value().copy())
+        mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
+        mycopy.fixed_data_length = self.fixed_data_length
+        mycopy.set_empirical_model_name(self._empirical_model_name)
+
         return mycopy
 
     def _maximum(self):

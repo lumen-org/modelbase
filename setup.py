@@ -21,8 +21,10 @@ setup(name='mb_modelbase',
           'multiprocessing_on_dill',
           'pyopenssl',
           'spflow',
+          'pymc3',
           'pyopenssl',
           'sympy',
+          'watchdog'
       ],
       zip_safe=False)
 
