@@ -1459,6 +1459,12 @@ class Model:
     def save(self, dir, filename=None):
         """Store the model to a file at `filename`.
 
+        Args:
+            dir: string
+                Path to folder where to save the model
+            filename: string, optional.
+                Name of file (without path) where to save model. Defaults to self._default_filename().
+
         You can load a stored model using `Model.load()`.
         """
         if filename is None:

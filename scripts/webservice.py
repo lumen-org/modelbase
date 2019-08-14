@@ -59,20 +59,6 @@ def add_modelbase_module():
     mb = mbase.ModelBase(name=c['name'], model_dir=c['directory'])
     logger.info("... done (starting modelbase).")
 
-    # hooks for plug-ins
-    if c.get('spn_model_load_hook', False):
-        import spflow_dev
-        # load allbus model
-        _, spn_model = spflow_dev.spn_allbus()
-        mb.add(spn_model)
-
-        #load iris model
-        _, spn_model = spflow_dev.spn_iris()
-        mb.add(spn_model)
-
-
-
-
     @app.route(c['route'], methods=['GET', 'POST'])
     @cross_origin()  # allows cross origin requests
     def modebase_service():

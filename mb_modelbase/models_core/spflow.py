@@ -18,11 +18,14 @@ from spn.algorithms.Sampling import sample_instances
 from numpy.random.mtrand import RandomState
 from mb_modelbase.utils import data_import_utils as diu
 
+import os
 import numpy as np
 import functools
 import pandas as pd
 import copy as cp
 import dill
+import scipy.optimize as scpo
+from spn.algorithms.stats.Expectations import Expectation
 
 
 class SPNModel(Model):
@@ -55,42 +58,40 @@ class SPNModel(Model):
         untouched variables are represented with 2
         """
         self._density_mask = np.array(
-            [np.nan if i in self._marginalized else 1 if i in self._conditioned else 2 for i in self._initial_names]
+            [
+                np.nan if i in self._marginalized else 1
+                if i in self._conditioned else 2
+                for i in self._initial_names
+            ]
         ).reshape(-1, self._initial_names_count).astype(float)
         return self
 
     def _set_data(self, df, drop_silently, **kwargs):
-        all, cat, num = diu.get_columns_by_dtype(df)
+        self._set_data_mixed(df, drop_silently)
+
+        data = self.data
+        all, cat, num = diu.get_columns_by_dtype(data)
 
         # Construct pandas categorical for each categorical variable
         self._categorical_variables = {
-            name: { 'categorical':pd.Categorical(df[name])} for name in cat
+            name: {'categorical': pd.Categorical(data[name])} for name in cat
         }
 
         # Construct inverse dictionary for all categorical variables to use in the function _density
-        for k,v in self._categorical_variables.items():
+        for k, v in self._categorical_variables.items():
             name_to_int = dict()
             int_to_name = dict()
-
-            inverse_mapping = dict()
             categorical = v['categorical']
             expressions = categorical.unique()
+
             for i, name in enumerate(expressions):
                 name_to_int[name] = i
                 int_to_name[i] = name
 
-            codes = categorical.codes
-
-            #for i, code in enumerate(codes):
-            #    inv = categorical[i]
-            #    inverse_mapping[inv] = code
-            #v['inverse_mapping'] = inverse_mapping
             v['name_to_int'] = name_to_int
             v['int_to_name'] = int_to_name
 
-        self._set_data_mixed(df, drop_silently)
-
-    def _fit(self, var_types=None):
+    def _fit(self, var_types=None, **kwargs):
         df = self.data.copy()
         # Exchange all object columns for their codes
         for key, value in self._categorical_variables.items():
@@ -138,15 +139,23 @@ class SPNModel(Model):
 
     def _marginalizeout(self, keep, remove):
         self._marginalized = self._marginalized.union(remove)
-        # self._spn = marginalize(self._spn, self.asindex(keep))
+        self._spn = marginalize(self._spn, [self._initial_names_to_index[x] for x in keep])
         return self._unbound_updater,
 
     def _conditionout(self, keep, remove):
         self._conditioned = self._conditioned.union(remove)
-        condvalues = self._categorical_to_numeric(self._condition_values(remove))
+        condition_values = self._condition_values(remove)
+
+        # Exchange named expressions of categorical variables to int
+        condition_values = [
+            i if type(condition_values[i]) is str
+            else self._categorical_variables[remove[i]]['name_to_int'][condition_values[i]]
+            for i in range(len(remove))
+        ]
+
         old_indices = [self._initial_names_to_index[name] for name in remove]
         for i in range(len(remove)):
-            self._condition[0, old_indices[i]] = condvalues[i]
+            self._condition[0, old_indices[i]] = condition_values[i]
         return self._unbound_updater,
 
     def _density(self, x):
@@ -177,27 +186,55 @@ class SPNModel(Model):
         res = likelihood(self._spn, input)
         return res[0][0]
 
-    def save(self, filename, *args, **kwargs):
+    def save(self, dir, filename=None, *args, **kwargs):
         """Store the model to a file at `filename`.
 
         You can load a stored model using `Model.load()`.
         """
-        with open(filename, 'wb') as output:
+        if filename is None:
+            filename = self._default_filename()
+        path = os.path.join(dir, filename)
+
+        with open(path, 'wb') as output:
             dill.dump(self, output, dill.HIGHEST_PROTOCOL)
 
-    def _maximum(self):
-        return 0.1
+    def _average(self):
+        e = Expectation(self._spn)
+        return e
 
-    def _sample(self, random_state=RandomState(123)):
-        placeholder = self._condition.copy()
+    def _maximum(self):
+        fun = lambda x : -1 * self._density(x)
+        xmax = None
+        xlength = len(self.names)
+
+        #startVectors = self.data.sample(20).values
+        startVectors = self.data.mean()
+
+        for x0 in startVectors:
+            xopt = scpo.minimize(fun, x0, method='Nelder-Mead')
+            if xmax is None or self._density(xmax) <= self._density(xopt.x):
+                xmax = xopt.x
+        return xmax
+
+    def _sample(self, n=1, random_state=RandomState(123)):
+        placeholder = np.repeat(np.array(self._condition), n, axis=0)
         s = sample_instances(self._spn, placeholder, random_state)
+
         indices = [self._initial_names_to_index[name] for name in self.names]
         result = s[:, indices]
-        result = result.reshape(len(self.names)).tolist()
+        result = result.tolist()
 
-        for i in range(len(result)):
-            if self.names[i] in self._categorical_variables:
-                result[i] = self._categorical_variables[self.names[i]]['int_to_name'][round(result[i])]
+        # performance shortcuts
+        names = self.names
+        cat_vars = self._categorical_variables
+
+        # convert integers back to categorical names
+        # TODO: double for loop ... :-(
+        for r in result:
+            for i in range(len(r)):
+                if names[i] in cat_vars:
+                    r[i] = cat_vars[names[i]]['int_to_name'][round(r[i])]
+
         return result
 
     def copy(self, name=None):
@@ -212,7 +249,6 @@ class SPNModel(Model):
         mycopy._density_mask = self._density_mask.copy()
         mycopy._condition = self._condition.copy()
         mycopy._categorical_variables = self._categorical_variables.copy()
-        #mycopy._pandas_data_types = self._pandas_data_types.copy()
         mycopy._initial_names_to_index = self._initial_names_to_index.copy()
         return mycopy
 
