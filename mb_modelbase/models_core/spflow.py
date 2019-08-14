@@ -18,6 +18,7 @@ from spn.algorithms.Sampling import sample_instances
 from numpy.random.mtrand import RandomState
 from mb_modelbase.utils import data_import_utils as diu
 
+import os
 import numpy as np
 import functools
 import pandas as pd
@@ -66,33 +67,31 @@ class SPNModel(Model):
         return self
 
     def _set_data(self, df, drop_silently, **kwargs):
-        all, cat, num = diu.get_columns_by_dtype(df)
+        self._set_data_mixed(df, drop_silently)
+
+        data = self.data
+        all, cat, num = diu.get_columns_by_dtype(data)
 
         # Construct pandas categorical for each categorical variable
         self._categorical_variables = {
-            name: { 'categorical': pd.Categorical(df[name])} for name in cat
+            name: {'categorical': pd.Categorical(data[name])} for name in cat
         }
 
         # Construct inverse dictionary for all categorical variables to use in the function _density
         for k, v in self._categorical_variables.items():
             name_to_int = dict()
             int_to_name = dict()
-
-            inverse_mapping = dict()
             categorical = v['categorical']
             expressions = categorical.unique()
+
             for i, name in enumerate(expressions):
                 name_to_int[name] = i
                 int_to_name[i] = name
 
-            codes = categorical.codes
-
             v['name_to_int'] = name_to_int
             v['int_to_name'] = int_to_name
 
-        self._set_data_mixed(df, drop_silently)
-
-    def _fit(self, var_types=None):
+    def _fit(self, var_types=None, **kwargs):
         df = self.data.copy()
         # Exchange all object columns for their codes
         for key, value in self._categorical_variables.items():
@@ -187,12 +186,16 @@ class SPNModel(Model):
         res = likelihood(self._spn, input)
         return res[0][0]
 
-    def save(self, filename, *args, **kwargs):
+    def save(self, dir, filename=None, *args, **kwargs):
         """Store the model to a file at `filename`.
 
         You can load a stored model using `Model.load()`.
         """
-        with open(filename, 'wb') as output:
+        if filename is None:
+            filename = self._default_filename()
+        path = os.path.join(dir, filename)
+
+        with open(path, 'wb') as output:
             dill.dump(self, output, dill.HIGHEST_PROTOCOL)
 
     def _average(self):
