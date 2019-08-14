@@ -122,7 +122,16 @@ class ProbabilisticPymc3Model(Model):
         self.samples = self._sample(self.nr_of_posterior_samples)
 
         # Add parameters to fields
-        latent_fields = get_numerical_fields(self.samples, [str(var) for var in self.model_structure.unobserved_RVs])
+        varnames = [str(var) for var in self.model_structure.unobserved_RVs]
+        for varname in self.model_structure.unobserved_RVs:
+            # check if trace consists of more than one variable. Below expression is not empty when that is the case
+            if varname.distribution.shape:
+                # Remove old varname
+                varnames.remove(str(varname))
+                # Insert new varnames
+                for i in range(varname.distribution.shape.item()):
+                    varnames.append(str(varname) + '_' + str(i))
+        latent_fields = get_numerical_fields(self.samples, varnames)
         for f in latent_fields:
             f['obstype'] = 'latent'
 
