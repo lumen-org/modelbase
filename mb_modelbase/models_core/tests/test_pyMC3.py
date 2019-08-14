@@ -193,6 +193,52 @@ class TestMethodsOnFittedModel(unittest.TestCase):
             self.assertEqual(mymod.samples.equals(mymod_copy.samples), 1,
                              "Copied samples are different than original samples. Model: " + mymod.name)
 
+    def testcopy_after_change(self):
+        """ Test if copied attributes change when the original model is changed"""
+        for data, mymod in copy.deepcopy(models_fitted):
+            mymod_copy = mymod.copy()
+            #Test name
+            old_name = mymod.name
+            new_name = 'qwertzuiopü'
+            mymod.name = new_name
+            self.assertTrue(mymod_copy.name == old_name,
+                            "Name of copy is affected by changes in original model. Model: " + mymod.name)
+            #Test data
+            old_data = mymod.data.copy()
+            new_data = mymod.data + 1
+            mymod._set_data(new_data, drop_silently=True)
+            self.assertTrue(mymod_copy.data.equals(old_data),
+                            "Data of copy is affected by changes in original model. Model: " + mymod.name)
+            #Test_test_data
+            old_test_data = mymod.test_data.copy()
+            new_test_data = mymod.test_data + 1
+            mymod.test_data = new_test_data
+            self.assertTrue(mymod_copy.test_data.equals(old_test_data),
+                            "Test data of copy is affected by changes in original model. Model: " + mymod.name)
+            #Test samples
+            old_samples = mymod.samples.copy()
+            new_samples = mymod._sample(50)
+            mymod.samples = new_samples
+            self.assertTrue(mymod_copy.samples.equals(old_samples),
+                            "Samples of copy are affected by changes in original model. Model: " + mymod.name)
+
+            #Test shared vars
+            if mymod.shared_vars:
+                for key, value in mymod.shared_vars.items():
+                    old_shared_vars = mymod.shared_vars[key].get_value()
+                    mymod.shared_vars[key].set_value(value+1)
+                    self.assertTrue(mymod_copy.shared_vars[key].get_value() == old_shared_vars,
+                                    "Shared variables of copy are affected by changes in original model. "
+                                    "Model: " + mymod.name)
+
+            #Test empricial_model_name
+            old_emp_name = mymod._empirical_model_name
+            new_emp_name = 'qwertzuiopü'
+            mymod.set_empirical_model_name(new_emp_name)
+            self.assertTrue(mymod_copy._empirical_model_name == old_emp_name,
+                            "Empricial model name of copy is affected by changes in original model. "
+                            "Model: " + mymod.name)
+
     def test_marginalizeout(self):
         """
         Call _marginalizeout on a fitted model. Check if the correct variables are removed from the model
