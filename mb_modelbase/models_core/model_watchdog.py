@@ -36,7 +36,7 @@ class ModelWatcher(PatternMatchingEventHandler):
         if not event.is_directory and event.src_path.rsplit("/", 1)[-1][:-4] not in self.modelbase.list_models():
             try:
                 model = gm.Model.load(str(event.src_path))
-                logger.info("File {} added".format(event.src_path.rsplit("/", 1)[-1]))
+                logger.info("Loaded model from added File {}".format(event.src_path.rsplit("/", 1)[-1]))
             except TypeError as err:
                 logger.warning('file "' + event.src_path.rsplit("/", 1)[-1] +
                                '" matches the naming pattern but does not contain a model instance. '
