@@ -271,8 +271,8 @@ class ProbabilisticPymc3Model(Model):
         mycopy.samples = self.samples.copy()
 
         #Copy shared_vars
-        mycopy.shared_vars = {}
         if self.shared_vars:
+            mycopy.shared_vars = {}
             for key, value in self.shared_vars.items():
                 mycopy.shared_vars[key] = theano.shared(value.get_value().copy())
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
