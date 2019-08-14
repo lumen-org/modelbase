@@ -204,7 +204,8 @@ class SPNModel(Model):
         xmax = None
         xlength = len(self.names)
 
-        startVectors = self.data.sample(6).values
+        #startVectors = self.data.sample(20).values
+        startVectors = self.data.mean()
 
         for x0 in startVectors:
             xopt = scpo.minimize(fun, x0, method='Nelder-Mead')
@@ -213,8 +214,8 @@ class SPNModel(Model):
         return xmax
 
     def _sample(self, random_state=RandomState(123)):
-        if self._spn_type == 'mspn':
-            raise NotImplementedError()
+        #if self._spn_type == 'mspn':
+        #    raise NotImplementkedError()
         placeholder = self._condition.copy()
         s = sample_instances(self._spn, placeholder, random_state)
         indices = [self._initial_names_to_index[name] for name in self.names]
