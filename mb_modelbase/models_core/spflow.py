@@ -216,17 +216,25 @@ class SPNModel(Model):
                 xmax = xopt.x
         return xmax
 
-    def _sample(self, random_state=RandomState(123)):
-        #if self._spn_type == 'mspn':
-        #    raise NotImplementkedError()
-        placeholder = self._condition.copy()
+    def _sample(self, n=1, random_state=RandomState(123)):
+        placeholder = np.repeat(np.array(self._condition), n, axis=0)
         s = sample_instances(self._spn, placeholder, random_state)
+
         indices = [self._initial_names_to_index[name] for name in self.names]
         result = s[:, indices]
-        result = result.reshape(len(self.names)).tolist()
-        for i in range(len(result)):
-            if self.names[i] in self._categorical_variables:
-                result[i] = self._categorical_variables[self.names[i]]['int_to_name'][round(result[i])]
+        result = result.tolist()
+
+        # performance shortcuts
+        names = self.names
+        cat_vars = self._categorical_variables
+
+        # convert integers back to categorical names
+        # TODO: double for loop ... :-(
+        for r in result:
+            for i in range(len(r)):
+                if names[i] in cat_vars:
+                    r[i] = cat_vars[names[i]]['int_to_name'][round(r[i])]
+
         return result
 
     def copy(self, name=None):
