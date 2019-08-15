@@ -276,12 +276,6 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
     # Reduce size of data to improve performance
     data = data.sample(n=1000, random_state=1)
 
-    # Improvement 3: Shift the delay data so that it is positive
-    shift = min(data['depdelay'])
-    data['depdelay'] -= shift
-    print('shift: ' + str(-shift))
-
-
     # Create shared variables
     deptime = theano.shared(np.array(data['DEP_TIME']))
 
@@ -295,15 +289,13 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
         # Improvement 1: Assume that variance is a linear function of time, instead of uniformly distributed
         var = pm.math.abs_(beta_var[0] + beta_var[1] * deptime)
 
+        # Improvement 3: Apply a shift to the data so that the HalfNormalDistribution fits better
+        shift = min(data['depdelay'])
+        print('shift: ' + str(-shift))
+
         # Improvement 2: I assume that depdelay is  bounded at 0 and only the variance is a function of deptime
-        depdelay = pm.HalfNormal('depdelay', sd=var, observed=data['depdelay'])
-
-        # Improvement 3: Replace the HalfNormal distribution with a BoundedNormal distribution to account also for the negative values
-        #BoundeNormal = pm.Bound(pm.Normal, lower=-10)
-        #depdelay = BoundeNormal('depdelay', mu=0, sd=var, observed=data['depdelay'])
-
-
-
+        shifted_depdelay = pm.HalfNormal('shifted_depdelay', sd=var, observed=data['depdelay']-shift)
+        depdelay = shifted_depdelay + shift
 
     m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'DEP_TIME': deptime})
     if fit:
