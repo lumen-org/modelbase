@@ -244,7 +244,7 @@ class ProbabilisticPymc3Model(Model):
 
     def copy(self, name=None):
         name = self.name if name is None else name
-        mycopy = self.__class__(name, self.model_structure)
+        mycopy = self.__class__(name, self.model_structure, self.shared_vars)
         mycopy.data = self.data.copy()
         mycopy.test_data = self.test_data.copy()
         mycopy.fields = cp.deepcopy(self.fields)
@@ -254,10 +254,10 @@ class ProbabilisticPymc3Model(Model):
         mycopy.samples = self.samples.copy()
 
         #Copy shared_vars
-        if self.shared_vars:
-            mycopy.shared_vars = {}
-            for key, value in self.shared_vars.items():
-                mycopy.shared_vars[key] = theano.shared(value.get_value().copy())
+        #if self.shared_vars:
+        #    mycopy.shared_vars = {}
+        #    for key, value in self.shared_vars.items():
+        #        mycopy.shared_vars[key] = theano.shared(value.get_value().copy())
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
         mycopy.fixed_data_length = self.fixed_data_length
         mycopy.set_empirical_model_name(self._empirical_model_name)
