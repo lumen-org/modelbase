@@ -52,6 +52,9 @@ class ProbabilisticPymc3Model(Model):
 
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently, split_data=False)
+        if self.shared_vars:
+            for name in list(self.shared_vars.keys()):
+                self.shared_vars[name].set_value(self.data[name])
         self._update_all_field_derivatives()
         # Enforce usage of theano shared variables for independent variables
         # Independent variables are those variables which appear in the data but not in the RVs of the model structure
