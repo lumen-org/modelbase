@@ -247,9 +247,7 @@ class TestMethodsOnFittedModel(unittest.TestCase):
         for data, mymod in copy.deepcopy(models_fitted):
             if mymod.shared_vars:
                 mymod_cp = mymod.copy()
-                # Make sure _sample works until now
-                mymod_cp._sample(1)
-                key = mymod_cp.shared_vars.keys()[0]
+                key = list(mymod_cp.shared_vars.keys())[0]
                 mymod_cp.shared_vars[key].set_value([1, 2, 3, 4])
                 # _sample should not work anymore since the variables have now different lengths
                 with self.assertRaises(ValueError):
