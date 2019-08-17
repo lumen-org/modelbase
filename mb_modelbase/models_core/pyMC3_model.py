@@ -48,7 +48,7 @@ class ProbabilisticPymc3Model(Model):
         self.shared_vars = shared_vars
         self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
-        self.check_data_and_shared_vars_on_equality()
+ 
 
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently, split_data=False)
@@ -281,5 +281,5 @@ class ProbabilisticPymc3Model(Model):
 
     def check_data_and_shared_vars_on_equality(self):
         if self.shared_vars:
-            for name in list(self.shared_vars.keys):
+            for name in list(self.shared_vars.keys()):
                 assert self.shared_vars[name] == self.data[name]
