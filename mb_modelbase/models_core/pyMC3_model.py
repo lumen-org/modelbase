@@ -74,30 +74,6 @@ class ProbabilisticPymc3Model(Model):
                 'that you pass the data for each independent variable as theano shared variable to the constructor'
         return ()
 
-    def _check_for_datadependent_priors(self):
-        if self.shared_vars:
-            data_dependent_prior = False
-            for varname in self.model_structure.unobserved_RVs:
-                # Get a probability from the prior
-                logp1 = varname.distribution.logp(0)
-                # Change independent data
-                old_ind = cp.deepcopy(self.shared_vars)
-                for key,value in self.shared_vars:
-                    new_ind = np.random.uniform(0,1,size=len(value))
-                    self.shared_vars[key].set_value(new_ind)
-                # Get a second probability from the prior
-                logp2 = varname.distribution.logp(0)
-                # The two probabilities should be equal, if the prior is not dependent on the data
-                if logp1 != logp2:
-                    data_dependent_prior = True
-                # Change independent variables back to previous values
-                for key,value in self.shared_vars:
-                    self.shared_vars[key].set_value(old_ind[key])
-
-            if data_dependent_prior:
-                raise ValueError('A parameter of the model seems to be directly parametrized by data. '
-                                 'This kind of model is not supported')
-
     def _generate_samples_for_independent_variable(self, key, size):
         lower_bound = self.byname(key)['extent'].value()[0]
         upper_bound = self.byname(key)['extent'].value()[1]
