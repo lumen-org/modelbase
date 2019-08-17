@@ -48,6 +48,7 @@ class ProbabilisticPymc3Model(Model):
         self.shared_vars = shared_vars
         self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
+        self.check_data_and_shared_vars_on_equality()
 
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently, split_data=False)
@@ -72,6 +73,7 @@ class ProbabilisticPymc3Model(Model):
             assert len(missing_vars) == 0, \
                 'The following independent variables do not appear in shared_vars:' + str(missing_vars) + ' Make sure '\
                 'that you pass the data for each independent variable as theano shared variable to the constructor'
+        self.check_data_and_shared_vars_on_equality()
         return ()
 
     def _generate_samples_for_independent_variable(self, key, size):
@@ -142,6 +144,7 @@ class ProbabilisticPymc3Model(Model):
                 if self.shared_vars is not None:
                     if varname in self.shared_vars:
                         del self.shared_vars[varname]
+        self.check_data_and_shared_vars_on_equality()
         return ()
 
     def _conditionout(self, keep, remove):
@@ -233,6 +236,7 @@ class ProbabilisticPymc3Model(Model):
             for key, value in self.shared_vars.items():
                 value.set_value(self.data[key].values.tolist())
 
+        self.check_data_and_shared_vars_on_equality()
         return sample
 
     def copy(self, name=None):
@@ -254,6 +258,8 @@ class ProbabilisticPymc3Model(Model):
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
         mycopy.fixed_data_length = self.fixed_data_length
         mycopy.set_empirical_model_name(self._empirical_model_name)
+        self.check_data_and_shared_vars_on_equality()
+        mycopy.check_data_and_shared_vars_on_equality()
 
         return mycopy
 
@@ -273,3 +279,7 @@ class ProbabilisticPymc3Model(Model):
             return np.full(len(x0), np.nan)
         return maximum
 
+    def check_data_and_shared_vars_on_equality(self):
+        if self.shared_vars:
+            for name in list(self.shared_vars.keys):
+                assert self.shared_vars[name] == self.data[name]
