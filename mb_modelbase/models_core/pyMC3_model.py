@@ -142,12 +142,14 @@ class ProbabilisticPymc3Model(Model):
         # Remove all variables in remove
         for varname in remove:
             if varname in list(self.samples.columns):
-                self.samples = self.samples.drop(varname,axis=1)
-            if hasattr(self, 'shared_vars'):
-                if self.shared_vars is not None:
-                    if varname in self.shared_vars:
-                        del self.shared_vars[varname]
-        self.check_data_and_shared_vars_on_equality()
+                self.samples = self.samples.drop(varname, axis=1)
+            # if hasattr(self, 'shared_vars'):
+            #     if self.shared_vars is not None:
+            #         if varname in self.shared_vars:
+            #             del self.shared_vars[varname]
+        #self.check_data_and_shared_vars_on_equality()
+        #
+        #
         return ()
 
     def _conditionout(self, keep, remove):
@@ -234,7 +236,7 @@ class ProbabilisticPymc3Model(Model):
                     sample[str(varname)] = [ppc[str(varname)][j][0] for j in range(ppc[str(varname)].shape[0])]
 
         # Restore independent variables to previous values. This is necessary since pm.sample() requires same length
-        # of all variables
+        # of all variables and also all copies of a model use the same shared variables
         if self.shared_vars:
             for key, value in self.shared_vars.items():
                 value.set_value(self.data[key].values.tolist())
@@ -284,5 +286,6 @@ class ProbabilisticPymc3Model(Model):
 
     def check_data_and_shared_vars_on_equality(self):
         if self.shared_vars:
-            for name in list(self.shared_vars.keys()):
-                assert np.array_equal(self.shared_vars[name].get_value(), self.data[name])
+            if not self.data.empty:
+                for name in list(self.shared_vars.keys()):
+                    assert np.array_equal(self.shared_vars[name].get_value(), self.data[name])
