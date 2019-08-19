@@ -226,7 +226,7 @@ class TestMethodsOnFittedModel(unittest.TestCase):
             if mymod.shared_vars:
                 for key, value in mymod.shared_vars.items():
                     old_shared_vars = value.get_value()
-                    mymod.shared_vars[key].set_value(old_shared_vars+1)
+                    mymod._sample(10)
                     self.assertTrue(np.array_equal(mymod_copy.shared_vars[key].get_value(), old_shared_vars),
                                     "Shared variables of copy are affected by changes in original model. "
                                     "Model: " + mymod.name)
@@ -321,9 +321,18 @@ class TestMethodsOnFittedModel(unittest.TestCase):
                              "Dimension of the maximum does not match dimension of the model. Model: " + mymod.name)
 
     def test_sample(self):
+        """
+        Test if _sample() return the correct dimensions
+        """
         for data, mymod in copy.deepcopy(models_fitted):
             n = 10
             self.assertEqual(mymod.sample(n).shape[0],  n, 'Number of samples is not correct')
+            self.assertEqual(mymod.sample(n).shape[1], mymod.samples.shape[1],
+                             'Number of variables returned by _sample() is not correct')
+            if mymod.shared_vars:
+                mymod.marginalize(remove=list(mymod.shared_vars.keys())[0])
+                self.assertEqual(mymod.sample(n).shape[1], mymod.samples.shape[1],
+                                 'Number of variables returned by _sample() after marginalizing is not correct')
 
 
 class TestMoreCombinationsOnModel(unittest.TestCase):
