@@ -201,7 +201,7 @@ class ProbabilisticPymc3Model(Model):
         if self.shared_vars is not None:
             samples_independent_vars = pd.DataFrame(columns=self.shared_vars.keys())
             data_independent_vars = pd.DataFrame(columns=self.shared_vars.keys())
-            for name, value in self.shared_vars:
+            for name, value in self.shared_vars.items():
                 data_independent_vars[name] = value.get_value()
             # Draw without replacement from the observed data. If more values should be drawn than there are in the
             # data, take the whole data multiple times
