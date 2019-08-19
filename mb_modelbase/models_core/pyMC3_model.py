@@ -199,12 +199,8 @@ class ProbabilisticPymc3Model(Model):
 
         # Generate samples for observed independent variables
         if self.shared_vars is not None:
-            # shared_vars holds independent variables, even the ones that were marginalized out earlier.
-            # data holds only variables that are in the current model, but also dependent variables.
-            # To get all independent variables of the current model, pick all variables that appear in both
-            independent_var_names = [name for name in self.shared_vars.keys() if name in self.data.columns]
-            samples_independent_vars = pd.DataFrame(columns=independent_var_names)
-            data_independent_vars = self.data.loc[:, independent_var_names]
+            samples_independent_vars = pd.DataFrame(columns=self.shared_vars.keys())
+            data_independent_vars = self.data.loc[:, self.shared_vars.keys()]
             # Draw without replacement from the observed data. If more values should be drawn than there are in the
             # data, take the whole data multiple times
             data_fits_in_n = math.floor(n/len(self.data))
@@ -212,7 +208,11 @@ class ProbabilisticPymc3Model(Model):
                 samples_independent_vars = samples_independent_vars.append(data_independent_vars.copy())
             samples_independent_vars = samples_independent_vars.append(
                 data_independent_vars.sample(n-data_fits_in_n*len(self.data), replace=False))
-            for varname in samples_independent_vars:
+            # shared_vars holds independent variables, even the ones that were marginalized out earlier.
+            # data holds only variables that are in the current model, but also dependent variables.
+            # To get all independent variables of the current model, pick all variables that appear in both
+            independent_var_names = [name for name in self.shared_vars.keys() if name in self.data.columns]
+            for varname in independent_var_names:
                 sample[varname] = samples_independent_vars[varname].values
 
         # Generate samples for observed dependent variables
