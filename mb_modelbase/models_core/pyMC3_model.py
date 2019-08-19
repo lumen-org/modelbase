@@ -231,8 +231,9 @@ class ProbabilisticPymc3Model(Model):
         # Restore independent variables to previous values. This is necessary since pm.sample() requires same length
         # of all variables and also all copies of a model use the same shared variables
         if self.shared_vars:
-            for key, value in self.shared_vars.items():
-                value.set_value(self.data[key].values.tolist())
+            for col in self.data:
+                if col in self.shared_vars.keys():
+                    self.shared_vars[col].set_value(self.data[col].values.tolist())
 
         self.check_data_and_shared_vars_on_equality()
         return sample
