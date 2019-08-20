@@ -289,4 +289,4 @@ class ProbabilisticPymc3Model(Model):
             if not self.data.empty:
                 for name in list(self.shared_vars.keys()):
                     if name in self.data.columns:
-                        assert np.array_equal(self.shared_vars[name].get_value(), self.data[name])
+                        assert np.array_equal(self.shared_vars[name].get_value(), np.array(self.data[name]))
