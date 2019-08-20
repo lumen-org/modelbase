@@ -220,7 +220,9 @@ class ProbabilisticPymc3Model(Model):
 
         # Generate samples for observed dependent variables
         if self.shared_vars is not None:
+            shared_vars_org = {}
             for col in samples_independent_vars:
+                shared_vars_org[col] = self.shared_vars[col].get_value()
                 self.shared_vars[col].set_value(samples_independent_vars[col])
         with self.model_structure:
             ppc = pm.sample_ppc(trace)
@@ -238,9 +240,8 @@ class ProbabilisticPymc3Model(Model):
         # Restore independent variables to previous values. This is necessary since pm.sample() requires same length
         # of all variables and also all copies of a model use the same shared variables
         if self.shared_vars:
-            for col in self.data:
-                if col in self.shared_vars.keys():
-                    self.shared_vars[col].set_value(self.data[col].values.tolist())
+            for col in self.shared_vars.keys():
+                self.shared_vars[col].set_value(shared_vars_org[col])
 
         self.check_data_and_shared_vars_on_equality()
         return sample
