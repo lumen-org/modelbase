@@ -248,6 +248,11 @@ class ProbabilisticPymc3Model(Model):
 
     def copy(self, name=None):
         name = self.name if name is None else name
+        # Note: The shared_vars attribute is not copied. Rather, the same shared_vars object is
+        # used for EVERY copy of the model. Copying the object would be useless since the
+        # model_structure is linked with the original object nevertheless. This means that
+        # the shared vars attribute must not be changed permanently, because doing so would
+        # propagate to all model copies
         mycopy = self.__class__(name, self.model_structure, self.shared_vars)
         mycopy.data = self.data.copy()
         mycopy.test_data = self.test_data.copy()
@@ -256,12 +261,6 @@ class ProbabilisticPymc3Model(Model):
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples.copy()
-
-        #Copy shared_vars
-        #if self.shared_vars:
-        #    mycopy.shared_vars = {}
-        #    for key, value in self.shared_vars.items():
-        #        mycopy.shared_vars[key] = theano.shared(value.get_value().copy())
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
         mycopy.fixed_data_length = self.fixed_data_length
         mycopy.set_empirical_model_name(self._empirical_model_name)
