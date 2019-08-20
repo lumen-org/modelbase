@@ -50,6 +50,7 @@ class ProbabilisticPymc3Model(Model):
         self.fixed_data_length = fixed_data_length
 
 
+
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently, split_data=False)
         if self.shared_vars:
