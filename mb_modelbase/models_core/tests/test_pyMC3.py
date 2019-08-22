@@ -7,11 +7,11 @@ def create_testmodels(fit):
     models = []
     # These functions return the model data and the corresponding model
     models.append(cr.create_pymc3_simplest_model(fit=fit))
-    models.append(cr.create_pymc3_getting_started_model(fit=fit))
-    models.append(cr.create_pymc3_getting_started_model_independent_vars(fit=fit))
-    models.append(cr.create_pymc3_coal_mining_disaster_model(fit=fit))
-    models.append(cr.create_getting_started_model_shape(fit=fit))
-    models.append(cr.create_flight_delay_model(fit=fit))
+    #models.append(cr.create_pymc3_getting_started_model(fit=fit))
+    #models.append(cr.create_pymc3_getting_started_model_independent_vars(fit=fit))
+    #models.append(cr.create_pymc3_coal_mining_disaster_model(fit=fit))
+    #models.append(cr.create_getting_started_model_shape(fit=fit))
+    #models.append(cr.create_flight_delay_model(fit=fit))
     return models
 
 #models_unfitted = create_testmodels(fit=False)
@@ -203,12 +203,7 @@ class TestMethodsOnFittedModel(unittest.TestCase):
             mymod.name = new_name
             self.assertTrue(mymod_copy.name == old_name,
                             "Name of copy is affected by changes in original model. Model: " + mymod.name)
-            #Test data
-            old_data = mymod.data.copy()
-            new_data = mymod.data + 1
-            mymod._set_data(new_data, drop_silently=True)
-            self.assertTrue(mymod_copy.data.equals(old_data),
-                            "Data of copy is affected by changes in original model. Model: " + mymod.name)
+
             #Test_test_data
             old_test_data = mymod.test_data.copy()
             new_test_data = mymod.test_data + 1
