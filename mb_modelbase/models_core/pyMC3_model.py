@@ -52,6 +52,7 @@ class ProbabilisticPymc3Model(Model):
 
 
     def _set_data(self, df, drop_silently, **kwargs):
+        assert df.index.is_monotonic, 'The data is not sorted by index. Please sort data by index and try again'
         # Add column with index to df for later resorting
         df['index'] = df.index
         self._set_data_mixed(df, drop_silently, split_data=False)
