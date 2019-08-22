@@ -52,10 +52,25 @@ class ProbabilisticPymc3Model(Model):
 
 
     def _set_data(self, df, drop_silently, **kwargs):
+        # Add column with index to df for later resorting
+        df['index'] = df.index
         self._set_data_mixed(df, drop_silently, split_data=False)
-        if self.shared_vars:
-            for name in list(self.shared_vars.keys()):
-                self.shared_vars[name].set_value(self.data[name])
+        # TODO: This inserts a serious bug. Fix this
+        # Bug: I think that pm.sample() uses the original data values. When I change or shuffle the values of the
+        # independent variables, this leads to incorrect sampling results, since the data for the
+        # dependent variables cannot be changed (at least not with the current implementation).
+        # The data attribute however is shuffled during set_data_mixed. SO probably I should put the
+        # data back in the original order after set_data_mixed
+        # Sort data by original index to make it consistent again with the shared variables
+        # The other way (changing the shared vars to be consistent with the data) does not
+        # work since dependent variables would not be changed then
+        self.data.sort_values(by='index', inplace=True)
+        self.data.set_index('index', inplace=True)
+        # if self.shared_vars:
+        #     for name in list(self.shared_vars.keys()):
+        #         self.shared_vars[name].set_value(self.data[name])
+        self._update_all_field_derivatives()
+        self._update_remove_fields(to_remove=['index'])
         self._update_all_field_derivatives()
         # Enforce usage of theano shared variables for independent variables
         # Independent variables are those variables which appear in the data but not in the RVs of the model structure
