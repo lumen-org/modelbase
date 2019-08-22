@@ -61,6 +61,7 @@ class ProbabilisticPymc3Model(Model):
         # work since dependent variables would not be changed then
         self.data.sort_values(by='index', inplace=True)
         self.data.set_index('index', inplace=True)
+        df.set_index('index', inplace=True)
         self._update_all_field_derivatives()
         self._update_remove_fields(to_remove=['index'])
         self._update_all_field_derivatives()
