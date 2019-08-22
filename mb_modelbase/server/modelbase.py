@@ -170,7 +170,7 @@ class ModelBase:
         # init watchdog who oversees a given folder for new models
         modle_watch_observer = model_watchdog.ModelWatchObserver()
         try:
-            logger.info("Files under {} are watched".format(self.model_dir))
+            logger.info("Files under {} are watched for changes".format(self.model_dir))
             modle_watch_observer.init_watchdog(self, self.model_dir)
         except Exception as err:
             logger.exception("Watchdog failed!")
