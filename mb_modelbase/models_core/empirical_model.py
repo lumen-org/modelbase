@@ -76,9 +76,9 @@ class EmpiricalModel(Model):
         """Returns the point of the maximum density"""
         return data_aggr.aggregate_data(self._emp_data, 'maximum')
 
-    def _sample(self):
+    def _sample(self, n):
         """Returns random point of evidence"""
-        return self._emp_data.sample().tolist()  #[0] ?
+        return self._emp_data.sample(n, replace=True)
 
     def copy(self, name=None):
         """Returns a copy of this model."""

@@ -12,7 +12,7 @@ setup(name='mb_modelbase',
       install_requires=[
           'xarray',
           'numpy',
-          'pandas',
+          'pandas>=0.24',
           'scikit-learn',
           'scipy',
           'flask',
@@ -21,5 +21,10 @@ setup(name='mb_modelbase',
           'multiprocessing_on_dill',
           'pyopenssl',
           'spflow',
+          'pymc3',
+          'pyopenssl',
+          'sympy',
+          'watchdog'
       ],
       zip_safe=False)
+

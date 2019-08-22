@@ -74,6 +74,7 @@ def add_modelbase_module():
                 # process query
                 result = mb.execute(query)
                 logger.info('result of query:' + utils.truncate_string(str(result)))
+                # logger.info('result of query:' + str(result))
                 # return answer
                 return result
             except Exception as inst:

@@ -15,6 +15,8 @@ import numpy
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import pci_graph
+from mb_modelbase.models_core import models_predict
+from mb_modelbase.models_core import model_watchdog
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -77,7 +79,7 @@ class NumpyCompliantJSONEncoder(json.JSONEncoder):
 def _json_dumps(*args, **kwargs):
     """Shortcut to serialize objects with my NumpyCompliantJSONEncoder"""
     return json.dumps(*args, **kwargs, cls=NumpyCompliantJSONEncoder)
-    #return json.dumps(*args, **kwargs)
+    # return json.dumps(*args, **kwargs)
 
 
 def PQL_parse_json(query):
@@ -86,8 +88,8 @@ def PQL_parse_json(query):
     """
 
     def _predict(clause):
-        #TODO refactor: this should be a method of AaggregationTuple: e.g. AggregationTuple.fromJSON
-        #TODO refactor: density really is something else than an aggregation...
+        # TODO refactor: this should be a method of AaggregationTuple: e.g. AggregationTuple.fromJSON
+        # TODO refactor: density really is something else than an aggregation...
         def _aggrSplit(e):
             if isinstance(e, str):
                 return e
@@ -151,7 +153,7 @@ class ModelBase:
         self.model_dir = model_dir
 
         self.settings = {
-            'float_format': '%.5f',
+            'float_format': '%.8f',
         }
 
         # load some initial models to play with
@@ -164,6 +166,15 @@ class ModelBase:
             else:
                 logger.info("Successfully loaded " + str(len(loaded_models)) + " models into the modelbase: ")
                 logger.info(str([model[0] for model in loaded_models]))
+
+        # init watchdog who oversees a given folder for new models
+        modle_watch_observer = model_watchdog.ModelWatchObserver()
+        try:
+            logger.info("Files under {} are watched for changes".format(self.model_dir))
+            modle_watch_observer.init_watchdog(self, self.model_dir)
+        except Exception as err:
+            logger.exception("Watchdog failed!")
+            logger.exception(err)
 
     def __str__(self):
         return " -- Model Base > " + self.name + " < -- \n" + \
@@ -218,11 +229,11 @@ class ModelBase:
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        dir_ = Path(directory)
-
+        # dir_ = Path(directory)
         for key, model in self.models.items():
-            filepath = dir_.joinpath(model.name + ext)
-            gm.Model.save(model, str(filepath))
+            # filepath = dir_.joinpath(model.name + ext)
+            # gm.Model.save_static(model, str(filepath))
+            gm.Model.save_static(model, directory)
 
     def add(self, model, name=None):
         """ Adds a model to the model base using the given name or the models name. """
@@ -304,11 +315,33 @@ class ModelBase:
 
         elif 'PREDICT' in query:
             base = self._extractFrom(query)
+            predict_stmnt = self._extractPredict(query)
+            where_stmnt = self._extractWhere(query)
+            splitby_stmnt = self._extractSplitBy(query)
+
             resultframe = base.predict(
-                predict=self._extractPredict(query),
-                where=self._extractWhere(query),
-                splitby=self._extractSplitBy(query)
+                predict=predict_stmnt,
+                where=where_stmnt,
+                splitby=splitby_stmnt,
+                **self._extractOpts(query)
             )
+
+            # TODO: is this working?
+            if 'DIFFERENCE_TO' in query:  # query['DIFFERENCE_TO'] = 'mcg_iris_map'
+                base2 = self._extractDifferenceTo(query)
+                resultframe2 = base2.predict(
+                    predict=predict_stmnt,
+                    where=where_stmnt,
+                    splitby=splitby_stmnt
+                )
+                assert (resultframe.shape == resultframe2.shape)
+                aggr_idx = [i for i, o in enumerate(predict_stmnt)
+                            if models_predict.type_of_clause(o) != 'split']
+
+                # calculate the diff only on the _predicted_ variables
+                if len(aggr_idx) > 0:
+                    resultframe.iloc[:, aggr_idx] = resultframe.iloc[:, aggr_idx] - resultframe2.iloc[:, aggr_idx]
+
             return _json_dumps({"header": resultframe.columns.tolist(),
                                 "data": resultframe.to_csv(index=False, header=False,
                                                            float_format=self.settings['float_format'])})
@@ -321,7 +354,7 @@ class ModelBase:
             show = self._extractShow(query)
             if show == "HEADER":
                 model = self._extractFrom(query)
-                result = {"name": model.name,  "fields": model.json_fields()}
+                result = model.as_json()
             elif show == "MODELS":
                 result = {'models': self.list_models()}
             else:
@@ -343,7 +376,7 @@ class ModelBase:
             return _json_dumps({
                 'model': model.name,
                 'graph': graph
-                })
+            })
 
         else:
             raise QueryIncompleteError("Missing Statement-Type (e.g. DROP, PREDICT, SELECT)")
@@ -351,15 +384,25 @@ class ModelBase:
     ### _extract* functions are helpers to extract a certain part of a PQL query
     #   and do some basic syntax and semantic checks
 
-    def _extractFrom(self, query):
-        """ Returns the model that the value of the "FROM"-statement of query
+    def _extractModelByStatement(self, query, keyword):
+        """ Returns the model that the value of the <keyword<-statement of query
         refers to. """
-        if 'FROM' not in query:
-            raise QuerySyntaxError("'FROM'-statement missing")
-        modelName = query['FROM']
+        if keyword not in query:
+            raise QuerySyntaxError("{}-statement missing".format(keyword))
+        modelName = query[keyword]
         if modelName not in self.models:
             raise QueryValueError("The specified model does not exist: " + modelName)
         return self.models[modelName]
+
+    def _extractFrom(self, query):
+        """ Returns the model that the value of the "FROM"-statement of query
+        refers to. """
+        return self._extractModelByStatement(query, 'FROM')
+
+    def _extractDifferenceTo(self, query):
+        """ Returns the model that the value of the "DIFFERENCE_TO"-statement of query
+        refers to. """
+        return self._extractModelByStatement(query, 'DIFFERENCE_TO')
 
     def _extractShow(self, query):
         """ Extracts the value of the "SHOW"-statement from query."""
@@ -482,16 +525,18 @@ class ModelBase:
         else:
             return query['SELECT']
 
+
 if __name__ == '__main__':
     import models as md
+
     mb = ModelBase("mymb")
     iris = mb.models['iris']
     i2 = iris.copy()
     i2.marginalize(remove=["sepal_length"])
     print(i2.aggregate(method='maximum'))
     print(i2.aggregate(method='average'))
-    aggr = md.AggregationTuple(['sepal_width','petal_length'],'maximum','petal_length',[])
+    aggr = md.AggregationTuple(['sepal_width', 'petal_length'], 'maximum', 'petal_length', [])
     print(aggr)
 
-    #foo = cc.copy().model(["total", "alcohol"], [gm.ConditionTuple("alcohol", "equals", 10)])
+    # foo = cc.copy().model(["total", "alcohol"], [gm.ConditionTuple("alcohol", "equals", 10)])
     print(str(iris))

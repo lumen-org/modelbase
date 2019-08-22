@@ -3,11 +3,19 @@ import pandas as pd
 import pymc3 as pm
 import mb_modelbase as mbase
 import unittest
+from run_conf import cfg as user_cfg
 
 
+# Load model. The model first has to be created by create_PyMC3_testmodels.py
 
-# load model
-testcasemodel_path = '/home/guet_jn/Desktop/mb_data/data_models/pymc3_getting_started_model_independent_vars_fitted.mdl'
+try:
+    testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + \
+                     '/pymc3_getting_started_model_independent_vars_fitted.mdl'
+except KeyError:
+    print('Specify a test_model_directory in run_conf.py and create the model '
+          'pymc3_getting_started_model_independent_vars_fitted by calling create_PyMC3_testmodels.py')
+    raise
+
 mymod = mbase.Model.load(testcasemodel_path)
 
 
@@ -20,20 +28,6 @@ class Test(unittest.TestCase):
         self.assertTrue(len(mymod.data['X1']) > 0, "Data for independent variables should exist:X1")
         self.assertTrue(len(mymod.data['X2']) > 0, "Data for independent variables should exist:X2")
 
-    def test_test_data(self):
-        """
-        Test if test data for independent variables exists
-        """
-        self.assertTrue(mymod.test_data['X1'].isnull().all(), "Test data for independent variables should not exist:X1")
-        self.assertTrue(mymod.test_data['X2'].isnull().all(), "Test data for independent variables should not exist:X2")
-
-    def test_samples(self):
-        """
-        Test if samples were drawn for independent variables. There should be no samples for these variables,
-        which automatically ensures that no marginal distribution and no density for those variables can be computed.
-        """
-        self.assertTrue(mymod.samples['X1'].isnull().all(), "There should be no samples for independent variables: X1")
-        self.assertTrue(mymod.samples['X2'].isnull().all(), "There should be no samples for independent variables: X2")
 
     def test_prediction_dependent(self):
         """
@@ -42,15 +36,9 @@ class Test(unittest.TestCase):
         self.assertTrue(len(mymod.predict(mbase.models_core.base.Aggregation('Y'),
                                           splitby=mbase.models_core.base.Split('X1', 'equiinterval'))) > 0,
                         'It should be possible to predict a dependent variable conditioned on an independent one')
-        self.assertTrue(mymod.predict(mbase.models_core.base.Aggregation('Y'),
-                                          splitby=mbase.models_core.base.Split('X1', 'equiinterval')).isnull().values.all(),
-                        'prediction of a dependent variable conditioned on an independent one should not contain only NaNs')
         self.assertTrue(len(mymod.predict(mbase.models_core.base.Aggregation('Y'),
                                           splitby=mbase.models_core.base.Split('alpha', 'equiinterval'))) > 0,
                         'It should be possible to predict a dependent variable conditioned on another dependent variable')
-        self.assertTrue(mymod.predict(mbase.models_core.base.Aggregation('Y'),
-                                          splitby=mbase.models_core.base.Split('alpha', 'equiinterval')).isnull().values.all(),
-                        'prediction of a dependent variable conditioned on another dependent one should not contain only NaNs')
 
     def test_prediction_independent(self):
         """
@@ -63,10 +51,30 @@ class Test(unittest.TestCase):
                                       splitby=mbase.models_core.base.Split('X2', 'equiinterval')).isnull().all()[0],
                         'There should be no predictions for an independent variable conditioned on a dependent one')
 
-    def test_conditioning(self):
-        # How is the feature implemented that sets an arbitrary interval for a variable?
-        # It is not the conditioning method, I think, because that does not change the model
-        pass
+    def test_compare_full_data_with_samples(self):
+        for var in mymod.data:
+            if var in mymod.model_structure.free_RVs:
+                self.assertAlmostEqual(np.mean(mymod.data[var]), np.mean(mymod.samples[var]), 0,
+                                       'Mean of data and posterior samples for ' + var + ' should be similar')
+                self.assertAlmostEqual(np.var(mymod.data[var]), np.var(mymod.samples[var]), 0,
+                                       'Variance of data and posterior samples for ' + var + ' should be similar')
+
+    # This test fails at X1 = -3.31, even if the program works correctly, I think
+    def test_compare_conditioned_data_with_samples(self):
+        covariates = [field['name'] for field in mymod.fields if field['independent']]
+        variates = [var for var in mymod.data if var not in covariates]
+        for covariate in covariates:
+            for variate in variates:
+                # condition on each unique value of the covariates in samples
+                for val in mymod.samples[covariate].unique():
+                    conditioned_posterior_samples = mymod.samples[variate][mymod.samples[covariate] == val]
+                    conditioned_data = mymod.data[variate][(mymod.data[covariate] <= val + 1) & (mymod.data[covariate] >= val - 1)]
+                    self.assertAlmostEqual(np.mean(conditioned_data), np.mean(conditioned_posterior_samples), 0,
+                                           'Mean of conditioned data and samples should be similar. Variate: ' +
+                                           variate + ' Covariate: ' + covariate + ' covariate_value: '+ str(val))
+                    self.assertAlmostEqual(np.var(conditioned_data), np.var(conditioned_posterior_samples), 0,
+                                           'Variance of conditioned data and samples should be similar. Variate: ' +
+                                           variate + ' Covariate: ' + covariate + ' covariate_value: '+ str(val))
 
 if __name__ == "__main__":
 

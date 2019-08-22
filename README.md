@@ -2,71 +2,97 @@
 
 A SQL-like interface for python and the web to query data together with probability models on the data.
 
-Version: 0.9
+Version: 0.95
 
 ### Content ###
 
-The `modelbase` repository contains a full-developed and installable python-package called `mb_modelbase` and the associated directory `scripts`. 
+modelbase` can be used to model tabular data with generic probabilistic modelling as well to analyse, use and explore both, the fitted model as well as the data. To this end the fitted models offer different types of operations such as prediction, conditionalization or marginalization. Semantically equivalent operations, namely aggregation, row select and column selection are also available for data.
+ 
+An overview over the capabilities of `mb_modelbase` and a short introductory example can be found in the jupyter-notebook files `doc/Functions_overview.ipynb` and `doc/Intro_example.ipynb`. There it is shown how the python-package `mb_modelbase` is applied.
 
-The python-package `mb_modelbase` can be used for exploring all kinds of data sets with generic probabilistic modelling. The fitted models itself offer different types of operations such as prediction, conditionalization or marginalization. For using Lumen, `mb_modelbase` has to be installed as a python-package (For instructions see below). An overview over the functions of `mb_modelbase` and a short introductory example how the package could be used can be found in the jupyter-notebook files `doc/Functions_overview.ipynb` and `doc/Intro_example.ipynb`. Here it is shown how the python-package `mb_modelbase` is applied.
+We also developed [lumen](https://github.com/lumen-org/lumen), an interactive web application for exploration, comparision and validation of probability models and its data. For an online demo version see [here](http://lumen.inf-i2.uni-jena.de/). `lumen` uses the webservice interface of `modelbase`. 
 
-The script folder contains the important file `ajax.py` which is used for starting the backend of Lumen (see below). 
+### Repository Overview ###
 
-### Classification in the Lumen project ###
+The `modelbase` repository contains the python package `mb_modelbase` in the likewise named folder. 
+ 
+The folder `scripts` contains scripts to run an instance of the webservice-backend locally. In particular you may execute `webservice.py` to run the webservice as a local Flask app (see below). 
+ 
+The `docs` directory contains documentation and examples.
 
-The `modelbase` repository is the kernel of Lumen. Here all the central functions are located in the subdirectories such as the different models or utils. Combined with the `ajax.py` file in the script-folder, the backend of Lumen is complete.
+### The Lumen Project ###
 
-### Setup Lumen ###
+`modelbase` is part of a larger project, namely [Lumen](https://github.com/lumen-org). Within `Lumen` there exist two main projects: the back-end [modelbase](https://github.com/lumen-org/modelbase) and the front-end [lumen](https://github.com/lumen-org/lumen) (yeah, there is some name clash... :-p).
 
-For normal usage:
+The `modelbase` package is the kernel of Lumen. It provides a generic modelling and querying backend, similar to what data base management systems are for tabular data alone. 
+
+### Setup modelbase ###
+
+Requirements:
+
+ * `modelbase` requires python3
+
+For normal (non-development) usage:
 
 1. Clone this repository into a folder of your choice. Let's call it `<root>`.
 2. Install the `mb_modelbase` package locally, i.e, do `cd <root> && pip3 install .`
-3. Install the `CGModelSelection` package. This provides a model selection capabilities for various types of multivariate Gaussian and Conditional Gaussian (CG) models. **currently this package is not publicly available and unfortunately lumen will not work without it**. Get in touch with me or Frank Nussbaum for access. The repository is hosted [here](https://ci.inf-i2.uni-jena.de/ra86ted/CGmodelselection).
+3. Install the `CGModelSelection` package. This provides a model selection capabilities for various types of multivariate Gaussian and Conditional Gaussian (CG) models. **currently this package is not publicly available and unfortunately lumen will not fully work without it**. Get in touch with me or Frank Nussbaum for access. The repository is hosted [here](https://ci.inf-i2.uni-jena.de/ra86ted/CGmodelselection).
 
-What happens here? The command `pip3 install` calls the `setup.py` script and copies the package to one of the python paths, therefore the python modules can be found by the `ajax.py` script.
+For a development setup, see further below.
 
-### Updating modelbase ###
+### Updating modelbase
 
-Consequently, if you want to update the package you have to:
+Since you have installed it as a package in your local python installation, you have to to the following in order to update it to the latest repository version:
 1. uninstall the current version: `pip uninstall mb_modelbase`
 2. change into the local repository
 2. pull the latest version from the repo: `git pull origin master`
 3. install the latest version: `pip3 install .`
 
-### Running the modelbase backend ###
+### Using modelbase
 
-The repository contains the code for the python package `mb_modelbase` (in the folder with identical name). If you 
- followed the setup steps above this package is installed to your python environment. Apart from the package 
- the repo also contains the `scripts` directory, which we will use to run the backend. 
+`modelbase` provides three layers of APIs:
+
+1. a webservice that accepts JSON-formatted http/https requests with a SQL inspired syntax. See 'Running the modelbase webservice' and 'configuring the modelbase webservice' below.
+2. a python class `ModelBase`. An instance of that class is like a instance of a data base management system - just (also) for probabilistic models. Use its member methods to add, remove models and run queries against it. See the class documentation for more information.
+3. a python class `Model`, which is the base class of all concrete models implemented in `modelbase'. A instance of such a class hence represents one particular model. See the class documentation for more information. Also 
+
+### Running the modelbase webservice
+
+This repository contains the code for the python package `mb_modelbase` (in the folder with identical name). If you 
+ followed the setup steps above this package is installed to your python environment.
+Apart from the package the repo also contains the `scripts` directory which we will use to run the backend. 
 
 There is two intended ways to run the modelbase backend.
-1. execute `webservice.py`. This starts a simple Flask web server locally. Note that this should not be used for
-    production environments.
-2. run it as an WSGI application with (for example) apache2. For this end, the `modelbase.wsgi` file is provided.
+1. execute `webservice.py`. This starts a simple Flask web server locally. _Note that this should not be used for
+    production environments._
+2. run it as an WSGI application with (for example) apache2. To this end, the `modelbase.wsgi` file is provided. 
+
+When you start the webservice it will load the models from the directory you provided (see configuration options).
+
+### Configuring the modelbase webservice
 
 There is three ways to configure the backend. In order of precedence (highest to lowest):
-  * use command line arguments to `webservice.py`. Obviously, this cannot be used if you run modelbase as a WSGI
-    application. See `webservice.py --help` for options
-  * set options in `run_conf.py`. this is respected by both ways of running modelbase. See `default_run_conf.py` for
-    available options. Note that `run_conf.py` may not exists yet.
-  * set options in `default_run_conf.py`. Changing settings here is not recommended.
+  * use command line arguments to `webservice.py`. This cannot be used if you run modelbase as a WSGI
+    application. See `webservice.py --help` for available options.
+  * set options in `run_conf.py`. This is respected by both ways of running `modelbase` (see above). `run_conf.py` may have any subset of the options in `default_run_conf.py` and has the same format. Note that `run_conf.py` does initially *not* exist after cloning the project. To find out what options are available, please see `default_run_conf.py`.
+  * set options in `default_run_conf.py`. Changing settings here is not recommended. 
 
-Note:
- * once run the server doesn't immediatly necessarly produce any output on the command line. *that is normal*
+#### Hosting models 
+
+Notes:
+ * once run the server does not immediately necessarily produce any output on the command line. *that is normal*.
  * don't forget to activate your custom environment, *if you configured one in the process above*.
- * to actually use the backend, the frontend [Lumen](https://ci.inf-i2.uni-jena.de/gemod/pmv) can be used. 
 
-### Development Setup ###
+### Development Setup
 
 This section describes the _recommended_ development setup. 
 
 I recommend using PyCharm as an IDE. You can set the virtual python environment to use (if any specific) in PyCharm like [this](https://docs.continuum.io/anaconda/ide_integration#pycharm).
-Moreover, I recommend not installing it as a local package, but instead adding `<root>` to the path of python, which is defined in the variable `$PYTHONPATH`. This make the workflow faster, because you do not need to update the local installation when you changed the code in the repository. See as follows:
+Moreover, I recommend not installing it as a local package, but instead adding `<root>` (the path to your local clone of the repo) to the environment variable `$PYTHONPATH`. This make the workflow faster, because you do not need to update the local installation when you changed the code in the repository. See as follows:
 
-1. setup public key authentification for repository. This way you do not need to provide passwords when pulling/pushing.
-2. clone repository to local machine into <path>
-3. add <path> to PYTHONPATH environment variable in .profile (Linux) or in your system environvent variables (windows). This way the package under development is found by Python with the need to install it.
+1. setup public key authentication for the repository. This way you do not need to provide passwords when pulling/pushing.
+2. clone repository to local machine into `<root>`
+3. add `<root>` to `PYTHONPATH` environment variable in `.profile` (Linux) or in your system environment variables (windows). This way the package under development is found by Python without the need to install it.
    * Linux: `export PYTHONPATH="<path>:$PYTHONPATH"`
    * Windows: somewhere under advanced system settings ...
 4. install [PyCharm IDE](https://www.jetbrains.com/pycharm/)
@@ -81,25 +107,25 @@ Moreover, I recommend not installing it as a local package, but instead adding `
    * manually in a shell:
     1. change into `<path>`
     2. activate previously virtual environment 
-    3. `pip3 install -e .` to install depedencies of this package only
+    3. `pip3 install -e .` to install dependencies of this package only
 7. install CGModelSelection from [here](https://ci.inf-i2.uni-jena.de/ra86ted/CGmodelselection)
    * either install it as a python package locally or add the local repository directory to `PYTHONPATH` as above
    * if you do not install it as a python package, anyway install its dependencies using `pip3 install -e .` from the repo directory
-8. get data repository [from here](https://ci.inf-i2.uni-jena.de/gemod/mb_data)
+8. get tje data repository [from here](https://ci.inf-i2.uni-jena.de/gemod/mb_data)
    * either install it as a python package locally or add the local repository directory to `PYTHONPATH` as above.
-   * This repository provides prepared data and preset configurations to learn models from the data. As you probably want to change this every now an then as well, I recommend to not install the package but add it to `PYTHONPATH`, see above.
-9. get the lumen front-end [from here](https://ci.inf-i2.uni-jena.de/gemod/pmv)
+   * This repository provides prepared data set and preset configurations to learn models from the data. As you probably want to change this every now an then as well, I recommend to not install the package but add it to `PYTHONPATH`, see above.
+9. get the front-end [lumen](https://github.com/lumen-org/lumen)
    * you probably want the front-end as well.  See the README of the repository for more details.
 
 -----
  
 ### Contact ###
 
-For any questions, feedback, bug reports, feature requests, spam, etc please contact: [philipp.lucas@uni-jena.de](philipp.lucas@uni-jena.de).
+For any questions, feedback, bug reports, feature requests, spam, etc please contact: [philipp.lucas@dlr.de](philipp.lucas@dlr.de).
 
 ### Copyright and Licence ###
 
-© 2016-2018 Philipp Lucas (philipp.lucas@uni-jena.de)
+© 2016-2018 Philipp Lucas (philipp.lucas@dlr.de)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by

@@ -20,6 +20,10 @@ This module provides basic types required for describing and working with models
 """
 from collections import namedtuple
 
+
+AggregationMethods = {'maximum', 'average', 'density', 'probability'}  # possible method of an aggregation
+SplitMethods = {'elements', 'identity', 'equiinterval', 'equidist', 'data'}  # possible method of a split
+
 AggregationTuple = namedtuple('AggregationTuple', ['name', 'method', 'yields', 'args'])
 """An aggregation tuple describes an aggregation.
 
@@ -31,8 +35,8 @@ Note that is is optional to used these named tuples. Normal tuples may also be u
 Attributes:
     name : sequence of string 
         The names of the fields that is aggregated over.
-    method : string
-        The method to use for aggregation. Available methods depend on the model class.
+    method : string, see `AggregationMethods`
+        The method to use for aggregation.
     yields : string
         The name of the field that the resulting value will be of. 
     args 
@@ -47,8 +51,8 @@ See also `Split` for the recommended and more convenient way of creating split t
 Attributes:
     name : string
         The  name of the field to split.
-    method : string
-        The method to use to split. Available methods depend on the model class and the data type.
+    method : string, see `SplitMethods`
+        The method to use to split.
     args
         Additional arguments passed to the split function.
 """
@@ -77,13 +81,8 @@ Attributes:
 OP_IDX = 1
 VALUE_IDX = 2
 
-"""Internal utility functions: 
-For a number of interfaces we want to allow both: single name of fields or single fields, and sequences of these. 
-These function help to get them in a uniform way internally: sequences of names. 
-"""
 
-
-def Field(name, domain, extent, independent, dtype='numerical'):
+def Field(name, domain, extent, independent, dtype='numerical', obstype='observed'):
     """ A factory for 'Field'-dicts.
 
     Fields represent the dimensions, random variables or attributes of models.
@@ -94,9 +93,9 @@ def Field(name, domain, extent, independent, dtype='numerical'):
         'extent': Same as the argument to this function.
         'independent' : Same as the argument to this function.
         'dtype': Same as the argument to this function.
+        'obstype': Same as the argument to this function.
         'default_value': See `Model`.
         'default_subset': See `Model`.
-
 
     Args:
         name : string
@@ -107,10 +106,12 @@ def Field(name, domain, extent, independent, dtype='numerical'):
             The extent of the field. May not be unbounded. The extent of the field that will be used as a fallback
             for domain if domain is unbounded but a value for domain is required
         independent : [True, False]
-            Describes if the according variable is an independent variable
+            Describes if the according variable is an independent/covariate variable
         dtype : ['numerical', 'string'] , optional.
             A string identifier of the data type of this field.
-
+        obstype : ['observed', 'latent'], optional.
+            Indicates whether this field is for an observed variable (i.e. training data for that vairable exists) or a
+             latent one.
 
     Returns : dict
         The constructed 'field dictionary'.
@@ -119,8 +120,10 @@ def Field(name, domain, extent, independent, dtype='numerical'):
         raise ValueError("extents must not be unbounded")
     if dtype not in ['numerical', 'string']:
         raise ValueError("dtype must be 'string' or 'numerical'")
-    field = {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype, 'hidden': False, 'default_value': None,
-             'default_subset': None, 'independent': independent}
+    if obstype not in ['observed', 'latent']:
+        raise ValueError("obstype must be 'observed', 'latent'")
+    field = {'name': name, 'domain': domain, 'extent': extent, 'dtype': dtype, 'obstype': obstype, 'hidden': False,
+             'default_value': None, 'default_subset': None, 'independent': independent}
     return field
 
 
@@ -135,9 +138,8 @@ def Aggregation(base, method='maximum', yields=None, args=None):
     Arguments:
         base : A single or a sequence of field names or fields
             The fields to aggregate over.
-        method : string, optional.
-            The method to use for aggregation. Available methods depend on the model class, however 'maximum' should
-            always be available.
+        method : string, see `AggregationMethods`, optional.
+            The method to use for aggregation. Defaults to 'maximum'.
         yields : string, optional
             The name of the field that the resulting value will be of. Needs not to be provided for methods
             'probability' and 'density'.
@@ -149,7 +151,7 @@ def Aggregation(base, method='maximum', yields=None, args=None):
         yields = "" if method == 'density' or method == 'probability' else name[0]
     if args is None:
         args = []
-    if method not in set(['density', 'probability', 'maximum', 'average']):
+    if method not in AggregationMethods:
         raise ValueError('invalid aggregation method: ' + str(method))
     return AggregationTuple(name, method, yields, args)
 
@@ -200,8 +202,8 @@ def Split(base, method=None, args=None):
     Args:
         base : a single or a sequence of `Field` or string
             The names to query probability over.
-        method : string, optional.
-            The method to use to split. Available methods depend on the model class and the data type.
+        method : string, see `SplitMethods`, optional.
+            The method to use to split.
         args : any, optional
             Additional arguments passed to the split function. Default
 
@@ -300,3 +302,18 @@ def to_name_sequence(obj):
         sequence of str
     """
     return list(map(_name_from_field, _to_sequence(obj)))
+
+
+# def field_usage_type(fu):
+#     """Returns the 'type' of the FieldUsage `fu`
+#
+#     Args:
+#         fu : FieldUsage
+#
+#     Returns: str
+#         Returns a string to identify the type of the field usage, as follows:
+#         * 'split' if it is any split
+#         * 'density' if it is an aggregation with method 'density' OR 'probability'
+#         * 'aggregation' if it is an aggregation with method 'maximum' OR 'average'
+#     """
+#     return fu[METHOD_IDX]

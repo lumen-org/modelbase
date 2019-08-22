@@ -88,6 +88,9 @@ def reduce_to_scalars(values):
             v.append(value)
     return v
 
+
 def scalarize(lst):
-    """Given a list of any mix of scalars (string or numbers) and single-element lists of scalars return a flattened list, i.e. a list of scalars. It is stable, i.e. the order of elements is kept."""
+    """Given a list of any mix of scalars (string or numbers) and single-element lists of scalars return a flattened
+    list, i.e. a list of scalars. It is stable, i.e. the order of elements is kept.
+    """
     pass

@@ -5,7 +5,9 @@
 
 import logging
 import os.path
+import pandas as pd
 
+from mb_modelbase.models_core.empirical_model import EmpiricalModel
 from mb_modelbase.server import ModelBase
 
 # setup logger
@@ -18,6 +20,53 @@ logger = logging.getLogger(__name__)
 
 # resolve relative path of data for this script
 path_prefix = os.path.join(os.path.dirname(__file__), os.pardir, 'mb_data')
+
+
+def make_empirical_model(modelname, output_directory, input_file=None, df=None):
+    """A one-stop function to create an `EmpiricalModel` from data.
+
+    Args:
+        modelname: str
+            Name of the model. Will be used as the the name of the model and for the filename of the saved model.
+        output_directory: str, optional.
+            path of directory where to store the model (not file name!). If set to None, model will not be saved on
+            filesystem.
+        input_file: str, optional.
+            path of csv file to read for data to use for training of model. Alternatively, directly specify the data
+            in `df`.
+        df: pd.DataFrame, optional.
+            Data to use for model fitting. Alternatively specify a csv file in `input_file`.
+    Return:
+        The learned model.
+
+    """
+    if input_file is None and df is None:
+        raise ValueError("you must specify at least one of `input_file` or `df`.")
+
+    if input_file is not None:
+        df = pd.read_csv(input_file, index_col=False, skip_blank_lines=True)
+        print("read data from file {}".format(input_file))
+
+    print("Your data frame looks like this: \n{}".format(str(df.head())))
+
+    # preprocess
+    df2 = df.dropna(axis=0, how="any")
+    dropped_rows = df.shape[0] - df2.shape[0]
+    if dropped_rows > 0:
+        print("dropped {} rows due to nans in data".format(dropped_rows))
+
+    # fit model
+    model = EmpiricalModel(modelname)
+    model.fit(df2)
+    print("Successfully fitted empirical model!")
+
+    # save
+    if output_directory is not None:
+        output_path = os.path.abspath(output_directory)
+        filepath = model.save(output_path)
+        print("Saved model in file: \n{}".format(filepath))
+
+    return model
 
 
 def save_models(models, directory):

@@ -136,7 +136,7 @@ class ConditionallyGaussianModel(md.Model):
 
         return pML, musML, Sigma
 
-    # base
+    #base
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently)
         return ()

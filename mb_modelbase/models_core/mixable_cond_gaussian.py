@@ -129,9 +129,12 @@ def _maximum_cg(mus, Sinvs, Sdets, ps, num_len):
 
 
 class Normalizer():
-    """A normalizer provides methods to (de-) normalize a data vector according to a provided set of zscore normalization parameters.
+    """A normalizer provides methods to (de-) normalize a data vector according to a provided set of zscore
+    normalization parameters.
 
-    It is meant to be used as a plug-in component to a mixable conditional gaussian model, in the case that model has been learned on normalized data but is intended to be used as a model of the unnormalized data. Note that usually zscore normalization is applied in order to avoid numerical issues, and not for semantical reasons.
+    It is meant to be used as a plug-in component to a mixable conditional gaussian model, in the case that model has
+    been learned on normalized data but is intended to be used as a model of the unnormalized data. Note that usually
+    zscore normalization is applied in order to avoid numerical issues, and not for semantical reasons.
 
     See also the 'normalized_models.ipynb' in the notebook documentation directory.
     """
@@ -192,6 +195,7 @@ class Normalizer():
             raise ValueError("invalid mode")
 
     def denormalize (self, x, num_only=False):
+        # https: // stackoverflow.com / questions / 29318459 / python - function - that - handles - scalar - or -arrays
         if not num_only:
             cat_len = len(self._model._categoricals)
             x[cat_len:] = x[cat_len:] * self._stddev + self._mean
@@ -674,31 +678,49 @@ class MixableCondGaussianModel(md.Model):
         assert(result is not None)
         return self._normalizer.denormalize(result) if self.opts['normalized'] else result
 
-
-    def _sample(self, k=42):
+    def _sample(self, k):
         """Returns k sample points"""
         sample_points = []
+        cat_len = len(self._categoricals)
+        num_len = len(self._numericals)
+        mrg_len = len(self._marginalized)
 
-        # Calculating cumulative density
-        cum_dens = utils.cumulative_density(self._p.values)
-        for i in range(0, k):
-            sample_point = []
+        mu = self._mu
+        S = self._S
+        p = self._p
 
-            # Getting index via inverse transform sampling
-            index = utils.inverse_transform_sampling(cum_dens)
-            sample_cat = np.unravel_index(index, self._p.shape)
+        if cat_len + mrg_len == 0:
+            # no categoricals left, hence only a 'normal' multivariate gaussian to draw samples from
+            if num_len > 0:
+                for i in range(0, int(k)):
+                    sample = S.values.dot(np.random.randn(num_len)) + mu.values
+                    sample_points.append(sample.tolist())
 
-            # Get categoricals
-            cat_dict = self._p[sample_cat].to_dict()
-            sample_point += [cat_dict['coords'][cat]['data'] for cat in self._categoricals]
+        else:
+            # some categoricals are left
+            cum_dens = utils.cumulative_density(self._p.values)
+            for i in range(0, int(k)):
+                sample_point = []
 
-            # Sample from gaussian
-            if len(self._numericals) > 0:
-                sample = self._S[sample_cat].values.dot(np.random.randn(len(self._mu[sample_cat]))) + self._mu[sample_cat].values
+                # Getting index via inverse transform sampling
+                index = utils.inverse_transform_sampling(cum_dens)
+                sample_cat = np.unravel_index(index, p.shape)
 
-                sample_point += sample.tolist()
+                # Get categoricals
+                cat_dict = p[sample_cat].to_dict()
+                sample_point += [cat_dict['coords'][cat]['data'] for cat in self._categoricals]
 
-            sample_points.append(sample_point)
+                # Sample from gaussian
+                if num_len > 0:
+                    sample = S[sample_cat].values.dot(np.random.randn(num_len)) + mu[sample_cat].values
+                    # sample = self._S[sample_cat].values.dot(np.random.randn(len(mu[sample_cat]))) + mu[sample_cat].values
+                    sample_point += sample.tolist()
+
+                sample_points.append(sample_point)
+
+        # todo: vectorize denormalization
+        if self.opts['normalized']:
+            sample_points = map(lambda p: self._normalizer.denormalize(p), sample_points)
 
         return sample_points
 
