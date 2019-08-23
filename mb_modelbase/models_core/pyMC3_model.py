@@ -9,6 +9,7 @@ import scipy.optimize as sciopt
 import copy as cp
 from functools import reduce
 import theano
+import math
 
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.utils.data_import_utils import get_numerical_fields
@@ -48,8 +49,21 @@ class ProbabilisticPymc3Model(Model):
         self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
 
+
+
     def _set_data(self, df, drop_silently, **kwargs):
+        assert df.index.is_monotonic, 'The data is not sorted by index. Please sort data by index and try again'
+        # Add column with index to df for later resorting
+        df['index'] = df.index
         self._set_data_mixed(df, drop_silently, split_data=False)
+        # Sort data by original index to make it consistent again with the shared variables
+        # The other way (changing the shared vars to be consistent with the data) does not
+        # work since dependent variables would not be changed then
+        self.data.sort_values(by='index', inplace=True)
+        self.data.set_index('index', inplace=True)
+        df.set_index('index', inplace=True)
+        self._update_all_field_derivatives()
+        self._update_remove_fields(to_remove=['index'])
         self._update_all_field_derivatives()
         # Enforce usage of theano shared variables for independent variables
         # Independent variables are those variables which appear in the data but not in the RVs of the model structure
@@ -71,31 +85,8 @@ class ProbabilisticPymc3Model(Model):
             assert len(missing_vars) == 0, \
                 'The following independent variables do not appear in shared_vars:' + str(missing_vars) + ' Make sure '\
                 'that you pass the data for each independent variable as theano shared variable to the constructor'
+        self.check_data_and_shared_vars_on_equality()
         return ()
-
-    def _check_for_datadependent_priors(self):
-        if self.shared_vars:
-            data_dependent_prior = False
-            for varname in self.model_structure.unobserved_RVs:
-                # Get a probability from the prior
-                logp1 = varname.distribution.logp(0)
-                # Change independent data
-                old_ind = cp.deepcopy(self.shared_vars)
-                for key,value in self.shared_vars:
-                    new_ind = np.random.uniform(0,1,size=len(value))
-                    self.shared_vars[key].set_value(new_ind)
-                # Get a second probability from the prior
-                logp2 = varname.distribution.logp(0)
-                # The two probabilities should be equal, if the prior is not dependent on the data
-                if logp1 != logp2:
-                    data_dependent_prior = True
-                # Change independent variables back to previous values
-                for key,value in self.shared_vars:
-                    self.shared_vars[key].set_value(old_ind[key])
-
-            if data_dependent_prior:
-                raise ValueError('A parameter of the model seems to be directly parametrized by data. '
-                                 'This kind of model is not supported')
 
     def _generate_samples_for_independent_variable(self, key, size):
         lower_bound = self.byname(key)['extent'].value()[0]
@@ -118,90 +109,24 @@ class ProbabilisticPymc3Model(Model):
         return cartesian_prod
 
     def _fit(self):
-        # Generate samples for latent random variables
-        with self.model_structure:
-            for var in self.fields:
-                self.samples[var['name']] = np.full(self.nr_of_posterior_samples, np.NaN)
-            trace = pm.sample(self.nr_of_posterior_samples, chains=1, cores=1, progressbar=False)
-            # Store varnames for later generation of fields
-            varnames = trace.varnames.copy()
-            for varname in trace.varnames:
-                # check if trace consists of more than one variable
-                if len(trace[varname].shape) == 2:
-                    varnames.remove(varname)
-                    for i in range(trace[varname].shape[1]):
-                        self.samples[varname+'_'+str(i)] = [var[i] for var in trace[varname]]
-                        varnames.append(varname+'_'+str(i))
-                else:
-                    self.samples[varname] = trace[varname]
-        # Generate samples for observed independent variables
-        with self.model_structure:
-            samples_independent_vars = []
-            if self.shared_vars is not None:
-                # Values at equal intervals over the domain of each independent variable are generated. Then a grid of
-                # values is constructed so that each combination of values between the different variables is covered
-                nr_of_ind_vars = len(self.shared_vars)
-                nr_of_unique_values = self.nr_of_posterior_samples ** (1. / nr_of_ind_vars)
-                generated_samples = pd.DataFrame(columns=self.shared_vars.keys())
-                for key, val in self.shared_vars.items():
-                    generated_samples[key] = self._generate_samples_for_independent_variable(key, nr_of_unique_values)
-                samples_independent_vars = self._cartesian_product_of_samples(generated_samples)
-                # number of samples in samples_independent_vars may now be lesser than self.nr_of_posterior_samples.
-                # The first x rows of samples_independent_vars are therefore attached again at the end of the
-                # dataframe, where x is the difference to self.nr_of_posterior_samples
-                diff = self.nr_of_posterior_samples - len(samples_independent_vars)
-                while diff > 0:
-                    samples_independent_vars = samples_independent_vars.append(samples_independent_vars.iloc[0:diff, :])
-                    diff = self.nr_of_posterior_samples - len(samples_independent_vars)
-                #
-                for col in samples_independent_vars:
-                    #self.shared_vars[col].set_value(samples_independent_vars[col])
-                    self.samples[col] = samples_independent_vars[col].values
-        # Generate samples for observed dependent variables
-        with self.model_structure:
-            # If there is the special case that the model requires a fixed length of the data, the generation of the
-            # posterior predictive samples has to be partitioned into multiple steps
-            if self.fixed_data_length:
-                nr_of_partitions = int(self.nr_of_posterior_samples/len(self.data))
-            else:
-                nr_of_partitions = 1
-            # This is the length of the data if we have a model with fixed data length.
-            # Otherwise it is the number of posterior samples
-            obs_per_partition = int(self.nr_of_posterior_samples/nr_of_partitions)
-            for i in range(nr_of_partitions):
-                lower_idx = int(i * obs_per_partition)
-                upper_idx = int((i + 1) * obs_per_partition)
-                for col in samples_independent_vars:
-                    self.shared_vars[col].set_value(samples_independent_vars[col][lower_idx:upper_idx])
-                ppc = pm.sample_ppc(trace)
-                if self.shared_vars is not None:
-                    # sample_ppc works the following way: For each parameter set generated by sample(), a sequence
-                    # of points is generated with the same length as the observed data.
-                    for varname in self.model_structure.observed_RVs:
-                        self.samples[str(varname)][lower_idx:upper_idx] = \
-                            [ppc[str(varname)][j][j] for j in range(ppc[str(varname)].shape[0])]
-                else:
-                    # when no shared vars are given, data and samples do not have the same length. In this case, the first
-                    # point of each sequence is taken as new sample point
-                    for varname in self.model_structure.observed_RVs:
-                        self.samples[str(varname)] = [samples[0] for samples in ppc[str(varname)]]
-            # In most cases there will be a rest left that has to be filled
-            diff = self.nr_of_posterior_samples - int(nr_of_partitions * obs_per_partition)
-            if diff != 0:
-                for col in samples_independent_vars:
-                    self.shared_vars[col].set_value(
-                        samples_independent_vars[col][self.nr_of_posterior_samples-len(self.data):])
-                ppc = pm.sample_ppc(trace)
-                for varname in self.model_structure.observed_RVs:
-                    self.samples[str(varname)][nr_of_partitions*obs_per_partition:] = \
-                        [ppc[str(varname)][j][obs_per_partition-1-j] for j in range(diff)]
-            # Set shared variables back to old values. This is necessary since PyMC3 sampling requires fixed dimensions
-            # of the data
-            if self.shared_vars:
-                for key, value in self.shared_vars.items():
-                    value.set_value(self.data[key].values.tolist())
+
+        self.samples = self._sample(self.nr_of_posterior_samples)
+
         # Add parameters to fields
-        self.fields = self.fields + get_numerical_fields(self.samples, varnames)
+        varnames = [str(var) for var in self.model_structure.unobserved_RVs]
+        for varname in self.model_structure.unobserved_RVs:
+            # check if trace consists of more than one variable. Below expression is not empty when that is the case
+            if varname.distribution.shape:
+                # Remove old varname
+                varnames.remove(str(varname))
+                # Insert new varnames
+                for i in range(varname.distribution.shape.item()):
+                    varnames.append(str(varname) + '_' + str(i))
+        latent_fields = get_numerical_fields(self.samples, varnames)
+        for f in latent_fields:
+            f['obstype'] = 'latent'
+
+        self.fields = self.fields + latent_fields
         self._update_all_field_derivatives()
         self._init_history()
 
@@ -227,11 +152,7 @@ class ProbabilisticPymc3Model(Model):
         # Remove all variables in remove
         for varname in remove:
             if varname in list(self.samples.columns):
-                self.samples = self.samples.drop(varname,axis=1)
-            if hasattr(self, 'shared_vars'):
-                if self.shared_vars is not None:
-                    if varname in self.shared_vars:
-                        del self.shared_vars[varname]
+                self.samples = self.samples.drop(varname, axis=1)
         return ()
 
     def _conditionout(self, keep, remove):
@@ -274,30 +195,74 @@ class ProbabilisticPymc3Model(Model):
 
     def _sample(self, n):
         sample = pd.DataFrame()
+
+        # Generate samples for latent random variables
         with self.model_structure:
-            # Create the samples for latent and observed variables.
-            # We only want to create the n samples one time, so set chains and cores to 1
-            trace = pm.sample(n, chains=1, cores=1)
-            ppc = pm.sample_ppc(trace)
-            # Concatenate the independent, latent and observed variables into one structure. In the current
-            # implementation, only the first value of the independent variables is used here
-            if self.shared_vars:
-                for varname,data in self.shared_vars.items():
-                    sample[varname] = np.repeat(data.get_value()[0],n)
-            for varname in ppc.keys():
-                sample[varname] = [elem[0] for elem in ppc[str(varname)]]
+            trace = pm.sample(n, chains=1, cores=1, progressbar=False)
             for varname in trace.varnames:
-                if len(trace[varname].shape) == 1:
-                    sample[varname] = trace[varname]
-                # One variable name in trace can hold multiple random variables
-                else:
+                # check if trace consists of more than one variable
+                if len(trace[varname].shape) == 2:
                     for i in range(trace[varname].shape[1]):
-                        sample[varname+'_'+str(i)] = [elem[i] for elem in trace[varname]]
+                        sample[varname+'_'+str(i)] = [var[i] for var in trace[varname]]
+                else:
+                    sample[varname] = trace[varname]
+
+        # Generate samples for observed independent variables
+        if self.shared_vars is not None:
+            samples_independent_vars = pd.DataFrame(columns=self.shared_vars.keys())
+            data_independent_vars = pd.DataFrame(columns=self.shared_vars.keys())
+            for name, value in self.shared_vars.items():
+                data_independent_vars[name] = value.get_value()
+            # Draw without replacement from the observed data. If more values should be drawn than there are in the
+            # data, take the whole data multiple times
+            data_fits_in_n = math.floor(n/len(self.data))
+            for i in range(data_fits_in_n):
+                samples_independent_vars = samples_independent_vars.append(data_independent_vars.copy())
+            samples_independent_vars = samples_independent_vars.append(
+                data_independent_vars.sample(n-data_fits_in_n*len(self.data), replace=False))
+            # shared_vars holds independent variables, even the ones that were marginalized out earlier.
+            # data holds only variables that are in the current model, but also dependent variables.
+            # To get all independent variables of the current model, pick all variables that appear in both
+            independent_var_names = [name for name in self.shared_vars.keys() if name in self.data.columns]
+            for varname in independent_var_names:
+                sample[varname] = samples_independent_vars[varname].values
+
+        # Generate samples for observed dependent variables
+        if self.shared_vars is not None:
+            shared_vars_org = {}
+            for col in samples_independent_vars:
+                shared_vars_org[col] = self.shared_vars[col].get_value()
+                self.shared_vars[col].set_value(samples_independent_vars[col])
+        with self.model_structure:
+            ppc = pm.sample_ppc(trace)
+            # sample_ppc works the following way: For each parameter set generated by pm.sample(), a sequence
+            # of points is generated with the same length as the observed data.
+            if self.shared_vars is not None:
+                for varname in self.model_structure.observed_RVs:
+                    sample[str(varname)] = [ppc[str(varname)][j][j] for j in range(ppc[str(varname)].shape[0])]
+            # When there are no independent variables, I cannot change the length of the sequences. So I just take
+            # the first point of each sequence, which is okay since the draws are not based on any independent variables
+            else:
+                for varname in self.model_structure.observed_RVs:
+                    sample[str(varname)] = [ppc[str(varname)][j][0] for j in range(ppc[str(varname)].shape[0])]
+
+        # Restore independent variables to previous values. This is necessary since pm.sample() requires same length
+        # of all variables and also all copies of a model use the same shared variables
+        if self.shared_vars:
+            for col in self.shared_vars.keys():
+                self.shared_vars[col].set_value(shared_vars_org[col])
+
+        self.check_data_and_shared_vars_on_equality()
         return sample
 
     def copy(self, name=None):
         name = self.name if name is None else name
-        mycopy = self.__class__(name, self.model_structure)
+        # Note: The shared_vars attribute is not copied. Rather, the same shared_vars object is
+        # used for EVERY copy of the model. Copying the object would be useless since the
+        # model_structure is linked with the original object nevertheless. This means that
+        # the shared vars attribute must not be changed permanently, because doing so would
+        # propagate to all model copies
+        mycopy = self.__class__(name, self.model_structure, self.shared_vars)
         mycopy.data = self.data.copy()
         mycopy.test_data = self.test_data.copy()
         mycopy.fields = cp.deepcopy(self.fields)
@@ -305,15 +270,11 @@ class ProbabilisticPymc3Model(Model):
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples.copy()
-
-        #Copy shared_vars
-        mycopy.shared_vars = {}
-        if self.shared_vars:
-            for key, value in self.shared_vars.items():
-                mycopy.shared_vars[key] = theano.shared(value.get_value().copy())
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
         mycopy.fixed_data_length = self.fixed_data_length
         mycopy.set_empirical_model_name(self._empirical_model_name)
+        self.check_data_and_shared_vars_on_equality()
+        mycopy.check_data_and_shared_vars_on_equality()
 
         return mycopy
 
@@ -333,4 +294,9 @@ class ProbabilisticPymc3Model(Model):
             return np.full(len(x0), np.nan)
         return maximum
 
-
+    def check_data_and_shared_vars_on_equality(self):
+        if self.shared_vars:
+            if not self.data.empty:
+                for name in list(self.shared_vars.keys()):
+                    if name in self.data.columns:
+                        assert np.array_equal(self.shared_vars[name].get_value(), np.array(self.data[name]))
