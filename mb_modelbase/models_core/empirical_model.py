@@ -22,7 +22,7 @@ class EmpiricalModel(Model):
         self._set_data_mixed(df, drop_silently)
         return ()
 
-    def _fit(self):
+    def _fit(self, **kwargs):
         """Fits the model to data of the model
         Returns:
             Empty tuple, since not callback is required.
