@@ -259,7 +259,7 @@ def create_getting_started_model_shape(modelname='pymc3_getting_started_model_sh
 ######################################
 # Flight delay
 ######################################
-def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelname='flight_delay', fit=True):
+def create_flight_delay_models(filename='airlineDelayDataProcessed.csv', modelname='flight_delay', fit=True):
     if fit:
         modelname = modelname+'_fitted'
 
@@ -267,66 +267,41 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
     path = os.path.join(testcasedata_path, filename)
     data = pd.read_csv(path)
 
-    data = data.rename(columns={'ARR_DELAY': 'arrdelay', 'DEP_DELAY': 'depdelay'})
+    data = data.rename(columns={'ARR_DELAY': 'arrdelay', 'DEP_DELAY': 'depdelay', 'DISTANCE': 'distance',
+                                'DEP_TIME': 'dep_time'})
 
     # Drop variables that are not considered in the model
     data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID',
-                      'ACTUAL_ELAPSED_TIME', 'arrdelay', 'DISTANCE'], axis=1)
+                      'ACTUAL_ELAPSED_TIME'], axis=1)
 
     # Reduce size of data to improve performance
     data = data.sample(n=1000, random_state=1)
     data.sort_index(inplace=True)
 
     # Create shared variables
-    deptime = theano.shared(np.array(data['DEP_TIME']))
+    deptime = theano.shared(np.array(data['dep_time']))
+    distance = theano.shared(np.array(data['distance']))
 
     # Create model
-    delay_model = pm.Model()
+    delay_model_1 = pm.Model()
 
-    with delay_model:
-        beta_var = pm.Uniform('beta_var', 0, 1, shape=2)
+    with delay_model_1:
         beta_dep = pm.Uniform('beta_dep', 0, 1, shape=2)
+        beta_dist = pm.Uniform('beta_dist', 0, 1)
+        var_dep = pm.Uniform('var_dep', 0, 100)
+        var_arr = pm.Uniform('var_arr', 0, 100)
+        # I assume that depdelay is a function of deptime
+        mu_depdelay = beta_dep[0] + beta_dep[1] * deptime
+        depdelay = pm.Normal('depdelay', mu_depdelay, var_dep, observed=data['depdelay'])
+        mu_arrdelay = depdelay + beta_dist * distance
+        arrdelay = pm.Normal('arrdelay', mu_arrdelay, var_arr, observed=data['arrdelay'])
 
-        # Improvement 1: Assume that variance is a linear function of time, instead of uniformly distributed
-        var = pm.math.abs_(beta_var[0] + beta_var[1] * deptime)
-
-        # Improvement 3: Apply a shift to the data so that the HalfNormalDistribution fits better
-        shift = min(data['depdelay'])
-        print('shift: ' + str(-shift))
-
-        # Improvement 2: I assume that depdelay is  bounded at 0 and only the variance is a function of deptime
-        shifted_depdelay = pm.HalfNormal('shifted_depdelay', sd=var, observed=data['depdelay']-shift)
-        depdelay = shifted_depdelay + shift
-
-    m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'DEP_TIME': deptime})
+    m = ProbabilisticPymc3Model(modelname+'_1', delay_model_1, shared_vars={'dep_time': deptime, 'distance': distance})
     if fit:
         m.fit(data)
     return data, m
 
-######################################
-# Lambert Stan example
-######################################
-def create_lambert_stan_example(modelname='lambert_stan_example', fit=True):
-    if fit:
-        modelname = modelname+'_fitted'
-    # Generate data
-    size = 100
-    Y_data = np.random.normal(1.6, 0.2, size=size)
-    data = pd.DataFrame({'Y':Y_data})
-    # Specify model
-    lambert_model = pm.Model()
-    with lambert_model:
-        # Priors
-        mu = pm.Normal('mu', 1.7, 0.3)
-        sigma = pm.HalfCauchy('sigma', 1)
-        # Likelihood
-        Y = pm.Normal('Y', mu, sigma, observed=Y_data)
 
-    m = ProbabilisticPymc3Model(modelname, lambert_model)
-
-    if fit:
-        m.fit(data)
-    return data, m
 
 ######################################
 # Call all model generating functions
@@ -342,7 +317,7 @@ if __name__ == '__main__':
         print('Specify a test_model_directory and a test_data_direcory in run_conf.py')
         raise
 
-    create_functions = [create_flight_delay_model]
+    create_functions = [create_flight_delay_models]
 
 
     for func in create_functions:
