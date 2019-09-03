@@ -12,7 +12,7 @@ It also provides definitions of other essential data types, such as `Field`, `Ag
 import copy as cp
 import functools
 import operator
-import pickle as pickle
+import dill
 import numpy as np
 import pandas as pd
 import os
@@ -1471,7 +1471,7 @@ class Model:
             filename = self._default_filename()
         path = os.path.join(dir, filename)
         with open(path, 'wb') as output:
-            pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+            dill.dump(self, output, dill.HIGHEST_PROTOCOL)
         return path
 
     @staticmethod
@@ -1489,7 +1489,7 @@ class Model:
         You can store a stored model using `Model.store()`.
         """
         with open(filename, 'rb') as input:
-            model = pickle.load(input)
+            model = dill.load(input)
             if not isinstance(model, Model):
                 raise TypeError('pickled input is not an instance of Model.')
             return model
