@@ -10,6 +10,7 @@ import copy as cp
 from functools import reduce
 import theano
 import math
+import random
 
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.utils.data_import_utils import get_numerical_fields
@@ -37,7 +38,8 @@ class ProbabilisticPymc3Model(Model):
             new data points are generated with a different length than the original data
     """
 
-    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=500, fixed_data_length=False):
+    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=500, fixed_data_length=False,
+                 chains=4):
         super().__init__(name)
         self.model_structure = model_structure
         self.samples = pd.DataFrame()
@@ -48,6 +50,9 @@ class ProbabilisticPymc3Model(Model):
         self.shared_vars = shared_vars
         self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
+        self.chains = chains
+        assert self.nr_of_posterior_samples % self.chains == 0, \
+            'Make sure nr_of_posterior_samples can be divided by chains without rest'
 
 
 
@@ -109,7 +114,7 @@ class ProbabilisticPymc3Model(Model):
         return cartesian_prod
 
     def _fit(self):
-        self.samples = self._sample(self.nr_of_posterior_samples)
+        self.samples = self._sample(self.nr_of_posterior_samples, self.chains)
 
         # Add parameters to fields
         varnames = [str(var) for var in self.model_structure.unobserved_RVs]
@@ -198,12 +203,12 @@ class ProbabilisticPymc3Model(Model):
     def _negdensity(self, x):
         return -self._density(x)
 
-    def _sample(self, n):
+    def _sample(self, n, chains):
         sample = pd.DataFrame()
 
         # Generate samples for latent random variables
         with self.model_structure:
-            trace = pm.sample(n, chains=1, cores=1, progressbar=False)
+            trace = pm.sample(n/chains, chains=chains, cores=1, progressbar=False)
             for varname in trace.varnames:
                 # check if trace consists of more than one variable
                 if len(trace[varname].shape) == 2:
