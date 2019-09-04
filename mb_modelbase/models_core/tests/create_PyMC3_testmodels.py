@@ -263,9 +263,7 @@ def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelnam
     if fit:
         modelname = modelname+'_fitted'
 
-    testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory']
-    path = os.path.join(testcasedata_path, filename)
-    data = pd.read_csv(path)
+    data = pd.read_csv(filename)
 
     data = data.rename(columns={'ARR_DELAY': 'arrdelay', 'DEP_DELAY': 'depdelay'})
 
