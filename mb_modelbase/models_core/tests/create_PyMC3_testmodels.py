@@ -267,12 +267,11 @@ def create_flight_delay_models(filename='airlineDelayDataProcessed.csv', modelna
     path = os.path.join(testcasedata_path, filename)
     data = pd.read_csv(path)
 
-    data = data.rename(columns={'ARR_DELAY': 'arrdelay', 'DEP_DELAY': 'depdelay', 'DISTANCE': 'distance',
-                                'DEP_TIME': 'dep_time'})
+    data = data.rename(columns={'DEP_TIME': 'dep_time', 'ARR_DELAY': 'arrdelay', 'DISTANCE': 'distance'})
 
     # Drop variables that are not considered in the model
     data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID',
-                      'ACTUAL_ELAPSED_TIME'], axis=1)
+                      'ACTUAL_ELAPSED_TIME', 'DEP_DELAY'], axis=1)
 
     # Reduce size of data to improve performance
     data = data.sample(n=1000, random_state=1)
@@ -286,22 +285,55 @@ def create_flight_delay_models(filename='airlineDelayDataProcessed.csv', modelna
     delay_model_1 = pm.Model()
 
     with delay_model_1:
-        beta_dep = pm.Uniform('beta_dep', 0, 1, shape=2)
-        beta_dist = pm.Uniform('beta_dist', 0, 1)
-        var_dep = pm.Uniform('var_dep', 0, 100)
-        var_arr = pm.Uniform('var_arr', 0, 100)
-        # I assume that depdelay is a function of deptime
-        mu_depdelay = beta_dep[0] + beta_dep[1] * deptime
-        depdelay = pm.Normal('depdelay', mu_depdelay, var_dep, observed=data['depdelay'])
-        mu_arrdelay = depdelay + beta_dist * distance
-        arrdelay = pm.Normal('arrdelay', mu_arrdelay, var_arr, observed=data['arrdelay'])
+        beta_arr = pm.Uniform('beta_dep', 0, 1, shape=3)
+        var = pm.Uniform('var', 0, 100)
+        # I assume that the delay on arrival is a function of deptime and distance
+        mu_arrdelay = beta_arr[0] + beta_arr[1]*deptime + beta_arr[2]*distance
+        arrdelay = pm.Normal('arrdelay', mu_arrdelay, var, observed=data['arrdelay'])
 
     m = ProbabilisticPymc3Model(modelname+'_1', delay_model_1, shared_vars={'dep_time': deptime, 'distance': distance})
     if fit:
         m.fit(data)
     return data, m
 
+######################################
+# iris
+######################################
 
+def create_titanic_model(filename='test_titanic.csv', modelname='iris', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+
+    data = pd.read_csv(filename)
+    data =  data.drop(['PassengerId', 'Name', 'SibSp', 'Parch', 'Ticket', 'Cabin', 'Fare', 'Embarked'], axis=1)
+    data = data.rename(columns={'Pclass': 'pclass', 'Sex': 'sex', 'Age': 'age', 'Survived': 'survived'})
+
+    # drop NAs
+    data = data.dropna()
+
+    # Recode variable
+    data = data.replace('male', 0)
+    data = data.replace('female', 1)
+
+    # Create shared variables
+    pclass = theano.shared(np.array(data['pclass']))
+    sex = theano.shared(np.array(data['sex']))
+    age = theano.shared(np.array(data['age']))
+
+
+    #Create model
+    titanic_model = pm.Model()
+    with titanic_model:
+        beta = pm.Uniform('beta', 0, 1, shape=4)
+        # Survival depends on class, sex and age
+        mu = beta[0] + beta[1]*pclass + beta[2]*sex + beta[3]*age
+        theta = pm.Deterministic('theta', pm.math.sigmoid(mu))
+        survived = pm.Bernoulli('survived', p=theta, observed=data['survived'])
+
+    m = ProbabilisticPymc3Model(modelname, titanic_model, shared_vars={'pclass': pclass, 'sex': sex, 'age': age})
+    if fit:
+        m.fit(data)
+    return data, m
 
 ######################################
 # Call all model generating functions
@@ -317,7 +349,7 @@ if __name__ == '__main__':
         print('Specify a test_model_directory and a test_data_direcory in run_conf.py')
         raise
 
-    create_functions = [create_flight_delay_models]
+    create_functions = [create_titanic_model]
 
 
     for func in create_functions:
