@@ -345,6 +345,37 @@ def create_lambert_stan_example(modelname='lambert_stan_example', fit=True):
     return data, m
 
 ######################################
+# allbus model
+######################################
+def create_allbus_model(filename='test_allbus.csv', modelname='allbus_model', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+    # Load and prepare data
+    data = pd.read_csv(filename, index_col=0)
+    data = data.drop(['eastwest', 'lived_abroad', 'spectrum'], axis=1)
+    data = data.drop(['health', 'happiness'], axis=1)
+    data = data.replace('Male', 0)
+    data = data.replace('Female', 1)
+    # Set up shared variables
+    age = theano.shared(np.array(data['age']))
+    sex = theano.shared(np.array(data['sex']))
+    educ = theano.shared(np.array(data['educ']))
+    # Specify model
+    allbus_model = pm.Model()
+    with allbus_model:
+        # priors
+        alpha = pm.Uniform('alpha', -10000, 10000)
+        beta = pm.Uniform('beta', -10000, 10000, shape=3)
+        sd = pm.Uniform('sd', 0, 10000)
+        # likelihood
+        mu_income = alpha + beta[0]*educ + beta[1]*sex + beta[2]*age
+        income = pm.Normal('income', mu_income, sd, observed=data['income'])
+    # Create model instance for Lumen
+    m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'sex': sex, 'educ': educ, 'age': age})
+    if fit:
+        m.fit(data)
+    return data, m
+######################################
 # Call all model generating functions
 ######################################
 if __name__ == '__main__':
@@ -363,6 +394,7 @@ if __name__ == '__main__':
                         create_pymc3_coal_mining_disaster_model,
                         create_getting_started_model_shape, create_lambert_stan_example, create_flight_delay_model]
 
+    create_functions = [create_allbus_model]
 
     for func in create_functions:
         data, m = func(fit=False)
