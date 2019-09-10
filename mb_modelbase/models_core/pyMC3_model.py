@@ -45,6 +45,7 @@ class ProbabilisticPymc3Model(Model):
             'maximum': self._maximum
         }
         self.parallel_processing = False
+        self.nr_of_posterior_samples = None
         self.shared_vars = shared_vars
         self.fixed_data_length = fixed_data_length
 
@@ -281,8 +282,7 @@ class ProbabilisticPymc3Model(Model):
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples.copy()
-        if self.nr_of_posterior_samples:
-            mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
+        mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
         mycopy.fixed_data_length = self.fixed_data_length
         mycopy.set_empirical_model_name(self._empirical_model_name)
         self.check_data_and_shared_vars_on_equality()
