@@ -206,7 +206,10 @@ class ProbabilisticPymc3Model(Model):
 
         # If number of samples differs from number of data points, posterior predictive samples
         # cannot be generated
-        assert n == len(self.data), 'Number of samples has to be equal to number of data points'
+        if n != len(self.data):
+            print('WARNING: number of samples differs from number of data points. To avoid problems during sampling, '
+                  'number of samples is now automatically set to the number of data points')
+            n = len(self.data)
         sample = pd.DataFrame()
         # Generate samples for latent random variables
         with self.model_structure:
