@@ -356,6 +356,9 @@ def create_allbus_model(filename='test_allbus.csv', modelname='allbus_model', fi
     #data = data.drop(['health', 'happiness'], axis=1)
     data = data.replace('Male', 0)
     data = data.replace('Female', 1)
+    # Reduce size of data to improve performance
+    data = data.sample(n=500, random_state=1)
+    data.sort_index(inplace=True)
     # Set up shared variables
     age = theano.shared(np.array(data['age']))
     sex = theano.shared(np.array(data['sex']))
