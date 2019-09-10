@@ -353,25 +353,33 @@ def create_allbus_model(filename='test_allbus.csv', modelname='allbus_model', fi
     # Load and prepare data
     data = pd.read_csv(filename, index_col=0)
     data = data.drop(['eastwest', 'lived_abroad', 'spectrum'], axis=1)
-    data = data.drop(['health', 'happiness'], axis=1)
+    #data = data.drop(['health', 'happiness'], axis=1)
     data = data.replace('Male', 0)
     data = data.replace('Female', 1)
     # Set up shared variables
     age = theano.shared(np.array(data['age']))
     sex = theano.shared(np.array(data['sex']))
     educ = theano.shared(np.array(data['educ']))
+    health = theano.shared(np.array(data['health']))
     # Specify model
     allbus_model = pm.Model()
     with allbus_model:
         # priors
-        alpha = pm.Uniform('alpha', -10000, 10000)
-        beta = pm.Uniform('beta', -10000, 10000, shape=3)
-        sd = pm.Uniform('sd', 0, 10000)
+        alpha_inc = pm.Uniform('alpha_inc', -10000, 10000)
+        alpha_happ = pm.Uniform('alpha_happ', 0, 10)
+        beta_inc = pm.Uniform('beta_inc', -10000, 10000, shape=3)
+        beta_happ = pm.Uniform('beta_happ', -10, 10, shape=3)
+        beta_happ_inc = pm.Uniform('beta_happ_inc', -0.01, 0.01)
+        sd_inc = pm.Uniform('sd_inc', 0, 10000)
+        sd_happ = pm.Uniform('sd_happ', 0, 10)
         # likelihood
-        mu_income = alpha + beta[0]*educ + beta[1]*sex + beta[2]*age
-        income = pm.Normal('income', mu_income, sd, observed=data['income'])
+        mu_income = alpha_inc + beta_inc[0]*educ + beta_inc[1]*sex + beta_inc[2]*age
+        income = pm.Normal('income', mu_income, sd_inc, observed=data['income'])
+        mu_happiness = alpha_happ + beta_happ[0] * educ + beta_happ[1] * health + beta_happ_inc * income
+        happiness = pm.Normal('happiness', mu_happiness, sd_happ, observed=data['happiness'])
     # Create model instance for Lumen
-    m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'sex': sex, 'educ': educ, 'age': age})
+    m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={
+        'age': age, 'sex': sex, 'educ': educ, 'health': health})
     if fit:
         m.fit(data)
     return data, m
