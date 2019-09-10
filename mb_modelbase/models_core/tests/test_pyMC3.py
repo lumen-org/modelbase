@@ -6,12 +6,12 @@ import copy
 def create_testmodels(fit):
     models = []
     # These functions return the model data and the corresponding model
-    # models.append(cr.create_pymc3_simplest_model(fit=fit))
-    # models.append(cr.create_pymc3_getting_started_model(fit=fit))
-    # models.append(cr.create_pymc3_getting_started_model_independent_vars(fit=fit))
-    # models.append(cr.create_pymc3_coal_mining_disaster_model(fit=fit))
-    # models.append(cr.create_getting_started_model_shape(fit=fit))
-    # models.append(cr.create_flight_delay_model(fit=fit))
+    models.append(cr.create_pymc3_simplest_model(fit=fit))
+    models.append(cr.create_pymc3_getting_started_model(fit=fit))
+    models.append(cr.create_pymc3_getting_started_model_independent_vars(fit=fit))
+    models.append(cr.create_pymc3_coal_mining_disaster_model(fit=fit))
+    models.append(cr.create_getting_started_model_shape(fit=fit))
+    models.append(cr.create_flight_delay_model(fit=fit))
     models.append(cr.create_allbus_model(fit=fit))
     return models
 
@@ -213,7 +213,7 @@ class TestMethodsOnFittedModel(unittest.TestCase):
                             "Test data of copy is affected by changes in original model. Model: " + mymod.name)
             #Test samples
             old_samples = mymod.samples.copy()
-            new_samples = mymod._sample(50)
+            new_samples = mymod._sample(len(mymod.data))
             mymod.samples = new_samples
             self.assertTrue(mymod_copy.samples.equals(old_samples),
                             "Samples of copy are affected by changes in original model. Model: " + mymod.name)
@@ -222,7 +222,7 @@ class TestMethodsOnFittedModel(unittest.TestCase):
             if mymod.shared_vars:
                 for key, value in mymod.shared_vars.items():
                     old_shared_vars = value.get_value()
-                    mymod._sample(10)
+                    mymod._sample(len(mymod.data))
                     self.assertTrue(np.array_equal(mymod_copy.shared_vars[key].get_value(), old_shared_vars),
                                     "Shared variables of copy are affected by changes in original model. "
                                     "Model: " + mymod.name)
