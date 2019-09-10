@@ -202,8 +202,11 @@ class ProbabilisticPymc3Model(Model):
         return -self._density(x)
 
     def _sample(self, n):
-        sample = pd.DataFrame()
 
+        # If number of samples differs from number of data points, posterior predictive samples
+        # cannot be generated
+        assert n == len(self.data), 'Number of samples has to be equal to number of data points'
+        sample = pd.DataFrame()
         # Generate samples for latent random variables
         with self.model_structure:
             trace = pm.sample(n, chains=1, cores=1, progressbar=False)
