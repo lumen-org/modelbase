@@ -12,6 +12,7 @@ def create_testmodels(fit):
     models.append(cr.create_pymc3_coal_mining_disaster_model(fit=fit))
     models.append(cr.create_getting_started_model_shape(fit=fit))
     models.append(cr.create_flight_delay_model(fit=fit))
+    models.append(cr.create_allbus_model(fit=fit))
     return models
 
 #models_unfitted = create_testmodels(fit=False)
@@ -320,7 +321,7 @@ class TestMethodsOnFittedModel(unittest.TestCase):
         Test if _sample() return the correct dimensions
         """
         for data, mymod in create_testmodels(fit=True):
-            n = 10
+            n = len(data)
             self.assertEqual(mymod.sample(n).shape[0],  n, 'Number of samples is not correct')
             self.assertEqual(mymod.sample(n).shape[1], mymod.samples.shape[1],
                              'Number of variables returned by _sample() is not correct')
