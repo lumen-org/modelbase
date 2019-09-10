@@ -10,6 +10,7 @@ import os
 import timeit
 
 
+
 ######################################
 # pymc3_testcase_model
 #####################################
@@ -378,7 +379,10 @@ def create_allbus_model(filename='test_allbus.csv', modelname='allbus_model', fi
         # likelihood
         mu_income = alpha_inc + beta_inc[0]*educ + beta_inc[1]*sex + beta_inc[2]*age
         income = pm.Normal('income', mu_income, sd_inc, observed=data['income'])
-        mu_happiness = alpha_happ + beta_happ[0] * educ + beta_happ[1] * health + beta_happ_inc * income
+        # Assume that age goes quadratically into happiness with the minimum at 35
+        age_transformed = (age-35)**2
+        mu_happiness = alpha_happ + beta_happ[0] * educ + beta_happ[1] * health + \
+                       beta_happ[2] * age_transformed + beta_happ_inc * income
         happiness = pm.Normal('happiness', mu_happiness, sd_happ, observed=data['happiness'])
     # Create model instance for Lumen
     m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={
