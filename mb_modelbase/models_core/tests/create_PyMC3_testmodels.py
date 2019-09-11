@@ -346,7 +346,7 @@ def create_lambert_stan_example(modelname='lambert_stan_example', fit=True):
     return data, m
 
 ######################################
-# allbus model
+# allbus models
 ######################################
 def create_allbus_model(filename='test_allbus.csv', modelname='allbus_model', fit=True):
     if fit:
@@ -390,6 +390,39 @@ def create_allbus_model(filename='test_allbus.csv', modelname='allbus_model', fi
     if fit:
         m.fit(data)
     return data, m
+
+def create_simpler_allbus_model(filename='test_allbus.csv', modelname='simpler_allbus_model', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+    # Load and prepare data
+    data = pd.read_csv(filename, index_col=0)
+    data = data.drop(['eastwest', 'lived_abroad', 'spectrum', 'sex', 'educ', 'happiness'], axis=1)
+    data = data.drop(['health'], axis=1)
+    # Reduce size of data to improve performance
+    data = data.sample(n=500, random_state=1)
+    data.sort_index(inplace=True)
+    # Set up shared variables
+    age = theano.shared(np.array(data['age']))
+    allbus_model = pm.Model()
+    with allbus_model:
+        # priors
+        alpha_inc = pm.Uniform('alpha_inc', -5000, 5000)
+        #alpha_h = pm.Uniform('alpha_h', -10, 10)
+        beta_inc = pm.Uniform('beta_inc', -1000, 1000)
+        #beta_h1 = pm.Uniform('beta_h1', -0.1, 0.1)
+        #beta_h2 = pm.Uniform('beta_h2', -0.01, 0.01)
+        # likelihood
+        mu_income = alpha_inc + beta_inc * age
+        #mu_income = beta_inc * age
+        income = pm.Normal('income', mu_income, 1, observed=data['income'])
+        #mu_health = alpha_h + beta_h1 * age + beta_h2 * income
+        #mu_health = beta_h1 * age + beta_h2 * income
+        #health = pm.Normal('health', mu_health, 1, observed=data['health'])
+    # Create model instance for Lumen
+    m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'age': age})
+    if fit:
+        m.fit(data)
+    return data, m
 ######################################
 # Call all model generating functions
 ######################################
@@ -409,7 +442,7 @@ if __name__ == '__main__':
                         create_pymc3_coal_mining_disaster_model,
                         create_getting_started_model_shape, create_lambert_stan_example, create_flight_delay_model]
 
-    create_functions = [create_allbus_model]
+    create_functions = [create_simpler_allbus_model]
 
     for func in create_functions:
         data, m = func(fit=False)
