@@ -380,6 +380,43 @@ def create_allbus_model_1(filename='test_allbus.csv', modelname='allbus_model_1'
     if fit:
         m.fit(data)
     return data, m
+
+def create_allbus_model_2(filename='test_allbus.csv', modelname='allbus_model_2', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+    # Load and prepare data
+    data = pd.read_csv(filename, index_col=0)
+    data = data.drop(['eastwest', 'lived_abroad', 'spectrum', 'sex', 'educ', 'health'], axis=1)
+    # Reduce size of data to improve performance
+    data = data.sample(n=500, random_state=1)
+    data.sort_index(inplace=True)
+    # Set up shared variables
+    age = theano.shared(np.array(data['age']))
+    allbus_model = pm.Model()
+    with allbus_model:
+        # priors
+        alpha_sd = pm.Uniform('alpha_sd',0,2000)
+        beta_sd = pm.Uniform('beta_sd',0,1000)
+        scale = pm.Uniform('scale', 1000, 5000)
+        sd_happ = pm.Uniform('sd_happ', 0, 5)
+        alpha_happ = pm.Uniform('alpha_happ', -10, 10)
+        beta_happ = pm.Uniform('beta_happ', -0.001, 0.001)
+        # likelihood
+        def normalize(x, min_x, max_x):
+            return (x-min_x)/(max_x-min_x)
+        # transform age so that it resembles a u-shaped distribution
+        age_transformed = \
+            scipy.stats.norm.pdf(normalize(age, min(age.get_value()), max(age.get_value())), a=2, b=2) * scale
+        sd_income = alpha_sd + beta_sd*age_transformed
+        income = pm.HalfNormal('income', sd_income, observed=data['income'])
+        mu_happ = alpha_happ + beta_happ * income
+        happiness = pm.Normal('happiness', mu_happ, sd_happ, observed=data['happiness'])
+
+    # Create model instance for Lumen
+    m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'age': age})
+    if fit:
+        m.fit(data)
+    return data, m
 ######################################
 # Call all model generating functions
 ######################################
@@ -399,7 +436,7 @@ if __name__ == '__main__':
                         create_pymc3_coal_mining_disaster_model,
                         create_getting_started_model_shape, create_lambert_stan_example, create_flight_delay_model]
 
-    create_functions = [create_allbus_model_1]
+    create_functions = [create_allbus_model_2]
 
     for func in create_functions:
         data, m = func(fit=False)
