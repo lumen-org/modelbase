@@ -8,6 +8,7 @@ import theano
 from scripts.run_conf import cfg as user_cfg
 import os
 import timeit
+import scipy.stats
 
 
 
@@ -396,28 +397,37 @@ def create_simpler_allbus_model(filename='test_allbus.csv', modelname='simpler_a
         modelname = modelname+'_fitted'
     # Load and prepare data
     data = pd.read_csv(filename, index_col=0)
-    data = data.drop(['eastwest', 'lived_abroad', 'spectrum', 'sex', 'educ', 'happiness'], axis=1)
-    data = data.drop(['health'], axis=1)
+    data = data.drop(['eastwest', 'lived_abroad', 'spectrum', 'sex', 'educ', 'health'], axis=1)
     # Reduce size of data to improve performance
     data = data.sample(n=500, random_state=1)
     data.sort_index(inplace=True)
     # Set up shared variables
     age = theano.shared(np.array(data['age']))
+
+    # with allbus_model:
+    #     # priors
+    #     beta_sd = pm.Uniform('beta_sd', 0, 1)
+    #     # likelihood
+    #     mu_income = 1750
+    #     sd_income = beta_sd * age
+    #     income = pm.Normal('income', mu_income, sd_income, observed=data['income'])
+    #     income_normalized = (income - min(data['income'])) / (max(data['income']) - min(data['income'])) * 10
+    #     happiness = pm.Uniform(income_normalized, 10, observed=data['happiness'])
     allbus_model = pm.Model()
     with allbus_model:
         # priors
-        alpha_inc = pm.Uniform('alpha_inc', -5000, 5000)
-        #alpha_h = pm.Uniform('alpha_h', -10, 10)
-        beta_inc = pm.Uniform('beta_inc', -1000, 1000)
-        #beta_h1 = pm.Uniform('beta_h1', -0.1, 0.1)
-        #beta_h2 = pm.Uniform('beta_h2', -0.01, 0.01)
+        sd_income = pm.Uniform('sd_income', 0, 1000)
+        alpha_inc = pm.Uniform('alpha_inc', -1000, 1000)
+        beta_inc = pm.Uniform('beta_inc', -100, 100)
+        sd_happ = pm.Uniform('sd_happ', 0, 5)
+        alpha_happ = pm.Uniform('alpha_happ', -10, 10)
+        beta_happ = pm.Uniform('beta_happ', -0.001, 0.001)
         # likelihood
         mu_income = alpha_inc + beta_inc * age
-        #mu_income = beta_inc * age
-        income = pm.Normal('income', mu_income, 1, observed=data['income'])
-        #mu_health = alpha_h + beta_h1 * age + beta_h2 * income
-        #mu_health = beta_h1 * age + beta_h2 * income
-        #health = pm.Normal('health', mu_health, 1, observed=data['health'])
+        income = pm.Normal('income', mu_income, sd_income, observed=data['income'])
+        mu_happ = alpha_happ + beta_happ * income
+        happiness = pm.Normal('happiness', mu_happ, sd_happ, observed=data['happiness'])
+
     # Create model instance for Lumen
     m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'age': age})
     if fit:
