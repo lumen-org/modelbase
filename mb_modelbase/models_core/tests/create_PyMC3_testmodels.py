@@ -349,50 +349,7 @@ def create_lambert_stan_example(modelname='lambert_stan_example', fit=True):
 ######################################
 # allbus models
 ######################################
-def create_allbus_model(filename='test_allbus.csv', modelname='allbus_model', fit=True):
-    if fit:
-        modelname = modelname+'_fitted'
-    # Load and prepare data
-    data = pd.read_csv(filename, index_col=0)
-    data = data.drop(['eastwest', 'lived_abroad', 'spectrum'], axis=1)
-    #data = data.drop(['health', 'happiness'], axis=1)
-    data = data.replace('Male', 0)
-    data = data.replace('Female', 1)
-    # Reduce size of data to improve performance
-    data = data.sample(n=500, random_state=1)
-    data.sort_index(inplace=True)
-    # Set up shared variables
-    age = theano.shared(np.array(data['age']))
-    sex = theano.shared(np.array(data['sex']))
-    educ = theano.shared(np.array(data['educ']))
-    health = theano.shared(np.array(data['health']))
-    # Specify model
-    allbus_model = pm.Model()
-    with allbus_model:
-        # priors
-        alpha_inc = pm.Uniform('alpha_inc', -10000, 10000)
-        alpha_happ = pm.Uniform('alpha_happ', 0, 10)
-        beta_inc = pm.Uniform('beta_inc', -10000, 10000, shape=3)
-        beta_happ = pm.Uniform('beta_happ', -10, 10, shape=3)
-        beta_happ_inc = pm.Uniform('beta_happ_inc', -0.01, 0.01)
-        sd_inc = pm.Uniform('sd_inc', 0, 10000)
-        sd_happ = pm.Uniform('sd_happ', 0, 10)
-        # likelihood
-        mu_income = alpha_inc + beta_inc[0]*educ + beta_inc[1]*sex + beta_inc[2]*age
-        income = pm.Normal('income', mu_income, sd_inc, observed=data['income'])
-        # Assume that age goes quadratically into happiness with the minimum at 35
-        age_transformed = (age-35)**2
-        mu_happiness = alpha_happ + beta_happ[0] * educ + beta_happ[1] * health + \
-                       beta_happ[2] * age_transformed + beta_happ_inc * income
-        happiness = pm.Normal('happiness', mu_happiness, sd_happ, observed=data['happiness'])
-    # Create model instance for Lumen
-    m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={
-        'age': age, 'sex': sex, 'educ': educ, 'health': health})
-    if fit:
-        m.fit(data)
-    return data, m
-
-def create_simpler_allbus_model(filename='test_allbus.csv', modelname='simpler_allbus_model', fit=True):
+def create_allbus_model_1(filename='test_allbus.csv', modelname='allbus_model_1', fit=True):
     if fit:
         modelname = modelname+'_fitted'
     # Load and prepare data
@@ -403,16 +360,6 @@ def create_simpler_allbus_model(filename='test_allbus.csv', modelname='simpler_a
     data.sort_index(inplace=True)
     # Set up shared variables
     age = theano.shared(np.array(data['age']))
-
-    # with allbus_model:
-    #     # priors
-    #     beta_sd = pm.Uniform('beta_sd', 0, 1)
-    #     # likelihood
-    #     mu_income = 1750
-    #     sd_income = beta_sd * age
-    #     income = pm.Normal('income', mu_income, sd_income, observed=data['income'])
-    #     income_normalized = (income - min(data['income'])) / (max(data['income']) - min(data['income'])) * 10
-    #     happiness = pm.Uniform(income_normalized, 10, observed=data['happiness'])
     allbus_model = pm.Model()
     with allbus_model:
         # priors
@@ -452,7 +399,7 @@ if __name__ == '__main__':
                         create_pymc3_coal_mining_disaster_model,
                         create_getting_started_model_shape, create_lambert_stan_example, create_flight_delay_model]
 
-    create_functions = [create_simpler_allbus_model]
+    create_functions = [create_allbus_model_1]
 
     for func in create_functions:
         data, m = func(fit=False)
