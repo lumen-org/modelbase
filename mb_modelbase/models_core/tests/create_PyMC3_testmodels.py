@@ -9,6 +9,7 @@ from scripts.run_conf import cfg as user_cfg
 import os
 import timeit
 import scipy.stats
+import math
 
 
 
@@ -395,20 +396,23 @@ def create_allbus_model_2(filename='test_allbus.csv', modelname='allbus_model_2'
     allbus_model = pm.Model()
     with allbus_model:
         # priors
-        alpha_sd = pm.Uniform('alpha_sd',0,2000)
-        beta_sd = pm.Uniform('beta_sd',0,1000)
-        scale = pm.Uniform('scale', 1000, 5000)
+        alpha_sd = pm.Uniform('alpha_sd', 0, 2000)
+        beta_sd = pm.Uniform('beta_sd', 0, 1000)
+        loc_transform = pm.Normal('loc_transform', 50, 20)
+        scale_transform = pm.Uniform('scale_transform', 0, 5000)
         sd_happ = pm.Uniform('sd_happ', 0, 5)
         alpha_happ = pm.Uniform('alpha_happ', -10, 10)
-        beta_happ = pm.Uniform('beta_happ', -0.001, 0.001)
+        beta_happ1 = pm.Uniform('beta_happ1', -0.001, 0.001)
+        beta_happ2 = pm.Uniform('beta_happ2', -0.001, 0.001)
         # likelihood
-        def normalize(x, min_x, max_x):
-            return (x-min_x)/(max_x-min_x)
-        # transform age so that it resembles a u-shaped distribution
-        age_transformed = \
-            scipy.stats.norm.pdf(normalize(age, min(age.get_value()), max(age.get_value())), a=2, b=2) * scale
+        # transform age so that it resembles a bell-shaped distribution
+        def normal_pdf(x,loc,scale):
+            return 1/np.sqrt(2*math.pi*scale*scale)*np.exp(-(x-loc)**2/(2*scale*scale))
+        age_transformed = normal_pdf(age, loc=loc_transform, scale=scale_transform)
         sd_income = alpha_sd + beta_sd*age_transformed
         income = pm.HalfNormal('income', sd_income, observed=data['income'])
+        switchpoint = pm.Uniform('switchpoint', 500, 2000)
+        beta_happ = pm.math.switch(income < switchpoint, beta_happ1, beta_happ2)
         mu_happ = alpha_happ + beta_happ * income
         happiness = pm.Normal('happiness', mu_happ, sd_happ, observed=data['happiness'])
 
