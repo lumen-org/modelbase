@@ -421,6 +421,48 @@ def create_allbus_model_2(filename='test_allbus.csv', modelname='allbus_model_2'
     if fit:
         m.fit(data)
     return data, m
+
+def create_allbus_model_3(filename='test_allbus.csv', modelname='allbus_model_3', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+    # Load and prepare data
+    data = pd.read_csv(filename, index_col=0)
+    data = data.drop(['eastwest', 'lived_abroad', 'spectrum', 'sex', 'educ', 'health'], axis=1)
+    # Reduce size of data to improve performance
+    data = data.sample(n=500, random_state=1)
+    data.sort_index(inplace=True)
+    # Set up shared variables
+    age = theano.shared(np.array(data['age']))
+    allbus_model = pm.Model()
+    with allbus_model:
+        # priors
+        alpha_sd = pm.Uniform('alpha_sd', 0, 2000)
+        beta_sd = pm.Uniform('beta_sd', 0, 1000)
+        loc_transform = pm.Normal('loc_transform', 50, 20)
+        scale_transform = pm.Uniform('scale_transform', 0, 5000)
+        sd_happ = pm.Uniform('sd_happ', 0, 5)
+        alpha_happ1 = pm.Uniform('alpha_happ1', -10, 5)
+        alpha_happ2 = pm.Uniform('alpha_happ2', 5, 10)
+        beta_happ1 = pm.Uniform('beta_happ1', -0.001, 0.001)
+        beta_happ2 = pm.Uniform('beta_happ2', -0.001, 0.001)
+        # likelihood
+        # transform age so that it resembles a bell-shaped distribution
+        def normal_pdf(x,loc,scale):
+            return 1/np.sqrt(2*math.pi*scale*scale)*np.exp(-(x-loc)**2/(2*scale*scale))
+        age_transformed = normal_pdf(age, loc=loc_transform, scale=scale_transform)
+        sd_income = alpha_sd + beta_sd*age_transformed
+        income = pm.HalfNormal('income', sd_income, observed=data['income'])
+        switchpoint = pm.Uniform('switchpoint', 500, 2000)
+        beta_happ = pm.math.switch(income < switchpoint, beta_happ1, beta_happ2)
+        alpha_happ = pm.math.switch(income < switchpoint, alpha_happ1, alpha_happ2)
+        mu_happ = alpha_happ + beta_happ * income
+        happiness = pm.Normal('happiness', mu_happ, sd_happ, observed=data['happiness'])
+
+    # Create model instance for Lumen
+    m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'age': age})
+    if fit:
+        m.fit(data)
+    return data, m
 ######################################
 # Call all model generating functions
 ######################################
@@ -440,7 +482,7 @@ if __name__ == '__main__':
                         create_pymc3_coal_mining_disaster_model,
                         create_getting_started_model_shape, create_lambert_stan_example, create_flight_delay_model]
 
-    create_functions = [create_allbus_model_2]
+    create_functions = [create_allbus_model_3]
 
     for func in create_functions:
         data, m = func(fit=False)
