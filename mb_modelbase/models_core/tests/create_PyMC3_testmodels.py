@@ -367,14 +367,16 @@ def create_allbus_model_1(filename='test_allbus.csv', modelname='allbus_model_1'
         sd_income = pm.Uniform('sd_income', 0, 1000)
         alpha_inc = pm.Uniform('alpha_inc', -1000, 1000)
         beta_inc = pm.Uniform('beta_inc', -100, 100)
-        sd_happ = pm.Uniform('sd_happ', 0, 5)
-        alpha_happ = pm.Uniform('alpha_happ', -10, 10)
-        beta_happ = pm.Uniform('beta_happ', -0.001, 0.001)
+        #sd_happ = pm.DiscreteUniform('sd_happ', 0, 5)
+        #alpha_happ = pm.Uniform('alpha_happ', -10, 10)
+        #beta_happ = pm.Uniform('beta_happ', -0.001, 0.001)
+        n_happ = pm.DiscreteUniform('n_happ', 0, 1000)
+        p_happ = pm.Uniform('p_happ', 0, 1)
         # likelihood
         mu_income = alpha_inc + beta_inc * age
         income = pm.Normal('income', mu_income, sd_income, observed=data['income'])
-        mu_happ = alpha_happ + beta_happ * income
-        happiness = pm.Normal('happiness', mu_happ, sd_happ, observed=data['happiness'])
+        #mu_happ = alpha_happ + beta_happ * income
+        happiness = pm.Binomial('happiness', n_happ, p_happ, observed=data['happiness'])
 
     # Create model instance for Lumen
     m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'age': age})
@@ -399,9 +401,10 @@ def create_allbus_model_2(filename='test_allbus.csv', modelname='allbus_model_2'
         alpha_sd = pm.Uniform('alpha_sd', 0, 2000)
         beta_sd = pm.Uniform('beta_sd', 0, 1000)
         loc_transform = pm.Normal('loc_transform', 50, 20)
-        scale_transform = pm.Uniform('scale_transform', 0, 5000)
+        scale_transform = pm.Uniform('scale_transform', 0, 100)
         sd_happ = pm.Uniform('sd_happ', 0, 5)
-        alpha_happ = pm.Uniform('alpha_happ', -10, 10)
+        alpha_happ1 = pm.Uniform('alpha_happ1', -10, 5)
+        alpha_happ2 = pm.Uniform('alpha_happ2', 5, 10)
         beta_happ1 = pm.Uniform('beta_happ1', -0.001, 0.001)
         beta_happ2 = pm.Uniform('beta_happ2', -0.001, 0.001)
         # likelihood
@@ -413,6 +416,7 @@ def create_allbus_model_2(filename='test_allbus.csv', modelname='allbus_model_2'
         income = pm.HalfNormal('income', sd_income, observed=data['income'])
         switchpoint = pm.Uniform('switchpoint', 500, 2000)
         beta_happ = pm.math.switch(income < switchpoint, beta_happ1, beta_happ2)
+        alpha_happ = pm.math.switch(income < switchpoint, alpha_happ1, alpha_happ2)
         mu_happ = alpha_happ + beta_happ * income
         happiness = pm.Normal('happiness', mu_happ, sd_happ, observed=data['happiness'])
 
@@ -437,14 +441,12 @@ def create_allbus_model_3(filename='test_allbus.csv', modelname='allbus_model_3'
     with allbus_model:
         # priors
         alpha_sd = pm.Uniform('alpha_sd', 0, 2000)
-        beta_sd = pm.Uniform('beta_sd', 0, 1000)
+        beta_sd = pm.Uniform('beta_sd', 0, 2000)
         loc_transform = pm.Normal('loc_transform', 50, 20)
-        scale_transform = pm.Uniform('scale_transform', 0, 5000)
-        sd_happ = pm.Uniform('sd_happ', 0, 5)
-        alpha_happ1 = pm.Uniform('alpha_happ1', -10, 5)
-        alpha_happ2 = pm.Uniform('alpha_happ2', 5, 10)
-        beta_happ1 = pm.Uniform('beta_happ1', -0.001, 0.001)
-        beta_happ2 = pm.Uniform('beta_happ2', -0.001, 0.001)
+        scale_transform = pm.Uniform('scale_transform', 0, 100)
+        mu_happ = pm.Uniform('mu_happ', 6, 10)
+        sd_happ1 = pm.Uniform('sd_happ1', 0, 8)
+        sd_happ2 = pm.Uniform('sd_happ2', 0, 2)
         # likelihood
         # transform age so that it resembles a bell-shaped distribution
         def normal_pdf(x,loc,scale):
@@ -452,10 +454,8 @@ def create_allbus_model_3(filename='test_allbus.csv', modelname='allbus_model_3'
         age_transformed = normal_pdf(age, loc=loc_transform, scale=scale_transform)
         sd_income = alpha_sd + beta_sd*age_transformed
         income = pm.HalfNormal('income', sd_income, observed=data['income'])
-        switchpoint = pm.Uniform('switchpoint', 500, 2000)
-        beta_happ = pm.math.switch(income < switchpoint, beta_happ1, beta_happ2)
-        alpha_happ = pm.math.switch(income < switchpoint, alpha_happ1, alpha_happ2)
-        mu_happ = alpha_happ + beta_happ * income
+        switchpoint = pm.Uniform('switchpoint', 2000, 6000)
+        sd_happ = pm.math.switch(income < switchpoint, sd_happ1, sd_happ2)
         happiness = pm.Normal('happiness', mu_happ, sd_happ, observed=data['happiness'])
 
     # Create model instance for Lumen
@@ -482,7 +482,7 @@ if __name__ == '__main__':
                         create_pymc3_coal_mining_disaster_model,
                         create_getting_started_model_shape, create_lambert_stan_example, create_flight_delay_model]
 
-    create_functions = [create_allbus_model_3]
+    create_functions = [create_allbus_model_1]
 
     for func in create_functions:
         data, m = func(fit=False)
