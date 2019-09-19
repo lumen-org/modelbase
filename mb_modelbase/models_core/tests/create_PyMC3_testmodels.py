@@ -367,16 +367,18 @@ def create_allbus_model_1(filename='test_allbus.csv', modelname='allbus_model_1'
         sd_income = pm.Uniform('sd_income', 0, 1000)
         alpha_inc = pm.Uniform('alpha_inc', -1000, 1000)
         beta_inc = pm.Uniform('beta_inc', -100, 100)
-        #sd_happ = pm.DiscreteUniform('sd_happ', 0, 5)
-        #alpha_happ = pm.Uniform('alpha_happ', -10, 10)
-        #beta_happ = pm.Uniform('beta_happ', -0.001, 0.001)
-        n_happ = pm.DiscreteUniform('n_happ', 0, 1000)
-        p_happ = pm.Uniform('p_happ', 0, 1)
+        sd_happ = pm.Uniform('sd_happ', 0, 5)
+        alpha_happ = pm.Uniform('alpha_happ', -10, 10)
+        beta_happ = pm.Uniform('beta_happ', -0.001, 0.001)
         # likelihood
         mu_income = alpha_inc + beta_inc * age
         income = pm.Normal('income', mu_income, sd_income, observed=data['income'])
-        #mu_happ = alpha_happ + beta_happ * income
-        happiness = pm.Binomial('happiness', n_happ, p_happ, observed=data['happiness'])
+        mu_happ = alpha_happ + beta_happ * income
+        happiness_cont = pm.Normal('happiness_cont', mu_happ, sd_happ, observed=data['happiness'])
+        # round values to (almost) integers
+        happiness_cont_rounded = theano.tensor.round(happiness_cont)
+        happiness = pm.Normal('happiness', happiness_cont_rounded, 0.00001, observed=data['happiness'])
+
 
     # Create model instance for Lumen
     m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'age': age})
@@ -463,6 +465,8 @@ def create_allbus_model_3(filename='test_allbus.csv', modelname='allbus_model_3'
     if fit:
         m.fit(data)
     return data, m
+
+
 ######################################
 # Call all model generating functions
 ######################################
