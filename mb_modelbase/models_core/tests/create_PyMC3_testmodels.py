@@ -456,7 +456,7 @@ def create_allbus_model_4(filename='test_allbus.csv', modelname='allbus_model_4'
         m.fit(data)
     return data, m
 
-def create_allbus_model_4(filename='test_allbus.csv', modelname='allbus_model_4', fit=True):
+def create_allbus_model_5(filename='test_allbus.csv', modelname='allbus_model_5', fit=True):
     if fit:
         modelname = modelname+'_fitted'
     # Load and prepare data
