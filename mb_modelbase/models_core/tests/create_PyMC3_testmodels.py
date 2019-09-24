@@ -357,9 +357,8 @@ def create_flight_delay_model_3(filename='airlineDelayDataProcessed.csv', modeln
         var = beta_var[0] + beta_var[1] * deptime
         # Improvement 3: Apply a shift to the data so that the HalfNormalDistribution fits better
         shift = min(data['depdelay'])
-        print('shift: ' + str(-shift))
         # Improvement 2: I assume that depdelay is  bounded at 0 and only the variance is a function of deptime
-        shifted_depdelay = pm.HalfNormal('shifted_depdelay', sd=var, observed=data['depdelay']-shift)
+        depdelay = pm.HalfNormal('depdelay', sd=var, observed=data['depdelay']-shift)
 
     m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'dep_time': deptime})
     if fit:
@@ -594,6 +593,9 @@ if __name__ == '__main__':
                         create_pymc3_coal_mining_disaster_model,
                         create_getting_started_model_shape, create_flight_delay_model_1, create_flight_delay_model_2,
                         create_flight_delay_model_3, create_allbus_model_4]
+
+    create_functions = [create_flight_delay_model_1, create_flight_delay_model_2,
+                        create_flight_delay_model_3]
 
     for func in create_functions:
         data, m = func(fit=False)
