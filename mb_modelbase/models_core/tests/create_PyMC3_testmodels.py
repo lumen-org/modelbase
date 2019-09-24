@@ -308,7 +308,10 @@ if __name__ == '__main__':
         print('Specify a test_model_directory and a test_data_direcory in run_conf.py')
         raise
 
-    create_functions = [create_titanic_model]
+    create_functions = [create_pymc3_simplest_model, create_pymc3_getting_started_model,
+                        create_pymc3_getting_started_model_independent_vars,
+                        create_pymc3_coal_mining_disaster_model,
+                        create_getting_started_model_shape, create_flight_delay_models]
 
 
     for func in create_functions:
