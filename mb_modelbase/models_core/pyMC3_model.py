@@ -167,10 +167,16 @@ class ProbabilisticPymc3Model(Model):
         # Konditioniere auf die Domäne der Variablen in remove
         for field in fields:
             # filter out values smaller than domain minimum
-            filter = self.samples.loc[:, str(field['name'])] > field['domain'].value()[0]
+            if not field['domain'].issingular():
+                dom_min = field['domain'].value()[0]
+                dom_max = field['domain'].value()[1]
+            else:
+                dom_min = field['domain'].value()
+                dom_max = field['domain'].value()
+            filter = self.samples.loc[:, str(field['name'])] > dom_min
             self.samples.where(filter, inplace=True)
             # filter out values bigger than domain maximum
-            filter = self.samples.loc[:, str(field['name'])] < field['domain'].value()[1]
+            filter = self.samples.loc[:, str(field['name'])] < dom_max
             self.samples.where(filter, inplace=True)
         self.samples.dropna(inplace=True)
         self._marginalizeout(keep, remove)
