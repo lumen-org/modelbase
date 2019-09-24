@@ -297,45 +297,6 @@ def create_flight_delay_models(filename='airlineDelayDataProcessed.csv', modelna
     return data, m
 
 ######################################
-# iris
-######################################
-
-def create_titanic_model(filename='test_titanic.csv', modelname='iris', fit=True):
-    if fit:
-        modelname = modelname+'_fitted'
-
-    data = pd.read_csv(filename)
-    data =  data.drop(['PassengerId', 'Name', 'SibSp', 'Parch', 'Ticket', 'Cabin', 'Fare', 'Embarked'], axis=1)
-    data = data.rename(columns={'Pclass': 'pclass', 'Sex': 'sex', 'Age': 'age', 'Survived': 'survived'})
-
-    # drop NAs
-    data = data.dropna()
-
-    # Recode variable
-    data = data.replace('male', 0)
-    data = data.replace('female', 1)
-
-    # Create shared variables
-    pclass = theano.shared(np.array(data['pclass']))
-    sex = theano.shared(np.array(data['sex']))
-    age = theano.shared(np.array(data['age']))
-
-
-    #Create model
-    titanic_model = pm.Model()
-    with titanic_model:
-        beta = pm.Uniform('beta', 0, 1, shape=4)
-        # Survival depends on class, sex and age
-        mu = beta[0] + beta[1]*pclass + beta[2]*sex + beta[3]*age
-        theta = pm.Deterministic('theta', pm.math.sigmoid(mu))
-        survived = pm.Bernoulli('survived', p=theta, observed=data['survived'])
-
-    m = ProbabilisticPymc3Model(modelname, titanic_model, shared_vars={'pclass': pclass, 'sex': sex, 'age': age})
-    if fit:
-        m.fit(data)
-    return data, m
-
-######################################
 # Call all model generating functions
 ######################################
 if __name__ == '__main__':
