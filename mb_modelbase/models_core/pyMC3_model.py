@@ -37,7 +37,7 @@ class ProbabilisticPymc3Model(Model):
             new data points are generated with a different length than the original data
     """
 
-    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=500, fixed_data_length=False):
+    def __init__(self, name, model_structure, shared_vars=None, fixed_data_length=False):
         super().__init__(name)
         self.model_structure = model_structure
         self.samples = pd.DataFrame()
@@ -45,8 +45,8 @@ class ProbabilisticPymc3Model(Model):
             'maximum': self._maximum
         }
         self.parallel_processing = False
+        self.nr_of_posterior_samples = None
         self.shared_vars = shared_vars
-        self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
 
 
@@ -86,6 +86,10 @@ class ProbabilisticPymc3Model(Model):
                 'The following independent variables do not appear in shared_vars:' + str(missing_vars) + ' Make sure '\
                 'that you pass the data for each independent variable as theano shared variable to the constructor'
         self.check_data_and_shared_vars_on_equality()
+        # Set number of samples to the number of data points. The number of samples must not be chosen
+        # arbitrarily, since independent and dependent variables have to have the same dimensions. Otherwise,
+        # some models cannot compute posterior predictive samples
+        self.nr_of_posterior_samples = len(df)
         return ()
 
     def _generate_samples_for_independent_variable(self, key, size):
@@ -200,8 +204,14 @@ class ProbabilisticPymc3Model(Model):
         return -self._density(x)
 
     def _sample(self, n):
-        sample = pd.DataFrame()
 
+        # If number of samples differs from number of data points, posterior predictive samples
+        # cannot be generated
+        if n != len(self.data):
+            print('WARNING: number of samples differs from number of data points. To avoid problems during sampling, '
+                  'number of samples is now automatically set to the number of data points')
+            n = len(self.data)
+        sample = pd.DataFrame()
         # Generate samples for latent random variables
         with self.model_structure:
             trace = pm.sample(n, chains=1, cores=1, progressbar=False)
