@@ -12,6 +12,22 @@ import scipy.stats
 import math
 
 
+######################################
+# function template
+#####################################
+def create_example_model(modelname='my_name', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+    ## Load data as pandas df
+    #data = pd.read_csv(...)
+    example_model = pm.Model()
+    ## Specify  your model
+    # with example_model:
+    # ...
+    m = ProbabilisticPymc3Model(modelname, example_model)
+    if fit:
+        m.fit(data)
+    return data, m
 
 ######################################
 # pymc3_testcase_model
