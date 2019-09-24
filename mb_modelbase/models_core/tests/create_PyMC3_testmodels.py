@@ -594,9 +594,6 @@ if __name__ == '__main__':
                         create_getting_started_model_shape, create_flight_delay_model_1, create_flight_delay_model_2,
                         create_flight_delay_model_3, create_allbus_model_4]
 
-    create_functions = [create_flight_delay_model_1, create_flight_delay_model_2,
-                        create_flight_delay_model_3]
-
     for func in create_functions:
         data, m = func(fit=False)
         data, m_fitted = func(fit=True)
