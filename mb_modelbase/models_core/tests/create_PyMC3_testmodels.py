@@ -260,19 +260,18 @@ def create_getting_started_model_shape(modelname='pymc3_getting_started_model_sh
     return data, m
 
 ######################################
-# Flight delay
+# Flight delay models
 ######################################
-def create_flight_delay_models(filename='airlineDelayDataProcessed.csv', modelname='flight_delay', fit=True):
+def create_flight_delay_model_1(filename='airlineDelayDataProcessed.csv', modelname='flight_delay_1', fit=True):
     if fit:
         modelname = modelname+'_fitted'
 
     data = pd.read_csv(filename)
-
-    data = data.rename(columns={'DEP_TIME': 'dep_time', 'ARR_DELAY': 'arrdelay', 'DISTANCE': 'distance'})
+    data = data.rename(columns={'DEP_TIME': 'dep_time', 'DEP_DELAY': 'depdelay'})
 
     # Drop variables that are not considered in the model
     data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID',
-                      'ACTUAL_ELAPSED_TIME', 'DEP_DELAY'], axis=1)
+                      'ACTUAL_ELAPSED_TIME', 'ARR_DELAY', 'DISTANCE'], axis=1)
 
     # Reduce size of data to improve performance
     data = data.sample(n=1000, random_state=1)
@@ -280,22 +279,94 @@ def create_flight_delay_models(filename='airlineDelayDataProcessed.csv', modelna
 
     # Create shared variables
     deptime = theano.shared(np.array(data['dep_time']))
-    distance = theano.shared(np.array(data['distance']))
 
     # Create model
-    delay_model_1 = pm.Model()
+    delay_model = pm.Model()
 
-    with delay_model_1:
-        beta_arr = pm.Uniform('beta_dep', 0, 1, shape=3)
+    with delay_model:
+        beta_dep = pm.Uniform('beta_dep', 0, 1, shape=2)
         var = pm.Uniform('var', 0, 100)
-        # I assume that the delay on arrival is a function of deptime and distance
-        mu_arrdelay = beta_arr[0] + beta_arr[1]*deptime + beta_arr[2]*distance
-        arrdelay = pm.Normal('arrdelay', mu_arrdelay, var, observed=data['arrdelay'])
+        # I assume that the depdelay is a function of deptime
+        mu_depdelay = beta_dep[0] + beta_dep[1] * deptime
+        depdelay = pm.Normal('depdelay', mu_depdelay, var, observed=data['depdelay'])
 
-    m = ProbabilisticPymc3Model(modelname+'_1', delay_model_1, shared_vars={'dep_time': deptime, 'distance': distance})
+    m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'dep_time': deptime})
     if fit:
         m.fit(data)
     return data, m
+
+def create_flight_delay_model_2(filename='airlineDelayDataProcessed.csv', modelname='flight_delay_2', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+
+    data = pd.read_csv(filename)
+    data = data.rename(columns={'DEP_TIME': 'dep_time', 'DEP_DELAY': 'depdelay'})
+
+    # Drop variables that are not considered in the model
+    data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID',
+                      'ACTUAL_ELAPSED_TIME', 'ARR_DELAY', 'DISTANCE'], axis=1)
+
+    # Reduce size of data to improve performance
+    data = data.sample(n=1000, random_state=1)
+    data.sort_index(inplace=True)
+
+    # Create shared variables
+    deptime = theano.shared(np.array(data['dep_time']))
+
+    # Create model
+    delay_model = pm.Model()
+
+    with delay_model:
+        beta_dep = pm.Uniform('beta_dep', 0, 1, shape=2)
+        beta_var = pm.Uniform('beta_var', 0, 1, shape=2)
+        # Improvement 1: Assume that variance is a linear function of time, instead of uniformly distributed
+        var = beta_var[0] + beta_var[1] * deptime
+        # I assume that depdelay is a function of deptime
+        mu_depdelay = beta_dep[0] + beta_dep[1] * deptime
+        depdelay = pm.Normal('depdelay', mu_depdelay, var, observed=data['depdelay'])
+
+    m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'dep_time': deptime})
+    if fit:
+        m.fit(data)
+    return data, m
+
+def create_flight_delay_model_3(filename='airlineDelayDataProcessed.csv', modelname='flight_delay_3', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+
+    data = pd.read_csv(filename)
+    data = data.rename(columns={'DEP_TIME': 'dep_time', 'DEP_DELAY': 'depdelay'})
+
+    # Drop variables that are not considered in the model
+    data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID',
+                      'ACTUAL_ELAPSED_TIME', 'ARR_DELAY', 'DISTANCE'], axis=1)
+
+    # Reduce size of data to improve performance
+    data = data.sample(n=1000, random_state=1)
+    data.sort_index(inplace=True)
+
+    # Create shared variables
+    deptime = theano.shared(np.array(data['dep_time']))
+
+    # Create model
+    delay_model = pm.Model()
+
+    with delay_model:
+        beta_var = pm.Uniform('beta_var', 0, 1, shape=2)
+        # Improvement 1: Assume that variance is a linear function of time, instead of uniformly distributed
+        var = beta_var[0] + beta_var[1] * deptime
+        # Improvement 3: Apply a shift to the data so that the HalfNormalDistribution fits better
+        shift = min(data['depdelay'])
+        print('shift: ' + str(-shift))
+        # Improvement 2: I assume that depdelay is  bounded at 0 and only the variance is a function of deptime
+        shifted_depdelay = pm.HalfNormal('shifted_depdelay', sd=var, observed=data['depdelay']-shift)
+
+    m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'dep_time': deptime})
+    if fit:
+        m.fit(data)
+    return data, m
+
+
 
 ######################################
 # allbus models
@@ -521,7 +592,8 @@ if __name__ == '__main__':
     create_functions = [create_pymc3_simplest_model, create_pymc3_getting_started_model,
                         create_pymc3_getting_started_model_independent_vars,
                         create_pymc3_coal_mining_disaster_model,
-                        create_getting_started_model_shape, create_flight_delay_models, create_allbus_model_4]
+                        create_getting_started_model_shape, create_flight_delay_model_1, create_flight_delay_model_2,
+                        create_flight_delay_model_3, create_allbus_model_4]
 
     for func in create_functions:
         data, m = func(fit=False)
