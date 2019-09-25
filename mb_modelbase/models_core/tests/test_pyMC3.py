@@ -11,7 +11,7 @@ def create_testmodels(fit):
     models.append(cr.create_pymc3_getting_started_model_independent_vars(fit=fit))
     models.append(cr.create_pymc3_coal_mining_disaster_model(fit=fit))
     models.append(cr.create_getting_started_model_shape(fit=fit))
-    models.append(cr.create_flight_delay_models(fit=fit))
+    models.append(cr.create_flight_delay_model_1(fit=fit))
     models.append(cr.create_allbus_model_4(fit=fit))
     return models
 
