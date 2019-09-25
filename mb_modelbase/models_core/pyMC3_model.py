@@ -17,6 +17,33 @@ from mb_modelbase.utils.data_import_utils import get_numerical_fields
 
 class ProbabilisticPymc3Model(Model):
     """A Bayesian model built by the PyMC3 library is treated here.
+    General principles:
+
+    The heart of this class is the generation of posterior samples during the _sample() method. It uses the PyMC3
+    functions sample() and sample_ppc() to generate samples for both latent and observed random variables, and store
+    them in a pandas dataframe where columns are variables and rows are associated samples. Fitting the
+    model essentially means just generating those samples. Computing a probability density for the model is then done by
+    setting up a kernel density estimator over the samples with the scipy.stats library and getting the density from
+    this estimator. Marginalizing means just dropping columns from the dataframe, conditioning means just dropping
+    rows that do not meet a certain condition. Three things to keep in mind for the conditioning:
+        - Conditioning in the actual sense of conditioning on one single value is not feasible here: If we have
+          continuous variables, none of the samples probably has this value, so all samples would be discarded. However
+          for the current implementation it is only necessary to condition on intervals, so that is currently not a
+          problem
+        - However a similar problem appears if we have a high-dimensional model and want to condition on a small area
+          within that high-dimensional space. Then it is very likely that again none of the samples fall in this space
+          and again, all samples would be discarded. We do not have a solution for this yet.
+        - Keep in mind that the _conditionout() method does not only condition, but additionally marginalizes variables
+          out. There is no method that only conditions the model
+
+    A model is allowed to include independent variables, that is, variables that are not modeled but whose values
+    influence observed variables. If a model contains independent variables, values for them are generated after
+    the latent variables were sampled and before the observed variables are sampled. The values for the independent
+    variables are drawn without replacement from the training data. Setting new values for independent variables is not
+    so easy, since they are actually hardcoded within the PyMC3 model, which cannot easily be changed once submitted
+    to the Wrapper class of the modelbase backend. To work around this, independent variables have to be transformed to
+    theano shared variables and given to the wrapper class as a separate argument. Then it is possible to change their
+    values again after the model was specified.
 
     Parameters:
 
