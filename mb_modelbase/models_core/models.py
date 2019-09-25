@@ -842,8 +842,9 @@ class Model:
         # condition data
         if self.mode == 'data' or self.mode == 'both':
             for condition in conditions:
-                if condition.name in self.data.columns.tolist():
-                    self.data = data_operations.condition_data(self.data, conditions)
+                #if condition.name in self.data.columns.tolist():
+                if condition[0] in self.data.columns.tolist():
+                        self.data = data_operations.condition_data(self.data, conditions)
             self.test_data = data_operations.condition_data(self.test_data, conditions)
 
         self._update_extents(names)
