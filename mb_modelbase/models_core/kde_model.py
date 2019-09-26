@@ -231,6 +231,6 @@ if __name__ == "__main__":
     #kde_model = mb.KDEModel('kde_model_crabs')
 
     kde_model.fit(data)
-    Model.save(kde_model, '/home/guet_jn/Desktop/mb_data/data_models/kde_model_allbus.mdl')
+    Model.save(kde_model, '/home/guet_jn/Desktop/mb_data/data_models')
 
 
