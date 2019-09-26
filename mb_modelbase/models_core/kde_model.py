@@ -235,4 +235,11 @@ if __name__ == "__main__":
     kde_model.fit(data)
     Model.save(kde_model, '/home/guet_jn/Desktop/mb_data/data_models')
 
+    # create empirical model
+    name = "emp_" + kde_model.name
+    kde_model.set_empirical_model_name(name)
+    emp_model = EmpiricalModel(name=name)
+    emp_model.fit(df=data)
+    emp_model.save('/home/guet_jn/Desktop/mb_data/data_models')
+
 
