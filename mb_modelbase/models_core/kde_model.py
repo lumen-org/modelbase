@@ -213,6 +213,7 @@ class KDEModel(Model):
 if __name__ == "__main__":
     import pandas as pd
     import mb_modelbase as mb
+    from mb_modelbase.models_core.empirical_model import EmpiricalModel
 
     # size = 10000
     # a1 = np.random.normal(6, 3, int(size*0.75))
