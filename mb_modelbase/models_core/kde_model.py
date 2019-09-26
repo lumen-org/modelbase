@@ -199,11 +199,13 @@ class KDEModel(Model):
         return sample
 
     def copy(self, name=None):
+        name = self.name if name is None else name
         mycopy = self._defaultcopy(name)
         mycopy.kde = copy.deepcopy(self.kde)
         mycopy._emp_data = self._emp_data.copy()
         mycopy._categoricals = self._categoricals.copy()
         mycopy._numericals = self._numericals.copy()
+        mycopy.set_empirical_model_name(self._empirical_model_name)
         return mycopy
 
 
