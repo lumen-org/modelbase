@@ -8,7 +8,26 @@ import theano
 from scripts.run_conf import cfg as user_cfg
 import os
 import timeit
+import scipy.stats
+import math
 
+
+######################################
+# function template
+#####################################
+def create_example_model(modelname='my_name', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+    ## Load data as pandas df
+    #data = pd.read_csv(...)
+    example_model = pm.Model()
+    ## Specify  your model
+    # with example_model:
+    # ...
+    m = ProbabilisticPymc3Model(modelname, example_model)
+    if fit:
+        m.fit(data)
+    return data, m
 
 ######################################
 # pymc3_testcase_model
@@ -258,91 +277,314 @@ def create_getting_started_model_shape(modelname='pymc3_getting_started_model_sh
     return data, m
 
 ######################################
-# Flight delay
+# Flight delay models
 ######################################
-def create_flight_delay_model(filename='airlineDelayDataProcessed.csv', modelname='flight_delay', fit=True):
+def create_flight_delay_model_1(filename='airlineDelayDataProcessed.csv', modelname='flight_delay_1', fit=True):
     if fit:
         modelname = modelname+'_fitted'
 
-    testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory']
-    path = os.path.join(testcasedata_path, filename)
-    data = pd.read_csv(path)
-
-    data = data.rename(columns={'ARR_DELAY': 'arrdelay', 'DEP_DELAY': 'depdelay'})
-
-    # Create dummy variables for day of week variable
-    data['monday'] = (data['DAY_OF_WEEK'] == 1).astype(int)
-    data['tuesday'] = (data['DAY_OF_WEEK'] == 2).astype(int)
-    data['wednesday'] = (data['DAY_OF_WEEK'] == 3).astype(int)
-    data['thursday'] = (data['DAY_OF_WEEK'] == 4).astype(int)
-    data['friday'] = (data['DAY_OF_WEEK'] == 5).astype(int)
-    data['saturday'] = (data['DAY_OF_WEEK'] == 6).astype(int)
-    data['sunday'] = (data['DAY_OF_WEEK'] == 7).astype(int)
+    data = pd.read_csv(filename)
+    data = data.rename(columns={'DEP_TIME': 'dep_time', 'DEP_DELAY': 'depdelay'})
 
     # Drop variables that are not considered in the model
-    data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID', 'ACTUAL_ELAPSED_TIME', 'arrdelay'], axis=1)
+    data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID',
+                      'ACTUAL_ELAPSED_TIME', 'ARR_DELAY', 'DISTANCE'], axis=1)
 
     # Reduce size of data to improve performance
     data = data.sample(n=1000, random_state=1)
     data.sort_index(inplace=True)
 
     # Create shared variables
-    distance = theano.shared(np.array(data['DISTANCE']))
-    dow_mon = theano.shared(np.array(data['monday']))
-    dow_tue = theano.shared(np.array(data['tuesday']))
-    dow_wed = theano.shared(np.array(data['wednesday']))
-    dow_thu = theano.shared(np.array(data['thursday']))
-    dow_fri = theano.shared(np.array(data['friday']))
-    dow_sat = theano.shared(np.array(data['saturday']))
-    dow_sun = theano.shared(np.array(data['sunday']))
-    deptime = theano.shared(np.array(data['DEP_TIME']))
+    deptime = theano.shared(np.array(data['dep_time']))
 
     # Create model
     delay_model = pm.Model()
 
-
     with delay_model:
-        beta_dep = pm.Uniform('beta_dep', 0, 1, shape=9)
-        beta_arr = pm.Uniform('beta_arr', 0, 1)
-        var = pm.Uniform('var', 0, 100, shape=2)
-        # I assume that depdelay is a function of dow and deptime
-        mu_depdelay = beta_dep[0] + beta_dep[1] * dow_mon + beta_dep[2] * dow_tue + beta_dep[3] * dow_wed + \
-                      beta_dep[4] * dow_thu + beta_dep[5] * dow_fri + beta_dep[6] * dow_sat + beta_dep[7] * dow_sun + \
-                      beta_dep[8] * deptime
-        depdelay = pm.Normal('depdelay', mu_depdelay, var[0], observed=data['depdelay'])
-        # I assume that arrdelay is a function of depdelay and distance. THIS DOES NOT WORK YET, EXCLUDE IT FROM THE MODEL
-        #mu_arrdelay = depdelay + beta_arr * distance
-        #arrdelay = pm.Normal('arrdelay', mu_arrdelay, var[1], observed=data['arrdelay'])
+        beta_dep = pm.Uniform('beta_dep', 0, 1, shape=2)
+        var = pm.Uniform('var', 0, 100)
+        # I assume that the depdelay is a function of deptime
+        mu_depdelay = beta_dep[0] + beta_dep[1] * deptime
+        depdelay = pm.Normal('depdelay', mu_depdelay, var, observed=data['depdelay'])
 
-    m = ProbabilisticPymc3Model(modelname, delay_model,
-                                shared_vars={'DISTANCE': distance, 'monday': dow_mon, 'tuesday': dow_tue,
-                                             'wednesday': dow_wed, 'thursday': dow_thu, 'friday': dow_fri,
-                                             'saturday': dow_sat, 'sunday': dow_sun, 'DEP_TIME': deptime})
+    m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'dep_time': deptime})
     if fit:
         m.fit(data)
     return data, m
 
-######################################
-# Lambert Stan example
-######################################
-def create_lambert_stan_example(modelname='lambert_stan_example', fit=True):
+def create_flight_delay_model_2(filename='airlineDelayDataProcessed.csv', modelname='flight_delay_2', fit=True):
     if fit:
         modelname = modelname+'_fitted'
-    # Generate data
-    size = 100
-    Y_data = np.random.normal(1.6, 0.2, size=size)
-    data = pd.DataFrame({'Y':Y_data})
-    # Specify model
-    lambert_model = pm.Model()
-    with lambert_model:
-        # Priors
-        mu = pm.Normal('mu', 1.7, 0.3)
-        sigma = pm.HalfCauchy('sigma', 1)
-        # Likelihood
-        Y = pm.Normal('Y', mu, sigma, observed=Y_data)
 
-    m = ProbabilisticPymc3Model(modelname, lambert_model)
+    data = pd.read_csv(filename)
+    data = data.rename(columns={'DEP_TIME': 'dep_time', 'DEP_DELAY': 'depdelay'})
 
+    # Drop variables that are not considered in the model
+    data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID',
+                      'ACTUAL_ELAPSED_TIME', 'ARR_DELAY', 'DISTANCE'], axis=1)
+
+    # Reduce size of data to improve performance
+    data = data.sample(n=1000, random_state=1)
+    data.sort_index(inplace=True)
+
+    # Create shared variables
+    deptime = theano.shared(np.array(data['dep_time']))
+
+    # Create model
+    delay_model = pm.Model()
+
+    with delay_model:
+        beta_dep = pm.Uniform('beta_dep', 0, 1, shape=2)
+        beta_var = pm.Uniform('beta_var', 0, 1, shape=2)
+        # Improvement 1: Assume that variance is a linear function of time, instead of uniformly distributed
+        var = beta_var[0] + beta_var[1] * deptime
+        # I assume that depdelay is a function of deptime
+        mu_depdelay = beta_dep[0] + beta_dep[1] * deptime
+        depdelay = pm.Normal('depdelay', mu_depdelay, var, observed=data['depdelay'])
+
+    m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'dep_time': deptime})
+    if fit:
+        m.fit(data)
+    return data, m
+
+def create_flight_delay_model_3(filename='airlineDelayDataProcessed.csv', modelname='flight_delay_3', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+
+    data = pd.read_csv(filename)
+    data = data.rename(columns={'DEP_TIME': 'dep_time', 'DEP_DELAY': 'depdelay'})
+
+    # Drop variables that are not considered in the model
+    data = data.drop(['UNIQUE_CARRIER', 'DAY_OF_MONTH', 'DAY_OF_WEEK', 'ORIGIN_AIRPORT_ID', 'DEST_AIRPORT_ID',
+                      'ACTUAL_ELAPSED_TIME', 'ARR_DELAY', 'DISTANCE'], axis=1)
+
+    # Reduce size of data to improve performance
+    data = data.sample(n=1000, random_state=1)
+    data.sort_index(inplace=True)
+
+    # Create shared variables
+    deptime = theano.shared(np.array(data['dep_time']))
+
+    # Create model
+    delay_model = pm.Model()
+
+    with delay_model:
+        beta_var = pm.Uniform('beta_var', 0, 1, shape=2)
+        # Improvement 1: Assume that variance is a linear function of time, instead of uniformly distributed
+        var = beta_var[0] + beta_var[1] * deptime
+        # Improvement 3: Apply a shift to the data so that the HalfNormalDistribution fits better
+        shift = min(data['depdelay'])
+        # Improvement 2: I assume that depdelay is  bounded at 0 and only the variance is a function of deptime
+        depdelay = pm.HalfNormal('depdelay', sd=var, observed=data['depdelay']-shift)
+
+    m = ProbabilisticPymc3Model(modelname, delay_model, shared_vars={'dep_time': deptime})
+    if fit:
+        m.fit(data)
+    return data, m
+
+
+
+######################################
+# allbus models
+######################################
+def create_allbus_model_1(filename='test_allbus.csv', modelname='allbus_model_1', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+    # Load and prepare data
+    data = pd.read_csv(filename, index_col=0)
+    data = data.drop(['eastwest', 'lived_abroad', 'spectrum', 'sex', 'educ', 'health'], axis=1)
+    # Reduce size of data to improve performance
+    data = data.sample(n=500, random_state=1)
+    data.sort_index(inplace=True)
+    # Set up shared variables
+    age = theano.shared(np.array(data['age']))
+    allbus_model = pm.Model()
+    with allbus_model:
+        # priors
+        sd_income = pm.Uniform('sd_income', 0, 1000)
+        alpha_inc = pm.Uniform('alpha_inc', -1000, 1000)
+        beta_inc = pm.Uniform('beta_inc', -100, 100)
+        sd_happ = pm.Uniform('sd_happ', 0, 5)
+        alpha_happ = pm.Uniform('alpha_happ', -10, 10)
+        beta_happ = pm.Uniform('beta_happ', -0.001, 0.001)
+        # likelihood
+        mu_income = alpha_inc + beta_inc * age
+        income = pm.Normal('income', mu_income, sd_income, observed=data['income'])
+        mu_happ = alpha_happ + beta_happ * income
+        happiness = pm.Normal('happiness', mu_happ, sd_happ, observed=data['happiness'])
+
+    # Create model instance for Lumen
+    m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'age': age})
+    if fit:
+        m.fit(data)
+    return data, m
+
+def create_allbus_model_2(filename='test_allbus.csv', modelname='allbus_model_2', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+    # Load and prepare data
+    data = pd.read_csv(filename, index_col=0)
+    data = data.drop(['eastwest', 'lived_abroad', 'spectrum', 'sex', 'educ', 'health'], axis=1)
+    # Reduce size of data to improve performance
+    data = data.sample(n=500, random_state=1)
+    data.sort_index(inplace=True)
+    # Set up shared variables
+    age = theano.shared(np.array(data['age']))
+    allbus_model = pm.Model()
+    with allbus_model:
+        # priors
+        alpha_sd = pm.Uniform('alpha_sd', 0, 2000)
+        beta_sd = pm.Uniform('beta_sd', 0, 1000)
+        loc_transform = pm.Normal('loc_transform', 50, 20)
+        scale_transform = pm.Uniform('scale_transform', 0, 100)
+        sd_happ = pm.Uniform('sd_happ', 0, 5)
+        alpha_happ1 = pm.Uniform('alpha_happ1', -10, 5)
+        alpha_happ2 = pm.Uniform('alpha_happ2', 5, 10)
+        beta_happ1 = pm.Uniform('beta_happ1', -0.001, 0.001)
+        beta_happ2 = pm.Uniform('beta_happ2', -0.001, 0.001)
+        # likelihood
+        # transform age so that it resembles a bell-shaped distribution
+        def normal_pdf(x,loc,scale):
+            return 1/np.sqrt(2*math.pi*scale*scale)*np.exp(-(x-loc)**2/(2*scale*scale))
+        age_transformed = normal_pdf(age, loc=loc_transform, scale=scale_transform)
+        sd_income = alpha_sd + beta_sd*age_transformed
+        income = pm.HalfNormal('income', sd_income, observed=data['income'])
+        switchpoint = pm.Uniform('switchpoint', 500, 2000)
+        beta_happ = pm.math.switch(income < switchpoint, beta_happ1, beta_happ2)
+        alpha_happ = pm.math.switch(income < switchpoint, alpha_happ1, alpha_happ2)
+        mu_happ = alpha_happ + beta_happ * income
+        happiness = pm.Normal('happiness', mu_happ, sd_happ, observed=data['happiness'])
+
+    # Create model instance for Lumen
+    m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'age': age})
+    if fit:
+        m.fit(data)
+    return data, m
+
+def create_allbus_model_3(filename='test_allbus.csv', modelname='allbus_model_3', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+    # Load and prepare data
+    data = pd.read_csv(filename, index_col=0)
+    data = data.drop(['eastwest', 'lived_abroad', 'spectrum', 'sex', 'educ', 'health'], axis=1)
+    # Reduce size of data to improve performance
+    data = data.sample(n=500, random_state=1)
+    data.sort_index(inplace=True)
+    # Set up shared variables
+    age = theano.shared(np.array(data['age']))
+    allbus_model = pm.Model()
+    with allbus_model:
+        # priors
+        alpha_sd = pm.Uniform('alpha_sd', 0, 2000)
+        beta_sd = pm.Uniform('beta_sd', 0, 2000)
+        loc_transform = pm.Normal('loc_transform', 50, 20)
+        scale_transform = pm.Uniform('scale_transform', 0, 100)
+        mu_happ = pm.Uniform('mu_happ', 6, 10)
+        sd_happ1 = pm.Uniform('sd_happ1', 0, 8)
+        sd_happ2 = pm.Uniform('sd_happ2', 0, 2)
+        # likelihood
+        # transform age so that it resembles a bell-shaped distribution
+        def normal_pdf(x,loc,scale):
+            return 1/np.sqrt(2*math.pi*scale*scale)*np.exp(-(x-loc)**2/(2*scale*scale))
+        age_transformed = normal_pdf(age, loc=loc_transform, scale=scale_transform)
+        sd_income = alpha_sd + beta_sd*age_transformed
+        income = pm.HalfNormal('income', sd_income, observed=data['income'])
+        switchpoint = pm.Uniform('switchpoint', 2000, 6000)
+        sd_happ = pm.math.switch(income < switchpoint, sd_happ1, sd_happ2)
+        happiness = pm.Normal('happiness', mu_happ, sd_happ, observed=data['happiness'])
+
+    # Create model instance for Lumen
+    m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'age': age})
+    if fit:
+        m.fit(data)
+    return data, m
+
+def create_allbus_model_4(filename='test_allbus.csv', modelname='allbus_model_4', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+    # Load and prepare data
+    data = pd.read_csv(filename, index_col=0)
+    data = data.drop(['eastwest', 'lived_abroad', 'spectrum', 'sex', 'educ', 'health'], axis=1)
+    # Reduce size of data to improve performance
+    data = data.sample(n=500, random_state=1)
+    data.sort_index(inplace=True)
+    # Set up shared variables
+    age = theano.shared(np.array(data['age']))
+    allbus_model = pm.Model()
+    with allbus_model:
+        # priors
+        alpha_sd = pm.Uniform('alpha_sd', 0, 2000)
+        beta_sd = pm.Uniform('beta_sd', 0, 1000)
+        loc_transform = pm.Normal('loc_transform', 50, 20)
+        scale_transform = pm.Uniform('scale_transform', 0, 100)
+        sd_happ = pm.Uniform('sd_happ', 0, 5)
+        alpha_happ1 = pm.Uniform('alpha_happ1', -10, 5)
+        alpha_happ2 = pm.Uniform('alpha_happ2', 5, 10)
+        beta_happ1 = pm.Uniform('beta_happ1', -0.001, 0.001)
+        beta_happ2 = pm.Uniform('beta_happ2', -0.001, 0.001)
+        # likelihood
+        # transform age so that it resembles a bell-shaped distribution
+        def normal_pdf(x,loc,scale):
+            return 1/np.sqrt(2*math.pi*scale*scale)*np.exp(-(x-loc)**2/(2*scale*scale))
+        age_transformed = normal_pdf(age, loc=loc_transform, scale=scale_transform)
+        sd_income = alpha_sd + beta_sd*age_transformed
+        income = pm.HalfNormal('income', sd_income, observed=data['income'])
+        switchpoint = pm.Uniform('switchpoint', 500, 2000)
+        beta_happ = pm.math.switch(income < switchpoint, beta_happ1, beta_happ2)
+        alpha_happ = pm.math.switch(income < switchpoint, alpha_happ1, alpha_happ2)
+        mu_happ = alpha_happ + beta_happ * income
+        # Cap happiness at 10
+        mu_happ = pm.math.switch(mu_happ < 10, mu_happ, 10)
+        happiness = pm.Normal('happiness', mu_happ, sd_happ, observed=data['happiness'])
+
+    # Create model instance for Lumen
+    m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'age': age})
+    if fit:
+        m.fit(data)
+    return data, m
+
+def create_allbus_model_5(filename='test_allbus.csv', modelname='allbus_model_5', fit=True):
+    if fit:
+        modelname = modelname+'_fitted'
+    # Load and prepare data
+    data = pd.read_csv(filename, index_col=0)
+    data = data.drop(['eastwest', 'lived_abroad', 'spectrum', 'sex', 'educ', 'health'], axis=1)
+    # Reduce size of data to improve performance
+    data = data.sample(n=500, random_state=1)
+    data.sort_index(inplace=True)
+    # Set up shared variables
+    age = theano.shared(np.array(data['age']))
+    allbus_model = pm.Model()
+    with allbus_model:
+        # priors
+        alpha_sd = pm.Uniform('alpha_sd', 0, 2000)
+        beta_sd = pm.Uniform('beta_sd', 0, 1000)
+        loc_transform = pm.Normal('loc_transform', 50, 20)
+        scale_transform = pm.Uniform('scale_transform', 0, 100)
+        sd_happ = pm.Uniform('sd_happ', 0, 5)
+        k_logistic = pm.Uniform('k_logistic', 0, 10)
+        x_0_logistic = pm.Uniform('x_0_logistic', 0, 1000)
+        # likelihood
+        # transform age so that it resembles a bell-shaped distribution
+        def normal_pdf(x,loc,scale):
+            return 1/np.sqrt(2*math.pi*scale**2)*np.exp(-(x-loc)**2/(2*scale**2))
+        age_transformed = normal_pdf(age, loc=loc_transform, scale=scale_transform)
+        sd_income = alpha_sd + beta_sd*age_transformed
+        age + loc_transform
+        income = pm.HalfNormal('income', sd_income, observed=data['income'])
+
+        def logistic_func(l, k, x, x_0):
+            # l: curve's max value
+            # x_0: x_value of sigmoid's mid-point
+            # k: steepness of the curve
+            return l/(1+np.exp(-k*(x-x_0)))
+
+        mu_happ = logistic_func(10, k_logistic, income, x_0_logistic)
+
+        happiness = pm.Normal('happiness', mu_happ, sd_happ, observed=data['happiness'])
+
+    # Create model instance for Lumen
+    m = ProbabilisticPymc3Model(modelname, allbus_model, shared_vars={'age': age})
     if fit:
         m.fit(data)
     return data, m
@@ -361,11 +603,13 @@ if __name__ == '__main__':
         print('Specify a test_model_directory and a test_data_direcory in run_conf.py')
         raise
 
+    # This list specifies which models are created when the script is run. If you only want to create
+    # specific models, adjust the list accordingly
     create_functions = [create_pymc3_simplest_model, create_pymc3_getting_started_model,
                         create_pymc3_getting_started_model_independent_vars,
                         create_pymc3_coal_mining_disaster_model,
-                        create_getting_started_model_shape, create_lambert_stan_example, create_flight_delay_model]
-
+                        create_getting_started_model_shape, create_flight_delay_model_1, create_flight_delay_model_2,
+                        create_flight_delay_model_3, create_allbus_model_4]
 
     for func in create_functions:
         data, m = func(fit=False)

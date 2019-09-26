@@ -48,7 +48,7 @@ class SPNModel(Model):
          self.index[i] = None
       return []
 
-    def _fit(self, iterations=5):
+    def _fit(self, iterations=5, **kwargs):
         data = self.data.get_values()
         if self.data.empty:
             raise Exception("No data available to fit on.")
