@@ -279,8 +279,8 @@ class TestMethodsOnFittedModel(unittest.TestCase):
 
             sample_size_all_values = len(mymod.samples)
             mymod.fields[0]['domain'].setupperbound(np.mean(mymod.samples[remove[0]]))
-            isBiggerThanUpperBound = mymod.samples[remove[0]] > np.mean(mymod.samples[remove[0]])
-            big_samples = mymod.samples[remove[0]][isBiggerThanUpperBound]
+            isBiggerOrEqualUpperBound = mymod.samples[remove[0]] >= np.mean(mymod.samples[remove[0]])
+            big_samples = mymod.samples[remove[0]][isBiggerOrEqualUpperBound]
             sample_size_big_values = len(big_samples)
 
             mymod._conditionout(keep=keep, remove=remove)
