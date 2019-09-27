@@ -158,7 +158,7 @@ class KDEModel(Model):
             # Solve an optimization problem for each of the values
             # Set initial values
             global_max_num = [np.mean(self.data[col]) for col in self._numericals]
-            global_max_cat = cartesian_prod[0]
+            global_max_cat = list(cartesian_prod[0])
             global_max_density = 0
             for cat_val in cartesian_prod:
                 m = self.copy()
