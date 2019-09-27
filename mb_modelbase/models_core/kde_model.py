@@ -47,11 +47,18 @@ class KDEModel(Model):
         """
         for name in remove:
             # Remove all rows from the _emp_data that are outside the domain in name
-            lower_bound = self.byname(name)['domain'].values()[0]
-            upper_bound = self.byname(name)['domain'].values()[1]
-            lower_cond = self._emp_data[name] >= lower_bound
-            upper_cond = self._emp_data[name] <= upper_bound
-            self._emp_data = self._emp_data[lower_cond & upper_cond]
+            if len(self.byname(name)['domain'].values()) == 2:
+                lower_bound = self.byname(name)['domain'].values()[0]
+                upper_bound = self.byname(name)['domain'].values()[1]
+                lower_cond = self._emp_data[name] >= lower_bound
+                upper_cond = self._emp_data[name] <= upper_bound
+                self._emp_data = self._emp_data[lower_cond & upper_cond]
+            elif len(self.byname(name)['domain'].values()) == 1:
+                cond_val = self.byname(name)['domain'].values()[0]
+                cond = self._emp_data[name] == cond_val
+                self._emp_data = self._emp_data[cond]
+            else:
+                raise ValueError('Unexpected domain dimensions')
 
         # transfer condition from _emp_data to data
         self.data = self.data.loc[list(self._emp_data.index.values), :]
