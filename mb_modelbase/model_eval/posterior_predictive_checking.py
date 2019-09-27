@@ -2,11 +2,11 @@ import numpy as np
 
 TestQuantities = {
     """ Map of string ids of test quantities to the respective methods."""
-    'average': np.average,
-    'median': np.median,
-    'variance': np.var,
-    'min': np.min,
-    'max': np.max,
+    'average': lambda x: np.average(x, axis=0),
+    'median': lambda x: np.median(x, axis=0),
+    'variance': lambda x: np.var(x, axis=0),
+    'min': lambda x: np.min(x, axis=0),
+    'max': lambda x: np.max(x, axis=0),
 }
 
 
@@ -15,9 +15,10 @@ def posterior_predictive_check(model, test_quantity_fct, k=None, n=None, referen
 
     Args
         model: Model
-            The model to use for the ppc
+            The model to use for the ppc.
         test_quantity_fct: callable, string
-            The test quantity to use.
+            The test quantity to use. The test quantity function accept one or two dimensional arrays and compute the
+            value of each column of the data. See also TestQuantities for examples.
         k: int
             Number of samples to draw each round. If not set the size of training data of model is used.
         n: int
@@ -25,10 +26,13 @@ def posterior_predictive_check(model, test_quantity_fct, k=None, n=None, referen
         reference_data: pd.DataFrame
             The reference data to compare to. If not set the models training data is used.
 
-    Return: (number, list(number))
-        2-tuple of test quantity value of reference data and a list of the test quantity value for the k sets of
-         samples.
+    Return: (np.array, np.array)
+        2-tuple of test quantity value for each field of the model, and np.array of test quantity value for the k sets
+        for each field of the model
     """
+    if model.dim == 0:
+        raise ValueError("cannot do posterior predictive check on zero-dimensional model.")
+
     if reference_data is None:
         reference_data = model.data
         if k is None:
@@ -43,10 +47,13 @@ def posterior_predictive_check(model, test_quantity_fct, k=None, n=None, referen
         raise ValueError("n must be a positive number > 0.")
 
     ks = np.empty(n)
-    ks.fill(k)
-    samples = map(lambda k: model.sample(k).values, ks)
+    samples = map(lambda _: model.sample(k).values, ks)
     samples_test = list(map(test_quantity_fct, samples))
     reference_test = test_quantity_fct(reference_data.values)
+
+    # transpose such that first axis corresponds to variables and second to sample set index
+    samples_test = np.asarray(samples_test).transpose()
+    reference_test = np.asarray(reference_test).transpose()
 
     return reference_test, samples_test
 

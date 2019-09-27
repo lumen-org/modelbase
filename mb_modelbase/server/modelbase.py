@@ -10,7 +10,7 @@ import logging
 from functools import reduce
 from pathlib import Path
 import os
-import numpy
+import numpy as np
 
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
@@ -64,14 +64,15 @@ class NumpyCompliantJSONEncoder(json.JSONEncoder):
     Credits to: http://stackoverflow.com/questions/27050108/convert-numpy-type-to-python
     """
 
-    # TODO: Do i really want that? what side effects does it have if I, all of the sudde, have numpy objects instead of normal integer and floats in my model??? it was never intended for it
+    # TODO: Do i really want that? what side effects does it have if I, all of the sudden, have numpy objects instead
+    #  of normal integer and floats in my model??? it was never intended for it
 
     def default(self, obj):
-        if isinstance(obj, numpy.integer):
+        if isinstance(obj, np.integer):
             return int(obj)
-        elif isinstance(obj, numpy.floating):
+        elif isinstance(obj, np.floating):
             return float(obj)
-        elif isinstance(obj, numpy.ndarray):
+        elif isinstance(obj, np.ndarray):
             return obj.tolist()
         else:
             return super(NumpyCompliantJSONEncoder, self).default(obj)
@@ -352,28 +353,25 @@ class ModelBase:
             base_model = self._extractFrom(query)
             opts = self._extractOpts(query)
 
-            if not 'testQuantitiy' in opts:
-                raise ValueError("missing parameter 'testQuantity'")
-            test_quantity = opts['testQuantitiy']
+            if not 'TEST_QUANTITY' in opts:
+                raise ValueError("missing parameter 'TEST_QUANTITY'")
+            test_quantity = opts['TEST_QUANTITY']
             if not test_quantity in ppc.TestQuantities:
-                raise ValueError("invalid value for parameter 'test quantity': '{}'".format(test_quantity))
+                raise ValueError("invalid value for parameter 'TEST_QUANTITY': '{}'".format(test_quantity))
             test_quantity_fct = ppc.TestQuantities[test_quantity]
+
+
 
             # TODO: issue #XX: it is a questionable design decision: is it a good idea to marginalize a model
             #  just to create marginal samples? e.g. for cg models it should be faster to not marginalize but simply
             #  throw uneeded attributes from the  samples.
-            marginal_model = base_model.marginalize(keep=var_names)
+            marginal_model = base_model.copy().marginalize(keep=var_names)
             res = ppc.posterior_predictive_check(marginal_model, test_quantity_fct,
-                                                 opts.get('k', None), opts.get('n', None))
+                                                 round(opts.get('k', None)), round(opts.get('n', None)))
             res_dict = {
-                'reference': {
-                    'header': var_names,
-                    'test_quantity': [res[0]]
-                },
-                'test': {
-                    'header': var_names,
-                    'test_quantity': res[1]
-                }
+                'header': var_names,
+                'reference': res[0],
+                'test': res[1]
             }
             return _json_dumps(res_dict)
 
@@ -473,12 +471,12 @@ class ModelBase:
         TODO: internally this function refers to self.models[query['FROM']].
             Remove this dependency
         """
-        if 'MODEL' not in query:
-            raise QuerySyntaxError("'MODEL'-statement missing")
-        if query['MODEL'] == '*':
+        if keyword not in query:
+            raise QuerySyntaxError("'{}'-statement missing".format(keyword))
+        if query[keyword] == '*':
             return self.models[query['FROM']].names
         else:
-            return query['MODEL']
+            return query[keyword]
 
     def _extractPredict(self, query):
         """ Extracts from query the fields to predict and returns them in a
