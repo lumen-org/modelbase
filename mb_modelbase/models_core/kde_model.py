@@ -117,6 +117,11 @@ class KDEModel(Model):
                 cond_data = self.data.copy()
                 for i in cat_idx:
                     cond_data = cond_data[cond_data.iloc[:, i] == x[i]]
+                # kde method cannot work when only equal values are given. To work around this,
+                # test each column for equal values and add 0.000001 to one of the values
+                for i in num_idx:
+                    if all([j == cond_data.iloc[0, i] for j in cond_data.iloc[:, i]]):
+                        cond_data.iloc[0, i] += 0.000001
                 # Get density of conditioned model p(num|cat)
                 kde = stats.gaussian_kde(cond_data.iloc[:, num_idx].T)
                 self.kde[str(x_cat)] = kde
@@ -156,7 +161,9 @@ class KDEModel(Model):
         cartesian_prod = list(itertools.product(*unique_vals))
         if self._numericals:
             # Solve an optimization problem for each of the values
+            # Set initial values
             global_max_num = [np.mean(self.data[col]) for col in self._numericals]
+            global_max_cat = cartesian_prod[0]
             global_max_density = 0
             for cat_val in cartesian_prod:
                 m = self.copy()
@@ -251,6 +258,8 @@ if __name__ == "__main__":
     kde_model.set_empirical_model_name(name)
     emp_model = EmpiricalModel(name=name)
     emp_model.fit(df=data)
+
+    print(kde_model._maximum())
 
     Model.save(kde_model, '/home/guet_jn/Desktop/mb_data/data_models')
     emp_model.save('/home/guet_jn/Desktop/mb_data/data_models')
