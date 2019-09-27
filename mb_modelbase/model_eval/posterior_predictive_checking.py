@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def posterior_predictive_check(model, test_quantity_fct, k=None, n=100, reference_data=None):
+def posterior_predictive_check(model, test_quantity_fct, k=None, n=50, reference_data=None):
     """ Do a posterior predictive check.
 
     Args
