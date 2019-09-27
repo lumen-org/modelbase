@@ -181,9 +181,10 @@ class KDEModel(Model):
         mean = data_aggr.aggregate_data(self.data, 'maximum')
         return mean
 
-    def _sample(self):
+    def _sample(self, n):
         """Returns random point of the distribution"""
-        sample = np.zeros(len(self.fields))
+        sample = pd.DataFrame(np.nan, columns=self.data.columns, index=range(n))
+        #sample = np.zeros(len(self.fields))
         # Split data into numerical and categorical variables
         num_idx = []
         cat_idx = []
@@ -192,10 +193,12 @@ class KDEModel(Model):
                 num_idx.append(idx)
             else:
                 cat_idx.append(idx)
+        # Build kde
+        kde = stats.gaussian_kde(self.data.iloc[:, num_idx].T)
         # get samples for numerical dimensions
-        sample[num_idx]= self.kde.sample()
+        sample.iloc[:,num_idx] = kde.resample(n).T
         # get samples for categorical dimensions
-        sample[cat_idx] = self.data.iloc[:, cat_idx].sample().tolist() #[0] ?
+        sample.iloc[:,cat_idx] = self.data.iloc[:, cat_idx].sample(n).values
         return sample
 
     def copy(self, name=None):
@@ -240,6 +243,8 @@ if __name__ == "__main__":
     kde_model.set_empirical_model_name(name)
     emp_model = EmpiricalModel(name=name)
     emp_model.fit(df=data)
+
+    kde_model._sample(5)
 
     Model.save(kde_model, '/home/guet_jn/Desktop/mb_data/data_models')
     emp_model.save('/home/guet_jn/Desktop/mb_data/data_models')
