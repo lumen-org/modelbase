@@ -10,9 +10,9 @@ def posterior_predictive_check(model, test_quantity_fct, k=None, n=100, referenc
         test_quantity_fct: callable
             The test quantity to use
         k: int
-            Number of samples to be drawn each round. If not set the size of training data of model is used.
+            Number of samples to draw each round. If not set the size of training data of model is used.
         n: int
-            Number of rounds to draw k samples and compute test quantitiy on it. Defaults to 50
+            Number of rounds to draw k samples and compute test quantity on it. Defaults to 50
         reference_data: pd.DataFrame
             The reference data to compare to. If not set the models training data is used.
 
