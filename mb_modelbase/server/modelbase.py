@@ -359,15 +359,23 @@ class ModelBase:
                 raise ValueError("invalid value for parameter 'test quantity': '{}'".format(test_quantity))
             test_quantity_fct = ppc.TestQuantities[test_quantity]
 
-            # TODO: issue #XX: this is a questionable design decision: is it really a good idea to marginalize a model
-            #  just to create marginal samples?
-            #  e.g. for cg models it should be faster to not marginalize but simply throw uneeded attributes from the
-            #  samples.
+            # TODO: issue #XX: it is a questionable design decision: is it a good idea to marginalize a model
+            #  just to create marginal samples? e.g. for cg models it should be faster to not marginalize but simply
+            #  throw uneeded attributes from the  samples.
             marginal_model = base_model.marginalize(keep=var_names)
-            res = ppc.posterior_predictive_check(marginal_model, test_quantity_fct, opts.get('k', None), opts.get('n', None))
-
-            return _json_dumps({"header": var_names,
-                                "data": res.to_csv(index=False, header=False, float_format=self.settings['float_format'])})
+            res = ppc.posterior_predictive_check(marginal_model, test_quantity_fct,
+                                                 opts.get('k', None), opts.get('n', None))
+            res_dict = {
+                'reference': {
+                    'header': var_names,
+                    'test_quantity': [res[0]]
+                },
+                'test': {
+                    'header': var_names,
+                    'test_quantity': res[1]
+                }
+            }
+            return _json_dumps(res_dict)
 
         elif 'DROP' in query:
             self.drop(name=query['DROP'])

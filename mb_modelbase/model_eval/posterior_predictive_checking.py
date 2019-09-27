@@ -26,7 +26,8 @@ def posterior_predictive_check(model, test_quantity_fct, k=None, n=None, referen
             The reference data to compare to. If not set the models training data is used.
 
     Return: (number, list(number))
-        2-tuple of test quantity value of reference data and a list of the test quantity value for the k set of samples.
+        2-tuple of test quantity value of reference data and a list of the test quantity value for the k sets of
+         samples.
     """
     if reference_data is None:
         reference_data = model.data
