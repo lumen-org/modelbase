@@ -184,7 +184,6 @@ class KDEModel(Model):
     def _sample(self, n):
         """Returns random point of the distribution"""
         sample = pd.DataFrame(np.nan, columns=self.data.columns, index=range(n))
-        #sample = np.zeros(len(self.fields))
         # Split data into numerical and categorical variables
         num_idx = []
         cat_idx = []
@@ -194,11 +193,13 @@ class KDEModel(Model):
             else:
                 cat_idx.append(idx)
         # Build kde
-        kde = stats.gaussian_kde(self.data.iloc[:, num_idx].T)
-        # get samples for numerical dimensions
-        sample.iloc[:,num_idx] = kde.resample(n).T
+        if len(num_idx) > 0:
+            kde = stats.gaussian_kde(self.data.iloc[:, num_idx].T)
+            # get samples for numerical dimensions
+            sample.iloc[:, num_idx] = kde.resample(n).T
         # get samples for categorical dimensions
-        sample.iloc[:,cat_idx] = self.data.iloc[:, cat_idx].sample(n).values
+        if len(cat_idx) > 0:
+            sample.iloc[:, cat_idx] = self.data.iloc[:, cat_idx].sample(n).values
         return sample
 
     def copy(self, name=None):
