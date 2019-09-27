@@ -1,14 +1,23 @@
 import numpy as np
 
+TestQuantities = {
+    """ Map of string ids of test quantities to the respective methods."""
+    'average': np.average,
+    'median': np.median,
+    'variance': np.var,
+    'min': np.min,
+    'max': np.max,
+}
 
-def posterior_predictive_check(model, test_quantity_fct, k=None, n=50, reference_data=None):
+
+def posterior_predictive_check(model, test_quantity_fct, k=None, n=None, reference_data=None):
     """ Do a posterior predictive check.
 
     Args
         model: Model
             The model to use for the ppc
-        test_quantity_fct: callable
-            The test quantity to use
+        test_quantity_fct: callable, string
+            The test quantity to use.
         k: int
             Number of samples to draw each round. If not set the size of training data of model is used.
         n: int
@@ -27,6 +36,8 @@ def posterior_predictive_check(model, test_quantity_fct, k=None, n=50, reference
     if k <= 0:
         raise ValueError("k must be a positive number > 0.")
 
+    if n is None:
+        n = 50
     if n <= 0:
         raise ValueError("n must be a positive number > 0.")
 

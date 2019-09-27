@@ -16,6 +16,7 @@ from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import models_predict
+from mb_modelbase.model_eval import posterior_predictive_checking as ppc
 from mb_modelbase.models_core import model_watchdog
 
 logger = logging.getLogger(__name__)
@@ -291,7 +292,7 @@ class ModelBase:
             derived_model = base if base.name == query["AS"] else base.copy(query["AS"])
             # derive submodel
             derived_model.model(
-                model=self._extractModel(query),
+                model=self._extractVariables(query),
                 where=self._extractWhere(query),
                 default_values=self._extractDefaultValue(query),
                 default_subsets=self._extractDefaultSubset(query),
@@ -345,6 +346,28 @@ class ModelBase:
             return _json_dumps({"header": resultframe.columns.tolist(),
                                 "data": resultframe.to_csv(index=False, header=False,
                                                            float_format=self.settings['float_format'])})
+
+        elif 'PPC' in query:  # posterior predictive checks
+            var_names = self._extractVariables(query,keyword='PPC')
+            base_model = self._extractFrom(query)
+            opts = self._extractOpts(query)
+
+            if not 'testQuantitiy' in opts:
+                raise ValueError("missing parameter 'testQuantity'")
+            test_quantity = opts['testQuantitiy']
+            if not test_quantity in ppc.TestQuantities:
+                raise ValueError("invalid value for parameter 'test quantity': '{}'".format(test_quantity))
+            test_quantity_fct = ppc.TestQuantities[test_quantity]
+
+            # TODO: issue #XX: this is a questionable design decision: is it really a good idea to marginalize a model
+            #  just to create marginal samples?
+            #  e.g. for cg models it should be faster to not marginalize but simply throw uneeded attributes from the
+            #  samples.
+            marginal_model = base_model.marginalize(keep=var_names)
+            res = ppc.posterior_predictive_check(marginal_model, test_quantity_fct, opts.get('k', None), opts.get('n', None))
+
+            return _json_dumps({"header": var_names,
+                                "data": res.to_csv(index=False, header=False, float_format=self.settings['float_format'])})
 
         elif 'DROP' in query:
             self.drop(name=query['DROP'])
@@ -433,8 +456,8 @@ class ModelBase:
             return []
         return query['SPLIT BY']
 
-    def _extractModel(self, query):
-        """ Extracts the names of the random variables to model and returns it
+    def _extractVariables(self, query, keyword='MODEL'):
+        """ Extracts the names of the random variables for <keyword>-clause and returns it
         as a list of strings. The order is preserved.
 
         Note that it returns only strings, not actual Field objects.
