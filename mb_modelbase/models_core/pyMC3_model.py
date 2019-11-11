@@ -49,8 +49,6 @@ class ProbabilisticPymc3Model(Model):
         self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
 
-
-
     def _set_data(self, df, drop_silently, **kwargs):
         assert df.index.is_monotonic, 'The data is not sorted by index. Please sort data by index and try again'
         # Add column with index to df for later resorting
@@ -113,14 +111,18 @@ class ProbabilisticPymc3Model(Model):
 
         # Add parameters to fields
         varnames = [str(var) for var in self.model_structure.unobserved_RVs]
-        for varname in self.model_structure.unobserved_RVs:
+        for var in self.model_structure.unobserved_RVs:
+            varname = str(var)
             # check if trace consists of more than one variable. Below expression is not empty when that is the case
-            if varname.distribution.shape:
+            if var.distribution.shape:
                 # Remove old varname
-                varnames.remove(str(varname))
+                varnames.remove(varname)
                 # Insert new varnames
-                for i in range(varname.distribution.shape.item()):
-                    varnames.append(str(varname) + '_' + str(i))
+                for i in range(var.distribution.shape.item()):
+                    varnames.append(varname + '_' + str(i))
+            # do not add variables that already exist
+            if varname in self.names:
+                varnames.remove(varname)
         latent_fields = get_numerical_fields(self.samples, varnames)
         for f in latent_fields:
             f['obstype'] = 'latent'
@@ -131,13 +133,14 @@ class ProbabilisticPymc3Model(Model):
 
         # Change order of sample columns so that it matches order of fields
         self.samples = self.samples[self.names]
-        self.test_data = self.samples
+        #self.test_data = self.samples
 
         # Mark variables as independent. Independent variables are variables that appear in the data but
         # not in the observed random variables of the model
         for field in self.fields:
             if field['name'] in self.data.columns and \
-                    field['name'] not in [str(var) for var in self.model_structure.observed_RVs]:
+                    field['name'] not in [str(var) for var in self.model_structure.basic_RVs]:
+                    # field['name'] not in [str(var) for var in self.model_structure.observed_RVs]:
                 field['independent'] = True
         return ()
 

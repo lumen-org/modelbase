@@ -439,7 +439,7 @@ class Model:
         """
         raise NotImplementedError("You have to implement the _set_model_params method in your model!")
 
-    def set_data(self, df, silently_drop=False, **kwargs):
+    def set_data(self, df, drop_silently=False, **kwargs):
         """Derives suitable, cleansed (and copied) data from df for a particular model, sets this as the models data
          and also sets up auxiliary data structures if necessary. This method is only concerned with the data part of
          the model and does not do any fitting of the model.
@@ -456,19 +456,21 @@ class Model:
 
         Args:
             df: a pandas data frame
-            silently_drop: If set to True any column of df that is not suitable for the model to be learned will silently be dropped. Otherwise this will raise a TypeError.
-
+            drop_silently: If set to True any column of df that is not suitable for the model to be learned will silently be dropped. Otherwise this will raise a TypeError.
+            kwargs:
         Returns:
             self
         """
         default_opts = {
             'pci_graph': False,
             # 'pci_graph': True,
-            'split_data': True
+            'split_data': True,
+            #'silently_drop': False,
         }
         valid_opts = {
             'pci_graph': [True, False],
-            'split_data':[True, False]
+            'split_data': [True, False],
+            #'silently_drop': [True, False]
         }
         kwargs = utils.update_opts(kwargs, default_opts, valid_opts)
 
@@ -481,7 +483,7 @@ class Model:
             raise ValueError("Cannot fit to data frame with no columns.")
 
         # model specific clean up, setting of data, models fields, and possible more model specific stuff
-        callbacks = self._set_data(df, silently_drop, **kwargs)
+        callbacks = self._set_data(df, drop_silently=drop_silently, **kwargs)
 
         self.mode = 'data'
         self._update_all_field_derivatives()
@@ -537,6 +539,7 @@ class Model:
             self.test_data, self.data = data_import_utils.split_training_test_data(df)
         else:
             self.data = df
+            self.test_data = pd.DataFrame(columns=self.data.columns)
         # derive and set fields
         self.fields = data_import_utils.get_discrete_fields(df, self._categoricals) + \
                       data_import_utils.get_numerical_fields(df, self._numericals)
@@ -593,6 +596,10 @@ class Model:
 
         return self
 
+    def _post_fitting_sanity_check(self):
+        assert len(self.names) == len(set(self.names)), "model has duplicate names in its fields"
+        assert self.test_data is not None, "test data is None"
+
     def fit(self, df=None, auto_extend=True, **kwargs):
         """Fit the model. The model is fit:
         * to the optionally passed DataFrame `df`,
@@ -626,17 +633,19 @@ class Model:
 
         try:
             callbacks = self._fit(**kwargs)
-
-            self.mode = "both"
-            # self._update_all_field_derivatives()
-            if callbacks is not None:
-                [c() for c in callbacks]
-
-            if auto_extend:
-                auto_extent.adopt_all_extents(self)
-
         except NameError:
             raise NotImplementedError("You have to implement the _fit method in your model!")
+
+        self.mode = "both"
+        # self._update_all_field_derivatives()
+        if callbacks is not None:
+            [c() for c in callbacks]
+
+        if auto_extend:
+            auto_extent.adopt_all_extents(self)
+
+        self._post_fitting_sanity_check()
+
         return self
 
     def marginalize(self, keep=None, remove=None):

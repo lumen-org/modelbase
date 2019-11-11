@@ -363,7 +363,6 @@ if __name__ == '__main__':
                         create_pymc3_coal_mining_disaster_model,
                         create_getting_started_model_shape, create_lambert_stan_example, create_flight_delay_model]
 
-
     for func in create_functions:
         data, m = func(fit=False)
         data, m_fitted = func(fit=True)
