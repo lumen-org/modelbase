@@ -752,10 +752,10 @@ class Model:
         if self.mode == 'both' or self.mode == 'data':
             # Note: we never need to copy data, since we never change data. creating views is enough
             # Set up an adjusted keep variable that only contains names of data dimensions
-            keep_data = [name for name in keep if name in self.data.columns]
-            self.data = self.data.loc[:, keep_data]
-            self.test_data = self.test_data.loc[:, keep]
-            self.sample_data = self.test_data.loc[:, keep]
+            for attr in ['data', 'test_data']:
+                df = getattr(self, attr)
+                keep_data = [name for name in keep if name in df.columns]
+                setattr(self, attr, df.loc[:, keep_data])
             if self.mode == 'data':
                 # need to call this, since it will not be called later in this particular case
                 self._update_remove_fields(remove)
@@ -1934,8 +1934,8 @@ class Model:
             else:
                 opts = utils.update_opts({'data_category': 'training data'}, kwargs)
                 if opts['data_category'] == 'training data':
-                    warnings.warn('at least one of ' + str(what) + ' is not a column label of the data.  '
-                        'There might be latent variables among' + str(what) + 'for which no data was observed.')
+                    warnings.warn('at least one of ' + str(what) + ' is not a column label of the data. There might be '
+                                  'latent variables among' + str(what) + 'for which no data was observed.')
                     # Remove labels from selection that are not in the data
                     what = list(compress(what, [element in self.data.columns for element in what]))
 
