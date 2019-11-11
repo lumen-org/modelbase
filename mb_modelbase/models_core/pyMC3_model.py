@@ -67,7 +67,7 @@ class ProbabilisticPymc3Model(Model):
         self._update_all_field_derivatives()
         # Enforce usage of theano shared variables for independent variables
         # Independent variables are those variables which appear in the data but not in the RVs of the model structure
-        model_vars = [str(name) for name in self.model_structure.observed_RVs]
+        model_vars = [str(name) for name in self.model_structure.basic_RVs]
         ind_vars = [varname for varname in self.data.columns.values if varname not in model_vars]
         # When there are no shared variables, there should be no independent variables. Otherwise, raise an error
         if not self.shared_vars:
