@@ -37,7 +37,7 @@ class ProbabilisticPymc3Model(Model):
             new data points are generated with a different length than the original data
     """
 
-    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=500, fixed_data_length=False):
+    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=10000, fixed_data_length=False):
         super().__init__(name)
         self.model_structure = model_structure
         self.samples = pd.DataFrame()
