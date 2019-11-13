@@ -8,6 +8,7 @@ import theano.tensor as tt
 import theano
 
 import math
+import os
 
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 
@@ -155,7 +156,8 @@ def create_titanic_model2(filename="", modelname="titanic_model_2", fit=True):
     m.nr_of_posterior_samples = 1000
     import pandas as pd
 
-    df = pd.read_csv("/home/luca_ph/Documents/projects/graphical_models/julien/titanic_cleaned.csv")
+    filepath = os.path.join(os.path.dirname(__file__), "titanic_cleaned.csv")
+    df = pd.read_csv(filepath)
     if fit:
         m.fit(df, auto_extend=False)
     return df, m
