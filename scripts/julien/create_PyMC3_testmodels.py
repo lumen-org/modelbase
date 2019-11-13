@@ -62,15 +62,11 @@ def create_pymc3_simplest_model(modelname='pymc3_simplest_model', fit=True):
 # Call all model generating functions
 ######################################
 if __name__ == '__main__':
-    # story models in ./models
-    modeldir = 'models'
+    modeldir = 'models'  # sub directory where to store created models
     mypath = os.path.join(os.path.dirname(__file__), modeldir)
-    # create dir if missing
     if not os.path.exists(mypath):
         os.makedirs(mypath)
-
     start = timeit.default_timer()
-
     testcasemodel_path = mypath
     testcasedata_path = mypath
 
