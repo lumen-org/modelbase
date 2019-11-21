@@ -2,14 +2,13 @@
 """
 @author: Philipp Lucas
 """
-
 import pandas as pd
 
 
 class DataTypeMapper:
     """ Maps data between two representations by user defined per dimension mappings.
 
-    Any missing map will behave as the identity.
+    Any missing map will act as the identity mapping.
     """
 
     def __init__(self):
@@ -18,6 +17,7 @@ class DataTypeMapper:
 
     def forward(self, data, inplace=True):
         """Map data from original into alternative representation.
+        TODO: allow to receive only a list of values, where values are in correct order
         Args:
             data: pd.DataFrame, pd.Series, dict.
                 Data to map.
@@ -109,25 +109,9 @@ class DataTypeMapper:
         keys = dict_mapping.keys()
         values = dict_mapping.values()
         if len(values) != len(set(values)):
-            raise ValueError("inversion impossible as values are not unique")
+            raise ValueError("inversion impossible as values in dict are not unique")
         return dict(zip(values, keys))
 
 
 if __name__ == '__main__':
-    import pandas as pd
-
-    dtmapper = DataTypeMapper()
-    dtmapper.set_map('A', forward={'Male':1, 'Female':2}, backward='auto')
-    dtmapper.set_map('B', forward={100:'x', 200:'y'}, backward='auto')
-
-    ### pandas DataFrames
-    df = pd.DataFrame(data={'A':['Male', 'Female', 'Male'], 'B':[100,200,200]})
-
-    df_conv = dtmapper.forward(df, inplace=False)
-    print(str(df_conv))
-
-    df_conv_conv = dtmapper.backward(df_conv, inplace=False)
-    print(str(df_conv_conv))
-    print(str(df))
-
-    # pandas series
+    pass
