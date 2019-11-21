@@ -13,6 +13,7 @@ import math
 
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.utils.data_import_utils import get_numerical_fields
+from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 
 
 class ProbabilisticPymc3Model(Model):
@@ -37,7 +38,7 @@ class ProbabilisticPymc3Model(Model):
             new data points are generated with a different length than the original data
     """
 
-    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=10000, fixed_data_length=False):
+    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=10000, fixed_data_length=False, data_mappings={}):
         super().__init__(name)
         self.model_structure = model_structure
         self.samples = pd.DataFrame()
@@ -48,6 +49,12 @@ class ProbabilisticPymc3Model(Model):
         self.shared_vars = shared_vars
         self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
+
+        # setup maps
+        # in this particular case the mappings are simple dicts
+        self._data_type_mapper = DataTypeMapper()
+        for name, forward_mapping in data_mappings.items():
+            self._data_type_mapper.set_map(name, forward_mapping, backward='auto')
 
     def _set_data(self, df, drop_silently, **kwargs):
         assert df.index.is_monotonic, 'The data is not sorted by index. Please sort data by index and try again'

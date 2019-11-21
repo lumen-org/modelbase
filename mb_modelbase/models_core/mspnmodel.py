@@ -43,7 +43,8 @@ import copy as cp
 from collections import Iterable
 
 
-class MSPNModel(Model):
+class \
+        MSPNModel(Model):
     def __init__(self, name, threshold=None, min_instances_slice=None):
         super().__init__(name)
         self.featureTypes = None
