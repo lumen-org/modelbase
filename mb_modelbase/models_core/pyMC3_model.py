@@ -1,4 +1,5 @@
 # Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2019 Philipp Lucas (philipp.lucas@dlr.de)
 # Copyright (c) 2019 Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
 
 import pymc3 as pm
@@ -17,28 +18,39 @@ from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 
 
 class ProbabilisticPymc3Model(Model):
-    """A Bayesian model built by the PyMC3 library is treated here.
 
-    Parameters:
+    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=10000, fixed_data_length=False,
+                 data_mappings=None):
+        """Bayesian models built by the PyMC3 library
 
-        model_structure : a PyMC3 Model() instance
+        Parameters:
 
-        shared_vars : dictionary of theano shared variables
+            model_structure : a PyMC3 Model() instance
 
-            If the model has independent variables, they have to be encoded as theano shared variables and provided
-            in this dictionary, additional to the general dataframe containing all observed data. Watch out: It is
-            NOT guaranteed that shared_vars always holds the original independent variables, since they are changed
-            during the _fit()-method
+            shared_vars : dictionary of theano shared variables
 
-        nr_of_posterior_samples: integer scalar specifying the number of posterior samples to be generated
+                If the model has independent variables, they have to be encoded as theano shared variables and provided
+                in this dictionary, additional to the general dataframe containing all observed data. Watch out: It is
+                NOT guaranteed that shared_vars always holds the original independent variables, since they are changed
+                during the _fit()-method
 
-        fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
+            nr_of_posterior_samples: integer scalar specifying the number of posterior samples to be generated
 
-            Some probabilistic models require a fixed length of the data. This is important because normally
-            new data points are generated with a different length than the original data
-    """
+            fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
 
-    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=10000, fixed_data_length=False, data_mappings={}):
+                Some probabilistic models require a fixed length of the data. This is important because normally
+                new data points are generated with a different length than the original data
+
+            data_mappings: dict or DataTypeMapper, optional. Defaults to the identify mapping.
+
+                The actual probabilistic modelling may require that you encode variables differently than you want to
+                expose them to the outside. E.g. a variable may be modelled as an integer value of 0 or 1 but actually
+                it represents the sex of a person ('male' or 'female'). Here youspecify such mappings between the
+                original space and the modeling space.
+
+                Note that you must provide you training and test data in its original space representation with
+                .fit_data().
+        """
         super().__init__(name)
         self.model_structure = model_structure
         self.samples = pd.DataFrame()
@@ -50,11 +62,14 @@ class ProbabilisticPymc3Model(Model):
         self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
 
-        # setup maps
-        # in this particular case the mappings are simple dicts
-        self._data_type_mapper = DataTypeMapper()
-        for name, forward_mapping in data_mappings.items():
-            self._data_type_mapper.set_map(name, forward_mapping, backward='auto')
+        if data_mappings is None:
+            data_mappings = {}
+        if type(data_mappings) is DataTypeMapper:
+            self._data_type_mapper = data_mappings
+        elif type(data_mappings) is dict:
+            self._data_type_mapper = DataTypeMapper()
+            for name, forward_mapping in data_mappings.items():
+                self._data_type_mapper.set_map(name, forward_mapping, backward='auto')
 
     def _set_data(self, df, drop_silently, **kwargs):
         assert df.index.is_monotonic, 'The data is not sorted by index. Please sort data by index and try again'
@@ -165,6 +180,7 @@ class ProbabilisticPymc3Model(Model):
         return ()
 
     def _conditionout(self, keep, remove):
+        #
         keep_not_in_names = [name for name in keep if name not in self.names]
         if len(keep_not_in_names) > 0:
             raise ValueError('The following variables in keep do not appear in the model: ' + str(keep_not_in_names) )
@@ -173,15 +189,17 @@ class ProbabilisticPymc3Model(Model):
             raise ValueError('The following variables in remove do not appear in the model: ' + str(remove_not_in_names))
         names = remove
         fields = [] if names is None else self.byname(names)
-        # Konditioniere auf die Domäne der Variablen in remove
+
+        # condition on the domain of variables in remove
         for field in fields:
             # filter out values smaller than domain minimum
             if not field['domain'].issingular():
-                dom_min = field['domain'].value()[0]
-                dom_max = field['domain'].value()[1]
+                dom_min, dom_max = field['domain'].value()
+                #dom_min = field['domain'].value()[0]
+                #dom_max = field['domain'].value()[1]
             else:
-                dom_min = field['domain'].value()
-                dom_max = field['domain'].value()
+                dom_min = dom_max = field['domain'].value()
+                #dom_max = field['domain'].value()
             filter = self.samples.loc[:, str(field['name'])] > dom_min
             self.samples.where(filter, inplace=True)
             # filter out values bigger than domain maximum
@@ -192,6 +210,10 @@ class ProbabilisticPymc3Model(Model):
         return ()
 
     def _density(self, x):
+
+        # map x into model space
+        x = self._data_type_mapper.forward(dict(zip(self.names), x))
+
         if any([self.fields[i]['independent'] for i in range(len(self.fields))]):
             #raise ValueError("Density is queried for a model with independent variables")
             return np.NaN
@@ -268,6 +290,10 @@ class ProbabilisticPymc3Model(Model):
                 self.shared_vars[col].set_value(shared_vars_org[col])
 
         self.check_data_and_shared_vars_on_equality()
+
+        # map samples from model space in to data space
+        samples = self._data_type_mapper.backward(sample)
+
         return sample
 
     def copy(self, name=None):
@@ -277,6 +303,7 @@ class ProbabilisticPymc3Model(Model):
         # model_structure is linked with the original object nevertheless. This means that
         # the shared vars attribute must not be changed permanently, because doing so would
         # propagate to all model copies
+        # TODO: this seems like the source of very weird future bugs that occur in race conditions ....
         mycopy = self.__class__(name, self.model_structure, self.shared_vars)
         mycopy.data = self.data.copy()
         mycopy.test_data = self.test_data.copy()
@@ -290,6 +317,8 @@ class ProbabilisticPymc3Model(Model):
         mycopy.set_empirical_model_name(self._empirical_model_name)
         self.check_data_and_shared_vars_on_equality()
         mycopy.check_data_and_shared_vars_on_equality()
+
+        raise NotImplementedError('implement copying of data type mapper')
 
         return mycopy
 
