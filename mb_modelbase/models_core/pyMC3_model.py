@@ -292,7 +292,7 @@ class ProbabilisticPymc3Model(Model):
         self.check_data_and_shared_vars_on_equality()
 
         # map samples from model space in to data space
-        samples = self._data_type_mapper.backward(sample)
+        sample = self._data_type_mapper.backward(sample)
 
         return sample
 
