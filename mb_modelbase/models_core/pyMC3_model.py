@@ -303,7 +303,7 @@ class ProbabilisticPymc3Model(Model):
         # model_structure is linked with the original object nevertheless. This means that
         # the shared vars attribute must not be changed permanently, because doing so would
         # propagate to all model copies
-        # TODO: this seems like the source of very weird future bugs that occur in race conditions ....
+        # TODO: the above seems like the source of very weird future bugs that occur in race conditions ....
         mycopy = self.__class__(name, self.model_structure, self.shared_vars)
         mycopy.data = self.data.copy()
         mycopy.test_data = self.test_data.copy()
@@ -317,9 +317,7 @@ class ProbabilisticPymc3Model(Model):
         mycopy.set_empirical_model_name(self._empirical_model_name)
         self.check_data_and_shared_vars_on_equality()
         mycopy.check_data_and_shared_vars_on_equality()
-
-        raise NotImplementedError('implement copying of data type mapper')
-
+        mycopy._data_type_mapper = self._data_type_mapper.copy()
         return mycopy
 
     def _maximum(self):
