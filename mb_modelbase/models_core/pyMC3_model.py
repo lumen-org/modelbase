@@ -180,7 +180,6 @@ class ProbabilisticPymc3Model(Model):
         return ()
 
     def _conditionout(self, keep, remove):
-        #
         keep_not_in_names = [name for name in keep if name not in self.names]
         if len(keep_not_in_names) > 0:
             raise ValueError('The following variables in keep do not appear in the model: ' + str(keep_not_in_names) )
@@ -199,12 +198,13 @@ class ProbabilisticPymc3Model(Model):
                 #dom_max = field['domain'].value()[1]
             else:
                 dom_min = dom_max = field['domain'].value()
+                #dom_min = field['domain'].value()
                 #dom_max = field['domain'].value()
-            filter = self.samples.loc[:, str(field['name'])] > dom_min
-            self.samples.where(filter, inplace=True)
+            filter_ = self.samples.loc[:, str(field['name'])] > dom_min
+            self.samples.where(filter_, inplace=True)
             # filter out values bigger than domain maximum
-            filter = self.samples.loc[:, str(field['name'])] < dom_max
-            self.samples.where(filter, inplace=True)
+            filter_ = self.samples.loc[:, str(field['name'])] < dom_max
+            self.samples.where(filter_, inplace=True)
         self.samples.dropna(inplace=True)
         self._marginalizeout(keep, remove)
         return ()
