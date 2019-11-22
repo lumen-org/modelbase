@@ -5,6 +5,7 @@
 import pandas as pd
 import copy
 
+
 class DataTypeMapper:
     """ Maps data between two representations by user defined per dimension mappings.
 
@@ -49,23 +50,38 @@ class DataTypeMapper:
         elif obj_type is pd.Series:
             if inplace is False:
                 data = data.copy()
-            data.replace(to_replace=mapping[data.name], inplace=True)
+            series_mapping = mapping[data.name]
+            if type(series_mapping) is dict:
+                data.replace(to_replace=series_mapping, inplace=True)
+            else:
+                data.map(series_mapping)
             return data
 
         elif obj_type is dict:
-            # replace each dict value individually
             mapping_keys = set(mapping.keys())
-            data_mapped = {name: mapping[name][value] if name in mapping_keys else value
-                           for name, value in data.items()}
+
             if inplace is True:
-                data.update(data_mapped)
+                # determine keys to update
+                mapping_keys.intersection_update(data.keys())
+                zipped = [(name, data[name], mapping[name]) for name in mapping_keys]
+
+                update_dict = {name: (mapping(value) if callable(mapping) else mapping[value]) for name, value, mapping
+                               in zipped}
+                data.update(update_dict)
             else:
-                data = data_mapped
+                data = {name: value if name not in mapping_keys else
+                        (mapping[name](value) if callable(mapping[name]) else mapping[name][value])
+                        for name, value in data.items()}
+
+            # dict
+            # data_mapped = {name: mapping[name][value] if name in mapping_keys else value
+            #                for name, value in data.items()}
             return data
 
     def set_map(self, name, forward=None, backward=None, mode='single'):
         """Set mappings for a variable.
         TODO: implement vector mode?
+        TODO: implement functions for mapping
         Args:
             name: str
                 Name of variable
@@ -92,8 +108,17 @@ class DataTypeMapper:
                 backward = DataTypeMapper.invert_dict_mapping(forward)
             else:
                 raise TypeError('forward has to be dict if backward is set to auto.')
-        self._forward_map[name] = forward
-        self._backward_map[name] = backward
+
+        if forward is not None:
+            if type(forward) is dict:
+                self._forward_map[name] = forward
+            else:
+                raise NotImplementedError("callables as mappings not yet implemented")
+        if backward is not None:
+            if type(backward) is dict:
+                self._backward_map[name] = backward
+            else:
+                raise NotImplementedError("callables as mappings not yet implemented")
 
     def copy(self):
         copy_ = DataTypeMapper()
