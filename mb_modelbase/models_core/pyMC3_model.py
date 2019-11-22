@@ -19,7 +19,7 @@ from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 
 class ProbabilisticPymc3Model(Model):
 
-    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=10000, fixed_data_length=False,
+    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=1000, fixed_data_length=False,
                  data_mapping=None):
         """Bayesian models built by the PyMC3 library
 
@@ -71,6 +71,8 @@ class ProbabilisticPymc3Model(Model):
             for name, forward_mapping in data_mapping.items():
                 self._data_type_mapper.set_map(name, forward_mapping, backward='auto')
 
+        self._update_samples_model_representation()
+
     def _set_data(self, df, drop_silently, **kwargs):
         assert df.index.is_monotonic, 'The data is not sorted by index. Please sort data by index and try again'
         # Add column with index to df for later resorting
@@ -118,6 +120,21 @@ class ProbabilisticPymc3Model(Model):
             generated_samples = generated_samples.astype(self.shared_vars[key].dtype)
         return generated_samples
 
+    def _update_samples_model_representation(self, recreate_samples_model_repr=True):
+        if recreate_samples_model_repr:
+            self._samples_model_repr = self._data_type_mapper.forward(self.samples, inplace=False)
+
+        samples_model_repr = self._samples_model_repr
+        # needed for density calculation
+        kde_input = samples_model_repr.values.T
+        if len(kde_input) is not 0:
+            self._samples_kde = stats.gaussian_kde(kde_input)
+        else:
+            self._samples_kde = None
+
+        # needed for maximum calculation
+        self._samples_model_repr_mean = samples_model_repr.mean(axis='index')
+
     def _cartesian_product_of_samples(self, df):
         # Split up df in its columns
         dfs = [pd.DataFrame(df[col]) for col in df]
@@ -129,7 +146,7 @@ class ProbabilisticPymc3Model(Model):
         return cartesian_prod
 
     def _fit(self):
-        self.samples = self._sample(self.nr_of_posterior_samples)
+        self.samples, self._samples_model_repr = self._sample(self.nr_of_posterior_samples, mode='both')
 
         # Add parameters to fields
         varnames = [str(var) for var in self.model_structure.unobserved_RVs]
@@ -155,7 +172,9 @@ class ProbabilisticPymc3Model(Model):
 
         # Change order of sample columns so that it matches order of fields
         self.samples = self.samples[self.names]
-        #self.test_data = self.samples
+        self._samples_model_repr = self._samples_model_repr[self.names]
+
+        self._update_samples_model_representation(recreate_samples_model_repr=False)
 
         # Mark variables as independent. Independent variables are variables that appear in the data but
         # not in the observed random variables of the model
@@ -177,6 +196,9 @@ class ProbabilisticPymc3Model(Model):
         for varname in remove:
             if varname in list(self.samples.columns):
                 self.samples = self.samples.drop(varname, axis=1)
+
+        self._update_samples_model_representation()
+
         return ()
 
     def _conditionout(self, keep, remove):
@@ -194,43 +216,46 @@ class ProbabilisticPymc3Model(Model):
             # filter out values smaller than domain minimum
             if not field['domain'].issingular():
                 dom_min, dom_max = field['domain'].value()
-                #dom_min = field['domain'].value()[0]
-                #dom_max = field['domain'].value()[1]
             else:
                 dom_min = dom_max = field['domain'].value()
-                #dom_min = field['domain'].value()
-                #dom_max = field['domain'].value()
             filter_ = self.samples.loc[:, str(field['name'])] > dom_min
             self.samples.where(filter_, inplace=True)
             # filter out values bigger than domain maximum
             filter_ = self.samples.loc[:, str(field['name'])] < dom_max
             self.samples.where(filter_, inplace=True)
         self.samples.dropna(inplace=True)
+        # is done in _marginalize_out anyway:
+        # self._update_samples_model_representation()
         self._marginalizeout(keep, remove)
         return ()
 
     def _density(self, x):
-
-        # map x into model space
-        x = self._data_type_mapper.forward(dict(zip(self.names, x)))
-
-        if any([self.fields[i]['independent'] for i in range(len(self.fields))]):
+        if any(self.fields[i]['independent'] for i in range(self.dim)):
             #raise ValueError("Density is queried for a model with independent variables")
             return np.NaN
         elif self.samples.empty | len(self.samples) == 1:
             #raise ValueError("There are not enough samples in the model")
             return np.NaN
         else:
-            X = self.samples.values
-            kde = stats.gaussian_kde(X.T)
-            x = np.reshape(x, (1, len(x)))
-            density = kde.evaluate(x)[0]
+            # map x into model space
+            x = self._data_type_mapper.forward(dict(zip(self.names, x)))
+            # map back to value list (in correct order)
+            x = [x[name] for name in self.names]
+            x = np.reshape(x, (1, -1))
+            density = self._samples_kde.evaluate(x)[0]
             return density
 
     def _negdensity(self, x):
         return -self._density(x)
 
-    def _sample(self, n):
+    def _sample(self, n, mode='original'):
+        """
+        Draw a sample of size n.
+        :param n:
+        :param mode: str. one of 'original', 'model', 'both'
+            Chooses in which representation space the samples are returned.
+        :return:
+        """
         sample = pd.DataFrame()
 
         # Generate samples for latent random variables
@@ -292,9 +317,14 @@ class ProbabilisticPymc3Model(Model):
         self.check_data_and_shared_vars_on_equality()
 
         # map samples from model space in to data space
-        sample = self._data_type_mapper.backward(sample)
-
-        return sample
+        if mode is 'model':
+            return sample
+        elif mode is 'both':
+            return self._data_type_mapper.backward(sample, inplace=False), sample
+        elif mode is 'original':
+            return self._data_type_mapper.backward(sample)
+        else:
+            raise ValueError('invalid value for mode {}'.format(mode))
 
     def copy(self, name=None):
         name = self.name if name is None else name
@@ -312,12 +342,14 @@ class ProbabilisticPymc3Model(Model):
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples.copy()
+        mycopy._samples_model_repr = self._samples_model_repr.copy()
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
         mycopy.fixed_data_length = self.fixed_data_length
         mycopy.set_empirical_model_name(self._empirical_model_name)
         self.check_data_and_shared_vars_on_equality()
         mycopy.check_data_and_shared_vars_on_equality()
         mycopy._data_type_mapper = self._data_type_mapper.copy()
+        mycopy._update_samples_model_representation(recreate_samples_model_repr=False)
         return mycopy
 
     def _maximum(self):
@@ -327,18 +359,17 @@ class ProbabilisticPymc3Model(Model):
             # can not compute any aggregation. return nan
             return [None] * col_cnt
         # Set starting point for optimization problem
-        x0 = [np.mean(self.samples[col]) for col in self.samples]
-        opt = sciopt.minimize(self._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False})
+        opt = sciopt.minimize(self._negdensity, self._samples_model_repr_mean, method='nelder-mead',
+                              options={'xtol': 1e-8, 'disp': False})
         maximum = opt.x
         # Do not return a value if the density of the found maximum is NaN. In this case it is assumed that all
         # density values are NaN, so there should not be returned a maximum
         if np.isnan(opt.fun):
-            return np.full(len(x0), np.nan)
+            return np.full(self.dim, np.nan)
         return maximum
 
     def check_data_and_shared_vars_on_equality(self):
-        if self.shared_vars:
-            if not self.data.empty:
-                for name in list(self.shared_vars.keys()):
-                    if name in self.data.columns:
-                        assert np.array_equal(self.shared_vars[name].get_value(), np.array(self.data[name]))
+        if self.shared_vars and not self.data.empty:
+            for name in list(self.shared_vars.keys()):
+                if name in self.data.columns:
+                    assert np.array_equal(self.shared_vars[name].get_value(), np.array(self.data[name]))
