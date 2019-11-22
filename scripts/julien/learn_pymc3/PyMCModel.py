@@ -45,9 +45,7 @@ class PyMCModel(object):
         function = gm.generate_model_code(modelname, file=file, fit=True, continuous_variables=continuous_variables,
                                           whitelist=whitelist, blacklist=blacklist,
                                           discrete_variables=self.categorical_vars,
-                                          verbose=True)
-
-
+                                          verbose=False)
 
 
         gm.generate_model("../models", function)
@@ -56,4 +54,4 @@ class PyMCModel(object):
 if __name__ == "__main__":
     pymc_model = PyMCModel("../data_2/titanic.csv", var_tolerance=0.1)
     pymc_model.create_map_and_clean_data()
-    pymc_model.learn_model("zzzz")
+    pymc_model.learn_model("zzzz2")

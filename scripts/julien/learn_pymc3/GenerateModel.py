@@ -49,19 +49,15 @@ class GeneratePyMc3Model(object):
                             modeldir='models'):
         pymc3_code, descr = self.generate_code(continuous_variables, whitelist, blacklist, relearn, verbose, blog)
         pymc3_code = pymc3_code.replace('\n', '\n                ')
-
-        print()
-        print()
-        print()
-        print(pymc3_code.__repr__())
-
-        print()
-        print()
-        print()
-
-
-        fun = f"""def create_fun():
-        def code_to_fit(file='{file}', modelname='{modelname}', fit=True):
+        fun = f"""import os
+import pandas as pd
+import pymc3 as pm
+import numpy as np
+import theano.tensor as tt
+from theano.ifelse import ifelse
+from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
+def create_fun():
+   def code_to_fit(file='{file}', modelname='{modelname}', fit=True):
             # income is gaussian, depends on age
             filepath = os.path.join(os.path.dirname(__file__), '{file}')
             df = pd.read_csv(filepath)
@@ -78,11 +74,13 @@ class GeneratePyMc3Model(object):
             if fit:
                 m.fit(df, auto_extend=False)
             return df, m
-            
-        return code_to_fit"""
+   return code_to_fit"""
+        f = open('/home/julien/PycharmProjects/lumen/modelbase/scripts/julien/learn_pymc3/ppl_code.py', "w")
+        f.write(fun)
+        f.close()
+        from scripts.julien.learn_pymc3.ppl_code import create_fun
         if verbose:
             print(fun)
-        exec(fun)
         model_function = create_fun()
         # executes the function, we can now use code_to_fit
         return model_function
@@ -121,7 +119,7 @@ if __name__ == "__main__":
     # file = 'grade_model.csv'
     # file = 'mixture_gaussian_cleaned.csv'
     file = "allbus_cleaned.csv"
-    # file = "titanic_cleaned.csv"
+    file = "titanic_cleaned.csv"
     # file = "sprinkler_cleaned.csv"
     file = path + file
 
@@ -140,6 +138,9 @@ if __name__ == "__main__":
 
     gm = GeneratePyMc3Model(file)
     # pymc3_code = gm.generate_code(continuous_variables, whitelist, blacklist)
+
+
+
 
     fun_code = gm.generate_model_code("allbus_11", file, True, continuous_variables, whitelist, blacklist, verbose=True)
     exec_namespace = {}
@@ -185,23 +186,3 @@ if __name__ == "__main__":
                     break
     """
 
-
-    def create_fun():
-        def code_to_fit(file='{file}', modelname='{modelname}', fit=True):
-            # income is gaussian, depends on age
-            filepath = os.path.join(os.path.dirname(__file__), '{file}')
-            df = pd.read_csv(filepath)
-            if fit:
-                modelname = modelname + '_fitted'
-            # Set up shared variables
-
-            model = pm.Model()
-            data = None
-            with model:
-                {pymc3_code}
-            m = ProbabilisticPymc3Model(modelname, model)
-            m.nr_of_posterior_samples = {sample_size}
-            if fit:
-                m.fit(df, auto_extend=False)
-            return df, m
-        return code_to_fit
