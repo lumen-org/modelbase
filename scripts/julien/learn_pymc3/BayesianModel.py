@@ -100,8 +100,8 @@ class BayesianModel(object):
         nodes = [node.get_name() for node in self.get_graph().get_nodes()]
         edges = self.get_graph().get_edges()
         graph_description = {'nodes': nodes, 'edges': edges}
-        graph_description['whitelist'] = self.whitelist
-        graph_description['blacklist'] = self.blacklist
+        graph_description['whitelist_edges'] = self.whitelist
+        graph_description['blacklist_edges'] = self.blacklist
         graph_description['continuous_vars'] = self.continuous_variables
         graph_description['discrete_vars'] = self.discrete_variables
         return graph_description

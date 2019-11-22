@@ -39,7 +39,7 @@ for name, map_ in titanic_backward_map.items():
 
 ###############################################################
 # 158 parameter
-# continuous_variables = ['age', 'fare', 'ticket']
+# whitelist_continuous_variables = ['age', 'fare', 'ticket']
 ###############################################################
 def create_titanic_model_1(filename="", modelname="titanic_model_1", fit=True):
     if fit:
@@ -108,7 +108,7 @@ def create_titanic_model_1(filename="", modelname="titanic_model_1", fit=True):
     return df, m
 
 #####################
-# continuous_variables = ["ticket"]
+# whitelist_continuous_variables = ["ticket"]
 # 376 parameter
 #####################
 def create_titanic_model_2(filename="", modelname="titanic_model_2", fit=True):
@@ -183,7 +183,7 @@ def create_titanic_model_2(filename="", modelname="titanic_model_2", fit=True):
     return df, m
 
 ###############################################################
-# continuous_variables = ['age', 'fare', 'ticket']
+# whitelist_continuous_variables = ['age', 'fare', 'ticket']
 # 158 parameter
 ###############################################################
 def create_titanic_model_3(filename="", modelname="titanic_model_3", fit=True):
@@ -260,8 +260,8 @@ def create_titanic_model_3(filename="", modelname="titanic_model_3", fit=True):
 
 
 ###############################################################
-# continuous_variables = ['age', 'fare', 'ticket']
-# whitelist = [("pclass", "survived"), ("sex", "survived")]
+# whitelist_continuous_variables = ['age', 'fare', 'ticket']
+# whitelist_edges = [("pclass", "survived"), ("sex", "survived")]
 # 159 parameter
 ###############################################################
 def create_titanic_model_4(filename="", modelname="titanic_model_4", fit=True):
@@ -333,8 +333,8 @@ def create_titanic_model_4(filename="", modelname="titanic_model_4", fit=True):
 
 
 ###############################################################
-# continuous_variables = ['age', 'fare', 'ticket']
-# whitelist = [("pclass", "survived"), ("sex", "survived")]
+# whitelist_continuous_variables = ['age', 'fare', 'ticket']
+# whitelist_edges = [("pclass", "survived"), ("sex", "survived")]
 # 167 parameter
 ###############################################################
 def create_titanic_model_5(filename="", modelname="titanic_model_5", fit=True):
@@ -411,8 +411,8 @@ def create_titanic_model_5(filename="", modelname="titanic_model_5", fit=True):
     """
     nodes = ['age', 'sex', ...]
     edges = [('age', 'sex'), ...]
-    blacklist
-    whitelist
+    blacklist_edges
+    whitelist_edges
     continuous
     """
 

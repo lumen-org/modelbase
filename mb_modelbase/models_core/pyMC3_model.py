@@ -45,10 +45,10 @@ class ProbabilisticPymc3Model(Model):
 
                 The actual probabilistic modelling may require that you encode variables differently than you want to
                 expose them to the outside. E.g. a variable may be modelled as an integer value of 0 or 1 but actually
-                it represents the sex of a person ('male' or 'female'). Here youspecify such mappings between the
+                it represents the sex of a person ('male' or 'female'). Here you specify such mappings between the
                 original space and the modeling space.
 
-                Note that you must provide you training and test data in its original space representation with
+                Note that you must provide your training and test data in its original space representation with
                 .fit_data().
         """
         super().__init__(name)
@@ -111,8 +111,7 @@ class ProbabilisticPymc3Model(Model):
         return ()
 
     def _generate_samples_for_independent_variable(self, key, size):
-        lower_bound = self.byname(key)['extent'].value()[0]
-        upper_bound = self.byname(key)['extent'].value()[1]
+        lower_bound, upper_bound = self.byname(key)['extent'].value()
         generated_samples = np.linspace(lower_bound, upper_bound, num=size)
         # If the samples have another data type than the original data, problems can arise. Therefore,
         # data types of the new samples are changed to the dtypes of the original data here

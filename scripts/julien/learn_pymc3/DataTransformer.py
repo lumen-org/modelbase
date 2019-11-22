@@ -14,7 +14,7 @@ class DataTransformer(object):
         """
         self.read_csv(file_name, index_column, ending_comma)
         self.datamap = DataMap()
-        self.datamap.generate_map(self.data)
+        self.datamap.generate_map(self.data[discrete_variables])
         for column in discrete_variables:
             self.data[column] = pd.Series(self.data[column]).map(self.datamap.get_map(column))
         self.save_csv(file_name)

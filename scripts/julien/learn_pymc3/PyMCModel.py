@@ -35,23 +35,26 @@ class PyMCModel(object):
                     categorical_vars.append(name)
         return categorical_vars
 
-    def learn_model(self, modelname, continuous_variables=[], whitelist=[], blacklist=[]):
-        # whitelist = [('sex', 'educ'), ('age', 'income'), ('educ', 'income')]
+    def learn_model(self, modelname, whitelist_continuous_variables=[], whitelist_edges=[], blacklist_edges=[]):
+        # whitelist_edges = [('sex', 'educ'), ('age', 'income'), ('educ', 'income')]
         file = self.csv_data_file[:-4] + "_cleaned.csv"
 
         gm = GeneratePyMc3Model(file, self.categorical_vars)
-        # pymc3_code = gm.generate_code(continuous_variables, whitelist, blacklist)
+        # pymc3_code = gm.generate_code(whitelist_continuous_variables, whitelist_edges, blacklist_edges)
 
-        function = gm.generate_model_code(modelname, file=file, fit=True, continuous_variables=continuous_variables,
-                                          whitelist=whitelist, blacklist=blacklist,
+        function = gm.generate_model_code(modelname, file=file, fit=True, continuous_variables=whitelist_continuous_variables,
+                                          whitelist=whitelist_edges, blacklist=blacklist_edges,
                                           discrete_variables=self.categorical_vars,
                                           verbose=False)
 
 
-        gm.generate_model("../models", function)
+        gm.generate_model("/home/luca_ph/Documents/projects/graphical_models/code/models_ppl", function, self.data_map)
+        #gm.generate_model("../../../../models_ppl", function, self.data_map)
 
 
 if __name__ == "__main__":
-    pymc_model = PyMCModel("../data_2/titanic.csv", var_tolerance=0.1)
+    pymc_model = PyMCModel("../data/titanic.csv", var_tolerance=0.1)
     pymc_model.create_map_and_clean_data()
-    pymc_model.learn_model("zzzz2")
+    pymc_model.learn_model("test_jp2",
+                           whitelist_continuous_variables=['age'],
+                           whitelist_edges=[('pclass', 'survived'), ('sex', 'survived')])

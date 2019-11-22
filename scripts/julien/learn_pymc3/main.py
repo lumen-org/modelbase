@@ -11,7 +11,7 @@ if __name__ == "__main__":
     #file = 'grade_model.csv'
     #file = 'mixture_gaussian_cleaned.csv'
     file = "allbus_cleaned.csv"
-    file = "titanic.csv"
+    file = "titanic_orig.csv"
     # file = "sprinkler_cleaned.csv"
     file = path + file
 
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     continuous_variables = []
     whitelist = []
     blacklist = []
-    #blacklist = [('income', 'age')]
+    #blacklist_edges = [('income', 'age')]
     continuous_variables = ['income', 'age']
     whitelist = [('sex', 'educ')]
     bayesian_model = BayesianModel(continuous_variables=continuous_variables, whitelist=whitelist, blacklist=blacklist)

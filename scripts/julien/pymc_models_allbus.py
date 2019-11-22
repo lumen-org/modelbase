@@ -160,7 +160,7 @@ def create_allbus_model_1(filename="", modelname="allbus_model_1", fit=True):
     return df, m
 
 #####################
-# continuous_variables = ['income']
+# whitelist_continuous_variables = ['income']
 # 242 parameter
 #####################
 def create_allbus_model_2(filename="", modelname="allbus_model_2", fit=True):
@@ -319,8 +319,8 @@ def create_allbus_model_2(filename="", modelname="allbus_model_2", fit=True):
 
 
 #####################
-# continuous_variables = ['income']
-# whitelist = [('sex', 'educ')]
+# whitelist_continuous_variables = ['income']
+# whitelist_edges = [('sex', 'educ')]
 # 232 parameter
 #####################
 def create_allbus_model_3(filename="", modelname="allbus_model_3", fit=True):
@@ -471,8 +471,8 @@ def create_allbus_model_3(filename="", modelname="allbus_model_3", fit=True):
 
 
 #####################
-# continuous_variables = ['income', 'age']
-# whitelist = [('sex', 'educ')]
+# whitelist_continuous_variables = ['income', 'age']
+# whitelist_edges = [('sex', 'educ')]
 # 172 parameter
 #####################
 def create_allbus_model_4(filename="", modelname="allbus_model_4", fit=True):
@@ -623,8 +623,8 @@ def create_allbus_model_4(filename="", modelname="allbus_model_4", fit=True):
     return df, m
 
 #####################
-# continuous_variables = ['income']
-# whitelist = [('sex', 'educ'), ('age', 'income')]
+# whitelist_continuous_variables = ['income']
+# whitelist_edges = [('sex', 'educ'), ('age', 'income')]
 # 342 parameter
 #####################
 def create_allbus_model_5(filename="", modelname="allbus_model_5", fit=True):
@@ -1428,8 +1428,8 @@ def create_allbus_model_5(filename="", modelname="allbus_model_5", fit=True):
 
 
 #####################
-# continuous_variables = ['income']
-# whitelist = [('sex', 'educ'), ('age', 'income')]]
+# whitelist_continuous_variables = ['income']
+# whitelist_edges = [('sex', 'educ'), ('age', 'income')]]
 # 342 parameter
 #####################
 def create_allbus_model_6(filename="", modelname="allbus_model_6", fit=True):
@@ -1555,8 +1555,8 @@ def create_allbus_model_6(filename="", modelname="allbus_model_6", fit=True):
 
 
 #####################
-# continuous_variables = ['income', 'age']
-# whitelist = [('sex', 'educ'), ('age', 'income'), ('educ', 'income')]
+# whitelist_continuous_variables = ['income', 'age']
+# whitelist_edges = [('sex', 'educ'), ('age', 'income'), ('educ', 'income')]
 # 157 parameter
 #####################
 def create_allbus_model_7(filename="", modelname="allbus_model_7", fit=True):
@@ -1681,8 +1681,8 @@ def create_allbus_model_7(filename="", modelname="allbus_model_7", fit=True):
     return df, m
 
 #####################
-# continuous_variables = ['income', 'age']
-# whitelist = [('sex', 'educ'), ('age', 'income'), ('age', 'educ')]
+# whitelist_continuous_variables = ['income', 'age']
+# whitelist_edges = [('sex', 'educ'), ('age', 'income'), ('age', 'educ')]
 # 1082 parameter
 #####################
 def create_allbus_model_8(filename="", modelname="allbus_model_8", fit=True):

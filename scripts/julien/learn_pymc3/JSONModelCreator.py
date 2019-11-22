@@ -65,15 +65,15 @@ class JSONModelCreator(object):
             data <- read.csv(paste({file},sep=''))
             # Setting discrete variables
             discrete_variables <- {disc_vars}
-            continuous_variables <- {cont_vars}
+            whitelist_continuous_variables <- {cont_vars}
             for (var in discrete_variables)  data[[var]] <- factor(data[[var]], c(sort(unique(data[[var]]))))
-            for (var in continuous_variables)  data[[var]] <- as.numeric(data[[var]])  
-            # Set whitelist
-            whitelist = {whitelist}
-            blacklist = {blacklist}
+            for (var in whitelist_continuous_variables)  data[[var]] <- as.numeric(data[[var]])  
+            # Set whitelist_edges
+            whitelist_edges = {whitelist}
+            blacklist_edges = {blacklist}
             # Learn the structure
-            m.hc = hc(data, whitelist=whitelist, blacklist=blacklist) #, score="log-cg")
-            graphviz.plot(m.hc)
+            m.hc = hc(data, whitelist_edges=whitelist_edges, blacklist_edges=blacklist_edges) #, score="log-cg")
+            # graphviz.plot(m.hc)
             # Fit the parameters
             fit <- bn.fit(m.hc, data)
             # Export as JSON

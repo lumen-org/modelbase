@@ -1,7 +1,9 @@
 from scripts.julien.learn_pymc3.BayesianModel import BayesianModel
 from scripts.julien.learn_pymc3.BlogCreator import BlogCreator
 from scripts.julien.learn_pymc3.PyMCCreator import PyMCCreator
+
 from mb_modelbase.models_core.empirical_model import EmpiricalModel
+from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 
 import pymc3 as pm
 import theano.tensor as tt
@@ -45,7 +47,7 @@ class GeneratePyMc3Model(object):
         return pymc3_code, descr
 
     def generate_model_code(self, modelname, file, fit, continuous_variables, whitelist, blacklist,
-                            discrete_variables=[], relearn=True, verbose=True, blog=False, sample_size=10000,
+                            discrete_variables=[], relearn=True, verbose=True, blog=False, sample_size=1000,
                             modeldir='models'):
         pymc3_code, descr = self.generate_code(continuous_variables, whitelist, blacklist, relearn, verbose, blog)
         pymc3_code = pymc3_code.replace('\n', '\n                ')
@@ -57,10 +59,11 @@ import theano.tensor as tt
 from theano.ifelse import ifelse
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 def create_fun():
-   def code_to_fit(file='{file}', modelname='{modelname}', fit=True):
+   def code_to_fit(file='{file}', modelname='{modelname}', fit=True, dtm=None):
             # income is gaussian, depends on age
             filepath = os.path.join(os.path.dirname(__file__), '{file}')
-            df = pd.read_csv(filepath)
+            df_model_repr = pd.read_csv(filepath)
+            df_orig = dtm.backward(df_model_repr, inplace=False)
             if fit:
                 modelname = modelname + '_fitted'
             # Set up shared variables
@@ -69,13 +72,13 @@ def create_fun():
             data = None
             with model:
                 {pymc3_code}
-            m = ProbabilisticPymc3Model(modelname, model)
+            m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm)
             m.nr_of_posterior_samples = {sample_size}
             if fit:
-                m.fit(df, auto_extend=False)
-            return df, m
+                m.fit(df_orig, auto_extend=False)
+            return df_orig, m
    return code_to_fit"""
-        f = open('/home/julien/PycharmProjects/lumen/modelbase/scripts/julien/learn_pymc3/ppl_code.py', "w")
+        f = open('./ppl_code.py', "w")
         f.write(fun)
         f.close()
         from scripts.julien.learn_pymc3.ppl_code import create_fun
@@ -85,7 +88,7 @@ def create_fun():
         # executes the function, we can now use code_to_fit
         return model_function
 
-    def generate_model(self, modeldir, fun):
+    def generate_model(self, modeldir, fun, data_map):
 
         # create model and emp model
         mypath = os.path.join(os.path.dirname(__file__), modeldir)
@@ -95,7 +98,11 @@ def create_fun():
         testcasemodel_path = mypath
         testcasedata_path = mypath
 
-        data, m_fitted = fun(fit=True)
+        dtm = DataTypeMapper()
+        for name, map_ in data_map.map.items():
+            dtm.set_map(forward='auto', backward=map_, name=name)
+
+        data, m_fitted = fun(fit=True, dtm=dtm)
 
         # create empirical model
         name = "emp_" + m_fitted.name
@@ -134,10 +141,10 @@ if __name__ == "__main__":
     whitelist = [('sex', 'age')]
     blacklist = [('income', 'age')]
     continuous_variables = ['income', 'age']
-    # whitelist = [('sex', 'educ'), ('age', 'income'), ('educ', 'income')]
+    # whitelist_edges = [('sex', 'educ'), ('age', 'income'), ('educ', 'income')]
 
     gm = GeneratePyMc3Model(file)
-    # pymc3_code = gm.generate_code(continuous_variables, whitelist, blacklist)
+    # pymc3_code = gm.generate_code(whitelist_continuous_variables, whitelist_edges, blacklist_edges)
 
 
 
@@ -154,8 +161,8 @@ if __name__ == "__main__":
     from scripts.julien.learn_pymc3.ProbParameter import generate_prob_graphs, is_similar, merge_nodes, print_prob_table
 
     """
-    bayesian_model = BayesianModel(continuous_variables=continuous_variables, whitelist=whitelist,
-                                       blacklist=blacklist)
+    bayesian_model = BayesianModel(whitelist_continuous_variables=whitelist_continuous_variables, whitelist_edges=whitelist_edges,
+                                       blacklist_edges=blacklist_edges)
     bayesian_model.learn_through_r(file, relearn=True, verbose=True)
     if True:
         generate_prob_graphs(bayesian_model)

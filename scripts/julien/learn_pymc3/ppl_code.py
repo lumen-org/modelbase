@@ -6,10 +6,11 @@ import theano.tensor as tt
 from theano.ifelse import ifelse
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 def create_fun():
-   def code_to_fit(file='../data_2/titanic_cleaned.csv', modelname='zzzz', fit=True):
+   def code_to_fit(file='../data/titanic_cleaned.csv', modelname='test_jp2', fit=True, dtm=None):
             # income is gaussian, depends on age
-            filepath = os.path.join(os.path.dirname(__file__), '../data_2/titanic_cleaned.csv')
-            df = pd.read_csv(filepath)
+            filepath = os.path.join(os.path.dirname(__file__), '../data/titanic_cleaned.csv')
+            df_model_repr = pd.read_csv(filepath)
+            df_orig = dtm.backward(df_model_repr, inplace=False)
             if fit:
                 modelname = modelname + '_fitted'
             # Set up shared variables
@@ -19,8 +20,6 @@ def create_fun():
             with model:
                 survived = pm.Categorical('survived', p=[0.0185,0.9815])
                 sex = pm.Categorical('sex', p=tt.switch(tt.eq(survived, 0), [0.1111,0.8889], [0.6667,0.3333]))
-                sibsp = pm.Categorical('sibsp', p=[0.6111,0.3354,0.0391,0.0082,0.0062])
-                parch = pm.Categorical('parch', p=[0.6667,0.2016,0.1173,0.0103,0.0021,0.0021])
                 ticket = pm.Categorical('ticket', p=[0.0062,0.0041,0.0021,0.0021,0.0021,0.0041,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0041,0.0021,0.0021,0.0041,0.0041,0.0021,0.0041,0.0082,0.0021,0.0021,0.0021,0.0062,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0041,0.0041,0.0021,0.0041,0.0021,0.0041,0.0062,0.0041,0.0021,0.0021,0.0041,0.0041,0.0041,0.0041,0.0021,0.0021,0.0021,0.0041,0.0062,0.0021,0.0021,0.0041,0.0021,0.0021,0.0021,0.0021,0.0021,0.0123,0.0103,0.0021,0.0062,0.0041,0.0021,0.0021,0.0021,0.0041,0.0021,0.0021,0.0041,0.0041,0.0041,0.0021,0.0082,0.0021,0.0021,0.0041,0.0021,0.0041,0.0021,0.0062,0.0021,0.0021,0.0021,0.0021,0.0041,0.0082,0.0041,0.0021,0.0021,0.0021,0.0021,0.0021,0.0041,0.0021,0.0082,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0041,0.0021,0.0062,0.0041,0.0021,0.0041,0.0021,0.0021,0.0021,0.0021,0.0041,0.0062,0.0021,0.0062,0.0041,0.0062,0.0021,0.0021,0.0021,0.0021,0.0062,0.0021,0.0082,0.0021,0.0062,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0041,0.0021,0.0021,0.0041,0.0062,0.0041,0.0062,0.0021,0.0041,0.0021,0.0021,0.0021,0.0041,0.0021,0.0021,0.0021,0.0021,0.0062,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0062,0.0021,0.0021,0.0021,0.0021,0.0041,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0062,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0062,0.0021,0.0021,0.0021,0.0041,0.0041,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0041,0.0021,0.0021,0.0041,0.0041,0.0021,0.0062,0.0041,0.0021,0.0021,0.0021,0.0062,0.0041,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0041,0.0041,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0062,0.0021,0.0021,0.0021,0.0041,0.0062,0.0041,0.0021,0.0021,0.0062,0.0062,0.0021,0.0021,0.0021,0.0021,0.0041,0.0041,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0041,0.0021,0.0021,0.0041,0.0041,0.0021,0.0062,0.0041,0.0021,0.0041,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0123,0.0021,0.0041,0.0021,0.0082,0.0041,0.0062,0.0041,0.0041,0.0062,0.0041,0.0062,0.0041,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0062,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021,0.0021])
                 pclass = pm.Categorical('pclass', p=tt.switch(tt.eq(sex, 0), [0.4326,0.2696,0.2978], [0.3772,0.1557,0.4671]))
                 fare = pm.Normal('fare', mu=tt.switch(tt.eq(sex, 0), tt.switch(tt.eq(pclass, 0), 108.8666, tt.switch(tt.eq(pclass, 1), 24.1183, 12.5147)), tt.switch(tt.eq(pclass, 0), 72.0712, tt.switch(tt.eq(pclass, 1), 20.2144, 14.015))), sigma=tt.switch(tt.eq(sex, 0), tt.switch(tt.eq(pclass, 0), 83.3719, tt.switch(tt.eq(pclass, 1), 11.9473, 5.838)), tt.switch(tt.eq(pclass, 0), 91.1007, tt.switch(tt.eq(pclass, 1), 9.2129, 13.3239))))
@@ -29,9 +28,9 @@ def create_fun():
                 has_cabin_number = pm.Categorical('has_cabin_number', p=tt.switch(tt.eq(pclass, 0), [0.1692,0.8308], tt.switch(tt.eq(pclass, 1), [0.8482,0.1518], [0.948,0.052])))
                 age = pm.Normal('age', mu=tt.switch(tt.eq(embarked, 0), tt.switch(tt.eq(pclass, 0), 36.3462, tt.switch(tt.eq(pclass, 1), 20.5921, 20.5546)), tt.switch(tt.eq(embarked, 1), tt.switch(tt.eq(pclass, 0), 35.0, tt.switch(tt.eq(pclass, 1), 29.9406, 27.8244)), tt.switch(tt.eq(pclass, 0), 35.7486, tt.switch(tt.eq(pclass, 1), 25.458, 23.4376)))), sigma=tt.switch(tt.eq(embarked, 0), tt.switch(tt.eq(pclass, 0), 12.6923, tt.switch(tt.eq(pclass, 1), 10.5268, 11.7445)), tt.switch(tt.eq(embarked, 1), tt.switch(tt.eq(pclass, 0), 2.8284, tt.switch(tt.eq(pclass, 1), 0.0841, 4.2584)), tt.switch(tt.eq(pclass, 0), 14.5895, tt.switch(tt.eq(pclass, 1), 14.4234, 11.2448)))))
                 
-            m = ProbabilisticPymc3Model(modelname, model)
+            m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm)
             m.nr_of_posterior_samples = 1000
             if fit:
-                m.fit(df, auto_extend=False)
-            return df, m
+                m.fit(df_orig, auto_extend=False)
+            return df_orig, m
    return code_to_fit
