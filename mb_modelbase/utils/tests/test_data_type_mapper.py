@@ -50,6 +50,19 @@ class DataTypeMapperTestCase(unittest.TestCase):
         d_conv = mapper.forward(d, inplace=False)
         self.assertEqual(d, d_conv)
 
+    def test_copy(self):
+        mapper = self._dtmmapper
+        mapper_copy = mapper.copy()
+
+        df = pd.DataFrame(data={'sex': ['Male', 'Female', 'Male'], 'B': [100, 200, 100]})
+
+        df_conv = mapper_copy.forward(df, inplace=False)
+        df_conv_ref = pd.DataFrame(data={'sex': [1, 2, 1], 'B': ['x', 'y', 'x']})
+        assert_frame_equal(df_conv_ref, df_conv)
+
+        df_back_conv = mapper_copy.backward(df_conv, inplace=False)
+        assert_frame_equal(df, df_back_conv)
+
 
 if __name__ == '__main__':
     unittest.main()

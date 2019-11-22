@@ -3,7 +3,7 @@
 @author: Philipp Lucas
 """
 import pandas as pd
-
+import copy
 
 class DataTypeMapper:
     """ Maps data between two representations by user defined per dimension mappings.
@@ -94,6 +94,12 @@ class DataTypeMapper:
                 raise TypeError('forward has to be dict if backward is set to auto.')
         self._forward_map[name] = forward
         self._backward_map[name] = backward
+
+    def copy(self):
+        copy_ = DataTypeMapper()
+        copy_._forward_map = copy.deepcopy(self._forward_map)
+        copy_._backward_map = copy.deepcopy(self._backward_map)
+        return copy_
 
     @staticmethod
     def invert_dict_mapping(dict_mapping):
