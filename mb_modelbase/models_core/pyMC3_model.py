@@ -20,7 +20,7 @@ from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 class ProbabilisticPymc3Model(Model):
 
     def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=10000, fixed_data_length=False,
-                 data_mappings=None):
+                 data_mapping=None):
         """Bayesian models built by the PyMC3 library
 
         Parameters:
@@ -41,7 +41,7 @@ class ProbabilisticPymc3Model(Model):
                 Some probabilistic models require a fixed length of the data. This is important because normally
                 new data points are generated with a different length than the original data
 
-            data_mappings: dict or DataTypeMapper, optional. Defaults to the identify mapping.
+            data_mapping: dict or DataTypeMapper, optional. Defaults to the identify mapping.
 
                 The actual probabilistic modelling may require that you encode variables differently than you want to
                 expose them to the outside. E.g. a variable may be modelled as an integer value of 0 or 1 but actually
@@ -62,13 +62,13 @@ class ProbabilisticPymc3Model(Model):
         self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
 
-        if data_mappings is None:
-            data_mappings = {}
-        if type(data_mappings) is DataTypeMapper:
-            self._data_type_mapper = data_mappings
-        elif type(data_mappings) is dict:
+        if data_mapping is None:
+            data_mapping = {}
+        if type(data_mapping) is DataTypeMapper:
+            self._data_type_mapper = data_mapping
+        elif type(data_mapping) is dict:
             self._data_type_mapper = DataTypeMapper()
-            for name, forward_mapping in data_mappings.items():
+            for name, forward_mapping in data_mapping.items():
                 self._data_type_mapper.set_map(name, forward_mapping, backward='auto')
 
     def _set_data(self, df, drop_silently, **kwargs):
@@ -212,7 +212,7 @@ class ProbabilisticPymc3Model(Model):
     def _density(self, x):
 
         # map x into model space
-        x = self._data_type_mapper.forward(dict(zip(self.names), x))
+        x = self._data_type_mapper.forward(dict(zip(self.names, x)))
 
         if any([self.fields[i]['independent'] for i in range(len(self.fields))]):
             #raise ValueError("Density is queried for a model with independent variables")

@@ -50,6 +50,12 @@ class DataTypeMapperTestCase(unittest.TestCase):
         d_conv = mapper.forward(d, inplace=False)
         self.assertEqual(d, d_conv)
 
+    def test_dict_mapping_missing_map(self):
+        mapper = self._dtmmapper
+        d = {'does_not_exist_in_map': 666, 'ABC': 42.01}
+        d_conv = mapper.forward(d, inplace=False)
+        self.assertEqual(d_conv, d)
+
     def test_copy(self):
         mapper = self._dtmmapper
         mapper_copy = mapper.copy()

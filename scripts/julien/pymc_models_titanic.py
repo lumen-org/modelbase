@@ -7,16 +7,17 @@ import pymc3 as pm
 import theano.tensor as tt
 import theano
 
+import pandas as pd
+
 import math
 import os
 
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
-
-import pandas as pd
+from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 
 filepath = os.path.join(os.path.dirname(__file__), "titanic_original.csv")
 df = pd.read_csv(filepath)
-sample_size = 100000
+sample_size = 1000
 
 titanic_backward_map = {
     'pclass': {0: 1, 1: 2, 2: 3},
@@ -32,6 +33,9 @@ titanic_backward_map = {
     'has_cabin_number': {0: 0, 1: 1},
 }
 
+dtm = DataTypeMapper()
+for name, map_ in titanic_backward_map.items():
+    dtm.set_map(forward='auto', backward=map_, name=name)
 
 ###############################################################
 # 158 parameter
@@ -171,7 +175,8 @@ def create_titanic_model_2(filename="", modelname="titanic_model_2", fit=True):
 
         #data = pm.trace_to_dataframe(pm.sample(10000))
         #data.sort_index(inplace=True)
-    m = ProbabilisticPymc3Model(modelname, titanic_model)
+
+    m = ProbabilisticPymc3Model(modelname, titanic_model, data_mapping=dtm)
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(df, auto_extend=False)
@@ -414,7 +419,6 @@ def create_titanic_model_5(filename="", modelname="titanic_model_5", fit=True):
     m.set_gm_graph()
 
 
-
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(df, auto_extend=False)
@@ -432,4 +436,3 @@ if __name__ == '__main__':
     df_orig = dtm.backward(df, inplace=False)
     df_orig.to_csv(os.path.join(basepath, 'titanic_original.csv'), index=False)
     pass
-
