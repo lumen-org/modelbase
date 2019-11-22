@@ -11,7 +11,7 @@ import timeit
 import scipy.stats
 import math
 
-#import pymc_models_allbus
+import pymc_models_allbus
 import pymc_models_titanic
 #import pymc_models_burglary
 
@@ -75,17 +75,20 @@ if __name__ == '__main__':
     create_functions = [
         # pymc_models_burglary.create_burglary_model
 
-        # pymc_models_allbus.create_allbus_model_2
-        # pymc_models_allbus.create_allbus_model_1,
-        # pymc_models_allbus.create_allbus_model_3
-        # pymc_models_allbus.create_allbus_model_4,
-        # pymc_models_allbus.create_allbus_model_5,
-        # pymc_models_allbus.create_allbus_model_6
+        #pymc_models_allbus.create_allbus_model_1
+        pymc_models_allbus.create_allbus_model_2
+        #pymc_models_allbus.create_allbus_model_3
+        #pymc_models_allbus.create_allbus_model_4,
+        #pymc_models_allbus.create_allbus_model_5,
+        #pymc_models_allbus.create_allbus_model_6
+        #pymc_models_allbus.create_allbus_model_7
+        #pymc_models_allbus.create_allbus_model_8
 
-        #pymc_models_titanic.create_titanic_model,
-        pymc_models_titanic.create_titanic_model2
-        #pymc_models_titanic.create_titanic_model3,
-        #pymc_models_titanic.create_titanic_model4,
+        #pymc_models_titanic.create_titanic_model_1,
+        #pymc_models_titanic.create_titanic_model_2,
+        #pymc_models_titanic.create_titanic_model_3,
+        #pymc_models_titanic.create_titanic_model_4,
+        #pymc_models_titanic.create_titanic_model_5,
     ]
 
     for func in create_functions:

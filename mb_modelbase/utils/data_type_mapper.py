@@ -43,8 +43,10 @@ class DataTypeMapper:
             if inplace is False:
                 data = data.copy()
             columns = data.columns.intersection(mapping.keys())
-            sub_mapping = {c: mapping[c] for c in columns}
-            data.replace(to_replace=sub_mapping, inplace=True)
+            for c in columns:
+                self._map(data.loc[:, c], mapping, inplace=True)
+            # sub_mapping = {c: mapping[c] for c in columns}
+            # data.replace(to_replace=sub_mapping, inplace=True)
             return data
 
         elif obj_type is pd.Series:
