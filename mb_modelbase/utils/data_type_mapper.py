@@ -45,8 +45,6 @@ class DataTypeMapper:
             columns = data.columns.intersection(mapping.keys())
             for c in columns:
                 self._map(data.loc[:, c], mapping, inplace=True)
-            # sub_mapping = {c: mapping[c] for c in columns}
-            # data.replace(to_replace=sub_mapping, inplace=True)
             return data
 
         elif obj_type is pd.Series:
@@ -72,34 +70,22 @@ class DataTypeMapper:
                 data.update(update_dict)
             else:
                 data = {name: value if name not in mapping_keys else
-                        (mapping[name](value) if callable(mapping[name]) else mapping[name][value])
+                              (mapping[name](value) if callable(mapping[name]) else mapping[name][value])
                         for name, value in data.items()}
-
-            # dict
-            # data_mapped = {name: mapping[name][value] if name in mapping_keys else value
-            #                for name, value in data.items()}
             return data
 
-    def set_map(self, name, forward=None, backward=None, mode='single'):
+    def set_map(self, name, forward=None, backward=None):
         """Set mappings for a variable.
-        TODO: implement vector mode?
-        TODO: implement functions for mapping
         Args:
             name: str
                 Name of variable
             forward: dict or callable, optional. Defaults to None.
-                Callable that convert a single data item (if mode is 'single') or a iterable of data (if mode is
-                'vector') items into the alternative representation.
+                Callable that convert a single data item into the alternative representation.
                 If None the forward mapping is left unchanged.
             backward: dict or callable, optional. Defaults to None.
-                Callable that convert a single data item (if mode is 'single') or a iterable of data items from the
-                 alternative representation into the original representation.
+                Callable that convert a single data item into the original representation.
                  If None the backward mapping is left unchanged.
-            mode: str, one of ['single', 'vector']
-                Select the mode to set the mapping for.
         """
-        if mode is not 'single':
-            raise NotImplementedError("mode different from 'single' is not yet implemented.")
         if forward is 'auto':
             if type(backward) is dict:
                 forward = DataTypeMapper.invert_dict_mapping(backward)
