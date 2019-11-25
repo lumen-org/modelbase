@@ -13,6 +13,8 @@ class MyTestCase(unittest.TestCase):
         df2 = data_import_utils.to_string_cols(df, inplace=False)
         df3 = data_import_utils.to_string_cols(df, columns=['A'], inplace=False)
         assert_frame_equal(df2, df3)
+        data_import_utils.to_string_cols(df, columns=['A'], inplace=True)
+        assert_frame_equal(df2, df)
         self.assertTrue(np.all(df2.applymap(lambda e: type(e) == str)))
         self.assertTrue(np.all(df3.applymap(lambda e: type(e) == str)))
 

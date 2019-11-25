@@ -146,6 +146,20 @@ def to_string_cols(df, columns=None, inplace=False):
         columns = df.columns
     if not inplace:
         df = df.copy()
-    df.loc[:,columns] = df.loc[:,columns].applymap(str)
+    df.loc[:, columns] = df.loc[:,columns].applymap(str)
     return df
 
+
+def to_binned_stringed_series(series, bins):
+    """Bin numerical column into equidistant bins.
+    :param series: pd.Series
+        The series to bin
+    :param bins: int > 0
+    """
+
+    return pd.cut(series, bins=bins, precision=2).apply(str)
+
+
+if __name__ == '__main__':
+    series = pd.Series(list(range(10)))
+    print(to_binneded_string_series(series, bins=3))

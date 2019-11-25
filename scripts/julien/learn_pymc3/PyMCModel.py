@@ -53,6 +53,12 @@ class PyMCModel(object):
 
 
 if __name__ == "__main__":
+
+    whitelist = {
+        'categorical': [],
+        'quantitative': [],
+    }
+
     pymc_model = PyMCModel("../data/titanic.csv", var_tolerance=0.1)
     pymc_model.create_map_and_clean_data()
     pymc_model.learn_model("test_jp2",
