@@ -14,13 +14,14 @@ import math
 
 from mb_modelbase.models_core.models import Model
 from mb_modelbase.utils.data_import_utils import get_numerical_fields
+from mb_modelbase.models_core import data_operations as data_op
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 
 
 class ProbabilisticPymc3Model(Model):
 
     def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=1000, fixed_data_length=False,
-                 data_mapping=None):
+                 data_mapping=None, sampling_chains=1, sampling_cores=1):
         """Bayesian models built by the PyMC3 library
 
         Parameters:
@@ -50,6 +51,16 @@ class ProbabilisticPymc3Model(Model):
 
                 Note that you must provide your training and test data in its original space representation with
                 .fit_data().
+
+            sampling_chains: int, optional. Defaults to 1.
+
+                See https://docs.pymc.io/api/inference.html and there the paramter chains of .sample()
+
+            sampling_cores: int, optional. Defaults to 1.
+
+                See https://docs.pymc.io/api/inference.html and there the paramter cores of .sample()
+
+
         """
         super().__init__(name)
         self.model_structure = model_structure
@@ -58,6 +69,8 @@ class ProbabilisticPymc3Model(Model):
             'maximum': self._maximum
         }
         self.parallel_processing = False
+        self.sampling_chains = sampling_chains
+        self.sampling_cores = sampling_cores
         self.shared_vars = shared_vars
         self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
@@ -123,16 +136,16 @@ class ProbabilisticPymc3Model(Model):
         if recreate_samples_model_repr:
             self._samples_model_repr = self._data_type_mapper.forward(self.samples, inplace=False)
 
-        samples_model_repr = self._samples_model_repr
         # needed for density calculation
-        kde_input = samples_model_repr.values.T
-        if len(kde_input) is not 0:
+        kde_input = self._samples_model_repr.values.T
+        # require _multiple_ inputs. the 5 is a heuristic to prevent singular matrices due to all identical input
+        if kde_input.size > 5:
             self._samples_kde = stats.gaussian_kde(kde_input)
         else:
             self._samples_kde = None
 
         # needed for maximum calculation
-        self._samples_model_repr_mean = samples_model_repr.mean(axis='index')
+        self._samples_model_repr_mean = self._samples_model_repr.mean(axis='index')
 
     def _cartesian_product_of_samples(self, df):
         # Split up df in its columns
@@ -191,13 +204,12 @@ class ProbabilisticPymc3Model(Model):
         remove_not_in_names = [name for name in remove if name not in self.names]
         if len(remove_not_in_names) > 0:
             raise ValueError('The following variables in remove do not appear in the model: ' + str(remove_not_in_names))
+
         # Remove all variables in remove
-        for varname in remove:
-            if varname in list(self.samples.columns):
-                self.samples = self.samples.drop(varname, axis=1)
+        cols_to_remove = [col for col in remove if col in set(self.samples.columns)]
+        self.samples = self.samples.drop(list(cols_to_remove), axis=1)
 
         self._update_samples_model_representation()
-
         return ()
 
     def _conditionout(self, keep, remove):
@@ -207,22 +219,12 @@ class ProbabilisticPymc3Model(Model):
         remove_not_in_names = [name for name in remove if name not in self.names]
         if len(remove_not_in_names) > 0:
             raise ValueError('The following variables in remove do not appear in the model: ' + str(remove_not_in_names))
-        names = remove
-        fields = [] if names is None else self.byname(names)
 
-        # condition on the domain of variables in remove
-        for field in fields:
-            # filter out values smaller than domain minimum
-            if not field['domain'].issingular():
-                dom_min, dom_max = field['domain'].value()
-            else:
-                dom_min = dom_max = field['domain'].value()
-            filter_ = self.samples.loc[:, str(field['name'])] > dom_min
-            self.samples.where(filter_, inplace=True)
-            # filter out values bigger than domain maximum
-            filter_ = self.samples.loc[:, str(field['name'])] < dom_max
-            self.samples.where(filter_, inplace=True)
+        values = [self.byname(r)['domain'].values() for r in remove]
+        conditions = zip(remove, ['in'] * len(values), values)
+        self.samples = data_op.condition_data(self.samples, conditions)
         self.samples.dropna(inplace=True)
+
         # is done in _marginalize_out anyway:
         # self._update_samples_model_representation()
         self._marginalizeout(keep, remove)
@@ -241,8 +243,10 @@ class ProbabilisticPymc3Model(Model):
             # map back to value list (in correct order)
             x = [x[name] for name in self.names]
             x = np.reshape(x, (1, -1))
-            density = self._samples_kde.evaluate(x)[0]
-            return density
+            if self._samples_kde is None:
+                return 0
+            else:
+                return self._samples_kde.evaluate(x)[0]
 
     def _negdensity(self, x):
         return -self._density(x)
@@ -259,7 +263,7 @@ class ProbabilisticPymc3Model(Model):
 
         # Generate samples for latent random variables
         with self.model_structure:
-            trace = pm.sample(n, chains=1, cores=1, progressbar=False)
+            trace = pm.sample(n, chains=self.sampling_chains, cores=self.sampling_cores, progressbar=False)
             for varname in trace.varnames:
                 # check if trace consists of more than one variable
                 if len(trace[varname].shape) == 2:
@@ -343,6 +347,8 @@ class ProbabilisticPymc3Model(Model):
         mycopy.samples = self.samples.copy()
         mycopy._samples_model_repr = self._samples_model_repr.copy()
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
+        mycopy.sampling_cores = self.sampling_cores
+        mycopy.sampling_chains = self.sampling_chains
         mycopy.fixed_data_length = self.fixed_data_length
         mycopy.set_empirical_model_name(self._empirical_model_name)
         self.check_data_and_shared_vars_on_equality()

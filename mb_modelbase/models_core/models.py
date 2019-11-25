@@ -850,11 +850,10 @@ class Model:
         # TODO: if conditions is a zip: how can it be reused a 2nd and 3rd time below!??
         # condition data
         if self.mode == 'data' or self.mode == 'both':
-            for condition in conditions:
-                if condition.name in self.data.columns.tolist():
-                    self.data = data_operations.condition_data(self.data, conditions)
+            columns = set(self.data.columns)
+            conditions = [c for c in conditions if c.name in columns]
+            self.data = data_operations.condition_data(self.data, conditions)
             self.test_data = data_operations.condition_data(self.test_data, conditions)
-
         self._update_extents(names)
         return self
 
