@@ -131,3 +131,21 @@ def to_category_cols(df, colnames):
         # .cat.codes access the integer codes that encode the actual categorical values. Here, however, we want such integer values.
         df[c] = df[c].astype('category').cat.codes
     return df
+
+
+def to_string_cols(df, columns=None, inplace=False):
+    """Replace columns with their string representation.
+    :param df: pd.DataFrame
+        The data frame to work on
+    :param inpace: boolean, optional. Defaults to False.
+        Modifies df instead of returning a copy of it
+    :param columns: list of strings, optional. Defaults to df.columns.
+    :return:
+    """
+    if columns is None:
+        columns = df.columns
+    if not inplace:
+        df = df.copy()
+    df.loc[:,columns] = df.loc[:,columns].applymap(str)
+    return df
+
