@@ -31,6 +31,6 @@ def create_fun():
             m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm, probabilistic_program_graph=pp_graph)
             m.nr_of_posterior_samples = 1000
             if fit:
-                m.fit(df_orig, auto_extend=False)
+                m.fit(df_orig, auto_extend=False    )
             return df_orig, m
    return code_to_fit

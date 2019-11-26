@@ -64,10 +64,10 @@ if __name__ == "__main__":
         'edges': [('fare', 'pclass'), ('sex', 'survived'), ('ticket', 'embarked'), ('boat', 'has_cabin_number'),
                   ('age', 'fare'), ('pclass', 'survived'), ('sex', 'ticket'), ('embarked', 'boat')],
         'enforced_node_dtypes': {
-            'age': 'string'
+            'age': 'numerical'
         },
         'enforced_edges': [('pclass', 'survived'), ('sex', 'survived')],
-        # 'forbidden_edges':
+        'forbidden_edges': [('sex', 'embarked'), ('fare', 'survived')],
     }
 
     pymc_model = PyMCModel("../data/titanic.csv", var_tolerance=0.1)
