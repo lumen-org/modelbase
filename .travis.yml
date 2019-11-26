@@ -4,6 +4,7 @@ git:
 os: linux
 install:
   - pip install .
+  - pip install pytest-cov
 before_script:
   - touch scripts/run_conf.py
   - echo $RUN_CONFIG > scripts/run_conf.py
