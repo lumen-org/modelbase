@@ -35,7 +35,6 @@ from mb_modelbase.models_core import auto_extent
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-
 """ Utility functions for converting models and parts / components of models to strings. """
 
 
@@ -323,6 +322,7 @@ class Model:
         Returns : Field or [Field]
             A single `Field` (if a single name was given) or a sequence of `Field`s.
         """
+
         def _byname(name):
             return self.fields[self._name2idx[name]]
 
@@ -468,7 +468,7 @@ class Model:
         }
         valid_opts = {
             'pci_graph': [True, False],
-            'split_data':[True, False]
+            'split_data': [True, False]
         }
         kwargs = utils.update_opts(kwargs, default_opts, valid_opts)
 
@@ -1108,7 +1108,6 @@ class Model:
                 raise ValueError("Your model does not provide the requested aggregation: '" + method + "'")
             other_res = aggr_function()
 
-
             # 4. clamp to values within domain
             # TODO bug/mistake: should we really clamp?
             for (idx, field) in enumerate(model.fields):
@@ -1348,10 +1347,11 @@ class Model:
 
         # sum up density over all elements of the cartesian product of the categorical part of the event
         # TODO: generalize
-        assert (all(len(d) == 1 for d in cat_domains)), "did not implement the case where categorical domain has more than one element"
+        assert (all(len(d) == 1 for d in
+                    cat_domains)), "did not implement the case where categorical domain has more than one element"
         x = list([d[0] for d in cat_domains])
         return vol * self._density(x + y)
-        #return vol * self._density(list(cat_domains) + y)
+        # return vol * self._density(list(cat_domains) + y)
 
     def sample(self, n=1):
         """Returns n samples drawn from the model as a dataframe with suitable column names.
@@ -1750,7 +1750,7 @@ class Model:
         aggrs, aggr_ids, aggr_input_names, aggr_dims, \
         predict_ids, predict_names, \
         split_names, name2split, \
-        partial_data, partial_data_names\
+        partial_data, partial_data_names \
             = models_predict.create_data_structures_for_clauses(self, predict, where, splitby, partial_data)
         # set of names of dimensions that we need values for in the input data frame
         input_names = aggr_input_names | set(split_names) | set(partial_data_names)
@@ -1785,12 +1785,12 @@ class Model:
 
             # query model
             if aggr_method == 'density' or aggr_method == 'probability':
-                aggr_df = models_predict.\
+                aggr_df = models_predict. \
                     aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, name2split, aggr_id)
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 # TODO: I believe all max/avg aggregations require the identical input data, because i always condition
                 #  on all input items --> reuse it. This is: generate input before and then pass it in
-                aggr_df = models_predict.\
+                aggr_df = models_predict. \
                     aggregate_maximum_or_average(aggr_model, aggr, partial_data, split_data, name2split, aggr_id)
             else:
                 raise ValueError("Invalid 'aggregation method': " + str(aggr_method))
@@ -1827,7 +1827,8 @@ class Model:
             # TODO: don't save them as data frames, just as a list of tuples (then I wouldnot need to create the tuples here)
             # TODO: apply reordering right away when the column is computed
             perms = utils.alignment_permutation(list(base_df.itertuples(index=False, name=None)),
-                                                *[list(r.iloc[:, :n].itertuples(index=False, name=None)) for r in result_list])
+                                                *[list(r.iloc[:, :n].itertuples(index=False, name=None)) for r in
+                                                  result_list])
 
             # apply permutations (to aggr results only)
             aggr_df = (res.iloc[perm.list(), n:] for perm, res in zip(perms, result_list))
@@ -1926,7 +1927,8 @@ class Model:
                 opts = utils.update_opts({'data_category': 'training data'}, kwargs)
                 if opts['data_category'] == 'training data':
                     warnings.warn('at least one of ' + str(what) + ' is not a column label of the data.  '
-                        'There might be latent variables among' + str(what) + 'for which no data was observed.')
+                                                                   'There might be latent variables among' + str(
+                        what) + 'for which no data was observed.')
                     # Remove labels from selection that are not in the data
                     what = list(compress(what, [element in self.data.columns for element in what]))
 
