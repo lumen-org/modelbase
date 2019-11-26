@@ -12,9 +12,9 @@ Data is generally given as a pandas data frame. Appropiate preperation is expect
 Parameters are generally provided by means of numpy ndarrays. The order of categorical random variables in the given data frame is equivalent to the implicit order of dimensions (representing categorical random variables) in the derived parameters.
 
 """
-from CGmodelselection.CG_CLZ_utils import CG_CLZ_Utils
-from CGmodelselection.CG_MAP_utils import CG_MAP_Utils
-from CGmodelselection.dataops import get_meta_data, prepare_cat_data
+from cgmodsel.CG_CLZ_Huber import CG_CLZ_Huber
+from cgmodsel.CG_MAP import CG_MAP
+from cgmodsel.dataops import get_meta_data, prepare_cat_data
 
 ### model selection methods
 
@@ -35,7 +35,7 @@ def fit_clz_mean (df):
 #    means, sigmas = standardizeContinuousData(Y) # required to avoid exp overflow
     D = prepare_cat_data(df[meta['catnames']], meta, method = 'dummy')  # transform discrete variables to indicator data
     # TODO: split into training and test data? if so: see Franks code
-    solver = CG_CLZ_Utils(meta)  # initialize problem
+    solver = CG_CLZ_Huber(meta)  # initialize problem
     solver.drop_data(D, Y)  # set training data
     # solve it attribute .x contains the solution parameter vector.
     solver.set_regularization_params(0.2)
@@ -58,7 +58,7 @@ def fit_map_mean (df):
 #    means, sigmas = standardizeContinuousData(Y) # required to avoid exp overflow
     D = prepare_cat_data(df[meta['catnames']], meta, method = 'flat')  # transform discrete variables to flat indices
     # TODO: split into training and test data? if so: see Franks code
-    solver = CG_MAP_Utils(meta)  # initialize problem
+    solver = CG_MAP(meta)  # initialize problem
     solver.drop_data(D, Y)  # set training data
 
     (p, mus, Sigmas) = solver.fit_variable_covariance()
