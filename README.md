@@ -2,6 +2,7 @@
 
 [![Travis](https://travis-ci.org/lumen-org/modelbase.svg?branch=ci_travis)](
     https://travis-ci.org/lumen-org/modelbase)
+    
 A SQL-like interface for python and the web to query data together with probability models on the data.
 
 Version: 0.95

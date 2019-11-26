@@ -1,9 +1,11 @@
 language: python
 git:
   submodules: false
+os: linux
 install:
-  -pip install .
+  - pip install .
 before_script:
-  - echo 'cfg = {"port": 52104,"loglevel": "INFO","modules": {"root": {"enable": True,"route": "/",},"modelbase": {"enable": True,"route": "/webservice","directory": "../../fitted_models","name": "modelbase management system","test_model_directory": "../fitted_models"},"activitylogger": {"enable": True,"route": "/activitylogger",},"webquery": {"enable": False,"route": "/webquery",},},"ssl": {"enable": False,"cert_chain_path": "../ssl/fullchain.pem","cert_priv_key_path": "../ssl/privkey.pem",},}' >> scripts/run_conf.py
+  - touch scripts/run_conf.py
+  - echo $RUN_CONFIG > scripts/run_conf.py
 script:
   - python -m pytest
