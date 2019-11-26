@@ -72,7 +72,7 @@ class JSONModelCreator(object):
             whitelist_edges = {whitelist}
             blacklist_edges = {blacklist}
             # Learn the structure
-            m.hc = hc(data, whitelist_edges=whitelist_edges, blacklist_edges=blacklist_edges) #, score="log-cg")
+            m.hc = hc(data, whitelist=whitelist_edges, blacklist=blacklist_edges) #, score="log-cg")
             # graphviz.plot(m.hc)
             # Fit the parameters
             fit <- bn.fit(m.hc, data)
