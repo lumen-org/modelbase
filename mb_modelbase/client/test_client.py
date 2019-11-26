@@ -48,7 +48,6 @@ class MyTestCase(unittest.TestCase):
 
     def test_dump_models_single(self):
         model = Model()
-        expected_dill_models = []
         expected_model_list = [model.name]
         _, result_model_list = Client.Client.dump_models([model])
         self.assertEqual(expected_model_list, result_model_list)
