@@ -46,19 +46,12 @@ class Client:
         :param models: model or list of models
         """
         def send_models(models):
-            dill_models = []
-            model_list = []
-            for model in models:
-                if isinstance(model, Model):
-                    dill_models.append(dill.dumps(model, dill.HIGHEST_PROTOCOL))
-                    model_list.append(model.name)
-                else:
-                    raise Exception("Expect Object of type Model. Got {}".format(type(model)))
+            dumped_models, model_list = Client.dump_models(models)
             try:
                 logger.info("Sending models: {}".format(model_list))
-                self.socket.emit("models", dill_models, callback=self._callback_function)
+                self.socket.emit("models", dumped_models, callback=self._callback_function)
             except Exception as e:
-                logger.warning(e)
+                raise e
 
         try:
             if not isinstance(models, Iterable):
@@ -67,12 +60,23 @@ class Client:
                 send_models(models)
         except Exception as e:
             logger.warning(e)
+            raise e
+
+    @staticmethod
+    def dump_models(models):
+        dill_models = []
+        model_list = []
+        for model in models:
+            if isinstance(model, Model):
+                dill_models.append(dill.dumps(model, dill.HIGHEST_PROTOCOL))
+                model_list.append(model.name)
+            else:
+                raise TypeError("Expect Object of type Model. Got {}".format(type(model)))
+        return dill_models, model_list
+
 
     def disconnect(self):
         self.socket.disconnect()
-
-    def connect(self):
-        self.socket.connect("http://{}:{}".format(self.website, self.port))
 
     @staticmethod
     def _callback_function(confirmation):
