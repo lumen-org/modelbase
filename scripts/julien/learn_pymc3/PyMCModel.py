@@ -35,7 +35,7 @@ class PyMCModel(object):
                     categorical_vars.append(name)
         return categorical_vars
 
-    def learn_model(self, modelname, whitelist_continuous_variables=[], whitelist_edges=[], blacklist_edges=[]):
+    def learn_model(self, modelname, whitelist_continuous_variables=[], whitelist_edges=[], blacklist_edges=[], probabilistic_program_graph=None):
         # whitelist_edges = [('sex', 'educ'), ('age', 'income'), ('educ', 'income')]
         file = self.csv_data_file[:-4] + "_cleaned.csv"
 
@@ -48,7 +48,8 @@ class PyMCModel(object):
                                           verbose=False)
 
 
-        gm.generate_model("/home/luca_ph/Documents/projects/graphical_models/code/models_ppl", function, self.data_map)
+        gm.generate_model("/home/luca_ph/Documents/projects/graphical_models/code/models_ppl", function,
+                          self.data_map, pp_graph=probabilistic_program_graph)
         #gm.generate_model("../../../../models_ppl", function, self.data_map)
 
 
@@ -58,9 +59,18 @@ if __name__ == "__main__":
         'categorical': [],
         'quantitative': [],
     }
+    pp_graph = {
+        'nodes': ['age', 'fare', 'pclass', 'survived', 'sex', 'ticket', 'embarked', 'boat', 'has_cabin_number'],
+        'edges': [('fare', 'pclass'), ('sex', 'survived'), ('ticket', 'embarked'), ('boat', 'has_cabin_number'),
+                  ('age', 'fare'), ('pclass', 'survived'), ('sex', 'ticket'), ('embarked', 'boat')],
+        'enforced_node_dtypes': {
+            'age': 'string'
+        },
+        'enforced_edges': [('pclass', 'survived'), ('sex', 'survived')],
+        # 'forbidden_edges':
+    }
 
     pymc_model = PyMCModel("../data/titanic.csv", var_tolerance=0.1)
     pymc_model.create_map_and_clean_data()
-    pymc_model.learn_model("test_jp2",
-                           whitelist_continuous_variables=['age'],
-                           whitelist_edges=[('pclass', 'survived'), ('sex', 'survived')])
+    pymc_model.learn_model("test_jp2", probabilistic_program_graph=pp_graph)
+    pass

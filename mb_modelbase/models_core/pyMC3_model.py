@@ -13,15 +13,15 @@ import theano
 import math
 
 from mb_modelbase.models_core.models import Model
+from mb_modelbase import utils
 from mb_modelbase.utils.data_import_utils import get_numerical_fields
 from mb_modelbase.models_core import data_operations as data_op
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 
-
 class ProbabilisticPymc3Model(Model):
 
     def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=1000, fixed_data_length=False,
-                 data_mapping=None, sampling_chains=1, sampling_cores=1):
+                 data_mapping=None, sampling_chains=1, sampling_cores=1, probabilistic_program_graph=None):
         """Bayesian models built by the PyMC3 library
 
         Parameters:
@@ -60,8 +60,29 @@ class ProbabilisticPymc3Model(Model):
 
                 See https://docs.pymc.io/api/inference.html and there the paramter cores of .sample()
 
+            probabilistic_program_graph: dict, optional. Defaults to None.
+
+                The graph of the probabilistic program this model is based on. This only makes sense in the special
+                case where the PyMC3 program is derived automatically from a bayesian network. The graph represents
+                the data flow in the network, but also contains information about the user defined constrains that
+                were taken into account when learning the bayesian network. It is a dict organized as follows:
+
+                'nodes': list of strings.
+                    Name of every node of the graph. It includes all nodes, also the enforced ones below.
+
+                'edges': 2-tuple of strings
+                    Directed edges of the graph as pairs of nodes. It includes all edges, even the forbidden ones.
+
+                'enforced_node_dtypes': dict of <node name: dtype>, where dtype maybe 'numerical' or 'string'. Optional.
+
+                'enforced_edges': list of edges. Optional.
+
+                'forbidden_edges': list of edges. Optional.
 
         """
+
+
+
         super().__init__(name)
         self.model_structure = model_structure
         self.samples = pd.DataFrame()
@@ -83,6 +104,10 @@ class ProbabilisticPymc3Model(Model):
             self._data_type_mapper = DataTypeMapper()
             for name, forward_mapping in data_mapping.items():
                 self._data_type_mapper.set_map(name, forward_mapping, backward='auto')
+
+        if probabilistic_program_graph:
+            utils.normalize_pp_graph(probabilistic_program_graph)
+        self.probabilistic_program_graph = probabilistic_program_graph
 
         self._update_samples_model_representation()
 
@@ -354,6 +379,7 @@ class ProbabilisticPymc3Model(Model):
         self.check_data_and_shared_vars_on_equality()
         mycopy.check_data_and_shared_vars_on_equality()
         mycopy._data_type_mapper = self._data_type_mapper.copy()
+        mycopy.probabilistic_program_graph = cp.copy(self.probabilistic_program_graph)
         mycopy._update_samples_model_representation(recreate_samples_model_repr=False)
         return mycopy
 

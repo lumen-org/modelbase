@@ -388,6 +388,7 @@ class Model:
         self.history = {}
         self.parallel_processing = True
         self._empirical_model_name = None
+        self.pci_graph = None
 
     def _setempty(self):
         self._update_remove_fields()
@@ -472,7 +473,7 @@ class Model:
             'split_data': [True, False],
             #'silently_drop': [True, False]
         }
-        kwargs = utils.update_opts(kwargs, default_opts, valid_opts)
+        kwargs = utils.update_opts(default_opts, kwargs, valid_opts)
 
         # general clean up
         df = data_import_utils.clean_dataframe(df)
@@ -1419,6 +1420,7 @@ class Model:
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
         mycopy.parallel_processing = self.parallel_processing
+        mycopy.pci_graph = cp.deepcopy(self.pci_graph)
         return mycopy
 
     def _condition_values(self, names=None, pairflag=False, to_scalar=True):

@@ -6,7 +6,7 @@ import theano.tensor as tt
 from theano.ifelse import ifelse
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 def create_fun():
-   def code_to_fit(file='../data/titanic_cleaned.csv', modelname='test_jp2', fit=True, dtm=None):
+   def code_to_fit(file='../data/titanic_cleaned.csv', modelname='test_jp2', fit=True, dtm=None, pp_graph=None):
             # income is gaussian, depends on age
             filepath = os.path.join(os.path.dirname(__file__), '../data/titanic_cleaned.csv')
             df_model_repr = pd.read_csv(filepath)
@@ -28,7 +28,7 @@ def create_fun():
                 has_cabin_number = pm.Categorical('has_cabin_number', p=tt.switch(tt.eq(pclass, 0), [0.1692,0.8308], tt.switch(tt.eq(pclass, 1), [0.8482,0.1518], [0.948,0.052])))
                 age = pm.Normal('age', mu=tt.switch(tt.eq(embarked, 0), tt.switch(tt.eq(pclass, 0), 36.3462, tt.switch(tt.eq(pclass, 1), 20.5921, 20.5546)), tt.switch(tt.eq(embarked, 1), tt.switch(tt.eq(pclass, 0), 35.0, tt.switch(tt.eq(pclass, 1), 29.9406, 27.8244)), tt.switch(tt.eq(pclass, 0), 35.7486, tt.switch(tt.eq(pclass, 1), 25.458, 23.4376)))), sigma=tt.switch(tt.eq(embarked, 0), tt.switch(tt.eq(pclass, 0), 12.6923, tt.switch(tt.eq(pclass, 1), 10.5268, 11.7445)), tt.switch(tt.eq(embarked, 1), tt.switch(tt.eq(pclass, 0), 2.8284, tt.switch(tt.eq(pclass, 1), 0.0841, 4.2584)), tt.switch(tt.eq(pclass, 0), 14.5895, tt.switch(tt.eq(pclass, 1), 14.4234, 11.2448)))))
                 
-            m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm)
+            m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm, probabilistic_program_graph=pp_graph)
             m.nr_of_posterior_samples = 1000
             if fit:
                 m.fit(df_orig, auto_extend=False)

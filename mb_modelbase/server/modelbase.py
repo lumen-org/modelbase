@@ -378,6 +378,14 @@ class ModelBase:
                 'graph': graph
             })
 
+        elif 'PP_GRAPH.GET' in query:
+            model = self._extractFrom(query)
+            pp_graph = model.probabilistic_program_graph
+            graph = pp_graph if pp_graph else False
+            return _json_dumps({
+                'model': model.name,
+                'graph': graph
+            })
         else:
             raise QueryIncompleteError("Missing Statement-Type (e.g. DROP, PREDICT, SELECT)")
 

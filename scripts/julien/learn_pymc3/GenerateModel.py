@@ -59,7 +59,7 @@ import theano.tensor as tt
 from theano.ifelse import ifelse
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 def create_fun():
-   def code_to_fit(file='{file}', modelname='{modelname}', fit=True, dtm=None):
+   def code_to_fit(file='{file}', modelname='{modelname}', fit=True, dtm=None, pp_graph=None):
             # income is gaussian, depends on age
             filepath = os.path.join(os.path.dirname(__file__), '{file}')
             df_model_repr = pd.read_csv(filepath)
@@ -72,10 +72,10 @@ def create_fun():
             data = None
             with model:
                 {pymc3_code}
-            m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm)
+            m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm, probabilistic_program_graph=pp_graph)
             m.nr_of_posterior_samples = {sample_size}
             if fit:
-                m.fit(df_orig, auto_extend=False)
+                m.fit(df_orig, auto_extend=False    )
             return df_orig, m
    return code_to_fit"""
         f = open('./ppl_code.py', "w")
@@ -88,7 +88,7 @@ def create_fun():
         # executes the function, we can now use code_to_fit
         return model_function
 
-    def generate_model(self, modeldir, fun, data_map):
+    def generate_model(self, modeldir, fun, data_map, pp_graph):
 
         # create model and emp model
         mypath = os.path.join(os.path.dirname(__file__), modeldir)
@@ -102,7 +102,7 @@ def create_fun():
         for name, map_ in data_map.map.items():
             dtm.set_map(forward='auto', backward=map_, name=name)
 
-        data, m_fitted = fun(fit=True, dtm=dtm)
+        data, m_fitted = fun(fit=True, dtm=dtm, pp_graph=pp_graph)
 
         # create empirical model
         name = "emp_" + m_fitted.name
