@@ -54,7 +54,7 @@ class ModelWatcher(PatternMatchingEventHandler):
                 logger.info(self.modelbase.list_models())
 
 
-class ModelWatchObserver():
+class ModelWatchObserver:
     def __init__(self):
         self.observer = Observer()
 

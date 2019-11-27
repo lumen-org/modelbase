@@ -8,6 +8,7 @@ from mb_modelbase.client import Client
 
 logging.getLogger().setLevel(logging.ERROR)
 
+
 class MyTestCase(unittest.TestCase):
     def test_init(self):
         with mock.patch("socketio.Client"):
@@ -31,12 +32,12 @@ class MyTestCase(unittest.TestCase):
             client.send_models(["hallo", "peter", (12, 32.1)])
 
     def test_send_models_working(self):
+        model = Model()
         with mock.patch("socketio.Client"):
             client = Client.Client("localhost", 1234)
-        model = Model()
         client.send_models([model, model])
         client.socket.emit.assert_called_once_with("models", client.dump_models([model, model])[0],
-                                                   callback=client._callback_function)
+                                               callback=client._callback_function)
 
     def test_send_models_single_working(self):
         model = Model()
