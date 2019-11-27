@@ -23,7 +23,7 @@ class GeneratePyMc3Model(object):
     def get_description(self):
         return self.description
 
-    def generate_code(self, continuous_variables, whitelist, blacklist, relearn=True, verbose=True, blog=False):
+    def generate_code(self, continuous_variables, whitelist, blacklist, relearn=True, verbose=True, blog=False, simplify=False, simplify_tolerance=0.001):
         """
         :param continuous_variables: list of variables that are set to continuous in the model
         :param whitelist: list of tuples of nodes that will be in the model
@@ -37,6 +37,8 @@ class GeneratePyMc3Model(object):
                                        continuous_variables=continuous_variables, whitelist=whitelist,
                                        blacklist=blacklist)
         bayesian_model.learn_through_r(self.file, relearn, verbose)
+        if simplify:
+            bayesian_model.simplify(simplify_tolerance)
         descr = bayesian_model.get_graph_description()
         if verbose:
             print(descr)
@@ -52,8 +54,9 @@ class GeneratePyMc3Model(object):
 
     def generate_model_code(self, modelname, file, fit, continuous_variables, whitelist, blacklist,
                             discrete_variables=[], relearn=True, verbose=True, blog=False, sample_size=1000,
+                            simplify=False, simplify_tolerance=0.001,
                             modeldir='models'):
-        pymc3_code, descr = self.generate_code(continuous_variables, whitelist, blacklist, relearn, verbose, blog)
+        pymc3_code, descr = self.generate_code(continuous_variables, whitelist, blacklist, relearn, verbose, blog, simplify, simplify_tolerance)
         self.description = descr
         pymc3_code = pymc3_code.replace('\n', '\n                ')
         fun = f"""import os
@@ -144,10 +147,4 @@ if __name__ == "__main__":
     gm = GeneratePyMc3Model(file)
     # pymc3_code = gm.generate_code(whitelist_continuous_variables, whitelist_edges, blacklist_edges)
 
-
     fun_code = gm.generate_model("allbus_11", file, True, continuous_variables, whitelist, blacklist, verbose=True)
-
-
-
-
-

@@ -2,6 +2,7 @@ from scripts.julien.learn_pymc3.Graph import Graph, Node, DiscreteNode, Continuo
 
 from scripts.julien.learn_pymc3.JSONModelCreator import JSONModelCreator
 from scripts.julien.learn_pymc3.JSONReader import JSONReader
+from scripts.julien.learn_pymc3.ProbParameter import is_similar, merge_nodes
 
 import numpy as np
 
@@ -14,6 +15,7 @@ class BayesianModel(object):
         self.blacklist = blacklist
         self.discrete_variables = discrete_variables
         self.continuous_variables = continuous_variables
+        self.merged_parameter = 0
 
     def learn(self, data):
         raise NotImplementedError("Have to be done by using structure and parameter learning.")
@@ -28,6 +30,20 @@ class BayesianModel(object):
             json_file = data_file + ".json"
         json_reader = JSONReader(self)
         bayesian_model = json_reader.parse(json_file)
+
+    def simplify(self, tolerance, verbose=False):
+        number_of_merged_parameter = 0
+        for node in self.get_graph().get_nodes():
+            leafs = node.get_parameter().get_prob_graph().get_leafs()
+            for leaf_a in leafs:
+                for leaf_b in leafs:
+                    if leaf_a is not leaf_b:
+                        if is_similar(tolerance, leaf_a, leaf_b):
+                            number_of_merged_parameter += 1 if leaf_a.is_discrete() else 2
+                            merge_nodes(leaf_a, leaf_b, tolerance)
+        if verbose:
+            print(f"Merged {number_of_merged_parameter} parameter.")
+        self.merged_parameter = number_of_merged_parameter
 
     def generate_probability_graphs(self):
         for node in self.graph.get_nodes():
@@ -94,7 +110,7 @@ class BayesianModel(object):
         parameter_size = 0
         for nodes in self.get_graph().get_nodes():
             parameter_size += np.product(np.shape(nodes.get_parameter().get_prob_tensor()))
-        return parameter_size
+        return parameter_size - self.merged_parameter
 
     def get_graph_description(self):
         nodes = [node.get_name() for node in self.get_graph().get_nodes()]
