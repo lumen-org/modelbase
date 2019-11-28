@@ -38,7 +38,7 @@ class PyMCModel(object):
         return categorical_vars
 
     def learn_model(self, modelname, whitelist_continuous_variables=[], whitelist_edges=[], blacklist_edges=[],
-                    probabilistic_program_graph=None, simplify=False, simplify_tolerance=0.001, verbose=False):
+                    simplify=False, simplify_tolerance=0.001, verbose=False):
         # whitelist_edges = [('sex', 'educ'), ('age', 'income'), ('educ', 'income')]
         file = self.csv_data_file[:-4] + "_cleaned.csv"
 
@@ -52,8 +52,14 @@ class PyMCModel(object):
                                           simplify_tolerance=simplify_tolerance,
                                           verbose=verbose)
 
-        gm.generate_model("../models", function, self.data_map, pp_graph=probabilistic_program_graph)
+        gm.generate_model("../models", function, self.data_map, pp_graph=gm.get_description())
         self.generated_model = gm
+
+    def get_description(self):
+        return self.generated_model.get_description()
+
+    def get_number_of_parameter(self):
+        return self.generated_model.get_number_of_parameter()
 
     def save_graph(self, file_name, view=False):
         descr = self.generated_model.get_description()
@@ -72,9 +78,9 @@ class PyMCModel(object):
 
 if __name__ == "__main__":
 
-    whitelist_continuous_variables = []
-    whitelist_edges = []
-    blacklist_edges = []
+    whitelist_continuous_variables = ['age']
+    whitelist_edges = [('pclass', 'survived'), ('sex', 'survived')]
+    blacklist_edges = [('sex', 'embarked'), ('fare', 'survived')]
     model = "allbus"
 
     # Philipps version of whitelists, blacklists, and even the full graph
@@ -96,10 +102,11 @@ if __name__ == "__main__":
         file = '../data/titanic.csv'
         pymc_model = PyMCModel(file, var_tolerance=0.1)
         pymc_model.create_map_and_clean_data(index_column=False)
-        pymc_model.learn_model("test_jp6",
+        pymc_model.learn_model("test_jp9",
                                whitelist_continuous_variables=whitelist_continuous_variables,
                                whitelist_edges=whitelist_edges,
-                               blacklist_edges=blacklist_edges,
-                               probabilistic_program_graph=pp_graph, simplify=True, simplify_tolerance=0.5,
+                               blacklist_edges=blacklist_edges, simplify=True, simplify_tolerance=0.01,
                                verbose=False)
+        print(pymc_model.get_description())
+        print(f"Learned a model with {pymc_model.get_number_of_parameter()} parameters.")
         # pymc_model.save_graph(file_name="../graph/graph.png", view=True)

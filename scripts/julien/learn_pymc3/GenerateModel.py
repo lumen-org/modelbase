@@ -19,9 +19,13 @@ class GeneratePyMc3Model(object):
         self.file = file
         self.categorical_vars = categorical_vars
         self.description = None
+        self.bayesian_model = None
 
     def get_description(self):
-        return self.description
+        return self.bayesian_model.get_graph_description()
+
+    def get_number_of_parameter(self):
+        return self.bayesian_model.get_number_of_parameter()
 
     def generate_code(self, continuous_variables, whitelist, blacklist, relearn=True, verbose=True, blog=False, simplify=False, simplify_tolerance=0.001):
         """
@@ -40,6 +44,7 @@ class GeneratePyMc3Model(object):
         if simplify:
             bayesian_model.simplify(simplify_tolerance)
         descr = bayesian_model.get_graph_description()
+        self.bayesian_model = bayesian_model
         if verbose:
             print(descr)
         if blog:

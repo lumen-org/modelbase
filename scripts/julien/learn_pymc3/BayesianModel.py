@@ -32,6 +32,7 @@ class BayesianModel(object):
         bayesian_model = json_reader.parse(json_file)
 
     def simplify(self, tolerance, verbose=False):
+        prepared_nodes = []
         number_of_merged_parameter = 0
         for node in self.get_graph().get_nodes():
             leafs = node.get_parameter().get_prob_graph().get_leafs()
@@ -39,10 +40,15 @@ class BayesianModel(object):
                 for leaf_b in leafs:
                     if leaf_a is not leaf_b:
                         if is_similar(tolerance, leaf_a, leaf_b):
-                            number_of_merged_parameter += 1 if leaf_a.is_discrete() else 2
+                            if leaf_a not in prepared_nodes:
+                                prepared_nodes.append(leaf_a)
+                            if leaf_b not in prepared_nodes:
+                                prepared_nodes.append(leaf_b)
                             merge_nodes(leaf_a, leaf_b, tolerance)
         if verbose:
             print(f"Merged {number_of_merged_parameter} parameter.")
+        for node in prepared_nodes:
+            number_of_merged_parameter += 1 if node.is_discrete() else 2
         self.merged_parameter = number_of_merged_parameter
 
     def generate_probability_graphs(self):
@@ -116,8 +122,12 @@ class BayesianModel(object):
         nodes = [node.get_name() for node in self.get_graph().get_nodes()]
         edges = self.get_graph().get_edges()
         graph_description = {'nodes': nodes, 'edges': edges}
-        graph_description['whitelist_edges'] = self.whitelist
-        graph_description['blacklist_edges'] = self.blacklist
-        graph_description['continuous_vars'] = self.continuous_variables
-        graph_description['discrete_vars'] = self.discrete_variables
+        graph_description['enforced_edges'] = self.whitelist
+        graph_description['forbidden_edges'] = self.blacklist
+        enforced_node_dtypes = dict()
+        for node in self.continuous_variables:
+            enforced_node_dtypes[node] = 'numerical'
+        for node in self.discrete_variables:
+            enforced_node_dtypes[node] = 'string'
+        graph_description['enforced_node_dtypes'] = enforced_node_dtypes
         return graph_description
