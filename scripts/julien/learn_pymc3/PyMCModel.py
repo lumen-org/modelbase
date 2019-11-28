@@ -96,17 +96,14 @@ if __name__ == "__main__":
         'forbidden_edges': [('sex', 'embarked'), ('fare', 'survived')],
     }
 
-    debug = False
-
-    if not debug:
-        file = '../data/titanic.csv'
-        pymc_model = PyMCModel(file, var_tolerance=0.1)
-        pymc_model.create_map_and_clean_data(index_column=False)
-        pymc_model.learn_model("test_jp9",
-                               whitelist_continuous_variables=whitelist_continuous_variables,
-                               whitelist_edges=whitelist_edges,
-                               blacklist_edges=blacklist_edges, simplify=True, simplify_tolerance=0.01,
-                               verbose=False)
-        print(pymc_model.get_description())
-        print(f"Learned a model with {pymc_model.get_number_of_parameter()} parameters.")
-        # pymc_model.save_graph(file_name="../graph/graph.png", view=True)
+    file = '../data/allbus2.csv'
+    pymc_model = PyMCModel(file, var_tolerance=0.1)
+    pymc_model.create_map_and_clean_data(index_column=True)
+    pymc_model.learn_model("test_allbus_1",
+                           whitelist_continuous_variables=whitelist_continuous_variables,
+                           whitelist_edges=whitelist_edges,
+                           blacklist_edges=blacklist_edges, simplify=True, simplify_tolerance=0.01,
+                           verbose=True)
+    print(pymc_model.get_description())
+    print(f"Learned a model with {pymc_model.get_number_of_parameter()} parameters.")
+    #pymc_model.save_graph(file_name="../graph/graph.png", view=True)

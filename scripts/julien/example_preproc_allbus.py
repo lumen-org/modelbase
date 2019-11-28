@@ -1,14 +1,22 @@
 import pandas as pd
 from mb_modelbase.utils import data_import_utils
 
-df = pd.read_csv('allbus_cleaned.csv', index_col=None)
+df = pd.read_csv('data/allbus.csv', index_col=0)
 
 # make spectrum categorical by converting all to string
+data_import_utils.to_string_cols(df, ['sex'], inplace=True)
+data_import_utils.to_string_cols(df, ['eastwest'], inplace=True)
+data_import_utils.to_string_cols(df, ['lived_abroad'], inplace=True)
 data_import_utils.to_string_cols(df, ['spectrum'], inplace=True)
+#data_import_utils.to_string_cols(df, ['age'], inplace=True)
 
 # make age categorical by binning it into 10 equi-sized bin and converting them to accordingly named strings
-df.age = data_import_utils.to_binned_stringed_series(df.age, 10)
+#df.age = data_import_utils.to_binned_stringed_series(df.age, 10)
 
+import csv
+df.to_csv('data/allbus2.csv', quoting=csv.QUOTE_NONNUMERIC)
+
+"""
 # now learn a model with this data
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
 from mb_modelbase.models_core.empirical_model import EmpiricalModel
@@ -24,7 +32,7 @@ print(model.aggregate(method='maximum'))
 
 emp_model.save('.')
 model.save('.')
-
+"""
 ## note that pandas tends to parse strings into number when reading from a csv, regardless of quotation...
 # # csv.QUOTE_NONNUMERIC will assure quote marks around those strings that are numbers
 # df.to_csv('./foobar.csv', index=None, quoting=csv.QUOTE_NONNUMERIC)
