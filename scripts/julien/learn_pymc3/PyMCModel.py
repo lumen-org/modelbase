@@ -17,9 +17,12 @@ class PyMCModel(object):
         self.categorical_vars = None
         self.generated_model = None
 
-    def create_map_and_clean_data(self, ending_comma=False, index_column=False):
+    def create_map_and_clean_data(self, ending_comma=False, index_column=False, whitelist_continuous_variables=None):
         # creates the data map and a new file *_cleaned with just numbers
         categorical_vars = self._get_categorical_vars()
+        for var in whitelist_continuous_variables:
+            if var in categorical_vars:
+                categorical_vars.remove(var)
         self.categorical_vars = categorical_vars
         dt = DataTransformer()
         dt.transform(self.csv_data_file, ending_comma=ending_comma,
@@ -38,7 +41,7 @@ class PyMCModel(object):
         return categorical_vars
 
     def learn_model(self, modelname, whitelist_continuous_variables=[], whitelist_edges=[], blacklist_edges=[],
-                    simplify=False, simplify_tolerance=0.001, verbose=False):
+                    simplify=False, simplify_tolerance=0.001, relearn=True, verbose=False):
         # whitelist_edges = [('sex', 'educ'), ('age', 'income'), ('educ', 'income')]
         file = self.csv_data_file[:-4] + "_cleaned.csv"
 
@@ -49,7 +52,7 @@ class PyMCModel(object):
                                           continuous_variables=whitelist_continuous_variables,
                                           whitelist=whitelist_edges, blacklist=blacklist_edges,
                                           discrete_variables=self.categorical_vars, simplify=simplify,
-                                          simplify_tolerance=simplify_tolerance,
+                                          simplify_tolerance=simplify_tolerance, relearn=relearn,
                                           verbose=verbose)
 
         gm.generate_model("../models", function, self.data_map, pp_graph=gm.get_description())
@@ -77,33 +80,25 @@ class PyMCModel(object):
 
 
 if __name__ == "__main__":
+    whitelist_continuous_variables = ['age', 'happiness']
+    whitelist_edges = []
+    blacklist_edges = [('educ', 'sex'), ('eastwest', 'sex'), ('lived_abroad', 'sex'), ('health', 'sex'),
+                       ('spectrum', 'sex'), ('educ', 'eastwest'), ('sex', 'eastwest'), ('lived_abroad', 'eastwest'),
+                       ('health', 'eastwest'), ('spectrum', 'eastwest'), ('income', 'age'), ('educ', 'age'),
+                       ('health', 'age'), ('happiness', 'age'), ('sex', 'age'), ('eastwest', 'age'),
+                       ('spectrum', 'age'), ('lived_abroad', 'age')]
+    model = "allbus2"
 
-    whitelist_continuous_variables = ['age']
-    whitelist_edges = [('pclass', 'survived'), ('sex', 'survived')]
-    blacklist_edges = [('sex', 'embarked'), ('fare', 'survived')]
-    model = "allbus"
-
-    # Philipps version of whitelists, blacklists, and even the full graph
-    # of course this only works for the titanic example. But it works all the way till the front-end :)
-    pp_graph = {
-        'nodes': ['age', 'fare', 'pclass', 'survived', 'sex', 'ticket', 'embarked', 'boat', 'has_cabin_number'],
-        'edges': [('fare', 'pclass'), ('sex', 'survived'), ('ticket', 'embarked'), ('boat', 'has_cabin_number'),
-                  ('age', 'fare'), ('pclass', 'survived'), ('sex', 'ticket'), ('embarked', 'boat')],
-        'enforced_node_dtypes': {
-            'age': 'numerical'
-        },
-        'enforced_edges': [('pclass', 'survived'), ('sex', 'survived')],
-        'forbidden_edges': [('sex', 'embarked'), ('fare', 'survived')],
-    }
-
-    file = '../data/allbus2.csv'
+    file = '../data/allbus.csv'
     pymc_model = PyMCModel(file, var_tolerance=0.1)
-    pymc_model.create_map_and_clean_data(index_column=True)
-    pymc_model.learn_model("test_allbus_1",
+    pymc_model.create_map_and_clean_data(index_column=True,
+                                         whitelist_continuous_variables=whitelist_continuous_variables)
+    pymc_model.learn_model("allbus_model_4",
                            whitelist_continuous_variables=whitelist_continuous_variables,
                            whitelist_edges=whitelist_edges,
-                           blacklist_edges=blacklist_edges, simplify=True, simplify_tolerance=0.01,
+                           blacklist_edges=blacklist_edges, simplify=True, simplify_tolerance=0.9, relearn=True,
                            verbose=True)
     print(pymc_model.get_description())
+    print(f"Number of edges {len(pymc_model.get_description()['edges'])}")
     print(f"Learned a model with {pymc_model.get_number_of_parameter()} parameters.")
-    #pymc_model.save_graph(file_name="../graph/graph.png", view=True)
+    # pymc_model.save_graph(file_name="../graph/graph.png", view=True)
