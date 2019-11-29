@@ -17,12 +17,13 @@ from mb_modelbase.server import modelbase as mbase
 #     import mb_modelbase.models_core.models_debug
 
 app = Flask(__name__, static_url_path='/static/')
-
 # adds socket listener to Flask app
 socketio = SocketIO(app)
 
-logger = None  # create module variable
+flask_logger = logging.getLogger('werkzeug')
+flask_logger.setLevel(logging.ERROR)
 
+logger = None  # create module variable
 
 def add_path_of_file_to_python_path():
     """Add the absolute path of __file__ to the python search path."""
@@ -68,6 +69,7 @@ def add_modelbase_module():
     @app.route(c['route'], methods=['GET', 'POST'])
     @cross_origin()  # allows cross origin requests
     def modebase_service():
+        dont_log = {"SHOW": "MODELS"}
         # return usage information
         if request.method == 'GET':
             return "send a POST request to this url containing your model query and you will get your answer :-)"
@@ -76,10 +78,12 @@ def add_modelbase_module():
             try:
                 # extract json formatted query
                 query = request.get_json()
-                logger.info('received QUERY:' + str(query))
+                if query != dont_log:
+                    logger.info('received QUERY:' + str(query))
                 # process query
                 result = mb.execute(query)
-                logger.info('result of query:' + utils.truncate_string(str(result)))
+                if query != dont_log:
+                    logger.info('result of query:' + utils.truncate_string(str(result)))
                 # logger.info('result of query:' + str(result))
                 # return answer
                 return result
