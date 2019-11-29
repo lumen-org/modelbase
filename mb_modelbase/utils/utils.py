@@ -5,8 +5,9 @@ Various utility functions
 @author: Philipp Lucas
 """
 
-import string
 import random
+import re
+import string
 from functools import wraps, reduce
 from numpy import matrix, ix_, isfinite, linalg
 from xarray import DataArray
@@ -433,3 +434,12 @@ def normalize_pp_graph (graph, model_fields=None):
     validate_pp_graph(graph, model_fields)
 
     return graph
+
+
+def sorted_nicely(l):
+    """ Sort the given iterable in the way that humans expect.
+    Credits to: https://stackoverflow.com/questions/2669059/how-to-sort-alpha-numeric-set-in-python
+    """
+    convert = lambda text: int(text) if text.isdigit() else text
+    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+    return sorted(l, key = alphanum_key)
