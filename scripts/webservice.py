@@ -3,6 +3,7 @@
 
 from flask import Flask, request
 from flask_cors import cross_origin
+from flask_socketio import SocketIO
 import logging
 import json
 import traceback
@@ -10,18 +11,19 @@ import traceback
 from mb_modelbase.utils import utils, ActivityLogger
 from mb_modelbase.server import modelbase as mbase
 
-#from mb_modelbase.utils.utils import is_running_in_debug_mode
+# from mb_modelbase.utils.utils import is_running_in_debug_mode
 # if is_running_in_debug_mode():
 #     print("running in debug mode!")
 #     import mb_modelbase.models_core.models_debug
 
 app = Flask(__name__, static_url_path='/static/')
+# adds socket listener to Flask app
+socketio = SocketIO(app)
 
 flask_logger = logging.getLogger('werkzeug')
 flask_logger.setLevel(logging.ERROR)
 
 logger = None  # create module variable
-
 
 def add_path_of_file_to_python_path():
     """Add the absolute path of __file__ to the python search path."""
@@ -34,6 +36,7 @@ def add_path_of_file_to_python_path():
 # load config. user config overrides default config.
 add_path_of_file_to_python_path()
 from run_conf_defaults import cfg
+
 try:
     from run_conf import cfg as user_cfg
 except ModuleNotFoundError:
@@ -46,6 +49,7 @@ else:
 def add_root_module():
     # the (static) start page
     c = cfg['modules']['root']
+
     @app.route(c['route'])
     @cross_origin()  # allows cross origin requests
     def index():
@@ -87,6 +91,18 @@ def add_modelbase_module():
                 msg = "failed to execute query: " + str(inst)
                 logger.error(msg + "\n" + traceback.format_exc())
                 return msg, 400
+            # else:
+            #     return mb.upload_files(request.get_data())
+
+    @socketio.on('models')
+    def handle_model_send(models):
+        """
+        When event models is invoked call function models which saves all models into the model-dir
+
+        :param models: list of dill dumped models
+        :return: success or error code
+        """
+        return mb.upload_files(models)
 
 
 def add_activitylogger_module():
@@ -94,6 +110,7 @@ def add_activitylogger_module():
     activitylogger = ActivityLogger()
 
     c = cfg['modules']['activitylogger']
+
     @app.route(c['route'], methods=['POST'])
     @cross_origin()  # allows cross origin requests
     def activitylogger_service():
@@ -112,6 +129,7 @@ def add_activitylogger_module():
 def add_webquery_module():
     # the webclient
     cfg_webquery = cfg['modules']['webquery']
+
     @app.route(cfg_webquery['route'], methods=['GET'])
     @cross_origin()  # allows cross origin requests
     def webquery_service():
@@ -145,6 +163,7 @@ def init():
 # trigger to start the web server if this script is run
 if __name__ == "__main__":
     import argparse
+
     # import pdb
 
     description = """
@@ -163,7 +182,8 @@ if __name__ == "__main__":
     """
     cfg_mb = cfg['modules']['modelbase']
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("-n", "--name", help="A name for the modelbase to start. Defaults to '{}'".format(cfg_mb['name']),
+    parser.add_argument("-n", "--name",
+                        help="A name for the modelbase to start. Defaults to '{}'".format(cfg_mb['name']),
                         type=str, default=cfg_mb['name'])
     parser.add_argument("-d", "--directory", help="directory that contains the models to be loaded initially. Defaults "
                                                   "to '{}'".format(cfg_mb['directory']),
@@ -182,6 +202,7 @@ if __name__ == "__main__":
 
     if cfg['ssl']['enable']:
         from OpenSSL import SSL
+
         context = (cfg['ssl']['cert_chain_path'], cfg['ssl']['cert_priv_key_path'])
         app.run(host='0.0.0.0', port=cfg['port'], ssl_context=context, threaded=True)
     else:
