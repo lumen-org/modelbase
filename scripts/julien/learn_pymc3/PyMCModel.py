@@ -80,23 +80,19 @@ class PyMCModel(object):
 
 
 if __name__ == "__main__":
-    whitelist_continuous_variables = ['age', 'happiness']
+    whitelist_continuous_variables = ['age']
     whitelist_edges = []
-    blacklist_edges = [('educ', 'sex'), ('eastwest', 'sex'), ('lived_abroad', 'sex'), ('health', 'sex'),
-                       ('spectrum', 'sex'), ('educ', 'eastwest'), ('sex', 'eastwest'), ('lived_abroad', 'eastwest'),
-                       ('health', 'eastwest'), ('spectrum', 'eastwest'), ('income', 'age'), ('educ', 'age'),
-                       ('health', 'age'), ('happiness', 'age'), ('sex', 'age'), ('eastwest', 'age'),
-                       ('spectrum', 'age'), ('lived_abroad', 'age')]
+    blacklist_edges = []
     model = "allbus2"
 
     file = '../data/allbus.csv'
     pymc_model = PyMCModel(file, var_tolerance=0.1)
     pymc_model.create_map_and_clean_data(index_column=True,
                                          whitelist_continuous_variables=whitelist_continuous_variables)
-    pymc_model.learn_model("allbus_model_4",
+    pymc_model.learn_model("allbus_model_35",
                            whitelist_continuous_variables=whitelist_continuous_variables,
                            whitelist_edges=whitelist_edges,
-                           blacklist_edges=blacklist_edges, simplify=True, simplify_tolerance=0.9, relearn=True,
+                           blacklist_edges=blacklist_edges, simplify=True, simplify_tolerance=0.7, relearn=True,
                            verbose=True)
     print(pymc_model.get_description())
     print(f"Number of edges {len(pymc_model.get_description()['edges'])}")
