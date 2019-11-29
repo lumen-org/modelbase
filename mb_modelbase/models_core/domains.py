@@ -164,7 +164,7 @@ class DiscreteDomain(Domain):
         """Constructs a discrete domain.
              * pass no arguments for an unbounded domain
              * not anymore: pass one scalar argument for a singular domain
-             * pass a list of values for a bounded domain. its order is NOT preserved.
+             * pass a list of values for a bounded domain. its order is preserved.
 
            ONLY strings as categorical values are allowed!
         """
@@ -180,8 +180,9 @@ class DiscreteDomain(Domain):
         elif l == 1:
             # convert to array if its a single value
             val = args[0]
-            #self._value = [val] if isinstance(val, str) else val  # implicitely assumes that values can only be strings
-            self._value = [val] if isinstance(val, str) else utils.sorted_nicely(val)  # implicitely assumes that values can only be strings
+            self._value = [val] if isinstance(val, str) else val  # implicitely assumes that values can only be strings
+            # TODO: should we sort?
+            # self._value = [val] if isinstance(val, str) else utils.sorted_nicely(val)  # implicitely assumes that values can only be strings
         else:
             raise ValueError("Too many arguments given: " + str(args))
         self._validate()
