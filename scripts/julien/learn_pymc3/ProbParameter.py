@@ -217,16 +217,20 @@ def is_similar(eps, leaf_a, leaf_b):
             return True
     return False
 
-def get_similar_leafs(epsilon, bayesian_node):
-    leafs = bayesian_node.get_parameter().get_prob_graph().get_leafs()
-    for leaf_a in leafs:
-        for leaf_b in leafs:
-            if leaf_a is not leaf_b:
-                if is_similar(epsilon, leaf_a, leaf_b):
-                    print(leaf_a.get_parameter(), leaf_b.get_parameter())
+def merge_nodes(node_a, node_b, tolerance):
+    param_a = node_a.get_parameter()
+    param_b = node_b.get_parameter()
+    assert node_a.is_discrete() == node_b.is_discrete(), "Both nodes should have the same type."
+    if node_a.is_discrete():
+        param_both = (param_a+param_b) / 2
+        node_a.set_parameter(param_both)
+        node_b.set_parameter(param_both)
+    else:
+        mean_both = (param_a[0]+param_b[0]) / 2
+        sd_both = (param_a[1]+param_b[1]) / 2
+        param_both = [mean_both, sd_both]
+        node_a.set_parameter(param_both)
+        node_b.set_parameter(param_both)
 
-def merge_nodes(node_a, node_b):
-    print(node_a.get_name())
-    print(node_a.get_parameter(), node_b.get_parameter())
-    print(node_a.get_case(), node_b.get_case())
-    raise NotImplementedError("TODO!")
+
+
