@@ -46,7 +46,11 @@ class PyMCCreator(object):
             # The childs are the leafs
             if child.get_name() == name:
                 if case == "prob":
-                    code += "[" + ",".join([str(parameter) for parameter in tree.get_parameter()]) + "]"
+                    child_parameter = []
+                    for child in tree.get_children():
+                        child_parameter.append(child.get_parameter())
+                    #code += "[" + ",".join([str(parameter) for parameter in tree.get_parameter()]) + "]"
+                    code += "[" + ",".join([str(p) for p in child_parameter]) + "]"
                     break
                 elif case == "mu":
                     code += str(tree.get_parameter(0))

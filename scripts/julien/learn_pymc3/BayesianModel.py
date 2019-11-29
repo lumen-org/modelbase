@@ -33,23 +33,36 @@ class BayesianModel(object):
 
     def simplify(self, tolerance, verbose=False):
         prepared_nodes = []
+        most_simplify = 0
+        cur_simplify = 0
+        name = None
         number_of_merged_parameter = 0
+        to_merge = []
         for node in self.get_graph().get_nodes():
+            to_merge = []
             leafs = node.get_parameter().get_prob_graph().get_leafs()
+            cur_simplify = 0
             for leaf_a in leafs:
                 for leaf_b in leafs:
                     if leaf_a is not leaf_b:
                         if is_similar(tolerance, leaf_a, leaf_b):
-                            if leaf_a not in prepared_nodes:
-                                prepared_nodes.append(leaf_a)
-                            if leaf_b not in prepared_nodes:
-                                prepared_nodes.append(leaf_b)
-                            merge_nodes(leaf_a, leaf_b, tolerance)
-        if verbose:
-            print(f"Merged {number_of_merged_parameter} parameter.")
-        for node in prepared_nodes:
-            number_of_merged_parameter += 1 if node.is_discrete() else 2
-        self.merged_parameter = number_of_merged_parameter
+                            to_merge.append(leaf_a)
+                            to_merge.append(leaf_b)
+                            #cur_simplify += 1
+                            #if leaf_a not in prepared_nodes:
+                            #    prepared_nodes.append(leaf_a)
+                            #if leaf_b not in prepared_nodes:
+                            #    prepared_nodes.append(leaf_b)
+                            #merge_nodes(leaf_a, leaf_b, tolerance)
+            params = 0
+            for leaf in to_merge:
+                params += leaf.get_parameter()
+            if len(to_merge) > 0:
+                new_param = params/len(to_merge)
+                for leaf in to_merge:
+                    cur_simplify += 1
+                    leaf.set_parameter(new_param)
+        self.merged_parameter = int(cur_simplify)
 
     def generate_probability_graphs(self):
         for node in self.graph.get_nodes():
