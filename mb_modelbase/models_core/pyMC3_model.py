@@ -18,7 +18,93 @@ from mb_modelbase.utils.data_import_utils import get_numerical_fields
 from mb_modelbase.models_core import data_operations as data_op
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 
+
 class ProbabilisticPymc3Model(Model):
+    """A Bayesian model built by the PyMC3 library is treated here.
+    General principles:
+
+    The heart of this class is the generation of posterior samples during the _sample() method. It uses the PyMC3
+    functions sample() and sample_ppc() to generate samples for both latent and observed random variables, and store
+    them in a pandas dataframe where columns are variables and rows are associated samples. Fitting the
+    model essentially means just generating those samples. Computing a probability density for the model is then done by
+    setting up a kernel density estimator over the samples with the scipy.stats library and getting the density from
+    this estimator. Marginalizing means just dropping columns from the dataframe, conditioning means just dropping
+    rows that do not meet a certain condition. Three things to keep in mind for the conditioning:
+        - Conditioning in the actual sense of conditioning on one single value is not feasible here: If we have
+          continuous variables, none of the samples probably has this value, so all samples would be discarded. However
+          for the current implementation it is only necessary to condition on intervals, so that is currently not a
+          problem
+        - However a similar problem appears if we have a high-dimensional model and want to condition on a small area
+          within that high-dimensional space. Then it is very likely that again none of the samples fall in this space
+          and again, all samples would be discarded. We do not have a solution for this yet.
+        - Keep in mind that the _conditionout() method does not only condition, but additionally marginalizes variables
+          out. There is no method that only conditions the model
+
+    A model is allowed to include independent variables, that is, variables that are not modeled but whose values
+    influence observed variables. If a model contains independent variables, values for them are generated after
+    the latent variables were sampled and before the observed variables are sampled. The values for the independent
+    variables are drawn without replacement from the training data. Setting new values for independent variables is not
+    so easy, since they are actually hardcoded within the PyMC3 model, which cannot easily be changed once submitted
+    to the Wrapper class of the modelbase backend. To work around this, independent variables have to be transformed to
+    theano shared variables and given to the wrapper class as a separate argument. Then it is possible to change their
+    values again after the model was specified.
+
+        Parameters:
+
+            model_structure : a PyMC3 Model() instance
+
+            shared_vars : dictionary of theano shared variables
+
+                If the model has independent variables, they have to be encoded as theano shared variables and provided
+                in this dictionary, additional to the general dataframe containing all observed data. Watch out: It is
+                NOT guaranteed that shared_vars always holds the original independent variables, since they are changed
+                during the _fit()-method
+
+            nr_of_posterior_samples: integer scalar specifying the number of posterior samples to be generated
+
+            fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
+
+                Some probabilistic models require a fixed length of the data. This is important because normally
+                new data points are generated with a different length than the original data
+
+            data_mapping: dict or DataTypeMapper, optional. Defaults to the identify mapping.
+
+                The actual probabilistic modelling may require that you encode variables differently than you want to
+                expose them to the outside. E.g. a variable may be modelled as an integer value of 0 or 1 but actually
+                it represents the sex of a person ('male' or 'female'). Here you specify such mappings between the
+                original space and the modeling space.
+
+                Note that you must provide your training and test data in its original space representation with
+                .fit_data().
+
+            sampling_chains: int, optional. Defaults to 1.
+
+                See https://docs.pymc.io/api/inference.html and there the paramter chains of .sample()
+
+            sampling_cores: int, optional. Defaults to 1.
+
+                See https://docs.pymc.io/api/inference.html and there the paramter cores of .sample()
+
+            probabilistic_program_graph: dict, optional. Defaults to None.
+
+                The graph of the probabilistic program this model is based on. This only makes sense in the special
+                case where the PyMC3 program is derived automatically from a bayesian network. The graph represents
+                the data flow in the network, but also contains information about the user defined constrains that
+                were taken into account when learning the bayesian network. It is a dict organized as follows:
+
+                'nodes': list of strings.
+                    Name of every node of the graph. It includes all nodes, also the enforced ones below.
+
+                'edges': 2-tuple of strings
+                    Directed edges of the graph as pairs of nodes. It includes all edges, even the forbidden ones.
+
+                'enforced_node_dtypes': dict of <node name: dtype>, where dtype maybe 'numerical' or 'string'. Optional.
+
+                'enforced_edges': list of edges. Optional.
+
+                'forbidden_edges': list of edges. Optional.
+
+        """
 
     def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=1000, fixed_data_length=False,
                  data_mapping=None, sampling_chains=1, sampling_cores=1, probabilistic_program_graph=None):
@@ -80,9 +166,6 @@ class ProbabilisticPymc3Model(Model):
                 'forbidden_edges': list of edges. Optional.
 
         """
-
-
-
         super().__init__(name)
         self.model_structure = model_structure
         self.samples = pd.DataFrame()
@@ -92,6 +175,7 @@ class ProbabilisticPymc3Model(Model):
         self.parallel_processing = False
         self.sampling_chains = sampling_chains
         self.sampling_cores = sampling_cores
+        self.nr_of_posterior_samples = None
         self.shared_vars = shared_vars
         self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
@@ -146,6 +230,11 @@ class ProbabilisticPymc3Model(Model):
                 'The following independent variables do not appear in shared_vars:' + str(missing_vars) + ' Make sure '\
                 'that you pass the data for each independent variable as theano shared variable to the constructor'
         self.check_data_and_shared_vars_on_equality()
+        # Set number of samples to the number of data points. The number of samples must not be chosen
+        # arbitrarily, since independent and dependent variables have to have the same dimensions. Otherwise,
+        # some models cannot compute posterior predictive samples
+        # TODO: eurovis2020: this comes from the merge
+        self.nr_of_posterior_samples = len(df)
         return ()
 
     def _generate_samples_for_independent_variable(self, key, size):
@@ -240,7 +329,7 @@ class ProbabilisticPymc3Model(Model):
     def _conditionout(self, keep, remove):
         keep_not_in_names = [name for name in keep if name not in self.names]
         if len(keep_not_in_names) > 0:
-            raise ValueError('The following variables in keep do not appear in the model: ' + str(keep_not_in_names) )
+            raise ValueError('The following variables in keep do not appear in the model: ' + str(keep_not_in_names))
         remove_not_in_names = [name for name in remove if name not in self.names]
         if len(remove_not_in_names) > 0:
             raise ValueError('The following variables in remove do not appear in the model: ' + str(remove_not_in_names))
@@ -284,6 +373,13 @@ class ProbabilisticPymc3Model(Model):
             Chooses in which representation space the samples are returned.
         :return:
         """
+        # TODO: eurovis2020: this comes from the merge
+        # If number of samples differs from number of data points, posterior predictive samples
+        # cannot be generated
+        if n != len(self.data):
+            print('WARNING: number of samples differs from number of data points. To avoid problems during sampling, '
+                  'number of samples is now automatically set to the number of data points')
+            n = len(self.data)
         sample = pd.DataFrame()
 
         # Generate samples for latent random variables
