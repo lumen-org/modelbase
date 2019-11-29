@@ -39,9 +39,8 @@ For normal (non-development) usage:
 
 1. Clone this repository into a folder of your choice. Let's call it `<root>`.
 2. Install the `mb_modelbase` package locally, i.e, do `cd <root> && pip3 install .`
-3. Install the `CGModelSelection` package with `git submodule init`.
-
-CGmodelselection
+3. Install the `CGModelSelection` package with `git submodule init && git submodule update` 
+4. Install submodule `pip3 install cgmodsel`
 
 For a development setup, see further below.
 
