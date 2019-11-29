@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+from mb_modelbase.utils import to_string_cols
 
 class DataTransformer(object):
     def __init__(self):
@@ -13,6 +14,7 @@ class DataTransformer(object):
             after each row in the csv there is a comma without data
         """
         self.read_csv(file_name, index_column, ending_comma)
+        to_string_cols(df=self.data, columns=discrete_variables, inplace=True)
         self.datamap = DataMap()
         self.datamap.generate_map(self.data[discrete_variables])
         for column in discrete_variables:
@@ -56,7 +58,7 @@ class DataMap(object):
 if __name__ == "__main__":
     pass
 
-    file = "/home/julien/PycharmProjects/util/bayesian_network_learning/data/albus.csv"
+    file = "/home/julien/PycharmProjects/util/bayesian_network_learning/data/allbus.csv"
     dt = DataTransformer()
     dt.transform(file, discrete_variables=["sex","educ","eastwest","happiness","health","lived_abroad","spectrum"], index_column=True)
 

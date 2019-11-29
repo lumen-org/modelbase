@@ -11,21 +11,19 @@ class JSONModelCreator(object):
         self.discrete_variables = discrete_variables
         self.continuous_variables = continuous_variables
 
-    def get_discrete_variables(self):
-        discrete_variables = []
+    def get_vars(self):
+        variables = []
         data = read_csv(self.file)
-        for name, column in zip(data.columns, np.array(data).T):
-            if not all([isinstance(number, float) for number in column]):
-                if name not in self.continuous_variables:
-                    discrete_variables.append(name)
-        for name in self.discrete_variables:
-            if name not in discrete_variables:
-                discrete_variables.append(name)
-        return discrete_variables
+        for name, _ in zip(data.columns, np.array(data).T):
+            variables.append(name)
+        return variables
 
     def generate_model_as_json_with_r(self, verbose=False):
-        discrete_variables = self.get_discrete_variables()
-        discrete_variables_r = "c(" + ",".join(["'" + var + "'" for var in discrete_variables]) + ")"
+        vars = self.get_vars()
+        for var in vars:
+            if var not in self.discrete_variables and var not in self.continuous_variables:
+                self.continuous_variables.append(var)
+        discrete_variables_r = "c(" + ",".join(["'" + var + "'" for var in self.discrete_variables]) + ")"
         continuous_variables = "c(" + ",".join([f"'{var}'" for var in self.continuous_variables]) + ")"
 
         whitelist = "data.frame()"
@@ -91,4 +89,4 @@ class JSONModelCreator(object):
         if verbose:
             print(bnlearn)
         t = SignatureTranslatedAnonymousPackage(bnlearn, "powerpack")
-        return (self.file + ".json", discrete_variables, self.continuous_variables)
+        return (self.file + ".json", self.discrete_variables, self.continuous_variables)
