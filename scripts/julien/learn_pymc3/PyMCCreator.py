@@ -53,9 +53,10 @@ class PyMCCreator(object):
                     code += "[" + ",".join([str(p) for p in child_parameter]) + "]"
                     break
                 elif case == "mu":
-                    code += str(tree.get_parameter(0))
+                    child = tree.get_children()[0]
+                    code += str(child.get_parameter(0))
                 elif case == "sigma":
-                    code += str(tree.get_parameter(1))
+                    code += str(child.get_parameter(1))
             else:
                 # discrete node, we have to switch
                 if child.is_discrete():

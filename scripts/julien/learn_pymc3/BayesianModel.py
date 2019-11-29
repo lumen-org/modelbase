@@ -55,13 +55,25 @@ class BayesianModel(object):
                             #    prepared_nodes.append(leaf_b)
                             #merge_nodes(leaf_a, leaf_b, tolerance)
             params = 0
+            mu = 0
+            sd = 0
             for leaf in to_merge:
-                params += leaf.get_parameter()
+                if leaf.is_discrete():
+                    params += leaf.get_parameter()
+                else:
+                    mu += leaf.get_parameter()[0]
+                    sd += leaf.get_parameter()[1]
             if len(to_merge) > 0:
                 new_param = params/len(to_merge)
+                new_mean = mu/len(to_merge)
+                new_sd = sd/len(to_merge)
                 for leaf in to_merge:
-                    cur_simplify += 1
-                    leaf.set_parameter(new_param)
+                    if leaf.is_discrete():
+                        cur_simplify += 1
+                        leaf.set_parameter(new_param)
+                    else:
+                        cur_simplify += 2
+                        leaf.set_parameter([new_mean, new_sd])
         self.merged_parameter = int(cur_simplify)
 
     def generate_probability_graphs(self):

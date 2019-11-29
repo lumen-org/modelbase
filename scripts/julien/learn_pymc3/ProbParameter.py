@@ -212,9 +212,13 @@ def is_similar(eps, leaf_a, leaf_b):
         if np.abs(leaf_a.get_parameter() - leaf_b.get_parameter()) < eps:
             return True
     if not leaf_a.is_discrete() and not leaf_b.is_discrete():
-        if np.abs(leaf_a.get_parameter()[0] - leaf_b.get_parameter()[0]) < eps \
-                and np.abs(leaf_a.get_parameter()[0] - leaf_b.get_parameter()[0]) < eps:
-            return True
+        mean_a = leaf_a.get_parameter()[0]
+        mean_b = leaf_b.get_parameter()[0]
+        sd_a = leaf_a.get_parameter()[1]
+        sd_b = leaf_b.get_parameter()[1]
+        if min(mean_a, mean_b) / (max(mean_a, mean_b)+1e-17) < eps:
+            if min(sd_a, sd_b) /  (max(sd_a, sd_b)+1e-17) < eps:
+                return True
     return False
 
 def merge_nodes(node_a, node_b, tolerance):

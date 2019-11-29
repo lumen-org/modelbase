@@ -92,7 +92,7 @@ if __name__ == "__main__":
     pymc_model.learn_model("allbus_model_35",
                            whitelist_continuous_variables=whitelist_continuous_variables,
                            whitelist_edges=whitelist_edges,
-                           blacklist_edges=blacklist_edges, simplify=True, simplify_tolerance=0.4, relearn=True,
+                           blacklist_edges=blacklist_edges, simplify=True, simplify_tolerance=0.7, relearn=True,
                            verbose=True)
     print(pymc_model.get_description())
     print(f"Number of edges {len(pymc_model.get_description()['edges'])}")
