@@ -46,7 +46,12 @@ class PyMCModel(object):
         file = self.csv_data_file[:-4] + "_cleaned.csv"
 
         gm = GeneratePyMc3Model(file, self.categorical_vars)
-        # pymc3_code = gm.generate_code(whitelist_continuous_variables, whitelist_edges, blacklist_edges)
+
+        #whitelist_edges = whitelist_edges + [(i,j) for (j,i) in whitelist_edges]
+
+        # adds both edges to the blacklist
+        # remove this if you do not want this
+        blacklist_edges = blacklist_edges + [(i,j) for (j,i) in blacklist_edges]
 
         function = gm.generate_model_code(modelname, file=file, fit=True,
                                           continuous_variables=whitelist_continuous_variables,
@@ -81,8 +86,8 @@ class PyMCModel(object):
 
 if __name__ == "__main__":
     whitelist_continuous_variables = ['age']
-    whitelist_edges = []
-    blacklist_edges = []
+    whitelist_edges = [('educ', 'age')]
+    blacklist_edges = [('educ', 'sex')]
     model = "allbus2"
 
     file = '../data/allbus.csv'
