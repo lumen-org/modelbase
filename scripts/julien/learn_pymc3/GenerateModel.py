@@ -114,6 +114,8 @@ def create_fun():
         dtm = DataTypeMapper()
         for name, map_ in data_map.map.items():
             dtm.set_map(forward='auto', backward=map_, name=name)
+        if verbose:
+            print("pp_graph:", pp_graph)
 
         data, m_fitted = fun(fit=True, dtm=dtm, pp_graph=pp_graph)
 
@@ -130,26 +132,3 @@ def create_fun():
 
         stop = timeit.default_timer()
         print('Time: ', stop - start)
-
-
-if __name__ == "__main__":
-    path = "/home/julien/PycharmProjects/lumen/modelbase/scripts/julien/data/"
-    file = 'burglary_cleaned.csv'
-    # file = 'students_cleaned.csv'
-    # file = 'grade_model.csv'
-    # file = 'mixture_gaussian_cleaned.csv'
-    # file = "allbus_cleaned.csv"
-    file = "titanic_cleaned.csv"
-    # file = "sprinkler_cleaned.csv"
-    file = path + file
-
-    continuous_variables = []
-    whitelist = [('sex', 'age')]
-    blacklist = [('income', 'age')]
-    continuous_variables = ['income', 'age']
-    # whitelist_edges = [('sex', 'educ'), ('age', 'income'), ('educ', 'income')]
-
-    gm = GeneratePyMc3Model(file)
-    # pymc3_code = gm.generate_code(whitelist_continuous_variables, whitelist_edges, blacklist_edges)
-
-    fun_code = gm.generate_model("allbus_11", file, True, continuous_variables, whitelist, blacklist, verbose=True)

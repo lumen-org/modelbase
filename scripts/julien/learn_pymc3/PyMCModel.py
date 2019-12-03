@@ -17,9 +17,13 @@ class PyMCModel(object):
         self.categorical_vars = None
         self.generated_model = None
 
-    def create_map_and_clean_data(self, ending_comma=False, index_column=False, whitelist_continuous_variables=None):
+    def create_map_and_clean_data(self, ending_comma=False, index_column=False, whitelist_continuous_variables=None,
+                                  whitelist_discrete_variables=None):
         # creates the data map and a new file *_cleaned with just numbers
         categorical_vars = self._get_categorical_vars()
+        for discrete_var in whitelist_discrete_variables:
+            if discrete_var not in categorical_vars:
+                categorical_vars.append(discrete_var)
         for var in whitelist_continuous_variables:
             if var in categorical_vars:
                 categorical_vars.remove(var)
@@ -40,18 +44,19 @@ class PyMCModel(object):
                     categorical_vars.append(name)
         return categorical_vars
 
-    def learn_model(self, modelname, whitelist_continuous_variables=[], whitelist_edges=[], blacklist_edges=[],
+    def learn_model(self, modelname, whitelist_continuous_variables=[], whitelist_discrete_variables=[],
+                    whitelist_edges=[], blacklist_edges=[],
                     simplify=False, simplify_tolerance=0.001, relearn=True, verbose=False):
         # whitelist_edges = [('sex', 'educ'), ('age', 'income'), ('educ', 'income')]
         file = self.csv_data_file[:-4] + "_cleaned.csv"
 
         gm = GeneratePyMc3Model(file, self.categorical_vars)
 
-        #whitelist_edges = whitelist_edges + [(i,j) for (j,i) in whitelist_edges]
+        # whitelist_edges = whitelist_edges + [(i,j) for (j,i) in whitelist_edges]
 
         # adds both edges to the blacklist
         # remove this if you do not want this
-        blacklist_edges = blacklist_edges + [(i,j) for (j,i) in blacklist_edges]
+        blacklist_edges = blacklist_edges + [(i, j) for (j, i) in blacklist_edges]
 
         function = gm.generate_model_code(modelname, file=file, fit=True,
                                           continuous_variables=whitelist_continuous_variables,
@@ -60,7 +65,7 @@ class PyMCModel(object):
                                           simplify_tolerance=simplify_tolerance, relearn=relearn,
                                           verbose=verbose)
 
-        gm.generate_model("../models", function, self.data_map, pp_graph=gm.get_description())
+        gm.generate_model("../models_video", function, self.data_map, pp_graph=gm.get_description())
         self.generated_model = gm
 
     def get_description(self):
@@ -85,19 +90,23 @@ class PyMCModel(object):
 
 
 if __name__ == "__main__":
-    whitelist_continuous_variables = ['age']
-    whitelist_edges = [('educ', 'age')]
-    blacklist_edges = [('educ', 'sex')]
-    model = "allbus2"
+    whitelist_continuous_variables = []
+    whitelist_discrete_variables = []
+    whitelist_edges = [('age', 'fare'), ('survived', 'age')]
+    #whitelist_edges = []
+    blacklist_edges = []
+    model = "titanic"
 
-    file = '../data/allbus.csv'
+    file = '../data/titanic.csv'
     pymc_model = PyMCModel(file, var_tolerance=0.1)
-    pymc_model.create_map_and_clean_data(index_column=True,
-                                         whitelist_continuous_variables=whitelist_continuous_variables)
-    pymc_model.learn_model("allbus_model_35",
+    pymc_model.create_map_and_clean_data(index_column=False,
+                                         whitelist_continuous_variables=whitelist_continuous_variables,
+                                         whitelist_discrete_variables=whitelist_discrete_variables)
+    pymc_model.learn_model("titanic_4",
                            whitelist_continuous_variables=whitelist_continuous_variables,
+                           whitelist_discrete_variables=whitelist_discrete_variables,
                            whitelist_edges=whitelist_edges,
-                           blacklist_edges=blacklist_edges, simplify=True, simplify_tolerance=0.7, relearn=True,
+                           blacklist_edges=blacklist_edges, simplify=True, simplify_tolerance=0.3, relearn=True,
                            verbose=True)
     print(pymc_model.get_description())
     print(f"Number of edges {len(pymc_model.get_description()['edges'])}")
