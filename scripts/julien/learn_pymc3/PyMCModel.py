@@ -90,24 +90,85 @@ class PyMCModel(object):
 
 
 if __name__ == "__main__":
+
+    # name = 'mpg_1'
+    # whitelist_continuous_variables = []car_size
+    # #whitelist_discrete_variables = ['age']
+    # whitelist_discrete_variables = []
+    # whitelist_edges = [('car_size', 'mpg_city'), ('car_size', 'mpg_highway'), ('displacement', 'mpg_city'), ('displacement', 'mpg_highway'), ('mpg_city', 'mpg_highway')]
+    # blacklist_edges = []
+    # model = "mpg"
+    # simplify = False
+    # tol = 0.3
+
+
+    # ## titanic 1
+    name = 'allbus_graph'
     whitelist_continuous_variables = []
+    #whitelist_discrete_variables = ['age']
     whitelist_discrete_variables = []
-    whitelist_edges = [('age', 'fare'), ('survived', 'age')]
-    #whitelist_edges = []
+    whitelist_edges = []
     blacklist_edges = []
     model = "titanic"
+    simplify = False
+    tol = 0.3
 
-    file = '../data/titanic.csv'
+    # ## titanic 2
+    # name = 'titanic_2'
+    # whitelist_continuous_variables = ['age']
+    # whitelist_discrete_variables = []
+    # whitelist_edges = []
+    # blacklist_edges = []
+    # model = "titanic"
+    # simplify = False
+    # tol = 0.95
+    #
+    # # ## titanic 3
+    # # name = 'titanic_3'
+    # # whitelist_continuous_variables = ['age']
+    # # whitelist_discrete_variables = []
+    # # whitelist_edges = []
+    # # blacklist_edges = []
+    # # model = "titanic"
+    # # simplify = True
+    # # tol = 0.3
+    #
+    # ## titanic 4
+    # name = 'titanic_4'
+    # whitelist_continuous_variables = ['age']
+    # whitelist_discrete_variables = []
+    # whitelist_edges = [('survived', 'fare'), ('embarked', 'pclass'), ('age', 'fare'), ('pclass', 'survived')]
+    # blacklist_edges = [('pclass','sex')]
+    # model = "titanic"
+    # simplify = True
+    # tol = 0.4
+
+    ## titanic 5
+    # name = 'titanic_5'
+    # whitelist_continuous_variables = ['age']
+    # whitelist_discrete_variables = []
+    # whitelist_edges = [('pclass', 'survived'), ('sex', 'survived'), ('pclass', 'fare')]
+    # blacklist_edges = [('age', 'fare'), ('pclass', 'boat'), ('boat', 'has_cabin_number')]
+    # model = "titanic"
+    # simplify = True
+    # tol = 0.4
+
+
+    # whitelist_edges = [('age', 'fare'), ('survived', 'age')]
+
+    # file = '../data/mpg_cleaned.csv'
+    file = '../data/allbus_cleaned.csv'
+    #file = '../data/titanic_mixed2.csv'
     pymc_model = PyMCModel(file, var_tolerance=0.1)
-    pymc_model.create_map_and_clean_data(index_column=False,
+    pymc_model.create_map_and_clean_data(index_column=True,
                                          whitelist_continuous_variables=whitelist_continuous_variables,
                                          whitelist_discrete_variables=whitelist_discrete_variables)
-    pymc_model.learn_model("titanic_4",
+    pymc_model.learn_model(name,
                            whitelist_continuous_variables=whitelist_continuous_variables,
                            whitelist_discrete_variables=whitelist_discrete_variables,
                            whitelist_edges=whitelist_edges,
-                           blacklist_edges=blacklist_edges, simplify=True, simplify_tolerance=0.3, relearn=True,
-                           verbose=True)
+                           blacklist_edges=blacklist_edges, simplify=simplify, simplify_tolerance=tol, relearn=True,
+                           verbose=False)
     print(pymc_model.get_description())
     print(f"Number of edges {len(pymc_model.get_description()['edges'])}")
     print(f"Learned a model with {pymc_model.get_number_of_parameter()} parameters.")

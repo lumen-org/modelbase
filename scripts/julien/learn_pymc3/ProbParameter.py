@@ -134,7 +134,7 @@ class ProbabilityNode():
         self.discrete = discrete
 
     def set_parameter(self, parameter):
-        self.parameter = parameter
+        self.parameter = np.nan_to_num(parameter)
 
     def get_parameter(self, index=None):
         if index is not None and index < len(self.parameter):
