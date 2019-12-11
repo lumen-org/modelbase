@@ -1,19 +1,24 @@
 # Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
 
 """
-@author: Philipp Lucas
+@author: Philipp Lucas, Frank Nussbaum
 
 This is a collection of methods to
-  (i) fit parameters of various specific conditional gaussian model types to data, as well as
+  (i) fit parameters of various specific conditional gaussian model types to data,
+      as well as
   (ii) conversion of a one parameter representation to another.
 
-Data is generally given as a pandas data frame. Appropiate preperation is expected, e.g. normalization, no nans/nones, ...
+Data is generally given as a pandas data frame.
+Appropiate preperation is expected, e.g. normalization, no nans/nones, ...
 
-Parameters are generally provided by means of numpy ndarrays. The order of categorical random variables in the given data frame is equivalent to the implicit order of dimensions (representing categorical random variables) in the derived parameters.
+Parameters are generally provided by means of numpy ndarrays.
+The order of categorical random variables in the given data frame is equivalent
+to the implicit order of dimensions (representing categorical random variables)
+in the derived parameters.
 
 """
-from cgmodsel.CG_CLZ_Huber import CG_CLZ_Huber
-from cgmodsel.CG_MAP import CG_MAP
+from cgmodsel.huber_clz import HuberCLZ
+from cgmodsel.map import MAP
 from cgmodsel.dataops import get_meta_data, prepare_cat_data
 
 ### model selection methods
@@ -23,30 +28,34 @@ def fit_pairwise_canonical(df):
     pass
 
 
-def fit_clz_mean (df):
-    """Fits parameters of a CLZ model to given data in pandas.DataFrame df and returns their representation as general mean paramters.
+def fit_clz_mean(df):
+    """Fits parameters of a CLZ model to given data in pandas.DataFrame df and
+    returns their representation as general mean parameters.
 
     Args:
         df: DataFrame of training data.
     """
 
     meta = get_meta_data(df)
-    Y = df.as_matrix(meta['contnames'])
+    cont_data = df.as_matrix(meta['contnames'])
 #    means, sigmas = standardizeContinuousData(Y) # required to avoid exp overflow
-    D = prepare_cat_data(df[meta['catnames']], meta, method = 'dummy')  # transform discrete variables to indicator data
+    cat_data = prepare_cat_data(df[meta['catnames']], meta, method = 'dummy')  \
+    # transform discrete variables to indicator data
+    data = cat_data, cont_data
+    
     # TODO: split into training and test data? if so: see Franks code
-    solver = CG_CLZ_Huber(meta)  # initialize problem
-    solver.drop_data(D, Y)  # set training data
+    solver = HuberCLZ()  # initialize problem
+    solver.drop_data(data, meta)  # set training data
     # solve it attribute .x contains the solution parameter vector.
     solver.set_regularization_params(0.2)
     res = solver.solve_sparse(verb=False, innercallback=solver.nocallback)
     clz_model_params = solver.get_canonicalparams(res.x, verb=False)
 
-    (p, mus, Sigmas) = clz_model_params.get_meanparams(verb=False)
+    p, mus, Sigmas = clz_model_params.get_meanparams(verb=False)
     return p, mus, Sigmas, meta
 
 
-def fit_map_mean (df):
+def fit_map_mean(df):
     """Fits parameters of a CLZ model to given data in pandas.DataFrame df and returns their representation as general mean paramters.
 
     Args:
@@ -54,14 +63,17 @@ def fit_map_mean (df):
     """
 
     meta = get_meta_data(df)
-    Y = df[meta['contnames']].values
-#    means, sigmas = standardizeContinuousData(Y) # required to avoid exp overflow
-    D = prepare_cat_data(df[meta['catnames']], meta, method = 'flat')  # transform discrete variables to flat indices
+    cont_data = df[meta['contnames']].values
+#    means, sigmas = standardizeContinuousData(Y)
+    cat_data = prepare_cat_data(df[meta['catnames']], meta, method = 'flat') 
+    # transform discrete variables to flat indices
+    
+    data = cat_data, cont_data
     # TODO: split into training and test data? if so: see Franks code
-    solver = CG_MAP(meta)  # initialize problem
-    solver.drop_data(D, Y)  # set training data
+    solver = MAP(meta)  # initialize problem
+    solver.drop_data(data)  # set training data
 
-    (p, mus, Sigmas) = solver.fit_variable_covariance()
+    p, mus, Sigmas = solver.fit_variable_covariance()
     return p, mus, Sigmas, meta
 
 ### parameter transformation methods
