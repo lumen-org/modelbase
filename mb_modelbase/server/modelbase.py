@@ -14,7 +14,7 @@ import numpy
 
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
-from mb_modelbase.models_core import pci_graph
+#from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import models_predict
 from mb_modelbase.models_core import model_watchdog
 
@@ -372,7 +372,8 @@ class ModelBase:
 
         elif 'PCI_GRAPH.GET' in query:
             model = self._extractFrom(query)
-            graph = pci_graph.to_json(model.pci_graph) if model.pci_graph else False
+            #graph = pci_graph.to_json(model.pci_graph) if model.pci_graph else False
+            graph = False
             return _json_dumps({
                 'model': model.name,
                 'graph': graph

@@ -38,20 +38,22 @@ def fit_clz_mean(df):
 
     meta = get_meta_data(df)
     cont_data = df.as_matrix(meta['contnames'])
-#    means, sigmas = standardizeContinuousData(Y) # required to avoid exp overflow
-    cat_data = prepare_cat_data(df[meta['catnames']], meta, method = 'dummy')  \
+#    means, sigmas = standardize_continuous_data(cont_data) # required to avoid exp overflow
+    cat_data = prepare_cat_data(df[meta['catnames']], meta, cattype = 'dummy')  \
     # transform discrete variables to indicator data
     data = cat_data, cont_data
     
-    # TODO: split into training and test data? if so: see Franks code
     solver = HuberCLZ()  # initialize problem
     solver.drop_data(data, meta)  # set training data
-    # solve it attribute .x contains the solution parameter vector.
-    solver.set_regularization_params(0.2)
-    res = solver.solve_sparse(verb=False, innercallback=solver.nocallback)
-    clz_model_params = solver.get_canonicalparams(res.x, verb=False)
+    solver.set_regularization_params(0.2) # TODO(franknu): externalize
 
-    p, mus, Sigmas = clz_model_params.get_meanparams(verb=False)
+    # solve it attribute .x contains the solution parameter vector.
+    res = solver.solve_sparse(verb=1, innercallback=solver.nocallback)
+    clz_model_params = solver.get_canonicalparams(res.x)
+    print(clz_model_params)
+
+    p, mus, Sigmas = clz_model_params.get_meanparams()
+    print(p, mus, Sigmas)
     return p, mus, Sigmas, meta
 
 
@@ -64,14 +66,14 @@ def fit_map_mean(df):
 
     meta = get_meta_data(df)
     cont_data = df[meta['contnames']].values
-#    means, sigmas = standardizeContinuousData(Y)
-    cat_data = prepare_cat_data(df[meta['catnames']], meta, method = 'flat') 
+
+    cat_data = prepare_cat_data(df[meta['catnames']], meta, cattype = 'flat') 
     # transform discrete variables to flat indices
     
     data = cat_data, cont_data
-    # TODO: split into training and test data? if so: see Franks code
-    solver = MAP(meta)  # initialize problem
-    solver.drop_data(data)  # set training data
+
+    solver = MAP()  # initialize problem
+    solver.drop_data(data, meta)  # set training data
 
     p, mus, Sigmas = solver.fit_variable_covariance()
     return p, mus, Sigmas, meta
