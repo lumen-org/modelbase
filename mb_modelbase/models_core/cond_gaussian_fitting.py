@@ -45,15 +45,20 @@ def fit_clz_mean(df):
     
     solver = HuberCLZ()  # initialize problem
     solver.drop_data(data, meta)  # set training data
-    solver.set_regularization_params(0.2) # TODO(franknu): externalize
+    solver.set_regularization_params(2) # TODO(franknu): externalize
 
     # solve it attribute .x contains the solution parameter vector.
     res = solver.solve_sparse(verb=1, innercallback=solver.nocallback)
     clz_model_params = solver.get_canonicalparams(res.x)
-    print(clz_model_params)
+    
+    is_valid = clz_model_params.is_valid()
+    # print(clz_model_params)
+    if not is_valid:
+        print('Warning: CLZ Model does not represent a valid distribution')
+        # TODO: Handling?
 
     p, mus, Sigmas = clz_model_params.get_meanparams()
-    print(p, mus, Sigmas)
+    # print(p, mus, Sigmas)
     return p, mus, Sigmas, meta
 
 
