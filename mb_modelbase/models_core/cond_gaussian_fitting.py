@@ -45,7 +45,7 @@ def fit_clz_mean(df):
     
     solver = HuberCLZ()  # initialize problem
     solver.drop_data(data, meta)  # set training data
-    solver.set_regularization_params(2) # TODO(franknu): externalize
+    solver.set_regularization_params(0.2) # TODO(franknu): externalize
 
     # solve it attribute .x contains the solution parameter vector.
     res = solver.solve_sparse(verb=1, innercallback=solver.nocallback)
