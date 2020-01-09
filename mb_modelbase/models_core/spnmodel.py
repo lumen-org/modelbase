@@ -15,7 +15,7 @@ IMPORTANT:
 """
 
 from mb_modelbase.models_core import Model
-from mb_modelbase.models_core.spn.spn import SPNParams, SPN
+from mb_modelbase.models_core.spn_model.spn import SPNParams, SPN
 
 from scipy.optimize import minimize
 import numpy as np

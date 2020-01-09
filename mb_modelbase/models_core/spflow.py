@@ -11,8 +11,8 @@ from mb_modelbase.models_core import Model
 from spn.structure.Base import Context
 from spn.algorithms.LearningWrappers import learn_parametric, learn_mspn
 from spn.algorithms.Marginalization import marginalize
-#from spn.algorithms.Condition import condition
-#from spn.algorithms.Inference import eval_spn_bottom_up
+# from spn_model.algorithms.Condition import condition
+# from spn_model.algorithms.Inference import eval_spn_bottom_up
 from spn.algorithms.Inference import likelihood
 from spn.algorithms.Sampling import sample_instances
 from numpy.random.mtrand import RandomState
@@ -32,17 +32,18 @@ class SPNModel(Model):
     """
     Parameters:
         .spn_type : string
-            - is either 'spn' or 'mspn'
-            - indicates whether the model is a regular spn or a mixed spn
-        ._nameToVarType :    Dict: string -> spn.structure.StatisticalTypes.MetaType
-                        Dict  string -> spn.structure.leaves.parametric.Parametric.{Categorical, Gaussian,...}
+            - is either 'spn_model' or 'mspn'
+            - indicates whether the model is a regular spn_model or a mixed spn_model
+        ._nameToVarType :    Dict: string -> spn_model.structure.StatisticalTypes.MetaType
+                        Dict  string -> spn_model.structure.leaves.parametric.Parametric.{Categorical, Gaussian,...}
             - defines a mapping from the fields to types of variables
             - in case of a mixed SPN a meta-type, e.g. REAL or DISCRETE has to be provided
             - else the types of distributions have to be given, e.g. Categorical or Gaussian
 
     """
+
     def __init__(self, name,
-                 spn_type = 'spn'):
+                 spn_type='spn_model'):
         super().__init__(name)
         self._spn_type = spn_type
         self._aggrMethods = {
@@ -126,7 +127,7 @@ class SPNModel(Model):
         except KeyError as err:
             raise ValueError('missing var type information for some dimension {}.'.format(err.args[0]))
 
-        if self._spn_type == 'spn':
+        if self._spn_type == 'spn_model':
             context = Context(parametric_types=var_types).add_domains(df.values)
             self._spn = learn_parametric(df.values, context)
 
@@ -203,11 +204,11 @@ class SPNModel(Model):
         return e
 
     def _maximum(self):
-        fun = lambda x : -1 * self._density(x)
+        fun = lambda x: -1 * self._density(x)
         xmax = None
         xlength = len(self.names)
 
-        #startVectors = self.data.sample(20).values
+        # startVectors = self.data.sample(20).values
         startVectors = self.data.mean()
 
         for x0 in startVectors:
@@ -253,4 +254,19 @@ class SPNModel(Model):
         return mycopy
 
 
-
+if __name__ == "__main__":
+    #from sklearn.datasets import load_iris
+    #iris_data = load_iris()
+    import pandas as pd
+    iris_data = pd.read_csv('/home/julien/PycharmProjects/lumen/mb_data/mb_data/iris/iris.csv')
+    print(iris_data)
+    spn = SPNModel("spn_test")
+    import spn.structure.leaves.parametric.Parametric as spn_parameter_types
+    var_types = {
+        'sepal_length': spn_parameter_types.Gaussian,
+        'sepal_width': spn_parameter_types.Gaussian,
+        'petal_length': spn_parameter_types.Gaussian,
+        'petal_width': spn_parameter_types.Gaussian,
+        'species': spn_parameter_types.Categorical}
+    spn.fit(df=pd.DataFrame(iris_data), var_types=var_types)
+    spn.save('/home/julien/PycharmProjects/lumen/fitted_models')

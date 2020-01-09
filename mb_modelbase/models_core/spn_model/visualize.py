@@ -10,7 +10,7 @@ import numpy as np
 index = 0
 
 
-def generateSPNPdf (spn,filename="img/spn") :
+def generateSPNPdf (spn,filename="img/spn_model") :
     """
     Generates a PDF with a visualisation of an SPN
     """
