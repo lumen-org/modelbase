@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
 
     # ## titanic 1
-    name = 'allbus_graph'
+    name = 'titanic_1'
     whitelist_continuous_variables = []
     #whitelist_discrete_variables = ['age']
     whitelist_discrete_variables = []
@@ -114,15 +114,15 @@ if __name__ == "__main__":
     tol = 0.3
 
     # ## titanic 2
-    # name = 'titanic_2'
-    # whitelist_continuous_variables = ['age']
-    # whitelist_discrete_variables = []
-    # whitelist_edges = []
-    # blacklist_edges = []
-    # model = "titanic"
-    # simplify = False
-    # tol = 0.95
-    #
+    name = 'titanic_2'
+    whitelist_continuous_variables = ['age']
+    whitelist_discrete_variables = []
+    whitelist_edges = []
+    blacklist_edges = []
+    model = "titanic"
+    simplify = False
+    tol = 0.95
+
     # # ## titanic 3
     # # name = 'titanic_3'
     # # whitelist_continuous_variables = ['age']
@@ -134,14 +134,14 @@ if __name__ == "__main__":
     # # tol = 0.3
     #
     # ## titanic 4
-    # name = 'titanic_4'
-    # whitelist_continuous_variables = ['age']
-    # whitelist_discrete_variables = []
-    # whitelist_edges = [('survived', 'fare'), ('embarked', 'pclass'), ('age', 'fare'), ('pclass', 'survived')]
-    # blacklist_edges = [('pclass','sex')]
-    # model = "titanic"
-    # simplify = True
-    # tol = 0.4
+    name = 'titanic_4'
+    whitelist_continuous_variables = ['age']
+    whitelist_discrete_variables = []
+    whitelist_edges = [('survived', 'fare'), ('embarked', 'pclass'), ('age', 'fare'), ('pclass', 'survived')]
+    blacklist_edges = [('pclass','sex')]
+    model = "titanic"
+    simplify = True
+    tol = 0.4
 
     ## titanic 5
     # name = 'titanic_5'
@@ -157,10 +157,10 @@ if __name__ == "__main__":
     # whitelist_edges = [('age', 'fare'), ('survived', 'age')]
 
     # file = '../data/mpg_cleaned.csv'
-    file = '../data/allbus_cleaned.csv'
-    #file = '../data/titanic_mixed2.csv'
+    #file = '../data/allbus_cleaned.csv'
+    file = '../data/titanic_mixed2.csv'
     pymc_model = PyMCModel(file, var_tolerance=0.1)
-    pymc_model.create_map_and_clean_data(index_column=True,
+    pymc_model.create_map_and_clean_data(index_column=False,
                                          whitelist_continuous_variables=whitelist_continuous_variables,
                                          whitelist_discrete_variables=whitelist_discrete_variables)
     pymc_model.learn_model(name,

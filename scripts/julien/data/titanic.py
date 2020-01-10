@@ -12,9 +12,10 @@ _csvfilepath = os.path.splitext(__file__)[0] + ".csv"
 
 def _clean(filepath=_csvfilepath):
     df = pd.read_csv(filepath)
-    del df['PassengerId']  # consecutive passanger id
-    del df['Name']  # name of a passanger
-    del df['Ticket']  # ticket number
+    #del df['PassengerId']  # consecutive passanger id
+    #del df['Name']  # name of a passanger
+    del df['boat']  # ticket number
+    del df['has_cabin_number']  # ticket number
     return df
 
 
@@ -25,8 +26,8 @@ def mixed(filepath=_csvfilepath):
     df = _clean(filepath)
 
     # quantitize Parch, SibSp?
-    del df['SibSp']  # number of siblings/spouses aboard
-    del df['Parch']  # number of parents/children aboard
+    #del df['SibSp']  # number of siblings/spouses aboard
+    #del df['Parch']  # number of parents/children aboard
 
     # possibly quantitize PClass, i.e. the passenger class?
     return df
