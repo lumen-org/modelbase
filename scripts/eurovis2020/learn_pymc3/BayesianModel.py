@@ -1,8 +1,8 @@
-from scripts.julien.learn_pymc3.Graph import Graph, Node, DiscreteNode, ContinuousNode
+from scripts.eurovis2020.learn_pymc3.Graph import Graph, Node, DiscreteNode, ContinuousNode
 
-from scripts.julien.learn_pymc3.JSONModelCreator import JSONModelCreator
-from scripts.julien.learn_pymc3.JSONReader import JSONReader
-from scripts.julien.learn_pymc3.ProbParameter import is_similar, merge_nodes
+from scripts.eurovis2020.learn_pymc3.JSONModelCreator import JSONModelCreator
+from scripts.eurovis2020.learn_pymc3.JSONReader import JSONReader
+from scripts.eurovis2020.learn_pymc3.ProbParameter import is_similar, merge_nodes
 
 import numpy as np
 

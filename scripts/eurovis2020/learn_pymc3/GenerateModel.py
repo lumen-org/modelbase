@@ -1,6 +1,6 @@
-from scripts.julien.learn_pymc3.BayesianModel import BayesianModel
-from scripts.julien.learn_pymc3.BlogCreator import BlogCreator
-from scripts.julien.learn_pymc3.PyMCCreator import PyMCCreator
+from scripts.eurovis2020.learn_pymc3.BayesianModel import BayesianModel
+from scripts.eurovis2020.learn_pymc3.BlogCreator import BlogCreator
+from scripts.eurovis2020.learn_pymc3.PyMCCreator import PyMCCreator
 
 from mb_modelbase.models_core.empirical_model import EmpiricalModel
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
@@ -94,7 +94,7 @@ def create_fun():
         f = open('./ppl_code.py', "w")
         f.write(fun)
         f.close()
-        from scripts.julien.learn_pymc3.ppl_code import create_fun
+        from scripts.eurovis2020.learn_pymc3.ppl_code import create_fun
         if verbose:
             print(fun)
         model_function = create_fun()

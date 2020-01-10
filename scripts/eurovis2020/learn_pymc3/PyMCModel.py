@@ -1,6 +1,6 @@
-from scripts.julien.learn_pymc3.DataTransformer import DataTransformer, DataMap
-from scripts.julien.learn_pymc3.JSONModelCreator import JSONModelCreator
-from scripts.julien.learn_pymc3.GenerateModel import GeneratePyMc3Model
+from scripts.eurovis2020.learn_pymc3.DataTransformer import DataTransformer, DataMap
+from scripts.eurovis2020.learn_pymc3.JSONModelCreator import JSONModelCreator
+from scripts.eurovis2020.learn_pymc3.GenerateModel import GeneratePyMc3Model
 
 from pandas import read_csv
 import numpy as np

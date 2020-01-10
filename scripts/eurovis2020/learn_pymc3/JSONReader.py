@@ -1,9 +1,9 @@
 import json
 import numpy as np
 
-from scripts.julien.learn_pymc3.Graph import Graph, DiscreteNode, ContinuousNode
+from scripts.eurovis2020.learn_pymc3.Graph import Graph, DiscreteNode, ContinuousNode
 
-from scripts.julien.learn_pymc3.ProbParameter import ProbParameter
+from scripts.eurovis2020.learn_pymc3.ProbParameter import ProbParameter
 
 
 class JSONReader(object):

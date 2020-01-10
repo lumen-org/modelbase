@@ -1,5 +1,5 @@
 from graphviz import Digraph
-from scripts.julien.learn_pymc3 import ProbParameter
+from scripts.eurovis2020.learn_pymc3 import ProbParameter
 
 class Graph(object):
     def __init__(self):

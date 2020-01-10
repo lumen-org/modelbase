@@ -1,5 +1,5 @@
 
-from scripts.julien.learn_pymc3.BayesianModel import BayesianModel
+from scripts.eurovis2020.learn_pymc3.BayesianModel import BayesianModel
 
 
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     bayesian_model.get_graph().export_as_graphviz("allbus_4", view=True)
 
-    from scripts.julien.learn_pymc3.ProbParameter import generate_prob_graphs, is_similar, merge_nodes, print_prob_table
+    from scripts.eurovis2020.learn_pymc3.ProbParameter import generate_prob_graphs, is_similar, merge_nodes, print_prob_table
 
     if True:
 
@@ -69,8 +69,8 @@ if __name__ == "__main__":
                     break
         
         """
-        from scripts.julien.learn_pymc3.BlogCreator import BlogCreator
-        from scripts.julien.learn_pymc3.PyMCCreator import PyMCCreator
+        from scripts.eurovis2020.learn_pymc3.BlogCreator import BlogCreator
+        from scripts.eurovis2020.learn_pymc3.PyMCCreator import PyMCCreator
         # """
         bc = BlogCreator(bayesian_model)
         print("#### BLOG ####\n", bc.generate(), sep="")
