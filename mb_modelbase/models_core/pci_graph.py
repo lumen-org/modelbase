@@ -2,7 +2,6 @@
 """
 @author: Philipp Lucas
 """
-#from mb_modelbase.models_core import Model
 from CGmodelselection.graph import get_graph_from_data
 
 from mb_modelbase.utils import update_opts

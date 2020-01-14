@@ -11,7 +11,8 @@ def create_testmodels(fit):
     models.append(cr.create_pymc3_getting_started_model_independent_vars(fit=fit))
     models.append(cr.create_pymc3_coal_mining_disaster_model(fit=fit))
     models.append(cr.create_getting_started_model_shape(fit=fit))
-    models.append(cr.create_flight_delay_model(fit=fit))
+    models.append(cr.create_flight_delay_model_1(fit=fit))
+    models.append(cr.create_allbus_model_4(fit=fit))
     return models
 
 #models_unfitted = create_testmodels(fit=False)
@@ -212,7 +213,7 @@ class TestMethodsOnFittedModel(unittest.TestCase):
                             "Test data of copy is affected by changes in original model. Model: " + mymod.name)
             #Test samples
             old_samples = mymod.samples.copy()
-            new_samples = mymod._sample(50)
+            new_samples = mymod._sample(len(mymod.data))
             mymod.samples = new_samples
             self.assertTrue(mymod_copy.samples.equals(old_samples),
                             "Samples of copy are affected by changes in original model. Model: " + mymod.name)
@@ -221,7 +222,7 @@ class TestMethodsOnFittedModel(unittest.TestCase):
             if mymod.shared_vars:
                 for key, value in mymod.shared_vars.items():
                     old_shared_vars = value.get_value()
-                    mymod._sample(10)
+                    mymod._sample(len(mymod.data))
                     self.assertTrue(np.array_equal(mymod_copy.shared_vars[key].get_value(), old_shared_vars),
                                     "Shared variables of copy are affected by changes in original model. "
                                     "Model: " + mymod.name)
@@ -234,19 +235,19 @@ class TestMethodsOnFittedModel(unittest.TestCase):
                             "Empricial model name of copy is affected by changes in original model. "
                             "Model: " + mymod.name)
 
-    def test_shared_vars_propagation_in_copy(self):
-        """
-        Test if after copying a model and changing the independent variables of the copy,
-        these changes are propagated to the model_structure
-        """
-        for data, mymod in create_testmodels(fit=True):
-            if mymod.shared_vars:
-                mymod_cp = mymod.copy()
-                key = list(mymod_cp.shared_vars.keys())[0]
-                mymod_cp.shared_vars[key].set_value([1, 2, 3, 4])
-                # _sample should not work anymore since the variables have now different lengths
-                with self.assertRaises(ValueError):
-                    mymod_cp._sample(1)
+    # def test_shared_vars_propagation_in_copy(self):
+    #     """
+    #     Test if after copying a model and changing the independent variables of the copy,
+    #     these changes are propagated to the model_structure
+    #     """
+    #     for data, mymod in create_testmodels(fit=True):
+    #         if mymod.shared_vars:
+    #             mymod_cp = mymod.copy()
+    #             key = list(mymod_cp.shared_vars.keys())[0]
+    #             mymod_cp.shared_vars[key].set_value([1, 2, 3, 4])
+    #             # _sample should not work anymore since the variables have now different lengths
+    #             with self.assertRaises(ValueError):
+    #                 mymod_cp._sample(1)
 
     def test_marginalizeout(self):
         """
@@ -278,8 +279,8 @@ class TestMethodsOnFittedModel(unittest.TestCase):
 
             sample_size_all_values = len(mymod.samples)
             mymod.fields[0]['domain'].setupperbound(np.mean(mymod.samples[remove[0]]))
-            isBiggerThanUpperBound = mymod.samples[remove[0]] > np.mean(mymod.samples[remove[0]])
-            big_samples = mymod.samples[remove[0]][isBiggerThanUpperBound]
+            isBiggerOrEqualUpperBound = mymod.samples[remove[0]] >= np.mean(mymod.samples[remove[0]])
+            big_samples = mymod.samples[remove[0]][isBiggerOrEqualUpperBound]
             sample_size_big_values = len(big_samples)
 
             mymod._conditionout(keep=keep, remove=remove)
@@ -320,7 +321,7 @@ class TestMethodsOnFittedModel(unittest.TestCase):
         Test if _sample() return the correct dimensions
         """
         for data, mymod in create_testmodels(fit=True):
-            n = 10
+            n = len(data)
             self.assertEqual(mymod.sample(n).shape[0],  n, 'Number of samples is not correct')
             self.assertEqual(mymod.sample(n).shape[1], mymod.samples.shape[1],
                              'Number of variables returned by _sample() is not correct')

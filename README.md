@@ -40,6 +40,13 @@ For normal (non-development) usage:
 
 For a development setup, see further below.
 
+If you use Anaconda:
+
+ * Create a new environment: `conda create -n venv_name`
+ * install new pacakges like this: `<path-to-environment>/bin/pip install <path-to-package>`
+ 
+See also here: https://stackoverflow.com/questions/41060382/using-pip-to-install-packages-to-anaconda-environment
+
 ### Updating modelbase
 
 Since you have installed it as a package in your local python installation, you have to to the following in order to update it to the latest repository version:

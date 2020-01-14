@@ -9,8 +9,10 @@ import json
 import logging
 from functools import reduce
 from pathlib import Path
+
 import os
 import numpy as np
+import dill
 
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
@@ -147,7 +149,7 @@ class ModelBase:
             .float_format : The float format used to encode floats in a result. Defaults to '%.5f'
     """
 
-    def __init__(self, name, model_dir='data_models', load_all=True):
+    def __init__(self, name, model_dir='data_models', load_all=True, watchdog=True):
         """ Creates a new instance and loads models from some directory. """
 
         self.name = name
@@ -169,14 +171,15 @@ class ModelBase:
                 logger.info("Successfully loaded " + str(len(loaded_models)) + " models into the modelbase: ")
                 logger.info(str([model[0] for model in loaded_models]))
 
-        # init watchdog who oversees a given folder for new models
-        modle_watch_observer = model_watchdog.ModelWatchObserver()
-        try:
-            logger.info("Files under {} are watched for changes".format(self.model_dir))
-            modle_watch_observer.init_watchdog(self, self.model_dir)
-        except Exception as err:
-            logger.exception("Watchdog failed!")
-            logger.exception(err)
+        if watchdog:
+            # init watchdog who oversees a given folder for new models
+            modle_watch_observer = model_watchdog.ModelWatchObserver()
+            try:
+                logger.info("Files under {} are watched for changes".format(self.model_dir))
+                modle_watch_observer.init_watchdog(self, self.model_dir)
+            except Exception as err:
+                logger.exception("Watchdog failed!")
+                logger.exception(err)
 
     def __str__(self):
         return " -- Model Base > " + self.name + " < -- \n" + \
@@ -407,8 +410,41 @@ class ModelBase:
                 'graph': graph
             })
 
+        elif 'PP_GRAPH.GET' in query:
+            model = self._extractFrom(query)
+            pp_graph = model.probabilistic_program_graph
+            graph = pp_graph if pp_graph else False
+            return _json_dumps({
+                'model': model.name,
+                'graph': graph
+            })
         else:
             raise QueryIncompleteError("Missing Statement-Type (e.g. DROP, PREDICT, SELECT)")
+
+    def upload_files(self, models):
+        """
+        saves given dill objects into the model-dir folder if they do not exist
+
+        :param models: list of dumped models
+        :return: "OK" if worked, else Error
+        """
+        model_list_saved = []
+        model_list_existing = []
+        for model in models:
+            try:
+                model = dill.loads(model)
+                if isinstance(model, gm.Model) and model.name not in self.models:
+                    model.save(self.model_dir)
+                    model_list_saved.append(model.name)
+                else:
+                    model_list_existing.append(model.name)
+            except Exception as e:
+                logger.exception(e)
+                return "Error with pickle"
+
+        logger.info("Models saved: {}".format(model_list_saved))
+        logger.info("Models ignored: {}".format(model_list_existing))
+        return "OK"
 
     ### _extract* functions are helpers to extract a certain part of a PQL query
     #   and do some basic syntax and semantic checks

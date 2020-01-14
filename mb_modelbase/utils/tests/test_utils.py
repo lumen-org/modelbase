@@ -113,5 +113,7 @@ class TestUtils(unittest.TestCase):
         inv = list('DEF')
         self.assertEqual(utils.invert_sequence(seq, base), inv)
 
+
+
 if __name__ == '__main__':
     unittest.main()
