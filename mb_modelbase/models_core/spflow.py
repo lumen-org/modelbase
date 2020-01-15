@@ -11,8 +11,8 @@ from mb_modelbase.models_core import Model
 from spn.structure.Base import Context
 from spn.algorithms.LearningWrappers import learn_parametric, learn_mspn
 from spn.algorithms.Marginalization import marginalize
-# from spn_model.algorithms.Condition import condition
-# from spn_model.algorithms.Inference import eval_spn_bottom_up
+from spn.algorithms.Condition import condition
+# from spn.algorithms.Inference import eval_spn_bottom_up
 from spn.algorithms.Inference import likelihood
 from spn.algorithms.Sampling import sample_instances
 from numpy.random.mtrand import RandomState
@@ -32,10 +32,10 @@ class SPNModel(Model):
     """
     Parameters:
         .spn_type : string
-            - is either 'spn_model' or 'mspn'
-            - indicates whether the model is a regular spn_model or a mixed spn_model
-        ._nameToVarType :    Dict: string -> spn_model.structure.StatisticalTypes.MetaType
-                        Dict  string -> spn_model.structure.leaves.parametric.Parametric.{Categorical, Gaussian,...}
+            - is either 'spn' or 'mspn'
+            - indicates whether the model is a regular spn or a mixed spn
+        ._nameToVarType :    Dict: string -> spn.structure.StatisticalTypes.MetaType
+                        Dict  string -> spn.structure.leaves.parametric.Parametric.{Categorical, Gaussian,...}
             - defines a mapping from the fields to types of variables
             - in case of a mixed SPN a meta-type, e.g. REAL or DISCRETE has to be provided
             - else the types of distributions have to be given, e.g. Categorical or Gaussian
@@ -43,11 +43,12 @@ class SPNModel(Model):
     """
 
     def __init__(self, name,
-                 spn_type='spn_model'):
+                 spn_type=None):
         super().__init__(name)
         self._spn_type = spn_type
         self._aggrMethods = {
-            'maximum': self._maximum
+            'maximum': self._expectation,  #TODO use maximum
+            'expectation': self._expectation
         }
         self._unbound_updater = functools.partial(self.__class__._update, self)
 
@@ -55,10 +56,10 @@ class SPNModel(Model):
         """
         the _density_mask is updated when the model is marginalized or conditioned
         marginalized variables are represented with np.nan according to spflow
-        conditioned variables are represented with 1
-        untouched variables are represented with 2
+        conditioned variables are represented with 2
+        untouched variables are represented with 1
         """
-        self._density_mask = np.array(
+        self._state_mask = np.array(
             [
                 np.nan if i in self._marginalized else 1
                 if i in self._conditioned else 2
@@ -92,9 +93,24 @@ class SPNModel(Model):
             v['name_to_int'] = name_to_int
             v['int_to_name'] = int_to_name
 
+    def set_var_types(self, var_types):
+        self.var_types = var_types
+
+    def set_spn_type(self, spn_type):
+        self._spn_type = spn_type
+
     def _fit(self, var_types=None, **kwargs):
+
+        if self._spn_type == None:
+            raise Exception("No SPN-type provided")
+
+        if var_types != None:
+            self.var_types = var_types
+        else:
+            var_types = self.var_types
+
         df = self.data.copy()
-        # Exchange all object columns for their codes
+        # Exchange all object columns for their codes as SPFLOW cannot deal with Strings
         for key, value in self._categorical_variables.items():
             df[key] = value['categorical'].codes
 
@@ -109,7 +125,7 @@ class SPNModel(Model):
         self._initial_names_to_index = {self._initial_names[i]: i for i in range(self._initial_names_count)}
 
         # Initialize _density_mask with np.nan
-        self._density_mask = np.array(
+        self._state_mask = np.array(
             [np.nan for i in self._initial_names]
         ).reshape(-1, self._initial_names_count).astype(float)
 
@@ -125,9 +141,9 @@ class SPNModel(Model):
         try:
             var_types = [self._nameToVarType[name] for name in self.names]
         except KeyError as err:
-            raise ValueError('missing var type information for some dimension {}.'.format(err.args[0]))
+            raise ValueError('missing var type information for dimension: {}.'.format(err.args[0]))
 
-        if self._spn_type == 'spn_model':
+        if self._spn_type == 'spn':
             context = Context(parametric_types=var_types).add_domains(df.values)
             self._spn = learn_parametric(df.values, context)
 
@@ -146,32 +162,70 @@ class SPNModel(Model):
     def _conditionout(self, keep, remove):
         self._conditioned = self._conditioned.union(remove)
         condition_values = self._condition_values(remove)
+        initial_indices = [self._initial_names_to_index[name] for name in remove]
+
+        test = self._condition.copy()
+
+        #test = np.repeat(
+        #    np.nan,
+        #    self._initial_names_count
+        #).reshape(-1, self._initial_names_count).astype(float)
+
+        counter = 0
+        for i in range(len(remove)):
+            if remove[i] in self._categorical_variables:
+                test[:, i] = self._categorical_variables[remove[i]]['name_to_int'][condition_values[i]]
+            else:
+                test[:, i] = condition_values[i]
+
+        # for i in range(len(condition_values)):
+        #     self._condition[:, initial_indices[i]] = condition_values[i]
+        #     #counter += 1
+
+        # for i in range(len(condition_values)):
+        #     test[:, initial_indices[i]] = condition_values[i]
+
+
+        # self._spn = condition(self._spn, condition_values)
+        self._spn = condition(self._spn, test)
 
         # Exchange named expressions of categorical variables to int
-        condition_values = [
-            i if type(condition_values[i]) is str
-            else self._categorical_variables[remove[i]]['name_to_int'][condition_values[i]]
-            for i in range(len(remove))
-        ]
+        # condition_values = [
+        #     i if type(condition_values[i]) is not str
+        #     else self._categorical_variables[remove[i]]['name_to_int'][condition_values[i]]
+        #     for i in range(len(remove))
+        # ]
 
-        old_indices = [self._initial_names_to_index[name] for name in remove]
-        for i in range(len(remove)):
-            self._condition[0, old_indices[i]] = condition_values[i]
+        # old_indices = [self._initial_names_to_index[name] for name in remove]
         return self._unbound_updater,
+
+    # A dedicated density function that does not convert the input to numerical arguments like _density
+    # Used in the _maximum as objective function for the optimizer
+    def _opt_density(self, x):
+        state_mask = self._state_mask.copy()
+
+        # Values of x get written to the respective positions in the state mask
+        counter = 0
+        for i in range(state_mask.shape[1]):
+            # if variable on index i is not conditioned or marginalized
+            # set input i to the value in the input array indicated by counter
+            if state_mask[0, i] == 2:
+                state_mask[0, i] = x[counter]
+                counter += 1
+            # if the variable i is conditioned set the input value to the condition
+            elif state_mask[0, i] == 1:
+                state_mask[0, i] = self._condition[0, i]
+            # else the value of input at index i is np.nan by initialization and indicates a marginalized variable
+
+        res = likelihood(self._spn, state_mask)
+        return res[0][0]
 
     def _density(self, x):
         # map all inputs from categorical to numeric values
-        for i in range(len(x)):
-            if self.names[i] in self._categorical_variables:
-                inverse_mapping = self._categorical_variables[self.names[i]]['name_to_int']
-                x[i] = inverse_mapping[x[i]]
-
-            # if variable has integer representation round
-            elif self.data.dtypes[i] == int:
-                x[i] = round(x[i])
+        x = self._names_to_numeric(x)
 
         # Copy the current state of the network
-        input = self._density_mask.copy()
+        input = self._state_mask.copy()
         counter = 0
         for i in range(input.shape[1]):
             # if variable on index i is not conditioned or marginalized
@@ -199,23 +253,43 @@ class SPNModel(Model):
         with open(path, 'wb') as output:
             dill.dump(self, output, dill.HIGHEST_PROTOCOL)
 
-    def _average(self):
-        e = Expectation(self._spn)
-        return e
+    def _expectation(self):
+        e = Expectation(self._spn)[0].tolist()
+        res = self._numeric_to_names(e)
+        return res
 
-    def _maximum(self):
-        fun = lambda x: -1 * self._density(x)
+    # Convert the categorical variables in the input vector from their numerical representation to the a string representation
+    def _numeric_to_names(self, x):
+        for i in range(len(x)):
+            if self.names[i] in self._categorical_variables:
+                x[i] = self._categorical_variables[self.names[i]]['int_to_name'][round(x[i])]
+        return x
+    # Convert the categorical variables in the input list
+    def _names_to_numeric(self, x: list):
+        for i in range(len(x)):
+            if self.names[i] in self._categorical_variables:
+                x[i] = self._categorical_variables[self.names[i]]['name_to_int'][x[i]]
+        return x
+
+    def _maximum(self) -> list:
+        fun = lambda x: -1 * self._opt_density(x)
         xmax = None
         xlength = len(self.names)
 
-        # startVectors = self.data.sample(20).values
-        startVectors = self.data.mean()
+        n_samples = 4
+        samples = self.data.sample(n_samples)
+        numeric_samples = [ self._names_to_numeric(samples.iloc[i, :].tolist()) for i in range(samples.shape[0]) ]
 
-        for x0 in startVectors:
-            xopt = scpo.minimize(fun, x0, method='Nelder-Mead')
-            if xmax is None or self._density(xmax) <= self._density(xopt.x):
-                xmax = xopt.x
-        return xmax
+
+        optima = [ scpo.minimize(fun, np.array(x), method='Nelder-Mead') for x in numeric_samples ]
+
+        maxima = [ x['x'] for x in optima]
+        values = [ x['fun'] for x in optima ]
+
+        x0 = np.random.rand(len(self.data.columns.values))
+        xopt = scpo.minimize(fun, x0, method='Nelder-Mead')
+        res = self._numeric_to_names(list(xopt['x']))
+        return res
 
     def _sample(self, n=1, random_state=RandomState(123)):
         placeholder = np.repeat(np.array(self._condition), n, axis=0)
@@ -225,17 +299,8 @@ class SPNModel(Model):
         result = s[:, indices]
         result = result.tolist()
 
-        # performance shortcuts
         names = self.names
-        cat_vars = self._categorical_variables
-
-        # convert integers back to categorical names
-        # TODO: double for loop ... :-(
-        for r in result:
-            for i in range(len(r)):
-                if names[i] in cat_vars:
-                    r[i] = cat_vars[names[i]]['int_to_name'][round(r[i])]
-
+        result = [ self._numeric_to_names(l) for l in result ]
         return result
 
     def copy(self, name=None):
@@ -247,26 +312,8 @@ class SPNModel(Model):
         mycopy._initial_names_count = len(mycopy._initial_names)
         mycopy._marginalized = self._marginalized.copy()
         mycopy._conditioned = self._conditioned.copy()
-        mycopy._density_mask = self._density_mask.copy()
+        mycopy._state_mask = self._state_mask.copy()
         mycopy._condition = self._condition.copy()
         mycopy._categorical_variables = self._categorical_variables.copy()
         mycopy._initial_names_to_index = self._initial_names_to_index.copy()
         return mycopy
-
-
-if __name__ == "__main__":
-    #from sklearn.datasets import load_iris
-    #iris_data = load_iris()
-    import pandas as pd
-    iris_data = pd.read_csv('/home/julien/PycharmProjects/lumen/mb_data/mb_data/iris/iris.csv')
-    print(iris_data)
-    spn = SPNModel("spn_test")
-    import spn.structure.leaves.parametric.Parametric as spn_parameter_types
-    var_types = {
-        'sepal_length': spn_parameter_types.Gaussian,
-        'sepal_width': spn_parameter_types.Gaussian,
-        'petal_length': spn_parameter_types.Gaussian,
-        'petal_width': spn_parameter_types.Gaussian,
-        'species': spn_parameter_types.Categorical}
-    spn.fit(df=pd.DataFrame(iris_data), var_types=var_types)
-    spn.save('/home/julien/PycharmProjects/lumen/fitted_models')
