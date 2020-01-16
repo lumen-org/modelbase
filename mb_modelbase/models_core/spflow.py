@@ -47,7 +47,7 @@ class SPNModel(Model):
         super().__init__(name)
         self._spn_type = spn_type
         self._aggrMethods = {
-            'maximum': self._expectation,  #TODO use maximum
+            'maximum': self._maximum,  #TODO use maximum
             'expectation': self._expectation
         }
         self._unbound_updater = functools.partial(self.__class__._update, self)
@@ -75,6 +75,7 @@ class SPNModel(Model):
         all, cat, num = diu.get_columns_by_dtype(data)
 
         # Construct pandas categorical for each categorical variable
+
         self._categorical_variables = {
             name: {'categorical': pd.Categorical(data[name])} for name in cat
         }
@@ -164,19 +165,19 @@ class SPNModel(Model):
         condition_values = self._condition_values(remove)
         initial_indices = [self._initial_names_to_index[name] for name in remove]
 
-        test = self._condition.copy()
+        #test = self._condition.copy()
 
         #test = np.repeat(
-        #    np.nan,
-        #    self._initial_names_count
+        #   np.nan,
+        #   self._initial_names_count
         #).reshape(-1, self._initial_names_count).astype(float)
 
         counter = 0
         for i in range(len(remove)):
             if remove[i] in self._categorical_variables:
-                test[:, i] = self._categorical_variables[remove[i]]['name_to_int'][condition_values[i]]
+                self._condition[:, i] = self._categorical_variables[remove[i]]['name_to_int'][condition_values[i]]
             else:
-                test[:, i] = condition_values[i]
+                self._condition[:, i] = condition_values[i]
 
         # for i in range(len(condition_values)):
         #     self._condition[:, initial_indices[i]] = condition_values[i]
@@ -187,7 +188,7 @@ class SPNModel(Model):
 
 
         # self._spn = condition(self._spn, condition_values)
-        self._spn = condition(self._spn, test)
+        # self._spn = condition(self._spn, test)
 
         # Exchange named expressions of categorical variables to int
         # condition_values = [
@@ -276,15 +277,15 @@ class SPNModel(Model):
         xmax = None
         xlength = len(self.names)
 
-        n_samples = 4
+        n_samples = 10
         samples = self.data.sample(n_samples)
         numeric_samples = [ self._names_to_numeric(samples.iloc[i, :].tolist()) for i in range(samples.shape[0]) ]
-
-
         optima = [ scpo.minimize(fun, np.array(x), method='Nelder-Mead') for x in numeric_samples ]
 
         maxima = [ x['x'] for x in optima]
         values = [ x['fun'] for x in optima ]
+
+        #return max(maxima).tolist()
 
         x0 = np.random.rand(len(self.data.columns.values))
         xopt = scpo.minimize(fun, x0, method='Nelder-Mead')
@@ -300,6 +301,9 @@ class SPNModel(Model):
         result = result.tolist()
 
         names = self.names
+
+
+
         result = [ self._numeric_to_names(l) for l in result ]
         return result
 
@@ -317,3 +321,26 @@ class SPNModel(Model):
         mycopy._categorical_variables = self._categorical_variables.copy()
         mycopy._initial_names_to_index = self._initial_names_to_index.copy()
         return mycopy
+
+
+if __name__ == "__main__":
+    #from sklearn.datasets import load_iris
+    #iris_data = load_iris()
+    import pandas as pd
+    import dill
+    iris_data = pd.read_csv('/home/leng_ch/git/lumen/datasets/mb_data/iris/iris.csv')
+    print(iris_data)
+    spn = SPNModel(name="spn_test", spn_type='spn')
+    import spn.structure.leaves.parametric.Parametric as spn_parameter_types
+    var_types = {
+        'sepal_length': spn_parameter_types.Gaussian,
+        'sepal_width': spn_parameter_types.Gaussian,
+        'petal_length': spn_parameter_types.Gaussian,
+        'petal_width': spn_parameter_types.Gaussian,
+        'species': spn_parameter_types.Categorical}
+    spn.fit(df=pd.DataFrame(iris_data), var_types=var_types)
+
+    spn.save('/home/leng_ch/git/lumen/fitted_models')
+
+    with open("/home/leng_ch/git/lumen/fitted_models/spn_test.mdl", "rb") as f:
+        test_model = dill.load(f)
