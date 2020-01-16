@@ -47,7 +47,7 @@ class SPNModel(Model):
         super().__init__(name)
         self._spn_type = spn_type
         self._aggrMethods = {
-            'maximum': self._maximum,  #TODO use maximum
+            'maximum': self._maximum,  # TODO use maximum
             'expectation': self._expectation
         }
         self._unbound_updater = functools.partial(self.__class__._update, self)
@@ -163,41 +163,13 @@ class SPNModel(Model):
     def _conditionout(self, keep, remove):
         self._conditioned = self._conditioned.union(remove)
         condition_values = self._condition_values(remove)
-        initial_indices = [self._initial_names_to_index[name] for name in remove]
 
-        #test = self._condition.copy()
-
-        #test = np.repeat(
-        #   np.nan,
-        #   self._initial_names_count
-        #).reshape(-1, self._initial_names_count).astype(float)
-
-        counter = 0
         for i in range(len(remove)):
             if remove[i] in self._categorical_variables:
                 self._condition[:, i] = self._categorical_variables[remove[i]]['name_to_int'][condition_values[i]]
             else:
                 self._condition[:, i] = condition_values[i]
 
-        # for i in range(len(condition_values)):
-        #     self._condition[:, initial_indices[i]] = condition_values[i]
-        #     #counter += 1
-
-        # for i in range(len(condition_values)):
-        #     test[:, initial_indices[i]] = condition_values[i]
-
-
-        # self._spn = condition(self._spn, condition_values)
-        # self._spn = condition(self._spn, test)
-
-        # Exchange named expressions of categorical variables to int
-        # condition_values = [
-        #     i if type(condition_values[i]) is not str
-        #     else self._categorical_variables[remove[i]]['name_to_int'][condition_values[i]]
-        #     for i in range(len(remove))
-        # ]
-
-        # old_indices = [self._initial_names_to_index[name] for name in remove]
         return self._unbound_updater,
 
     # A dedicated density function that does not convert the input to numerical arguments like _density
@@ -265,6 +237,7 @@ class SPNModel(Model):
             if self.names[i] in self._categorical_variables:
                 x[i] = self._categorical_variables[self.names[i]]['int_to_name'][round(x[i])]
         return x
+
     # Convert the categorical variables in the input list
     def _names_to_numeric(self, x: list):
         for i in range(len(x)):
@@ -274,37 +247,19 @@ class SPNModel(Model):
 
     def _maximum(self) -> list:
         fun = lambda x: -1 * self._opt_density(x)
-        xmax = None
-        xlength = len(self.names)
-
         n_samples = 10
         samples = self.data.sample(n_samples)
-        numeric_samples = [ self._names_to_numeric(samples.iloc[i, :].tolist()) for i in range(samples.shape[0]) ]
-        optima = [ scpo.minimize(fun, np.array(x), method='Nelder-Mead') for x in numeric_samples ]
-
-        maxima = [ x['x'] for x in optima]
-        values = [ x['fun'] for x in optima ]
-
-        #return max(maxima).tolist()
-
-        x0 = np.random.rand(len(self.data.columns.values))
-        xopt = scpo.minimize(fun, x0, method='Nelder-Mead')
-        res = self._numeric_to_names(list(xopt['x']))
-        return res
+        numeric_samples = [self._names_to_numeric(samples.iloc[i, :].tolist()) for i in range(samples.shape[0])]
+        optima = [scpo.minimize(fun, np.array(x), method='Nelder-Mead') for x in numeric_samples]
+        maxima = [x['x'] for x in optima]
+        return max(maxima).tolist()
 
     def _sample(self, n=1, random_state=RandomState(123)):
         placeholder = np.repeat(np.array(self._condition), n, axis=0)
         s = sample_instances(self._spn, placeholder, random_state)
-
         indices = [self._initial_names_to_index[name] for name in self.names]
         result = s[:, indices]
-        result = result.tolist()
-
-        names = self.names
-
-
-
-        result = [ self._numeric_to_names(l) for l in result ]
+        result = [self._numeric_to_names(l) for l in result.tolist()]
         return result
 
     def copy(self, name=None):
@@ -324,14 +279,16 @@ class SPNModel(Model):
 
 
 if __name__ == "__main__":
-    #from sklearn.datasets import load_iris
-    #iris_data = load_iris()
+    # from sklearn.datasets import load_iris
+    # iris_data = load_iris()
     import pandas as pd
     import dill
+
     iris_data = pd.read_csv('/home/leng_ch/git/lumen/datasets/mb_data/iris/iris.csv')
     print(iris_data)
     spn = SPNModel(name="spn_test", spn_type='spn')
     import spn.structure.leaves.parametric.Parametric as spn_parameter_types
+
     var_types = {
         'sepal_length': spn_parameter_types.Gaussian,
         'sepal_width': spn_parameter_types.Gaussian,
