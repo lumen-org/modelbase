@@ -363,11 +363,9 @@ class ModelBase:
                 raise ValueError("invalid value for parameter 'TEST_QUANTITY': '{}'".format(test_quantity))
             test_quantity_fct = ppc.TestQuantities[test_quantity]
 
-
-
             # TODO: issue #XX: it is a questionable design decision: is it a good idea to marginalize a model
             #  just to create marginal samples? e.g. for cg models it should be faster to not marginalize but simply
-            #  throw uneeded attributes from the  samples.
+            #  throw not needed attributes from the samples.
             marginal_model = base_model.copy().marginalize(keep=var_names)
             res = ppc.posterior_predictive_check(marginal_model, test_quantity_fct,
                                                  round(opts.get('k', None)), round(opts.get('n', None)))

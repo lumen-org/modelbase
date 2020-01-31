@@ -1,4 +1,26 @@
 import numpy as np
+from collections import Counter
+
+
+def most_frequent(lst):
+    """ Return the most frequent element in given list.
+    Taken from here: https://stackoverflow.com/questions/1518522/find-the-most-common-element-in-a-list
+    :param lst: A list-like object
+    :return:
+    """
+    data = Counter(lst)
+    return max(lst, key=data.get)
+
+
+def least_frequent(lst):
+    """ Return the least frequent element in given list.
+    Taken from here: https://stackoverflow.com/questions/1518522/find-the-most-common-element-in-a-list
+    :param lst: A list-like object
+    :return:
+    """
+    data = Counter(lst)
+    return min(lst, key=data.get)
+
 
 TestQuantities = {
     """ Map of string ids of test quantities to the respective methods."""
@@ -7,18 +29,25 @@ TestQuantities = {
     'variance': lambda x: np.var(x, axis=0),
     'min': lambda x: np.min(x, axis=0),
     'max': lambda x: np.max(x, axis=0),
+    'most_frequent': lambda x: np.apply_along_axis(most_frequent, axis=0, arr=x),
+    'least_frequent': lambda x: np.apply_along_axis(least_frequent, axis=0, arr=x)
 }
 
 
 def posterior_predictive_check(model, test_quantity_fct, k=None, n=None, reference_data=None):
-    """ Do a posterior predictive check.
+    """ Do a posterior predictive check. The specified test quantity will be used for all fields
+    of the model. The model is used to draw sufficiently many samples.
+
+    Note that these checks are all 'one-dimensional', meaning that the test quantities aggregate a
+    vector of values of a single attribute to a test quantity value.
 
     Args
         model: Model
             The model to use for the ppc.
         test_quantity_fct: callable, string
-            The test quantity to use. The test quantity function accept one or two dimensional arrays and compute the
-            value of each column of the data. See also TestQuantities for examples.
+            The test quantity to use. The test quantity function accepts one or two dimensional
+             arrays and computes the value of each column of the data. See also TestQuantities for
+              examples of such functions.
         k: int
             Number of samples to draw each round. If not set the size of training data of model is used.
         n: int
@@ -27,8 +56,9 @@ def posterior_predictive_check(model, test_quantity_fct, k=None, n=None, referen
             The reference data to compare to. If not set the models training data is used.
 
     Return: (np.array, np.array)
-        2-tuple of test quantity value for each field of the model, and np.array of test quantity value for the k sets
-        for each field of the model
+        2-tuple of test quantity value for each field of the model of the reference data,
+         and an np.array of test quantity value for the k sets for each field of the model for the
+         newly sampled data.
     """
     if model.dim == 0:
         raise ValueError("cannot do posterior predictive check on zero-dimensional model.")
