@@ -22,8 +22,8 @@ def least_frequent(lst):
     return min(lst, key=data.get)
 
 
+""" Map of string ids of test quantities to the respective methods."""
 TestQuantities = {
-    """ Map of string ids of test quantities to the respective methods."""
     'average': lambda x: np.average(x, axis=0),
     'median': lambda x: np.median(x, axis=0),
     'variance': lambda x: np.var(x, axis=0),
