@@ -5,8 +5,9 @@ Various utility functions
 @author: Philipp Lucas
 """
 
-import string
 import random
+import re
+import string
 from functools import wraps, reduce
 from numpy import matrix, ix_, isfinite, linalg
 from xarray import DataArray
@@ -81,7 +82,8 @@ def validate_opts(opts, allowed):
 
 
 def update_opts(current_opts, updates, allowed_opts=None):
-    """Updates dictionary current_opts using the dictionary updates. The updated dictionary is returned for chaining, but anyway changed inplace. If allowed_opts is specfified updates is checked to be valid options.
+    """Updates dictionary current_opts using the dictionary updates. The updated dictionary is returned for chaining,
+    but anyway changed inplace. If allowed_opts is specfified updates is checked to be valid options.
     See also validate_opts.
 
     Note: currently only categorical allowed_opts are supported.
@@ -396,3 +398,48 @@ def alignment_permutation(target, *source):
     return [p_base*~Permutation.from_sequence(seq) for seq in source]
 
 
+def validate_pp_graph(graph, model_fields=None):
+    # TODO: implement!
+    # it has all relevant keys
+
+    # all nodes of edges must be in nodes
+
+    # all enforced edges must be in graph
+
+    # none of the forbidden edges may be in the graph
+
+    # all node with enforced type must be in graph
+
+    if model_fields is not None:
+        # dtype enforcement is respected
+
+        # all fields are in nodes and vice versa
+        pass
+    pass
+
+
+def normalize_pp_graph (graph, model_fields=None):
+    """Normalizes it, by e.g. adding missing keys.
+    :param graph: A dict for a probabilistic program graph.
+    :return: The modfied graph.
+    """
+    # add any missing dict keys
+    if 'enforced_node_dtypes' not in graph:
+        graph['enforced_node_dtypes'] = {}
+    if 'enforced_edges' not in graph:
+        graph['enforced_edges'] = []
+    if 'forbidden_edges' not in graph:
+        graph['forbidden_edges'] = []
+
+    validate_pp_graph(graph, model_fields)
+
+    return graph
+
+
+def sorted_nicely(l):
+    """ Sort the given iterable in the way that humans expect.
+    Credits to: https://stackoverflow.com/questions/2669059/how-to-sort-alpha-numeric-set-in-python
+    """
+    convert = lambda text: int(text) if text.isdigit() else text
+    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+    return sorted(l, key = alphanum_key)

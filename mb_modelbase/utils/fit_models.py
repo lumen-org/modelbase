@@ -62,10 +62,9 @@ def make_empirical_model(modelname, output_directory, input_file=None, df=None):
 
     # save
     if output_directory is not None:
-        output_file = os.path.join(output_directory, modelname + ".mdl")
-        output_file = os.path.abspath(output_file)
-        model.save(output_file)
-        print("Saved model in file: \n{}".format(output_file))
+        output_path = os.path.abspath(output_directory)
+        filepath = model.save(output_path)
+        print("Saved model in file: \n{}".format(filepath))
 
     return model
 

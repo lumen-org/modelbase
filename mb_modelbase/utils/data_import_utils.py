@@ -12,24 +12,21 @@ logger.setLevel(logging.DEBUG)
 """ Utility functions for data import. """
 
 
-def split_training_test_data(df):
+def split_training_test_data(df, enabled=True):
     """Split data frame `df` into two parts and return them as a 2-tuple.
 
     The first returned data frame will contain 5% of the data, but not less than 25 item and not more than 50 items,
     and not more than 50% items.
     """
-    # n = df.shape[0]
-
-    # select training and test data
-    # limit = int(min(max(n * 0.05, 25), 50, n))  # 5% of the data, but not less than 25 and not more than 50, and not more than 50% test
-    # if limit > n / 2:
-    #     limit = n // 2
-
-    # test_data = df.iloc[:limit, :]
-    # data = df.iloc[limit:, :]
-    data = df
-    test_data = pd.DataFrame(columns=df.columns)
-
+    if enabled:
+        # select training and test data
+        n = df.shape[0]
+        limit = int(min(n * 0.10, 250, n*0.50))  # 10% of the data, but not more than 250 or 50%
+        test_data = df.iloc[:limit, :]
+        data = df.iloc[limit:, :]
+    else:
+        test_data = pd.DataFrame(columns=df.columns)
+        data = df
     return test_data, data
 
 
@@ -106,20 +103,21 @@ def get_discrete_fields(df, colnames):
         column = df[colname]
         domain = dm.DiscreteDomain()
         extent = dm.DiscreteDomain(sorted(column.unique()))
-        field = Field(colname, domain, extent, 'string')
+        field = Field(colname, domain, extent, False, 'string', 'observed')
         fields.append(field)
     return fields
 
 
 def get_numerical_fields(df, colnames):
     """Returns numerical fields constructed from the columns in colname of dataframe df.
-    This assumes colnames only contains names of numerical columns of df."""
+    This assumes colnames only contains names of numerical columns of df. Also, since fields are constructed from
+    a data frame the variables are assumes to be 'observed' and not latent."""
     fields = []
     for colname in colnames:
         column = df[colname]
         mi, ma = column.min(), column.max()
         d = (ma - mi) * 0.1
-        field = Field(colname, dm.NumericDomain(), dm.NumericDomain(mi - d, ma + d), 'numerical')
+        field = Field(colname, dm.NumericDomain(), dm.NumericDomain(mi - d, ma + d), False, 'numerical', 'observed')
         fields.append(field)
     return fields
 
@@ -133,3 +131,35 @@ def to_category_cols(df, colnames):
         # .cat.codes access the integer codes that encode the actual categorical values. Here, however, we want such integer values.
         df[c] = df[c].astype('category').cat.codes
     return df
+
+
+def to_string_cols(df, columns=None, inplace=False):
+    """Replace columns with their string representation.
+    :param df: pd.DataFrame
+        The data frame to work on
+    :param inpace: boolean, optional. Defaults to False.
+        Modifies df instead of returning a copy of it
+    :param columns: list of strings, optional. Defaults to df.columns.
+    :return:
+    """
+    if columns is None:
+        columns = df.columns
+    if not inplace:
+        df = df.copy()
+    df.loc[:, columns] = df.loc[:,columns].applymap(str)
+    return df
+
+
+def to_binned_stringed_series(series, bins):
+    """Bin numerical column into equidistant bins.
+    :param series: pd.Series
+        The series to bin
+    :param bins: int > 0
+    """
+
+    return pd.cut(series, bins=bins, precision=2).apply(str)
+
+
+if __name__ == '__main__':
+    series = pd.Series(list(range(10)))
+    print(to_binneded_string_series(series, bins=3))

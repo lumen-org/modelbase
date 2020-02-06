@@ -8,6 +8,8 @@ Data preprocessing and cleansing for the iris data set
 import pandas as pd
 import os
 
+from mb_modelbase.models_core import MixableCondGaussianModel
+
 _csvfilepath = os.path.splitext(__file__)[0] + ".csv"
 _csvfilepath_disc = os.path.splitext(__file__)[0] + "_discretized.csv"
 
@@ -29,6 +31,10 @@ def discretized(filepath=_csvfilepath_disc):
     df = pd.read_csv(filepath)
     df['species'] = df['species'].astype('category')
     return df
+
+
+def mcg_map_model():
+    return MixableCondGaussianModel("TestMod").fit(df=mixed(), fit_algo="map")
 
 
 if __name__ == '__main__':

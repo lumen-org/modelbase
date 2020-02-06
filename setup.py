@@ -14,17 +14,20 @@ setup(name='mb_modelbase',
           'numpy',
           'pandas>=0.24',
           'scikit-learn',
-          'scipy',
+          'scipy==1.2',  # see issue #84
           'flask',
           'flask-cors',
           'graphviz',
           'multiprocessing_on_dill',
           'pyopenssl',
-          'spflow',
+          'spflow>=0.0.39',
+          'pymc3',
           'pyopenssl',
           'sympy',
-            'pymemcache',
-          'dill'
+          'dill',
+          'pymemcache',
+          'watchdog',
+          'flask-socketio'
       ],
       zip_safe=False)
 
