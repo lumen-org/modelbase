@@ -10,10 +10,10 @@ class CacheBase(abc.ABC):
     def get(self, key, default=None):
         model = self._get(key, default)
         if model == default:
-            print("CACHE MISS!")
+            # print("CACHE MISS!")
             return model
         else:
-            print("CACHE HIT!")
+            #print("CACHE HIT!")
             return dill.loads(model)
 
     @abc.abstractmethod
