@@ -20,7 +20,7 @@ from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import models_predict
 from mb_modelbase.models_core import model_watchdog
 
-import mb_modelbase.cache.cache as mc
+from mb_modelbase import DictCache
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -149,7 +149,7 @@ class ModelBase:
             .float_format : The float format used to encode floats in a result. Defaults to '%.5f'
     """
 
-    def __init__(self, name, model_dir='data_models', load_all=True, cache=mc.DictCache(), watchdog=True):
+    def __init__(self, name, model_dir='data_models', load_all=True, cache=DictCache(), watchdog=True):
         """ Creates a new instance and loads models from some directory. """
 
         self.name = name
@@ -271,7 +271,7 @@ class ModelBase:
         return list(self.models.keys())
 
     def execute(self, query):
-        #print(query)
+        logger.info(json.dumps(query))
         """ Executes the given PQL query and returns the result as JSON (or None).
 
         Args:
