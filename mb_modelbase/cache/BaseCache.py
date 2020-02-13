@@ -1,6 +1,10 @@
 import abc
 import dill
 
+def computeKey(name, model, where):
+    # Use naive key for testing
+    return (str(name) + ':' + str(model).strip('[]') + ':' + str(where).strip('[]')).replace(' ', '')
+
 class BaseCache(abc.ABC):
     def get(self, key, default=None):
         model = self._get(key, default)

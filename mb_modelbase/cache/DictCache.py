@@ -1,4 +1,4 @@
-from mb_modelbase import BaseCache
+from mb_modelbase.cache import BaseCache
 
 class DictCache(BaseCache):
     def __init__(self):
