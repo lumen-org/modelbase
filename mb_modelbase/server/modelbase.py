@@ -10,6 +10,7 @@ import logging
 from functools import reduce
 from pathlib import Path
 import os
+import time
 
 import dill
 import numpy
@@ -19,8 +20,8 @@ from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import models_predict
 from mb_modelbase.models_core import model_watchdog
-
-from mb_modelbase import DictCache
+from mb_modelbase.cache import computeKey
+from mb_modelbase.cache import DictCache
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -271,7 +272,15 @@ class ModelBase:
         return list(self.models.keys())
 
     def execute(self, query):
-        logger.info(json.dumps(query))
+        queryLogName = os.path.expanduser("~/git/lumen/modelbase/mb_modelbase/utils/benchmark/interactions/interaction") + \
+                       time.strftime("%b:%d:%Y_%H", time.gmtime(time.time())) + ".log"
+
+        if not "SHOW" in query.keys():
+            with open(queryLogName, "a") as f:
+                f.write(json.dumps(query) + '\n')
+                logger.info(json.dumps(query))
+
+
         """ Executes the given PQL query and returns the result as JSON (or None).
 
         Args:
@@ -296,7 +305,7 @@ class ModelBase:
         if 'MODEL' in query:
             base = self._extractFrom(query)
 
-            key = mc.key(
+            key = computeKey(
                 name=query["AS"],
                 model=self._extractModel(query),
                 where=self._extractWhere(query)
