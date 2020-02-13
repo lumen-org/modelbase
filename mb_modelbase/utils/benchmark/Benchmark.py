@@ -12,10 +12,10 @@ class Benchmark(abc.ABC):
             @param instance a modelbase object
         """
 
-    def preStart(self, data=None):
+    def preStart(self):
         pass
 
-    def postRun(self, data=None):
+    def postRun(self):
         pass
 
     def run(self, instance) -> float:
