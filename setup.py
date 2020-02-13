@@ -15,7 +15,7 @@ setup(name='mb_modelbase',
           'pandas>=0.24',
           'scikit-learn',
           'scipy==1.2',  # see issue #84
-          'flask',
+          'flask>=1.1.1',
           'flask-cors',
           'graphviz',
           'multiprocessing_on_dill',
