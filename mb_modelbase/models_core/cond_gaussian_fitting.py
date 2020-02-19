@@ -23,7 +23,6 @@ from cgmodsel.dataops import get_meta_data, prepare_cat_data
 
 ### model selection methods
 
-
 def fit_pairwise_canonical(df):
     pass
 
@@ -37,9 +36,9 @@ def fit_clz_mean(df):
     """
 
     meta = get_meta_data(df)
-    cont_data = df.as_matrix(meta['contnames'])
+    cont_data = df[meta['contnames']].values
 #    means, sigmas = standardize_continuous_data(cont_data) # required to avoid exp overflow
-    cat_data = prepare_cat_data(df[meta['catnames']], meta, cattype = 'dummy')  \
+    cat_data = prepare_cat_data(df[meta['catnames']], meta, cattype = 'dummy')
     # transform discrete variables to indicator data
     data = cat_data, cont_data
     
@@ -47,8 +46,8 @@ def fit_clz_mean(df):
     solver.drop_data(data, meta)  # set training data
     solver.set_regularization_params(0.2) # TODO(franknu): externalize
 
-    # solve it attribute .x contains the solution parameter vector.
-    res = solver.solve_sparse(verb=1, innercallback=solver.nocallback)
+    # solve...  attribute .x contains the solution parameter vector
+    res = solver.solve_sparse(verb=0, innercallback=solver.nocallback)
     clz_model_params = solver.get_canonicalparams(res.x)
     
     is_valid = clz_model_params.is_valid()
