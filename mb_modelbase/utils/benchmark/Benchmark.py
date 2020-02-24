@@ -20,9 +20,9 @@ class Benchmark(abc.ABC):
 
     def run(self, instance) -> float:
         self.preStart()
-        start = time.time()
+        start = time.process_time()
         self._run(instance=instance)
-        end = time.time()
+        end = time.process_time()
         t = end - start
         if self.n > 1:
             t /= self.n
