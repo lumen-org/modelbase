@@ -5,6 +5,7 @@ import time
 import pandas as pd
 import sys
 import os
+from pympler import asizeof
 
 if __name__ == "__main__":
     cache = DictCache()
@@ -29,7 +30,7 @@ if __name__ == "__main__":
             'model': [m.name for m in models()],
             'withData': [b.run(m)for m in withData],
             'withoutData': [b.run(m) for m in withoutData],
-            'dataSize': [sys.getsizeof(m.data) for m in withData]
+            'dataSize': [asizeof.asizeof(m) for m in withData]
             #'withoutDataSize': [sys.getsizeof(m.data) for m in withoutData]
         }
     )
