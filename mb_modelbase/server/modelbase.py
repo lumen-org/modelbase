@@ -272,7 +272,8 @@ class ModelBase:
         return list(self.models.keys())
 
     def execute(self, query):
-        queryLogName = os.path.expanduser("~/git/lumen/modelbase/mb_modelbase/utils/benchmark/interactions/interaction") + \
+        path = ""
+        queryLogName = "interaction" + \
                        time.strftime("%b:%d:%Y_%H", time.gmtime(time.time())) + ".log"
 
         if not "SHOW" in query.keys():
