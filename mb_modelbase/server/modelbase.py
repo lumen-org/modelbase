@@ -347,9 +347,15 @@ class ModelBase:
                 if len(aggr_idx) > 0:
                     resultframe.iloc[:, aggr_idx] = resultframe.iloc[:, aggr_idx] - resultframe2.iloc[:, aggr_idx]
 
-            return _json_dumps({"header": resultframe.columns.tolist(),
-                                "data": resultframe.to_csv(index=False, header=False,
-                                                           float_format=self.settings['float_format'])})
+            resultframe_csv = resultframe.to_csv(index=False, header=False,
+                                                 float_format=self.settings['float_format'])
+
+            #f = open("results.txt", "w+")
+            #f.write(resultframe_csv)
+            #f.write('\n\n')
+            #f.close()
+
+            return _json_dumps({"header": resultframe.columns.tolist(), "data": resultframe_csv})
 
         elif 'PPC' in query:  # posterior predictive checks
             var_names = self._extractVariables(query,keyword='PPC')
