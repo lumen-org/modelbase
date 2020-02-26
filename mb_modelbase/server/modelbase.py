@@ -368,8 +368,6 @@ class ModelBase:
 
             if self.cache is not None:
                 resultframe = self.cache.get(key)
-                if resultframe is not None:
-                    print("found smth")
 
             if resultframe is None:
                 resultframe = base.predict(
