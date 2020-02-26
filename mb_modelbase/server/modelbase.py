@@ -20,7 +20,8 @@ from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import models_predict
 from mb_modelbase.models_core import model_watchdog
-from mb_modelbase.cache import computeKey
+from mb_modelbase.cache import modelKey
+from mb_modelbase.cache import predictKey
 from mb_modelbase.cache import DictCache
 
 logger = logging.getLogger(__name__)
@@ -281,7 +282,6 @@ class ModelBase:
                 f.write(json.dumps(query) + '\n')
                 logger.info(json.dumps(query))
 
-
         """ Executes the given PQL query and returns the result as JSON (or None).
 
         Args:
@@ -306,7 +306,7 @@ class ModelBase:
         if 'MODEL' in query:
             base = self._extractFrom(query)
 
-            key = computeKey(
+            key = modelKey(
                 name=query["AS"],
                 model=self._extractModel(query),
                 where=self._extractWhere(query)
@@ -331,8 +331,8 @@ class ModelBase:
                     self.cache.set(key, derived_model)
             else:
                 derived_model.set_default_value(self._extractDefaultValue(query)) \
-            .set_default_subset(self._extractDefaultSubset(query)) \
-            .hide(self._extractHide(query))
+                    .set_default_subset(self._extractDefaultSubset(query)) \
+                    .hide(self._extractHide(query))
 
             # add to modelbase
             self.add(derived_model, query["AS"])
@@ -357,12 +357,29 @@ class ModelBase:
             where_stmnt = self._extractWhere(query)
             splitby_stmnt = self._extractSplitBy(query)
 
-            resultframe = base.predict(
-                predict=predict_stmnt,
-                where=where_stmnt,
-                splitby=splitby_stmnt,
-                **self._extractOpts(query)
+            key = predictKey(
+                base=base,
+                predict_stmnt=predict_stmnt,
+                where_stmnt=where_stmnt,
+                splitby_stmnt=splitby_stmnt
             )
+
+            resultframe = None
+
+            if self.cache is not None:
+                resultframe = self.cache.get(key)
+                if resultframe is not None:
+                    print("found smth")
+
+            if resultframe is None:
+                resultframe = base.predict(
+                    predict=predict_stmnt,
+                    where=where_stmnt,
+                    splitby=splitby_stmnt,
+                    **self._extractOpts(query)
+                )
+                if self.cache is not None:
+                    self.cache.set(key,resultframe)
 
             # TODO: is this working?
             if 'DIFFERENCE_TO' in query:  # query['DIFFERENCE_TO'] = 'mcg_iris_map'
