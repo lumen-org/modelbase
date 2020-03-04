@@ -26,16 +26,19 @@ if __name__ == '__main__':
     #     cache=mc.MemcachedCache())
 
     bases = [
-        no_cache,
+        #no_cache,
         dict_cache
     ]
+
+    for m in dict_cache.models.values():
+        m.parallel_processing = False
 
     benchmarks = [
         ModelbaseActivityfileBenchmark
     ]
 
     df = pd.DataFrame({
-        base.name: [benchmark(os.path.expanduser('~/git/lumen/modelbase/mb_modelbase/utils/benchmark/interactions/interactionFeb:10:2020_13.log')).run(base) for benchmark in benchmarks] for base in bases
+        base.name: [benchmark('interactionPhilippMod.log').run(base) for benchmark in benchmarks] for base in bases
     })
 
     df.to_csv(os.path.expanduser("~/git/lumen_caching/data/modelbaseCache_" + time.strftime("%b:%d:%Y_%H:%M:%S", time.gmtime(time.time())) + ".csv"))
