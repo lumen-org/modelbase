@@ -20,8 +20,8 @@ from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import models_predict
 from mb_modelbase.models_core import model_watchdog
-from mb_modelbase.cache import modelKey
-from mb_modelbase.cache import predictKey
+from mb_modelbase.cache import model_key
+from mb_modelbase.cache import predict_key
 from mb_modelbase.cache import DictCache
 
 logger = logging.getLogger(__name__)
@@ -151,7 +151,7 @@ class ModelBase:
             .float_format : The float format used to encode floats in a result. Defaults to '%.5f'
     """
 
-    def __init__(self, name, model_dir='data_models', load_all=True, cache=DictCache(), watchdog=True):
+    def __init__(self, name, model_dir='data_models', load_all=True, cache=None, watchdog=True):
         """ Creates a new instance and loads models from some directory. """
 
         self.name = name
@@ -306,7 +306,7 @@ class ModelBase:
         if 'MODEL' in query:
             base = self._extractFrom(query)
 
-            key = modelKey(
+            key = model_key(
                 name=query["AS"],
                 model=self._extractModel(query),
                 where=self._extractWhere(query)
@@ -357,7 +357,7 @@ class ModelBase:
             where_stmnt = self._extractWhere(query)
             splitby_stmnt = self._extractSplitBy(query)
 
-            key = predictKey(
+            key = predict_key(
                 base=base,
                 predict_stmnt=predict_stmnt,
                 where_stmnt=where_stmnt,

@@ -1,21 +1,45 @@
 import abc
 import dill
+from typing import List
 
-def modelKey(name, model, where) -> str:
-    # Use naive key for testing
+
+def model_key(name: str, model: List[str], where: List[str]) -> str:
+    """Compute a key for a given model"""
     return (str(name) + ':' + str(model).strip('[]') + ':' + str(where).strip('[]')).replace(' ', '')
 
-def predictKey(base, predict_stmnt, where_stmnt, splitby_stmnt) -> str:
+
+def predict_key(base, predict_stmnt: List[str], where_stmnt, splitby_stmnt) -> str:
+    """Compute a key for a given prediction query"""
     return str(base) + str(predict_stmnt) + str(where_stmnt) + str(splitby_stmnt)
 
+
 class BaseCache(abc.ABC):
-    def __init__(self,serialize=False):
+    """
+    Abstract baseclass for modelbase caches
+
+    Override function _get and _set to use various storage backends
+
+    Attributes:
+        _serialize (bool): sets if payload gets serialized before storage
+
+    """
+
+    def __init__(self, serialize=False):
         self._serialize = serialize
 
     def get(self, key, default=None):
+        """
+        Searches stored object for a given key, returns object or default
+
+
+        :param key: A representation of the object for unique identification
+        :param default: A default return value if key is not found.
+        :return: default if key is not found, else the payload stored for key
+        """
+        # Check if storage has object for key
         data = self._get(key)
+        # If nothing is found return the default value
         if data is None:
-            # Make sure the default is return if key is not in Cache
             return default
         else:
             if self._serialize:
@@ -25,18 +49,32 @@ class BaseCache(abc.ABC):
 
     @abc.abstractmethod
     def _get(self, key):
-        """ Check if cache has key, return item for key or None """
+        """
+        Abstract function to query cache for objects
 
-    def set(self, key, model):
+        :param key: A representation of the object for unique identification
+        :return: object loaded from the storage backend
+        """
+
+    def set(self, key, data):
+        """
+        Save data in the storage backend referenced by key
+
+        :param key: A representation of the object for unique identification
+        :param data: Data to be associated with key and stored in the storage Backend
+        """
+        # If cache is set to serialize, process data with dill
         if self._serialize:
-            self._set(key, dill.dumps(model))
+            self._set(key, dill.dumps(data))
         else:
-            self._set(key, model)
+            self._set(key, data)
 
     @abc.abstractmethod
-    def _set(self, key, value):
-        """ store value with key """
+    def _set(self, key, data):
+        """
+        Abstract function to store values in the storage backend referenced by the key
 
-    @abc.abstractmethod
-    def keys(self):
-        """ Get all known keys """
+        :param key: A representation of the object for unique identification
+        :param data: Data to be associated with key and stored in the storage Backend
+        :return:
+        """
