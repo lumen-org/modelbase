@@ -26,7 +26,7 @@ if __name__ == '__main__':
     #     cache=mc.MemcachedCache())
 
     bases = [
-        #no_cache,
+        no_cache,
         dict_cache
     ]
 
@@ -41,7 +41,7 @@ if __name__ == '__main__':
         base.name: [benchmark('interactionPhilippMod.log').run(base) for benchmark in benchmarks] for base in bases
     })
 
-    df.to_csv(os.path.expanduser("~/git/lumen_caching/data/modelbaseCache_" + time.strftime("%b:%d:%Y_%H:%M:%S", time.gmtime(time.time())) + ".csv"))
+    # df.to_csv(os.path.expanduser("~/git/lumen_caching/data/modelbaseCache_" + time.strftime("%b:%d:%Y_%H:%M:%S", time.gmtime(time.time())) + ".csv"))
 
 
 
