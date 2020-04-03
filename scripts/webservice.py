@@ -16,15 +16,6 @@ from mb_modelbase.server import modelbase as mbase
 #     print("running in debug mode!")
 #     import mb_modelbase.models_core.models_debug
 
-app = Flask(__name__, static_url_path='/static/')
-# adds socket listener to Flask app
-socketio = SocketIO(app)
-
-flask_logger = logging.getLogger('werkzeug')
-flask_logger.setLevel(logging.ERROR)
-
-logger = None  # create module variable
-
 def add_path_of_file_to_python_path():
     """Add the absolute path of __file__ to the python search path."""
     import os
@@ -32,11 +23,10 @@ def add_path_of_file_to_python_path():
     import sys
     sys.path.insert(0, path)
 
-
 # load config. user config overrides default config.
 add_path_of_file_to_python_path()
-from run_conf_defaults import cfg
 
+from run_conf_defaults import cfg
 try:
     from run_conf import cfg as user_cfg
 except ModuleNotFoundError:
@@ -44,6 +34,14 @@ except ModuleNotFoundError:
     pass
 else:
     cfg = utils.deep_update(cfg, user_cfg)
+
+app = Flask(__name__, static_url_path='/static/')
+socketio = SocketIO(app)  # adds socket listener to Flask app
+
+flask_logger = logging.getLogger('werkzeug')
+flask_logger.setLevel(logging.ERROR)
+
+logger = None  # create module variable
 
 
 def add_root_module():
