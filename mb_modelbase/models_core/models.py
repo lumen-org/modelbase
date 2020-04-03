@@ -1420,6 +1420,7 @@ class Model:
         mycopy.history = cp.deepcopy(self.history)
         mycopy.parallel_processing = self.parallel_processing
         mycopy.pci_graph = cp.deepcopy(self.pci_graph)
+        mycopy._empirical_model_name = self._empirical_model_name
         return mycopy
 
     def _condition_values(self, names=None, pairflag=False, to_scalar=True):
