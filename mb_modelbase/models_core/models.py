@@ -21,6 +21,7 @@ import warnings
 from itertools import compress
 
 from mb_modelbase.models_core import base
+from mb_modelbase.models_core import domains as dm
 from mb_modelbase.models_core.base import Condition, Split, Density
 from mb_modelbase.models_core.base import NAME_IDX, METHOD_IDX, YIELDS_IDX, ARGS_IDX, OP_IDX, VALUE_IDX
 from mb_modelbase.models_core import splitter as sp
@@ -613,6 +614,10 @@ class Model:
                 The pandas data frame that holds the data to fit the model to. You can also
                 previously set the data to fit to using the set_data method.
 
+            auto_extend: bool, optional. Defaults to True
+                If enabled the model will automatically derive a suitable extend for all its
+                numerical variables where it is has non-zero density.
+
         Raises:
             ValueError:
                 if no data is available to fit to and the models mode is different from 'data'
@@ -620,12 +625,11 @@ class Model:
         Returns:
             The modified, fitted model.
         """
-
         if 'empirical_model_name' in kwargs:
             self._empirical_model_name = kwargs['empirical_model_name']
 
         if df is not None:
-            return self.set_data(df, **kwargs).fit(**kwargs)
+            return self.set_data(df, **kwargs).fit(auto_extend=auto_extend, **kwargs)
 
         if self.data is None and self.mode != 'data':
             raise ValueError(
@@ -950,6 +954,38 @@ class Model:
         See also `Model.hide()`.
         """
         return self.hide(dims, False)
+
+    def set_category_order(self, dims, category_orders=None):
+        if dims is None:
+            dims = {}
+
+        # normalize to dict
+        if not isinstance(dims, dict):
+            if len(dims) != len(category_orders):
+                raise ValueError('dims and category_order are of different length')
+            dims = base.to_name_sequence(dims)  # normalize to sequence of dim names
+            dims = dict(zip(dims, category_orders))
+
+        if not self.isfieldname(dims.keys()):
+            raise ValueError("fields must be specified by their name and must be a field of this "
+                             "model")
+
+        for name, cat_order in dims.items():
+            field = self.byname(name)
+
+            if field['dtype'] != 'string':
+                raise ValueError(
+                    "Cannot set category order on non-categorical field {}".format(name))
+
+            if set(cat_order) != set(field['extent'].values()):
+                raise ValueError(
+                    "Values of category order do not match extent of field:\n"
+                    "values of field: {}\n"
+                    "values of new order: {}".format(field['extent'].values(), cat_order))
+
+            field['extent'] = dm.DiscreteDomain(cat_order)
+
+        return self
 
     def set_default_value(self, dims, values=None):
         """Sets default values for fields.

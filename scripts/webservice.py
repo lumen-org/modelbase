@@ -61,7 +61,7 @@ def add_modelbase_module():
 
     # start ModelBase
     logger.info("starting modelbase ... ")
-    mb = mbase.ModelBase(name=c['name'], model_dir=c['directory'])
+    mb = mbase.ModelBase(name=c['name'], model_dir=c['directory'], auto_load_models=c['auto_load_models'])
     logger.info("... done (starting modelbase).")
 
     @app.route(c['route'], methods=['GET', 'POST'])

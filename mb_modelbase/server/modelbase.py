@@ -150,18 +150,16 @@ class ModelBase:
             .float_format : The float format used to encode floats in a result. Defaults to '%.5f'
     """
 
-    def __init__(self, name, model_dir='data_models', load_all=True, cache=DictCache(), watchdog=True):
+    def __init__(self, name, model_dir='data_models', auto_load_models={}, load_all=True, cache=DictCache(), watchdog=True):
         """ Creates a new instance and loads models from some directory. """
 
         self.name = name
         self.models = {}  # models is a dictionary, using the name of a model as its key
         self.model_dir = model_dir
-
+        self.cache = cache
         self.settings = {
             'float_format': '%.8f',
         }
-
-        self.cache = cache
 
         # load some initial models to play with
         if load_all:
@@ -179,7 +177,7 @@ class ModelBase:
             modle_watch_observer = model_watchdog.ModelWatchObserver()
             try:
                 logger.info("Files under {} are watched for changes".format(self.model_dir))
-                modle_watch_observer.init_watchdog(self, self.model_dir)
+                modle_watch_observer.init_watchdog(self, self.model_dir, **auto_load_models)
             except Exception as err:
                 logger.exception("Watchdog failed!")
                 logger.exception(err)
