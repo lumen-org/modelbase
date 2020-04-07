@@ -18,7 +18,6 @@ import numpy
 
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
-#from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import models_predict
 from mb_modelbase.models_core import model_watchdog
 from mb_modelbase.cache import computeKey
@@ -185,9 +184,8 @@ class ModelBase:
             # init watchdog who oversees a given folder for new models
             self.model_watch_observer = model_watchdog.ModelWatchObserver()
             try:
-                self.model_watch_observer.init_watchdog(self, self.model_dir)
+                self.model_watch_observer.init_watchdog(self, self.model_dir, **auto_load_models)
                 logger.info("Files under {} are watched for changes".format(self.model_dir))
-                modle_watch_observer.init_watchdog(self, self.model_dir, **auto_load_models)
             except Exception as err:
                 logger.exception("Watchdog failed!")
                 logger.exception(err)
