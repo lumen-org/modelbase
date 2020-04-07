@@ -1,0 +1,3 @@
+[submodule "cgmodsel"]
+	path = cgmodsel
+	url = https://github.com/franknu/cgmodsel

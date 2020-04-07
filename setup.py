@@ -24,7 +24,8 @@ setup(name='mb_modelbase',
           'pymc3',
           'pyopenssl',
           'sympy',
-          'watchdog'
+          'watchdog',
+          'flask-socketio'
       ],
       zip_safe=False)
 
