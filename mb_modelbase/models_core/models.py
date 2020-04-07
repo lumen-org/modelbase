@@ -12,7 +12,7 @@ It also provides definitions of other essential data types, such as `Field`, `Ag
 import copy as cp
 import functools
 import operator
-import pickle as pickle
+import dill
 import numpy as np
 import pandas as pd
 import os
@@ -29,12 +29,11 @@ from mb_modelbase.utils import utils
 from mb_modelbase.utils import data_import_utils
 from mb_modelbase.models_core import data_aggregation
 from mb_modelbase.models_core import data_operations
-from mb_modelbase.models_core import pci_graph
+# from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import auto_extent
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
 
 """ Utility functions for converting models and parts / components of models to strings. """
 
@@ -388,6 +387,7 @@ class Model:
         self.history = {}
         self.parallel_processing = True
         self._empirical_model_name = None
+        self.pci_graph = None
 
     def _setempty(self):
         self._update_remove_fields()
@@ -439,7 +439,7 @@ class Model:
         """
         raise NotImplementedError("You have to implement the _set_model_params method in your model!")
 
-    def set_data(self, df, silently_drop=False, **kwargs):
+    def set_data(self, df, drop_silently=False, **kwargs):
         """Derives suitable, cleansed (and copied) data from df for a particular model, sets this as the models data
          and also sets up auxiliary data structures if necessary. This method is only concerned with the data part of
          the model and does not do any fitting of the model.
@@ -456,21 +456,23 @@ class Model:
 
         Args:
             df: a pandas data frame
-            silently_drop: If set to True any column of df that is not suitable for the model to be learned will silently be dropped. Otherwise this will raise a TypeError.
-
+            drop_silently: If set to True any column of df that is not suitable for the model to be learned will silently be dropped. Otherwise this will raise a TypeError.
+            kwargs:
         Returns:
             self
         """
         default_opts = {
             'pci_graph': False,
             # 'pci_graph': True,
-            'split_data': True
+            'split_data': True,
+            #'silently_drop': False,
         }
         valid_opts = {
             'pci_graph': [True, False],
-            'split_data':[True, False]
+            'split_data': [True, False],
+            #'silently_drop': [True, False]
         }
-        kwargs = utils.update_opts(kwargs, default_opts, valid_opts)
+        kwargs = utils.update_opts(default_opts, kwargs, valid_opts)
 
         # general clean up
         df = data_import_utils.clean_dataframe(df)
@@ -481,14 +483,15 @@ class Model:
             raise ValueError("Cannot fit to data frame with no columns.")
 
         # model specific clean up, setting of data, models fields, and possible more model specific stuff
-        callbacks = self._set_data(df, silently_drop, **kwargs)
+        callbacks = self._set_data(df, drop_silently=drop_silently, **kwargs)
 
         self.mode = 'data'
         self._update_all_field_derivatives()
         if callbacks is not None:
             [c() for c in callbacks]
 
-        self.pci_graph = pci_graph.create(self.data) if kwargs['pci_graph'] else None
+        # self.pci_graph = pci_graph.create(self.data) if kwargs['pci_graph'] else None
+        self.pci_graph = None
         return self
 
     def _init_history(self):
@@ -537,6 +540,7 @@ class Model:
             self.test_data, self.data = data_import_utils.split_training_test_data(df)
         else:
             self.data = df
+            self.test_data = pd.DataFrame(columns=self.data.columns)
         # derive and set fields
         self.fields = data_import_utils.get_discrete_fields(df, self._categoricals) + \
                       data_import_utils.get_numerical_fields(df, self._numericals)
@@ -593,6 +597,10 @@ class Model:
 
         return self
 
+    def _post_fitting_sanity_check(self):
+        assert len(self.names) == len(set(self.names)), "model has duplicate names in its fields"
+        assert self.test_data is not None, "test data is None"
+
     def fit(self, df=None, auto_extend=True, **kwargs):
         """Fit the model. The model is fit:
         * to the optionally passed DataFrame `df`,
@@ -626,17 +634,19 @@ class Model:
 
         try:
             callbacks = self._fit(**kwargs)
-
-            self.mode = "both"
-            # self._update_all_field_derivatives()
-            if callbacks is not None:
-                [c() for c in callbacks]
-
-            if auto_extend:
-                auto_extent.adopt_all_extents(self)
-
         except NameError:
             raise NotImplementedError("You have to implement the _fit method in your model!")
+
+        self.mode = "both"
+        # self._update_all_field_derivatives()
+        if callbacks is not None:
+            [c() for c in callbacks]
+
+        if auto_extend:
+            auto_extent.adopt_all_extents(self)
+
+        self._post_fitting_sanity_check()
+
         return self
 
     def marginalize(self, keep=None, remove=None):
@@ -743,10 +753,10 @@ class Model:
         if self.mode == 'both' or self.mode == 'data':
             # Note: we never need to copy data, since we never change data. creating views is enough
             # Set up an adjusted keep variable that only contains names of data dimensions
-            keep_data = [name for name in keep if name in self.data.columns]
-            self.data = self.data.loc[:, keep_data]
-            self.test_data = self.test_data.loc[:, keep]
-            self.sample_data = self.test_data.loc[:, keep]
+            for attr in ['data', 'test_data']:
+                df = getattr(self, attr)
+                keep_data = [name for name in keep if name in df.columns]
+                setattr(self, attr, df.loc[:, keep_data])
             if self.mode == 'data':
                 # need to call this, since it will not be called later in this particular case
                 self._update_remove_fields(remove)
@@ -841,12 +851,10 @@ class Model:
         # TODO: if conditions is a zip: how can it be reused a 2nd and 3rd time below!??
         # condition data
         if self.mode == 'data' or self.mode == 'both':
-            for condition in conditions:
-                #if condition.name in self.data.columns.tolist():
-                if condition[0] in self.data.columns.tolist():
-                        self.data = data_operations.condition_data(self.data, conditions)
+            columns = set(self.data.columns)
+            conditions = [c for c in conditions if c.name in columns]
+            self.data = data_operations.condition_data(self.data, conditions)
             self.test_data = data_operations.condition_data(self.test_data, conditions)
-
         self._update_extents(names)
         return self
 
@@ -1109,7 +1117,6 @@ class Model:
                 raise ValueError("Your model does not provide the requested aggregation: '" + method + "'")
             other_res = aggr_function()
 
-
             # 4. clamp to values within domain
             # TODO bug/mistake: should we really clamp?
             for (idx, field) in enumerate(model.fields):
@@ -1349,10 +1356,11 @@ class Model:
 
         # sum up density over all elements of the cartesian product of the categorical part of the event
         # TODO: generalize
-        assert (all(len(d) == 1 for d in cat_domains)), "did not implement the case where categorical domain has more than one element"
+        assert (all(len(d) == 1 for d in
+                    cat_domains)), "did not implement the case where categorical domain has more than one element"
         x = list([d[0] for d in cat_domains])
         return vol * self._density(x + y)
-        #return vol * self._density(list(cat_domains) + y)
+        # return vol * self._density(list(cat_domains) + y)
 
     def sample(self, n=1):
         """Returns n samples drawn from the model as a dataframe with suitable column names.
@@ -1412,6 +1420,7 @@ class Model:
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
         mycopy.parallel_processing = self.parallel_processing
+        mycopy.pci_graph = cp.deepcopy(self.pci_graph)
         return mycopy
 
     def _condition_values(self, names=None, pairflag=False, to_scalar=True):
@@ -1472,7 +1481,7 @@ class Model:
             filename = self._default_filename()
         path = os.path.join(dir, filename)
         with open(path, 'wb') as output:
-            pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+            dill.dump(self, output, dill.HIGHEST_PROTOCOL)
         return path
 
     @staticmethod
@@ -1490,7 +1499,7 @@ class Model:
         You can store a stored model using `Model.store()`.
         """
         with open(filename, 'rb') as input:
-            model = pickle.load(input)
+            model = dill.load(input)
             if not isinstance(model, Model):
                 raise TypeError('pickled input is not an instance of Model.')
             return model
@@ -1751,7 +1760,7 @@ class Model:
         aggrs, aggr_ids, aggr_input_names, aggr_dims, \
         predict_ids, predict_names, \
         split_names, name2split, \
-        partial_data, partial_data_names\
+        partial_data, partial_data_names \
             = models_predict.create_data_structures_for_clauses(self, predict, where, splitby, partial_data)
         # set of names of dimensions that we need values for in the input data frame
         input_names = aggr_input_names | set(split_names) | set(partial_data_names)
@@ -1786,12 +1795,12 @@ class Model:
 
             # query model
             if aggr_method == 'density' or aggr_method == 'probability':
-                aggr_df = models_predict.\
+                aggr_df = models_predict. \
                     aggregate_density_or_probability(aggr_model, aggr, partial_data, split_data, name2split, aggr_id)
             elif aggr_method == 'maximum' or aggr_method == 'average':  # it is some aggregation
                 # TODO: I believe all max/avg aggregations require the identical input data, because i always condition
                 #  on all input items --> reuse it. This is: generate input before and then pass it in
-                aggr_df = models_predict.\
+                aggr_df = models_predict. \
                     aggregate_maximum_or_average(aggr_model, aggr, partial_data, split_data, name2split, aggr_id)
             else:
                 raise ValueError("Invalid 'aggregation method': " + str(aggr_method))
@@ -1828,7 +1837,8 @@ class Model:
             # TODO: don't save them as data frames, just as a list of tuples (then I wouldnot need to create the tuples here)
             # TODO: apply reordering right away when the column is computed
             perms = utils.alignment_permutation(list(base_df.itertuples(index=False, name=None)),
-                                                *[list(r.iloc[:, :n].itertuples(index=False, name=None)) for r in result_list])
+                                                *[list(r.iloc[:, :n].itertuples(index=False, name=None)) for r in
+                                                  result_list])
 
             # apply permutations (to aggr results only)
             aggr_df = (res.iloc[perm.list(), n:] for perm, res in zip(perms, result_list))
@@ -1926,8 +1936,8 @@ class Model:
             else:
                 opts = utils.update_opts({'data_category': 'training data'}, kwargs)
                 if opts['data_category'] == 'training data':
-                    warnings.warn('at least one of ' + str(what) + ' is not a column label of the data.  '
-                        'There might be latent variables among' + str(what) + 'for which no data was observed.')
+                    warnings.warn('at least one of ' + str(what) + ' is not a column label of the data. There might be '
+                                  'latent variables among' + str(what) + 'for which no data was observed.')
                     # Remove labels from selection that are not in the data
                     what = list(compress(what, [element in self.data.columns for element in what]))
 

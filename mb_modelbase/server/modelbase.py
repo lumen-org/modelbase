@@ -7,14 +7,17 @@ The modelbase module primarily provides the ModelBase class.
 
 import json
 import logging
+import pathlib
 from functools import reduce
 from pathlib import Path
 import os
+
+import dill
 import numpy
 
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
-from mb_modelbase.models_core import pci_graph
+#from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import models_predict
 from mb_modelbase.models_core import model_watchdog
 
@@ -124,6 +127,11 @@ def PQL_parse_json(query):
     return query
 
 
+def check_if_dir_exists(model_dir):
+    if not pathlib.Path(model_dir).is_dir():
+        raise OSError('Path is not a directory')
+
+
 class ModelBase:
     """A ModelBase is the analogon of a DataBase(-Management System) for
     models: it holds models and allows PQL queries against them.
@@ -145,8 +153,10 @@ class ModelBase:
             .float_format : The float format used to encode floats in a result. Defaults to '%.5f'
     """
 
-    def __init__(self, name, model_dir='data_models', load_all=True):
+    def __init__(self, name, model_dir='data_models', load_all=True, watchdog=True):
         """ Creates a new instance and loads models from some directory. """
+
+        check_if_dir_exists(model_dir)
 
         self.name = name
         self.models = {}  # models is a dictionary, using the name of a model as its key
@@ -167,14 +177,16 @@ class ModelBase:
                 logger.info("Successfully loaded " + str(len(loaded_models)) + " models into the modelbase: ")
                 logger.info(str([model[0] for model in loaded_models]))
 
-        # init watchdog who oversees a given folder for new models
-        modle_watch_observer = model_watchdog.ModelWatchObserver()
-        try:
-            logger.info("Files under {} are watched for changes".format(self.model_dir))
-            modle_watch_observer.init_watchdog(self, self.model_dir)
-        except Exception as err:
-            logger.exception("Watchdog failed!")
-            logger.exception(err)
+        self.model_watch_observer = None
+        if watchdog:
+            # init watchdog who oversees a given folder for new models
+            self.model_watch_observer = model_watchdog.ModelWatchObserver()
+            try:
+                self.model_watch_observer.init_watchdog(self, self.model_dir)
+                logger.info("Files under {} are watched for changes".format(self.model_dir))
+            except Exception as err:
+                logger.exception("Watchdog failed!")
+                logger.exception(err)
 
     def __str__(self):
         return " -- Model Base > " + self.name + " < -- \n" + \
@@ -197,6 +209,8 @@ class ModelBase:
         if directory is None:
             directory = self.model_dir
 
+        check_if_dir_exists(directory)
+
         # iterate over matching files in directory (including any subdirectories)
         loaded_models = []
         filenames = Path(directory).glob('**/' + '*' + ext)
@@ -206,7 +220,6 @@ class ModelBase:
             try:
                 model = gm.Model.load(str(file))
             except TypeError as err:
-                print(str(err))
                 logger.warning('file "' + str(file) +
                                '" matches the naming pattern but does not contain a model instance. '
                                'I ignored that file')
@@ -372,14 +385,48 @@ class ModelBase:
 
         elif 'PCI_GRAPH.GET' in query:
             model = self._extractFrom(query)
-            graph = pci_graph.to_json(model.pci_graph) if model.pci_graph else False
+            #graph = pci_graph.to_json(model.pci_graph) if model.pci_graph else False
+            graph = False
             return _json_dumps({
                 'model': model.name,
                 'graph': graph
             })
 
+        elif 'PP_GRAPH.GET' in query:
+            model = self._extractFrom(query)
+            pp_graph = model.probabilistic_program_graph
+            graph = pp_graph if pp_graph else False
+            return _json_dumps({
+                'model': model.name,
+                'graph': graph
+            })
         else:
             raise QueryIncompleteError("Missing Statement-Type (e.g. DROP, PREDICT, SELECT)")
+
+    def upload_files(self, models):
+        """
+        saves given dill objects into the model-dir folder if they do not exist
+
+        :param models: list of dumped models
+        :return: "OK" if worked, else Error
+        """
+        model_list_saved = []
+        model_list_existing = []
+        for model in models:
+            try:
+                model = dill.loads(model)
+                if isinstance(model, gm.Model) and model.name not in self.models:
+                    model.save(self.model_dir)
+                    model_list_saved.append(model.name)
+                else:
+                    model_list_existing.append(model.name)
+            except Exception as e:
+                logger.exception(e)
+                return "Error with pickle"
+
+        logger.info("Models saved: {}".format(model_list_saved))
+        logger.info("Models ignored: {}".format(model_list_existing))
+        return "OK"
 
     ### _extract* functions are helpers to extract a certain part of a PQL query
     #   and do some basic syntax and semantic checks

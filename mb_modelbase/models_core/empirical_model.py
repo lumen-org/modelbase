@@ -22,7 +22,7 @@ class EmpiricalModel(Model):
         self._set_data_mixed(df, drop_silently)
         return ()
 
-    def _fit(self):
+    def _fit(self, **kwargs):
         """Fits the model to data of the model
         Returns:
             Empty tuple, since not callback is required.
@@ -45,7 +45,7 @@ class EmpiricalModel(Model):
     def _conditionout(self, keep, remove):
         """Conditions the random variables with name in remove on their available, //not unbounded// domain and marginalizes them out.
          """
-        # TODO: I believe this method will not required for this model class at all.
+        # TODO: I believe this method will not be required for this model class at all.
         # because it will not be part of the required abstract interface of a model class anymore
 
         # collect conditions
