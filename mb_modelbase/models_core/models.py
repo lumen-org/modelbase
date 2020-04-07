@@ -29,7 +29,7 @@ from mb_modelbase.utils import utils
 from mb_modelbase.utils import data_import_utils
 from mb_modelbase.models_core import data_aggregation
 from mb_modelbase.models_core import data_operations
-from mb_modelbase.models_core import pci_graph
+# from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import auto_extent
 
 logger = logging.getLogger(__name__)
@@ -490,7 +490,8 @@ class Model:
         if callbacks is not None:
             [c() for c in callbacks]
 
-        self.pci_graph = pci_graph.create(self.data) if kwargs['pci_graph'] else None
+        # self.pci_graph = pci_graph.create(self.data) if kwargs['pci_graph'] else None
+        self.pci_graph = None
         return self
 
     def _init_history(self):

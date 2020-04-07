@@ -1,0 +1,14 @@
+language: python
+git:
+  submodules: false
+os: linux
+install:
+  - pip install .
+  - pip install pytest-cov
+before_script:
+  - touch scripts/run_conf.py
+  - echo $RUN_CONFIG > scripts/run_conf.py
+script:
+  - python -m pytest --cov-report=xml --cov=mb_modelbase tests/
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
