@@ -13,23 +13,6 @@ import math
 
 
 ######################################
-# function template
-#####################################
-def create_example_model(modelname='my_name', fit=True):
-    if fit:
-        modelname = modelname+'_fitted'
-    ## Load data as pandas df
-    #data = pd.read_csv(...)
-    example_model = pm.Model()
-    ## Specify  your model
-    # with example_model:
-    # ...
-    m = ProbabilisticPymc3Model(modelname, example_model)
-    if fit:
-        m.fit(data)
-    return data, m
-
-######################################
 # pymc3_testcase_model
 #####################################
 def create_pymc3_simplest_model(modelname='pymc3_simplest_model', fit=True):
@@ -241,7 +224,6 @@ def create_pymc3_eight_schools_model(modelname='pymc3_eight_schools_model', fit=
 ######################################
 # getting_started_model_shape
 ######################################
-
 def create_getting_started_model_shape(modelname='pymc3_getting_started_model_shape', fit=True):
     if fit:
         modelname = modelname+'_fitted'
@@ -381,8 +363,6 @@ def create_flight_delay_model_3(filename='airlineDelayDataProcessed.csv', modeln
     if fit:
         m.fit(data)
     return data, m
-
-
 
 ######################################
 # allbus models

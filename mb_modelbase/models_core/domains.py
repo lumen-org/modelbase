@@ -1,6 +1,7 @@
 # Copyright (c) 2017-2019 Philipp Lucas (philipp.lucas@uni-jena.de, philipp.lucas@dlr.de)
 import math
 import logging
+from mb_modelbase import utils
 
 # TODO: is it better to use immutable tuples instead of mutable lists for the internal representation of domains?
 
@@ -13,7 +14,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
 
 class Domain:
 
@@ -181,6 +181,8 @@ class DiscreteDomain(Domain):
             # convert to array if its a single value
             val = args[0]
             self._value = [val] if isinstance(val, str) else val  # implicitely assumes that values can only be strings
+            # TODO: should we sort?
+            # self._value = [val] if isinstance(val, str) else utils.sorted_nicely(val)  # implicitely assumes that values can only be strings
         else:
             raise ValueError("Too many arguments given: " + str(args))
         self._validate()

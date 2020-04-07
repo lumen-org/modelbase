@@ -1,4 +1,5 @@
 # Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2019 Philipp Lucas (philipp.lucas@dlr.de)
 # Copyright (c) 2019 Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
 
 import pymc3 as pm
@@ -12,7 +13,10 @@ import theano
 import math
 
 from mb_modelbase.models_core.models import Model
+from mb_modelbase import utils
 from mb_modelbase.utils.data_import_utils import get_numerical_fields
+from mb_modelbase.models_core import data_operations as data_op
+from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 
 
 class ProbabilisticPymc3Model(Model):
@@ -45,26 +49,123 @@ class ProbabilisticPymc3Model(Model):
     theano shared variables and given to the wrapper class as a separate argument. Then it is possible to change their
     values again after the model was specified.
 
-    Parameters:
+        Parameters:
 
-        model_structure : a PyMC3 Model() instance
+            model_structure : a PyMC3 Model() instance
 
-        shared_vars : dictionary of theano shared variables
+            shared_vars : dictionary of theano shared variables
 
-            If the model has independent variables, they have to be encoded as theano shared variables and provided
-            in this dictionary, additional to the general dataframe containing all observed data. Watch out: It is
-            NOT guaranteed that shared_vars always holds the original independent variables, since they are changed
-            during the _fit()-method
+                If the model has independent variables, they have to be encoded as theano shared variables and provided
+                in this dictionary, additional to the general dataframe containing all observed data. Watch out: It is
+                NOT guaranteed that shared_vars always holds the original independent variables, since they are changed
+                during the _fit()-method
 
-        nr_of_posterior_samples: integer scalar specifying the number of posterior samples to be generated
+            nr_of_posterior_samples: integer scalar specifying the number of posterior samples to be generated
 
-        fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
+            fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
 
-            Some probabilistic models require a fixed length of the data. This is important because normally
-            new data points are generated with a different length than the original data
-    """
+                Some probabilistic models require a fixed length of the data. This is important because normally
+                new data points are generated with a different length than the original data
 
-    def __init__(self, name, model_structure, shared_vars=None, fixed_data_length=False):
+            data_mapping: dict or DataTypeMapper, optional. Defaults to the identify mapping.
+
+                The actual probabilistic modelling may require that you encode variables differently than you want to
+                expose them to the outside. E.g. a variable may be modelled as an integer value of 0 or 1 but actually
+                it represents the sex of a person ('male' or 'female'). Here you specify such mappings between the
+                original space and the modeling space.
+
+                Note that you must provide your training and test data in its original space representation with
+                .fit_data().
+
+            sampling_chains: int, optional. Defaults to 1.
+
+                See https://docs.pymc.io/api/inference.html and there the paramter chains of .sample()
+
+            sampling_cores: int, optional. Defaults to 1.
+
+                See https://docs.pymc.io/api/inference.html and there the paramter cores of .sample()
+
+            probabilistic_program_graph: dict, optional. Defaults to None.
+
+                The graph of the probabilistic program this model is based on. This only makes sense in the special
+                case where the PyMC3 program is derived automatically from a bayesian network. The graph represents
+                the data flow in the network, but also contains information about the user defined constrains that
+                were taken into account when learning the bayesian network. It is a dict organized as follows:
+
+                'nodes': list of strings.
+                    Name of every node of the graph. It includes all nodes, also the enforced ones below.
+
+                'edges': 2-tuple of strings
+                    Directed edges of the graph as pairs of nodes. It includes all edges, even the forbidden ones.
+
+                'enforced_node_dtypes': dict of <node name: dtype>, where dtype maybe 'numerical' or 'string'. Optional.
+
+                'enforced_edges': list of edges. Optional.
+
+                'forbidden_edges': list of edges. Optional.
+
+        """
+
+    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=1000, fixed_data_length=False,
+                 data_mapping=None, sampling_chains=1, sampling_cores=1, probabilistic_program_graph=None):
+        """Bayesian models built by the PyMC3 library
+
+        Parameters:
+
+            model_structure : a PyMC3 Model() instance
+
+            shared_vars : dictionary of theano shared variables
+
+                If the model has independent variables, they have to be encoded as theano shared variables and provided
+                in this dictionary, additional to the general dataframe containing all observed data. Watch out: It is
+                NOT guaranteed that shared_vars always holds the original independent variables, since they are changed
+                during the _fit()-method
+
+            nr_of_posterior_samples: integer scalar specifying the number of posterior samples to be generated
+
+            fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
+
+                Some probabilistic models require a fixed length of the data. This is important because normally
+                new data points are generated with a different length than the original data
+
+            data_mapping: dict or DataTypeMapper, optional. Defaults to the identify mapping.
+
+                The actual probabilistic modelling may require that you encode variables differently than you want to
+                expose them to the outside. E.g. a variable may be modelled as an integer value of 0 or 1 but actually
+                it represents the sex of a person ('male' or 'female'). Here you specify such mappings between the
+                original space and the modeling space.
+
+                Note that you must provide your training and test data in its original space representation with
+                .fit_data().
+
+            sampling_chains: int, optional. Defaults to 1.
+
+                See https://docs.pymc.io/api/inference.html and there the paramter chains of .sample()
+
+            sampling_cores: int, optional. Defaults to 1.
+
+                See https://docs.pymc.io/api/inference.html and there the paramter cores of .sample()
+
+            probabilistic_program_graph: dict, optional. Defaults to None.
+
+                The graph of the probabilistic program this model is based on. This only makes sense in the special
+                case where the PyMC3 program is derived automatically from a bayesian network. The graph represents
+                the data flow in the network, but also contains information about the user defined constrains that
+                were taken into account when learning the bayesian network. It is a dict organized as follows:
+
+                'nodes': list of strings.
+                    Name of every node of the graph. It includes all nodes, also the enforced ones below.
+
+                'edges': 2-tuple of strings
+                    Directed edges of the graph as pairs of nodes. It includes all edges, even the forbidden ones.
+
+                'enforced_node_dtypes': dict of <node name: dtype>, where dtype maybe 'numerical' or 'string'. Optional.
+
+                'enforced_edges': list of edges. Optional.
+
+                'forbidden_edges': list of edges. Optional.
+
+        """
         super().__init__(name)
         self.model_structure = model_structure
         self.samples = pd.DataFrame()
@@ -72,11 +173,27 @@ class ProbabilisticPymc3Model(Model):
             'maximum': self._maximum
         }
         self.parallel_processing = False
+        self.sampling_chains = sampling_chains
+        self.sampling_cores = sampling_cores
         self.nr_of_posterior_samples = None
         self.shared_vars = shared_vars
+        self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
 
+        if data_mapping is None:
+            data_mapping = {}
+        if type(data_mapping) is DataTypeMapper:
+            self._data_type_mapper = data_mapping
+        elif type(data_mapping) is dict:
+            self._data_type_mapper = DataTypeMapper()
+            for name, forward_mapping in data_mapping.items():
+                self._data_type_mapper.set_map(name, forward_mapping, backward='auto')
 
+        if probabilistic_program_graph:
+            utils.normalize_pp_graph(probabilistic_program_graph)
+        self.probabilistic_program_graph = probabilistic_program_graph
+
+        self._update_samples_model_representation()
 
     def _set_data(self, df, drop_silently, **kwargs):
         assert df.index.is_monotonic, 'The data is not sorted by index. Please sort data by index and try again'
@@ -94,7 +211,7 @@ class ProbabilisticPymc3Model(Model):
         self._update_all_field_derivatives()
         # Enforce usage of theano shared variables for independent variables
         # Independent variables are those variables which appear in the data but not in the RVs of the model structure
-        model_vars = [str(name) for name in self.model_structure.observed_RVs]
+        model_vars = [str(name) for name in self.model_structure.basic_RVs]
         ind_vars = [varname for varname in self.data.columns.values if varname not in model_vars]
         # When there are no shared variables, there should be no independent variables. Otherwise, raise an error
         if not self.shared_vars:
@@ -116,18 +233,33 @@ class ProbabilisticPymc3Model(Model):
         # Set number of samples to the number of data points. The number of samples must not be chosen
         # arbitrarily, since independent and dependent variables have to have the same dimensions. Otherwise,
         # some models cannot compute posterior predictive samples
+        # TODO: eurovis2020: this comes from the merge
         self.nr_of_posterior_samples = len(df)
         return ()
 
     def _generate_samples_for_independent_variable(self, key, size):
-        lower_bound = self.byname(key)['extent'].value()[0]
-        upper_bound = self.byname(key)['extent'].value()[1]
+        lower_bound, upper_bound = self.byname(key)['extent'].value()
         generated_samples = np.linspace(lower_bound, upper_bound, num=size)
         # If the samples have another data type than the original data, problems can arise. Therefore,
         # data types of the new samples are changed to the dtypes of the original data here
         if str(generated_samples.dtype) != self.shared_vars[key].dtype:
             generated_samples = generated_samples.astype(self.shared_vars[key].dtype)
         return generated_samples
+
+    def _update_samples_model_representation(self, recreate_samples_model_repr=True):
+        if recreate_samples_model_repr:
+            self._samples_model_repr = self._data_type_mapper.forward(self.samples, inplace=False)
+
+        # needed for density calculation
+        kde_input = self._samples_model_repr.values.T
+        # require _multiple_ inputs. the 5 is a heuristic to prevent singular matrices due to all identical input
+        if kde_input.size > 5:
+            self._samples_kde = stats.gaussian_kde(kde_input)
+        else:
+            self._samples_kde = None
+
+        # needed for maximum calculation
+        self._samples_model_repr_mean = self._samples_model_repr.mean(axis='index')
 
     def _cartesian_product_of_samples(self, df):
         # Split up df in its columns
@@ -140,19 +272,22 @@ class ProbabilisticPymc3Model(Model):
         return cartesian_prod
 
     def _fit(self):
-
-        self.samples = self._sample(self.nr_of_posterior_samples)
+        self.samples, self._samples_model_repr = self._sample(self.nr_of_posterior_samples, mode='both')
 
         # Add parameters to fields
         varnames = [str(var) for var in self.model_structure.unobserved_RVs]
-        for varname in self.model_structure.unobserved_RVs:
+        for var in self.model_structure.unobserved_RVs:
+            varname = str(var)
             # check if trace consists of more than one variable. Below expression is not empty when that is the case
-            if varname.distribution.shape:
+            if var.distribution.shape:
                 # Remove old varname
-                varnames.remove(str(varname))
+                varnames.remove(varname)
                 # Insert new varnames
-                for i in range(varname.distribution.shape.item()):
-                    varnames.append(str(varname) + '_' + str(i))
+                for i in range(var.distribution.shape.item()):
+                    varnames.append(varname + '_' + str(i))
+            # do not add variables that already exist
+            if varname in self.names:
+                varnames.remove(varname)
         latent_fields = get_numerical_fields(self.samples, varnames)
         for f in latent_fields:
             f['obstype'] = 'latent'
@@ -163,13 +298,16 @@ class ProbabilisticPymc3Model(Model):
 
         # Change order of sample columns so that it matches order of fields
         self.samples = self.samples[self.names]
-        self.test_data = self.samples
+        self._samples_model_repr = self._samples_model_repr[self.names]
+
+        self._update_samples_model_representation(recreate_samples_model_repr=False)
 
         # Mark variables as independent. Independent variables are variables that appear in the data but
         # not in the observed random variables of the model
         for field in self.fields:
             if field['name'] in self.data.columns and \
-                    field['name'] not in [str(var) for var in self.model_structure.observed_RVs]:
+                    field['name'] not in [str(var) for var in self.model_structure.basic_RVs]:
+                    # field['name'] not in [str(var) for var in self.model_structure.observed_RVs]:
                 field['independent'] = True
         return ()
 
@@ -180,10 +318,12 @@ class ProbabilisticPymc3Model(Model):
         remove_not_in_names = [name for name in remove if name not in self.names]
         if len(remove_not_in_names) > 0:
             raise ValueError('The following variables in remove do not appear in the model: ' + str(remove_not_in_names))
+
         # Remove all variables in remove
-        for varname in remove:
-            if varname in list(self.samples.columns):
-                self.samples = self.samples.drop(varname, axis=1)
+        cols_to_remove = [col for col in remove if col in set(self.samples.columns)]
+        self.samples = self.samples.drop(list(cols_to_remove), axis=1)
+
+        self._update_samples_model_representation()
         return ()
 
     def _conditionout(self, keep, remove):
@@ -193,45 +333,47 @@ class ProbabilisticPymc3Model(Model):
         remove_not_in_names = [name for name in remove if name not in self.names]
         if len(remove_not_in_names) > 0:
             raise ValueError('The following variables in remove do not appear in the model: ' + str(remove_not_in_names))
-        names = remove
-        fields = [] if names is None else self.byname(names)
-        # Konditioniere auf die Domäne der Variablen in remove
-        for field in fields:
-            # filter out values smaller than domain minimum
-            if not field['domain'].issingular():
-                dom_min = field['domain'].value()[0]
-                dom_max = field['domain'].value()[1]
-            else:
-                dom_min = field['domain'].value()
-                dom_max = field['domain'].value()
-            filter = self.samples.loc[:, str(field['name'])] > dom_min
-            self.samples.where(filter, inplace=True)
-            # filter out values bigger than domain maximum
-            filter = self.samples.loc[:, str(field['name'])] < dom_max
-            self.samples.where(filter, inplace=True)
+
+        values = [self.byname(r)['domain'].values() for r in remove]
+        conditions = zip(remove, ['in'] * len(values), values)
+        self.samples = data_op.condition_data(self.samples, conditions)
         self.samples.dropna(inplace=True)
+
+        # is done in _marginalize_out anyway:
+        # self._update_samples_model_representation()
         self._marginalizeout(keep, remove)
         return ()
 
     def _density(self, x):
-        if any([self.fields[i]['independent'] for i in range(len(self.fields))]):
+        if any(self.fields[i]['independent'] for i in range(self.dim)):
             #raise ValueError("Density is queried for a model with independent variables")
             return np.NaN
         elif self.samples.empty | len(self.samples) == 1:
             #raise ValueError("There are not enough samples in the model")
             return np.NaN
         else:
-            X = self.samples.values
-            kde = stats.gaussian_kde(X.T)
-            x = np.reshape(x, (1, len(x)))
-            density = kde.evaluate(x)[0]
-            return density
+            # map x into model space
+            x = self._data_type_mapper.forward(dict(zip(self.names, x)))
+            # map back to value list (in correct order)
+            x = [x[name] for name in self.names]
+            x = np.reshape(x, (1, -1))
+            if self._samples_kde is None:
+                return 0
+            else:
+                return self._samples_kde.evaluate(x)[0]
 
     def _negdensity(self, x):
         return -self._density(x)
 
-    def _sample(self, n):
-
+    def _sample(self, n, mode='original'):
+        """
+        Draw a sample of size n.
+        :param n:
+        :param mode: str. one of 'original', 'model', 'both'
+            Chooses in which representation space the samples are returned.
+        :return:
+        """
+        # TODO: eurovis2020: this comes from the merge
         # If number of samples differs from number of data points, posterior predictive samples
         # cannot be generated
         if n != len(self.data):
@@ -239,9 +381,10 @@ class ProbabilisticPymc3Model(Model):
                   'number of samples is now automatically set to the number of data points')
             n = len(self.data)
         sample = pd.DataFrame()
+
         # Generate samples for latent random variables
         with self.model_structure:
-            trace = pm.sample(n, chains=1, cores=1, progressbar=False)
+            trace = pm.sample(n, chains=self.sampling_chains, cores=self.sampling_cores, progressbar=False)
             for varname in trace.varnames:
                 # check if trace consists of more than one variable
                 if len(trace[varname].shape) == 2:
@@ -296,7 +439,16 @@ class ProbabilisticPymc3Model(Model):
                 self.shared_vars[col].set_value(shared_vars_org[col])
 
         self.check_data_and_shared_vars_on_equality()
-        return sample
+
+        # map samples from model space in to data space
+        if mode is 'model':
+            return sample
+        elif mode is 'both':
+            return self._data_type_mapper.backward(sample, inplace=False), sample
+        elif mode is 'original':
+            return self._data_type_mapper.backward(sample)
+        else:
+            raise ValueError('invalid value for mode {}'.format(mode))
 
     def copy(self, name=None):
         name = self.name if name is None else name
@@ -305,6 +457,7 @@ class ProbabilisticPymc3Model(Model):
         # model_structure is linked with the original object nevertheless. This means that
         # the shared vars attribute must not be changed permanently, because doing so would
         # propagate to all model copies
+        # TODO: the above seems like the source of very weird future bugs that occur in race conditions ....
         mycopy = self.__class__(name, self.model_structure, self.shared_vars)
         mycopy.data = self.data.copy()
         mycopy.test_data = self.test_data.copy()
@@ -313,12 +466,17 @@ class ProbabilisticPymc3Model(Model):
         mycopy._update_all_field_derivatives()
         mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples.copy()
+        mycopy._samples_model_repr = self._samples_model_repr.copy()
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
+        mycopy.sampling_cores = self.sampling_cores
+        mycopy.sampling_chains = self.sampling_chains
         mycopy.fixed_data_length = self.fixed_data_length
         mycopy.set_empirical_model_name(self._empirical_model_name)
         self.check_data_and_shared_vars_on_equality()
         mycopy.check_data_and_shared_vars_on_equality()
-
+        mycopy._data_type_mapper = self._data_type_mapper.copy()
+        mycopy.probabilistic_program_graph = cp.copy(self.probabilistic_program_graph)
+        mycopy._update_samples_model_representation(recreate_samples_model_repr=False)
         return mycopy
 
     def _maximum(self):
@@ -328,18 +486,17 @@ class ProbabilisticPymc3Model(Model):
             # can not compute any aggregation. return nan
             return [None] * col_cnt
         # Set starting point for optimization problem
-        x0 = [np.mean(self.samples[col]) for col in self.samples]
-        opt = sciopt.minimize(self._negdensity, x0, method='nelder-mead', options={'xtol': 1e-8, 'disp': False})
+        opt = sciopt.minimize(self._negdensity, self._samples_model_repr_mean, method='nelder-mead',
+                              options={'xtol': 1e-8, 'disp': False})
         maximum = opt.x
         # Do not return a value if the density of the found maximum is NaN. In this case it is assumed that all
         # density values are NaN, so there should not be returned a maximum
         if np.isnan(opt.fun):
-            return np.full(len(x0), np.nan)
+            return np.full(self.dim, np.nan)
         return maximum
 
     def check_data_and_shared_vars_on_equality(self):
-        if self.shared_vars:
-            if not self.data.empty:
-                for name in list(self.shared_vars.keys()):
-                    if name in self.data.columns:
-                        assert np.array_equal(self.shared_vars[name].get_value(), np.array(self.data[name]))
+        if self.shared_vars and not self.data.empty:
+            for name in list(self.shared_vars.keys()):
+                if name in self.data.columns:
+                    assert np.array_equal(self.shared_vars[name].get_value(), np.array(self.data[name]))

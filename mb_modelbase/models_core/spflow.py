@@ -99,7 +99,7 @@ class SPNModel(Model):
 
         self._nameToVarType = var_types
 
-        #Check if variable types are given
+        # Check if variable types are given
         if self._nameToVarType is None:
             raise ValueError("missing argument 'var_types'")
 
