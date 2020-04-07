@@ -11,10 +11,10 @@ setup(name='mb_modelbase',
       packages=find_packages(exclude=['scripts']),
       install_requires=[
           'xarray',
-          'numpy',
+          'numpy>=1.18.2',
           'pandas>=0.24',
           'scikit-learn',
-          'scipy==1.2',  # see issue #84
+          'scipy', # #84 requires scipy==1.2, https://github.com/lumen-org/modelbase/issues/84
           'flask>=1.1.1',
           'flask-cors',
           'graphviz',
