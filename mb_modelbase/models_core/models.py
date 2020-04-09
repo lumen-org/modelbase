@@ -163,8 +163,10 @@ class Model:
             A flag that indicates whether certain queries should be executed in parallel on multiple available cores
             or not.
 
-        .pci_graph : None or something
+        .pci_graph : None or dict
 
+            A graph representing the pair-wise conditionally independence (pci) structure of the model.
+            See also the pci_graph module.
 
         .test_data : pd.DataFrame
 
@@ -491,6 +493,7 @@ class Model:
         if callbacks is not None:
             [c() for c in callbacks]
 
+        # see issue #93
         # self.pci_graph = pci_graph.create(self.data) if kwargs['pci_graph'] else None
         self.pci_graph = None
         return self
