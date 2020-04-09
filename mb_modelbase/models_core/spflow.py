@@ -42,9 +42,12 @@ class SPNModel(Model):
 
     """
     def __init__(self, name,
-                 spn_type = 'spn'):
+                 spn_type = 'spn', threshold=0.3, min_slice=200, rows='kmeans'):
         super().__init__(name)
         self._spn_type = spn_type
+        self._threshold = threshold
+        self._min_slice=200
+        self._rows = rows
         self._aggrMethods = {
             'maximum': self._maximum
         }
@@ -128,14 +131,36 @@ class SPNModel(Model):
 
         if self._spn_type == 'spn':
             context = Context(parametric_types=var_types).add_domains(df.values)
-            self._spn = learn_parametric(df.values, context)
+            self._spn = learn_parametric(df.values, context, threshold=self._threshold, min_instances_slice=self._min_slice, rows=self._rows)
 
         elif self._spn_type == 'mspn':
             context = Context(meta_types=var_types).add_domains(df.values)
-            self._spn = learn_mspn(df.values, context)
+            self._spn = learn_mspn(df.values, context, threshold=self._threshold, min_instances_slice=self._min_slice, rows=self._rows)
         else:
             raise Exception("Type of SPN not known: " + self._spn_type)
+        
+        self._unbound_updater()
+        print(f"FITTED MODEL WITH {self._size()[0]} nodes and {self._size()[1]} edges.")
+        print(f"LOGLIKELIHOOD {self.loglikelihood()/len(self.data)}.")
+        
         return self._unbound_updater,
+        
+    def _size(self):
+        if not self._spn:
+            return 0
+        worklist = [self._spn]
+        n = 0
+        e = 0
+        while len(worklist) > 0:
+            node = worklist.pop(0)
+            n = n + 1
+            try:
+                for child in node.children:
+                    e += 1
+                    worklist.append(child)
+            except Exception as ex:
+                pass
+        return n, e
 
     def _marginalizeout(self, keep, remove):
         self._marginalized = self._marginalized.union(remove)

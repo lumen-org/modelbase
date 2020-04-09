@@ -136,6 +136,7 @@ class Node(object):
         self.Serializable_attrs = [k for k in self.__dict__.keys()]
 
     def __getstate__(self):
+        self.__set_serializable__()
         return {a: getattr(self, a) for a in self.Serializable_attrs}
 
 

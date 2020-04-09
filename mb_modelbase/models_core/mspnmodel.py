@@ -31,7 +31,8 @@ IMPORTANT:
 
 import rpy2
 
-from mb_modelbase.models_core import Model, get_columns_by_dtype, to_category_cols
+from mb_modelbase.models_core import Model
+from mb_modelbase.utils import get_columns_by_dtype, to_category_cols
 
 from mb_modelbase.models_core.mspn.tfspn.piecewise import estimate_domains
 from mb_modelbase.models_core.mspn.tfspn.SPN import SPN, Splitting
@@ -92,17 +93,26 @@ class \
         
         return []
 
-    def _fit(self):
+    def _fit(self, **kwargs):
         # data = np.array(self.data)
         # for i in range(len(data)):
         #     data[i] = [int(j) if self.featureTypes[i] == "categorical" else j for j in data[i]]
+        print(self.featureTypes)
+        print(self.data)
         self._mspnmodel = SPN.LearnStructure(np.array(self.data), featureTypes=self.featureTypes, \
                                              row_split_method=Splitting.KmeansRows(), \
                                              col_split_method=Splitting.RDCTest(threshold=self.threshold), \
-                                             min_instances_slice=self.min_instances_slice).root
+                                             min_instances_slice=self.min_instances_slice)
+                
+        #print("FIT:", self.colToCategory)
+        print()
+        print(f"FITTED Model with {self._mspnmodel.n_nodes()} nodes and {self._mspnmodel.n_edges()} edges.")
+        self._mspnmodel = self._mspnmodel.root
+        print()
+        print(f"LOGLIKELIHOOD {self.loglikelihood()/len(self.data)}.")
+        print()
         self.normalizeFactor = self._getNormalizeFactor()
         
-        #print("FIT:", self.colToCategory)
         
         return []
 

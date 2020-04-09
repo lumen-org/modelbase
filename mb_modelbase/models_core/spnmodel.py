@@ -6,6 +6,8 @@ Created on Thu Jan 18 13:49:15 2018
 @author: julien
 @email: julien.klaus@uni-jena.de
 
+https://github.com/whsu/spn/blob/master/spn/spn.py
+
 What did we do to make it run:
   * we pushed our index through the eval. if the index of the
     RV is True then we return simply 1.0 for the marginalization
@@ -55,7 +57,29 @@ class SPNModel(Model):
         self._spnmodel = SPN(self.variables, self.numcomp, self.params)
         for i in range(iterations):
             self._spnmodel.update(data)
+        
+        n,e = self._size()
+        print()
+        print(f"FITTED Model with {n} nodes and {e} edges.")
+        print()
+        print(f"LOGLIKELIHOOD {self.loglikelihood()/len(self.data)}.")
+        print()
         return []
+        
+    def _size(self):
+        if not self._spnmodel:
+            return 0
+        worklist = [self._spnmodel.root]
+        n = 0
+        e = 0
+        while (len(worklist)) > 0:
+            node = worklist.pop(0)
+            n += 1
+            for child in node.children:
+                e += 1
+                worklist.append(child)
+        return n,e
+                
 
     def _marginalizeout(self, keep, remove):
       tmp = {}
@@ -165,7 +189,9 @@ if __name__ == "__main__":
 
     spn = SPNModel("test")
     spn.set_data(data)
+    print("START FIT")
     spn._fit()
+    print("END FIT")
     x = spn._maximum()
     print(x, spn._density(x))
     print("start aggregating")
