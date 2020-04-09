@@ -8,17 +8,16 @@ The modelbase module primarily provides the ModelBase class.
 import json
 import logging
 import pathlib
-from functools import reduce
-from pathlib import Path
 import os
 import time
-
 import dill
-import numpy
+import numpy as np
+from functools import reduce
 
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import models_predict
+from mb_modelbase.model_eval import posterior_predictive_checking as ppc
 from mb_modelbase.models_core import model_watchdog
 from mb_modelbase.cache import computeKey
 from mb_modelbase.cache import DictCache
@@ -68,14 +67,15 @@ class NumpyCompliantJSONEncoder(json.JSONEncoder):
     Credits to: http://stackoverflow.com/questions/27050108/convert-numpy-type-to-python
     """
 
-    # TODO: Do i really want that? what side effects does it have if I, all of the sudde, have numpy objects instead of normal integer and floats in my model??? it was never intended for it
+    # TODO: Do i really want that? what side effects does it have if I, all of the sudden, have numpy objects instead
+    #  of normal integer and floats in my model??? it was never intended for it
 
     def default(self, obj):
-        if isinstance(obj, numpy.integer):
+        if isinstance(obj, np.integer):
             return int(obj)
-        elif isinstance(obj, numpy.floating):
+        elif isinstance(obj, np.floating):
             return float(obj)
-        elif isinstance(obj, numpy.ndarray):
+        elif isinstance(obj, np.ndarray):
             return obj.tolist()
         else:
             return super(NumpyCompliantJSONEncoder, self).default(obj)
@@ -129,7 +129,7 @@ def PQL_parse_json(query):
     return query
 
 
-def check_if_dir_exists(model_dir):
+def _check_if_dir_exists(model_dir):
     if not pathlib.Path(model_dir).is_dir():
         raise OSError('Path is not a directory')
 
@@ -158,7 +158,7 @@ class ModelBase:
     def __init__(self, name, model_dir='data_models', auto_load_models={}, load_all=True, cache=DictCache(), watchdog=True):
         """ Creates a new instance and loads models from some directory. """
 
-        check_if_dir_exists(model_dir)
+        _check_if_dir_exists(model_dir)
 
         self.name = name
         self.models = {}  # models is a dictionary, using the name of a model as its key
@@ -211,11 +211,11 @@ class ModelBase:
         if directory is None:
             directory = self.model_dir
 
-        check_if_dir_exists(directory)
+        _check_if_dir_exists(directory)
 
         # iterate over matching files in directory (including any subdirectories)
         loaded_models = []
-        filenames = Path(directory).glob('**/' + '*' + ext)
+        filenames = pathlib.Path(directory).glob('**/' + '*' + ext)
         for file in filenames:
             logger.debug("loading model from file: " + str(file))
             # try loading the model
@@ -288,7 +288,6 @@ class ModelBase:
                 f.write(json.dumps(query) + '\n')
                 logger.info(json.dumps(query))
 
-
         """ Executes the given PQL query and returns the result as JSON (or None).
 
         Args:
@@ -315,7 +314,7 @@ class ModelBase:
 
             key = computeKey(
                 name=query["AS"],
-                model=self._extractModel(query),
+                model=self._extractVariables(query),
                 where=self._extractWhere(query)
             )
 
@@ -329,7 +328,7 @@ class ModelBase:
                 derived_model = base if base.name == query["AS"] else base.copy(query["AS"])
                 # derive submodel
                 derived_model.model(
-                    model=self._extractModel(query),
+                    model=self._extractVariables(query),
                     where=self._extractWhere(query),
                     default_values=self._extractDefaultValue(query),
                     default_subsets=self._extractDefaultSubset(query),
@@ -387,9 +386,40 @@ class ModelBase:
                 if len(aggr_idx) > 0:
                     resultframe.iloc[:, aggr_idx] = resultframe.iloc[:, aggr_idx] - resultframe2.iloc[:, aggr_idx]
 
-            return _json_dumps({"header": resultframe.columns.tolist(),
-                                "data": resultframe.to_csv(index=False, header=False,
-                                                           float_format=self.settings['float_format'])})
+            resultframe_csv = resultframe.to_csv(index=False, header=False,
+                                                 float_format=self.settings['float_format'])
+
+            #f = open("results.txt", "w+")
+            #f.write(resultframe_csv)
+            #f.write('\n\n')
+            #f.close()
+
+            return _json_dumps({"header": resultframe.columns.tolist(), "data": resultframe_csv})
+
+        elif 'PPC' in query:  # posterior predictive checks
+            var_names = self._extractVariables(query,keyword='PPC')
+            base_model = self._extractFrom(query)
+            opts = self._extractOpts(query)
+
+            if not 'TEST_QUANTITY' in opts:
+                raise ValueError("missing parameter 'TEST_QUANTITY'")
+            test_quantity = opts['TEST_QUANTITY']
+            if not test_quantity in ppc.TestQuantities:
+                raise ValueError("invalid value for parameter 'TEST_QUANTITY': '{}'".format(test_quantity))
+            test_quantity_fct = ppc.TestQuantities[test_quantity]
+
+            # TODO: issue #XX: it is a questionable design decision: is it a good idea to marginalize a model
+            #  just to create marginal samples? e.g. for cg models it should be faster to not marginalize but simply
+            #  throw not needed attributes from the samples.
+            marginal_model = base_model.copy().marginalize(keep=var_names)
+            res = ppc.posterior_predictive_check(marginal_model, test_quantity_fct,
+                                                 round(opts.get('k', None)), round(opts.get('n', None)))
+            res_dict = {
+                'header': var_names,
+                'reference': res[0],
+                'test': res[1]
+            }
+            return _json_dumps(res_dict)
 
         elif 'DROP' in query:
             self.drop(name=query['DROP'])
@@ -512,8 +542,8 @@ class ModelBase:
             return []
         return query['SPLIT BY']
 
-    def _extractModel(self, query):
-        """ Extracts the names of the random variables to model and returns it
+    def _extractVariables(self, query, keyword='MODEL'):
+        """ Extracts the names of the random variables for <keyword>-clause and returns it
         as a list of strings. The order is preserved.
 
         Note that it returns only strings, not actual Field objects.
@@ -521,12 +551,12 @@ class ModelBase:
         TODO: internally this function refers to self.models[query['FROM']].
             Remove this dependency
         """
-        if 'MODEL' not in query:
-            raise QuerySyntaxError("'MODEL'-statement missing")
-        if query['MODEL'] == '*':
+        if keyword not in query:
+            raise QuerySyntaxError("'{}'-statement missing".format(keyword))
+        if query[keyword] == '*':
             return self.models[query['FROM']].names
         else:
-            return query['MODEL']
+            return query[keyword]
 
     def _extractPredict(self, query):
         """ Extracts from query the fields to predict and returns them in a

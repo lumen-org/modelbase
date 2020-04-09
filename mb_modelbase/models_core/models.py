@@ -391,6 +391,7 @@ class Model:
         self.parallel_processing = True
         self._empirical_model_name = None
         self.pci_graph = None
+        self.probabilistic_program_graph = None
 
     def _setempty(self):
         self._update_remove_fields()
