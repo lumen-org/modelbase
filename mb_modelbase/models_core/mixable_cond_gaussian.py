@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2017-2020 Philipp Lucas (philipp.lucas@uni-jena.de, philipp.lucas@dlr.de)
 import functools
 import logging
 import math
@@ -27,22 +27,26 @@ def normalized(func):
         return self.denormalize(func(self.normalize(x)))
     return wrapper
 
+
 def _argmax(p):
     return p.where(p == p.max(), drop=True)
 
 
 def _masked(vec, mask):
-    """Returns a vector of those entries vec[i] where mask[i] is True. Order of elements is invariant."""
+    """Returns a vector of those entries vec[i] where mask[i] is True. Order of elements is invariant.
+    """
     return [vec[i] for i in range(len(vec)) if mask[i]]
 
 
 def _not_masked(vec, mask):
-    """Returns a vector of those entries vec[i] where mask[i] is False. Order of elements is invariant."""
+    """Returns a vector of those entries vec[i] where mask[i] is False. Order of elements is
+    invariant.
+    """
     return [vec[i] for i in range(len(vec)) if not mask[i]]
 
 
 def _maximum_mixable_cg_heuristic_a(cat_len, marg_len, num_len, marginalized_mask, mu, p, detS):
-    """ Returns an approximation to the point of maximum density.
+    """Returns an approximation to the point of maximum density.
 
     Heuristic (a) "highest single gaussian": return the density at the mean of the individually most probably gaussian (
      including shadowed ones). "individually" means that only the density of each individual mean of a gaussian
@@ -105,7 +109,9 @@ def _gradient_mixture_cg(x, mu_, invS_, detS_, p_):
 
 
 def _maximum_cg(mus, Sinvs, Sdets, ps, num_len):
-    """Returns an approximation to the point of maximum of density function and its value as a tuple (argmax, max)."""
+    """Returns an approximation to the point of maximum of density function and its value as a tuple
+     (argmax, max).
+     """
 
     # make functions to calculate density and gradient of mixture
     p_fct = _fix_args(_density_mixture_cg, mus, Sinvs, Sdets, ps)
@@ -222,7 +228,7 @@ class MixableCondGaussianModel(md.Model):
     (2) the number of components grows exponentially with the number of discrete random variables (RV) marginalized.
 
     On the upside, however, the model complexity never becomes larger. In fact, it simply doesn't decrease if discrete
-    RV are maginalized.
+    RV are marginalized.
 
     It seems like this should be relatively straight forward. See the notes on paper.
     In essence we never throw parameters when marginalizing discrete RV, but just mark them as 'marginalized'.
