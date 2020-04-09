@@ -11,15 +11,17 @@ import pathlib
 from functools import reduce
 from pathlib import Path
 import os
+import time
 
 import dill
 import numpy
 
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
-#from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import models_predict
 from mb_modelbase.models_core import model_watchdog
+from mb_modelbase.cache import computeKey
+from mb_modelbase.cache import DictCache
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -153,7 +155,7 @@ class ModelBase:
             .float_format : The float format used to encode floats in a result. Defaults to '%.5f'
     """
 
-    def __init__(self, name, model_dir='data_models', load_all=True, watchdog=True):
+    def __init__(self, name, model_dir='data_models', auto_load_models={}, load_all=True, cache=DictCache(), watchdog=True):
         """ Creates a new instance and loads models from some directory. """
 
         check_if_dir_exists(model_dir)
@@ -161,7 +163,7 @@ class ModelBase:
         self.name = name
         self.models = {}  # models is a dictionary, using the name of a model as its key
         self.model_dir = model_dir
-
+        self.cache = cache
         self.settings = {
             'float_format': '%.8f',
         }
@@ -182,7 +184,7 @@ class ModelBase:
             # init watchdog who oversees a given folder for new models
             self.model_watch_observer = model_watchdog.ModelWatchObserver()
             try:
-                self.model_watch_observer.init_watchdog(self, self.model_dir)
+                self.model_watch_observer.init_watchdog(self, self.model_dir, **auto_load_models)
                 logger.info("Files under {} are watched for changes".format(self.model_dir))
             except Exception as err:
                 logger.exception("Watchdog failed!")
@@ -277,6 +279,16 @@ class ModelBase:
         return list(self.models.keys())
 
     def execute(self, query):
+        path = ""
+        queryLogName = "interaction" + \
+                       time.strftime("%b:%d:%Y_%H", time.gmtime(time.time())) + ".log"
+
+        if not "SHOW" in query.keys():
+            with open(queryLogName, "a") as f:
+                f.write(json.dumps(query) + '\n')
+                logger.info(json.dumps(query))
+
+
         """ Executes the given PQL query and returns the result as JSON (or None).
 
         Args:
@@ -300,15 +312,35 @@ class ModelBase:
         # basic syntax and semantics checking of the given query is done in the _extract* methods
         if 'MODEL' in query:
             base = self._extractFrom(query)
-            # maybe copy
-            derived_model = base if base.name == query["AS"] else base.copy(query["AS"])
-            # derive submodel
-            derived_model.model(
+
+            key = computeKey(
+                name=query["AS"],
                 model=self._extractModel(query),
-                where=self._extractWhere(query),
-                default_values=self._extractDefaultValue(query),
-                default_subsets=self._extractDefaultSubset(query),
-                hide=self._extractHide(query)),
+                where=self._extractWhere(query)
+            )
+
+            if self.cache is not None:
+                derived_model = self.cache.get(key)
+            else:
+                derived_model = None
+
+            if derived_model == None:
+                # maybe copy
+                derived_model = base if base.name == query["AS"] else base.copy(query["AS"])
+                # derive submodel
+                derived_model.model(
+                    model=self._extractModel(query),
+                    where=self._extractWhere(query),
+                    default_values=self._extractDefaultValue(query),
+                    default_subsets=self._extractDefaultSubset(query),
+                    hide=self._extractHide(query)),
+                if self.cache != None:
+                    self.cache.set(key, derived_model)
+            else:
+                derived_model.set_default_value(self._extractDefaultValue(query)) \
+            .set_default_subset(self._extractDefaultSubset(query)) \
+            .hide(self._extractHide(query))
+
             # add to modelbase
             self.add(derived_model, query["AS"])
             # return header

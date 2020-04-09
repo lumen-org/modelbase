@@ -252,7 +252,7 @@ class ProbabilisticPymc3Model(Model):
 
         # needed for density calculation
         kde_input = self._samples_model_repr.values.T
-        # require _multiple_ inputs. the 5 is a heuristic to prevent singular matrices due to all identical input
+        # require _multiple_ inputs. 5 is a heuristic to prevent singular matrices due to all identical input
         if kde_input.size > 5:
             self._samples_kde = stats.gaussian_kde(kde_input)
         else:
