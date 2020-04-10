@@ -4,9 +4,7 @@ import pandas as pd
 from mb_modelbase import DictCache
 import os
 
-"""This script performs the ModelactivityfileBenchmark on two modelbases
-One the modelbases with no cache, one with a DictCache
-"""
+"""This script compares the performance of modelbases with various cache types."""
 
 if __name__ == '__main__':
     model_dir = os.path.expanduser("~/git/lumen/fitted_models")

@@ -5,8 +5,7 @@ import pandas as pd
 import os
 from pympler import asizeof
 
-"""This script performs the ModelSerialization Benchmark on a modelbase with a DictCache
-"""
+"""This script performs the ModelSerialization Benchmark on a modelbase with a DictCache."""
 
 if __name__ == "__main__":
     cache = DictCache()

@@ -6,16 +6,20 @@ import threading
 
 class DictCache(BaseCache):
     """Cache with a regular python dictionary as a backend.
-    Stores the content after every save_interval to a file on disk
-    Ensures mutual exclusion with a lock
+    The cache stores the content after every save_interval to a file on disk.
+    Mutual exclusion is ensured with a lock.
 
     Attributes:
-        save_path (str): path to where the cache should save the dictionary
-        save_interval (float): interval in seconds on which to save the content of the dictionary
+        save_path (str): The path to where the cache should save the dictionary.
+        save_interval (float): The interval in seconds on which to save the content of the dictionary.
+        lock (threading.Lock): A lock for mutual exclusion.
+    Args:
+        save_path (str): The path to where the cache should save the dictionary.
+        save_interval (float): The interval in seconds on which to save the content of the dictionary.
 
     Todo:
-        Implement cache as a monitor like in the readers writers problem
-        Maybe lift mutual exclusion to superclass?
+        * Implement cache as a monitor like in the readers writers problem
+        * Maybe lift mutual exclusion to superclass?
     """
 
     def __init__(self, save_path='/tmp/modelbaseCache', save_interval=30):

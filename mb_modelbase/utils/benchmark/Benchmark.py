@@ -5,11 +5,16 @@ import time
 class Benchmark(abc.ABC):
     """Abstract baseclass for a Benchmark
 
-    Override _run and implement the logic that is to be timed
+    Override _run and implement the logic that is to be timed.
+    If the number of runs is larger than one,
+    then the time returned by the method run is the average time of n runs.
 
     Attributes:
         _name (str): name of the benchmark
         _n (int): number of runs to be performed and averaged
+    Args:
+        name (str): name of the benchmark
+        n (int): number of runs to be performed and averaged
     """
 
     def __init__(self, name, n=1):
@@ -18,8 +23,10 @@ class Benchmark(abc.ABC):
 
     @abc.abstractmethod
     def _run(self, instance):
-        """takes an instance and runs the benchmark
-            @param instance an object
+        """This method takes an object and performs the actions to be benchmarked.
+
+            Args:
+                instance: An object to be benchmarked
         """
 
     def preRun(self):
@@ -27,10 +34,17 @@ class Benchmark(abc.ABC):
         pass
 
     def postRun(self):
-        """Shutdown benchmark environment"""
+        """Shutdown benchmark environment if necessary"""
         pass
 
     def run(self, instance) -> float:
+        """This method runs the benchmark.
+
+        Args:
+            instance: An object to be benchmarked.
+        Returns:
+            float: The time the execution of the benchmark took.
+        """
         self.preRun()
         start = time.process_time()
         self._run(instance=instance)

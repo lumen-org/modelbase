@@ -6,10 +6,10 @@ from typing import List
 def model_key(name: str, model: List[str], where: List[str]) -> str:
     """Function that computes a key for a given model.
 
-    :param name:
-    :param model:
-    :param where:
-    :return:
+    Args:
+        name:
+        model:
+        where:
     """
 
     return (
@@ -29,10 +29,11 @@ def predict_key(
         splitby_stmnt) -> str:
     """Function that computes a key for a given prediction query.
 
-    :param base:
-    :param predict_stmnt:
-    :param where_stmnt:
-    :param splitby_stmnt:
+    Args:
+        base:
+        predict_stmnt:
+        where_stmnt:
+        splitby_stmnt:
     :return:
     """
 
@@ -45,20 +46,27 @@ class BaseCache(abc.ABC):
 
     Override the functions _get and _set to use various storage backends.
 
+    Args:
+        serialize (bool): sets if payload gets serialized before storage.
     Attributes:
-        _serialize (bool): sets if payload gets serialized before storage
+        _serialize (bool): sets if payload gets serialized before storage.
     """
 
     def __init__(self, serialize=False):
         self._serialize = serialize
 
     def get(self, key, default=None):
-        """Searches stored object for a given key, returns object or default
+        """Query the cache for the given key.
 
+        This method looks up the key and returns the associated object if the key is known.
+        If the key is not known the default is returned.
 
-        :param key: A representation of the object for unique identification
-        :param default: A default return value if key is not found.
-        :return: default if key is not found, else the payload stored for key
+        Args:
+            key: A representation of the object for unique identification.
+            default: A default return value if key is not found.
+            default if key is not found, else the payload stored for key.
+        Returns:
+            Data if key is known, default otherwise.
         """
         # Check if storage has object for key
         data = self._get(key)
@@ -73,19 +81,23 @@ class BaseCache(abc.ABC):
 
     @abc.abstractmethod
     def _get(self, key):
-        """Abstract function to query cache for objects
+        """An abstract method to query cache for data.
 
-        :param key: A representation of the object for unique identification
-        :return: object loaded from the storage backend
+        Args:
+            key: A representation of the object for unique identification.
+
+        Returns:
+            data loaded from the storage backend.
         """
 
     def set(self, key, data):
-        """Save data in the storage backend referenced by key
+        """A method to store data in the storage backend referenced by key
 
-        :param key: A representation of the object for unique identification
-        :param data: Data to be associated with key and stored in the storage Backend
+        Args:
+            key: A representation of the object for unique identification
+            data: Data to be associated with key and stored in the storage Backend
         """
-        # If cache is set to serialize, process data with dill
+        # If the cache is set to serialize, process data with dill
         if self._serialize:
             self._set(key, dill.dumps(data))
         else:
@@ -93,9 +105,9 @@ class BaseCache(abc.ABC):
 
     @abc.abstractmethod
     def _set(self, key, data):
-        """Abstract function to store values in the storage backend referenced by the key
+        """An abstract method to store data in the storage backend associated with the key
 
-        :param key: A representation of the object for unique identification
-        :param data: Data to be associated with key and stored in the storage Backend
-        :return:
+        Args:
+            key: A representation of the object for unique identification
+            data: Data to be associated with key and stored in the storage backend
         """

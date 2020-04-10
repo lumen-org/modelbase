@@ -1,16 +1,16 @@
 from mb_modelbase.utils.benchmark.Benchmark import Benchmark
-from mb_modelbase.server.modelbase import ModelBase
 import json
 
 
 class ModelbaseActivityfileBenchmark(Benchmark):
-    """
-    Benchmark based on a file with a recorded user interaction
+    """Benchmark based on a file with a recorded user interaction.
 
-    Implements abstract class Benchmark
+    This class implements abstract class Benchmark.
 
     Attributes:
        queries List[DefaultDict] : Queries to be performed
+    Args:Params
+        file (str): The path to the file containing the benchmark interaction
     """
 
     def __init__(self, file='benchmarkInteraction2.log'):
