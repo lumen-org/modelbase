@@ -393,7 +393,7 @@ class ModelBase:
                 resultframe = base.predict(
                     predict=predict_stmnt,
                     where=where_stmnt,
-                    splitby=splitby_stmnt,/
+                    splitby=splitby_stmnt,
                     **self._extractOpts(query)
                 )
                 if self.cache is not None:
