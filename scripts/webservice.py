@@ -159,7 +159,7 @@ def init():
     if config.getboolean('MODELBASE','enable'):
         add_modelbase_module()
 
-    if config.getboolean('ACTIVTYLOGGER','enable'):
+    if config.getboolean('ACTIVITYLOGGER','enable'):
         add_activitylogger_module()
 
     if config.getboolean('WEBQUERY','enable'):
