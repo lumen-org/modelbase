@@ -149,13 +149,26 @@ class ModelBase:
             as a key in the dictionary.
         ModelBase.settings: various settings:
             .float_format : The float format used to encode floats in a result. Defaults to '%.5f'
+
+    Attributes:
+        name (str): the id/name of this modelbase.
+        models: A dictionary, using the name of a model as its key.
+        model_dir (str): The path to the directory where the models are managed.
+        settings: A dictionary with settings.
+        cache (cache.BaseCache): a cache to store models and queries for reuse.
+    Args:
+        name (str): the id/name of this modelbase.
+        model_dir (str): The path to the directory where the models are managed.
+        load_all (bool): Load all models in the model_dir at startup if True.
+        cache (cache.BaseCache): a cache to store models and queries for reuse.
+        watchdog (bool): Observe model_dir for changes.
     """
 
     def __init__(self, name, model_dir='data_models', load_all=True, cache=None, watchdog=True):
         """ Creates a new instance and loads models from some directory. """
 
         self.name = name
-        self.models = {}  # models is a dictionary, using the name of a model as its key
+        self.models = {}
         self.model_dir = model_dir
 
         self.settings = {
@@ -373,7 +386,7 @@ class ModelBase:
                 resultframe = base.predict(
                     predict=predict_stmnt,
                     where=where_stmnt,
-                    splitby=splitby_stmnt,
+                    splitby=splitby_stmnt,/
                     **self._extractOpts(query)
                 )
                 if self.cache is not None:
