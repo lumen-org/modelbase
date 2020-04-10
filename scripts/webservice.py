@@ -68,8 +68,8 @@ def add_modelbase_module():
         name=c['name'],
         model_dir=c['directory'],
         cache=DictCache(
-            savepath=c['cachePath'],
-            saveInterval=c['cacheInterval']
+            save_path=c['cachePath'],
+            save_interval=c['cacheInterval']
         )
     )
     logger.info("... done (starting modelbase).")
