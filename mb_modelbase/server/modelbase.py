@@ -161,15 +161,20 @@ class ModelBase:
         model_dir (str): The path to the directory where the models are managed.
         settings: A dictionary with settings.
         cache (cache.BaseCache): a cache to store models and queries for reuse.
+        log_queries (bool): Log executed queries to a file
+        query_log_path (str): Path to the query log file
+
     Args:
         name (str): the id/name of this modelbase.
         model_dir (str): The path to the directory where the models are managed.
         load_all (bool): Load all models in the model_dir at startup if True.
         cache (cache.BaseCache): a cache to store models and queries for reuse.
         watchdog (bool): Observe model_dir for changes.
+        log_queries (bool): Log executed queries to a file
+        query_log_path (str): Path to the query log file
     """
 
-    def __init__(self, name, model_dir='data_models', auto_load_models={}, load_all=True, cache=DictCache(), watchdog=True):
+    def __init__(self, name, model_dir='data_models', auto_load_models={}, load_all=True, cache=DictCache(), watchdog=True, log_queries=False, query_log_path='./'):
         """ Creates a new instance and loads models from some directory. """
 
         check_if_dir_exists(model_dir)
@@ -178,6 +183,8 @@ class ModelBase:
         self.models = {}
         self.model_dir = model_dir
         self.cache = cache
+        self.log_queries = log_queries
+        self.query_log_path = os.path.abspath(query_log_path)
         self.settings = {
             'float_format': '%.8f',
         }
@@ -294,13 +301,14 @@ class ModelBase:
 
     def execute(self, query):
         path = ""
-        queryLogName = "interaction" + \
+        queryLogName = self.query_log_path + "/interaction" + \
                        time.strftime("%b:%d:%Y_%H", time.gmtime(time.time())) + ".log"
 
-        if not "SHOW" in query.keys():
-            with open(queryLogName, "a") as f:
-                f.write(json.dumps(query) + '\n')
-                logger.info(json.dumps(query))
+        if self.log_queries:
+            if not "SHOW" in query.keys():
+                with open(queryLogName, "a") as f:
+                    f.write(json.dumps(query) + '\n')
+                    logger.info(json.dumps(query))
 
         """ Executes the given PQL query and returns the result as JSON (or None).
 
