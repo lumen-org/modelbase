@@ -5,8 +5,7 @@ import threading
 
 
 class DictCache(BaseCache):
-    """
-    Cache with a regular python dictionary as a backend.
+    """Cache with a regular python dictionary as a backend.
     Stores the content after every save_interval to a file on disk
     Ensures mutual exclusion with a lock
 

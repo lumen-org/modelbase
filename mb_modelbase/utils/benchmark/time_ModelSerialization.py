@@ -1,14 +1,11 @@
 from mb_modelbase.cache import DictCache
 from mb_modelbase import ModelBase
 from mb_modelbase.utils.benchmark import ModelSerializationBenchmark
-import time
 import pandas as pd
-import sys
 import os
 from pympler import asizeof
 
-"""
-This script performs the ModelSerialization Benchmark on a modelbase with a DictCache
+"""This script performs the ModelSerialization Benchmark on a modelbase with a DictCache
 """
 
 if __name__ == "__main__":
@@ -20,10 +17,8 @@ if __name__ == "__main__":
         model_dir=os.path.expanduser('~/git/lumen/fitted_models'),
         cache=cache)
 
-
     def models():
         return [m.copy() for m in mbase.models.values()]
-
 
     withData = models()
 

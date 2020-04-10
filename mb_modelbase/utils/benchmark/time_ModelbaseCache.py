@@ -4,8 +4,7 @@ import pandas as pd
 from mb_modelbase import DictCache
 import os
 
-"""
-This script performs the ModelactivityfileBenchmark on two modelbases
+"""This script performs the ModelactivityfileBenchmark on two modelbases
 One the modelbases with no cache, one with a DictCache
 """
 
@@ -40,8 +39,7 @@ if __name__ == '__main__':
         ModelbaseActivityfileBenchmark
     ]
 
-    df = pd.DataFrame({
-        base.name: [benchmark('interactionPhilippMod.log').run(base) for benchmark in benchmarks] for base in bases
-    })
+    df = pd.DataFrame({base.name: [benchmark('interactionPhilippMod.log').run(
+        base) for benchmark in benchmarks] for base in bases})
 
     # df.to_csv(os.path.expanduser("~/git/lumen_caching/data/modelbaseCache_" + time.strftime("%b:%d:%Y_%H:%M:%S", time.gmtime(time.time())) + ".csv"))

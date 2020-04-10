@@ -1,6 +1,7 @@
 from mb_modelbase.cache import BaseCache
 from pymemcache.client import base
 
+
 class MemcachedCache(BaseCache):
     """
     A cache with memcached as storage backend
@@ -9,6 +10,7 @@ class MemcachedCache(BaseCache):
         hostname (str): hostname of memcached server
         port (int): port of memcached server
     """
+
     def __init__(self,
                  hostname='0.0.0.0',
                  port=11211):

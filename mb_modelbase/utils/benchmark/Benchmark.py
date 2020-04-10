@@ -3,8 +3,7 @@ import time
 
 
 class Benchmark(abc.ABC):
-    """
-    Abstract baseclass for a Benchmark
+    """Abstract baseclass for a Benchmark
 
     Override _run and implement the logic that is to be timed
 
@@ -19,8 +18,7 @@ class Benchmark(abc.ABC):
 
     @abc.abstractmethod
     def _run(self, instance):
-        """
-            takes an instance and runs the benchmark
+        """takes an instance and runs the benchmark
             @param instance an object
         """
 
