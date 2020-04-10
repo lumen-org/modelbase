@@ -7,6 +7,8 @@ from flask_socketio import SocketIO
 import logging
 import json
 import traceback
+from configparser import ConfigParser
+import os
 
 from mb_modelbase.utils import utils, ActivityLogger
 from mb_modelbase.server import modelbase as mbase
@@ -27,14 +29,10 @@ def add_path_of_file_to_python_path():
 # load config. user config overrides default config.
 add_path_of_file_to_python_path()
 
-from run_conf_defaults import cfg
-try:
-    from run_conf import cfg as user_cfg
-except ModuleNotFoundError:
-    # user config may not exist, but that is ok
-    pass
-else:
-    cfg = utils.deep_update(cfg, user_cfg)
+
+config = ConfigParser()
+config.read('run_conf_defaults.cfg')
+config.read('run_conf.cfg')
 
 app = Flask(__name__, static_url_path='/static/')
 socketio = SocketIO(app)  # adds socket listener to Flask app
@@ -47,9 +45,7 @@ logger = None  # create module variable
 
 def add_root_module():
     # the (static) start page
-    c = cfg['modules']['root']
-
-    @app.route(c['route'])
+    @app.route(config['ROOT']['route'])
     @cross_origin()  # allows cross origin requests
     def index():
         return "webservice up an running!"
@@ -57,18 +53,20 @@ def add_root_module():
 
 def add_modelbase_module():
     # webservice interface to the model base
-
-    c = cfg['modules']['modelbase']
+    c = config['MODELBASE']
 
     # start ModelBase
     logger.info("starting modelbase ... ")
     mb = mbase.ModelBase(
         name=c['name'],
-        model_dir=c['directory'],
-        auto_load_models=c['auto_load_models'],
+        model_dir=os.path.abspath(c['model_directory']),
+        auto_load_models={
+            'reload_on_overwrite': c.getboolean('reload_on_overwrite'),
+            'reload_on_creation':  c.getboolean('reload_on_creation')
+        },
         cache=DictCache(
-            save_path=c['cache_path'],
-            save_interval=c['cache_interval']
+            save_path=os.path.abspath(c['cache_path']),
+            save_interval=int(c['cache_interval'])
         )
     )
     logger.info("... done (starting modelbase).")
@@ -116,7 +114,7 @@ def add_activitylogger_module():
     # user activity logger
     activitylogger = ActivityLogger()
 
-    c = cfg['modules']['activitylogger']
+    c = config['ACTIVITYLOGGER']
 
     @app.route(c['route'], methods=['POST'])
     @cross_origin()  # allows cross origin requests
@@ -135,7 +133,7 @@ def add_activitylogger_module():
 
 def add_webquery_module():
     # the webclient
-    cfg_webquery = cfg['modules']['webquery']
+    cfg_webquery = config['WEBQUERY']
 
     @app.route(cfg_webquery['route'], methods=['GET'])
     @cross_origin()  # allows cross origin requests
@@ -146,7 +144,7 @@ def add_webquery_module():
 def init():
     # setup root logger and local logger
     logging.basicConfig(
-        level=cfg['loglevel'],
+        level=config['GENERAL']['loglevel'],
         format='%(asctime)s.%(msecs)03d %(levelname)s %(filename)s :: %(message)s',
         datefmt='%H:%M:%S'
     )
@@ -154,16 +152,17 @@ def init():
     logger = logging.getLogger(__name__)
 
     # setup modules
-    if cfg['modules']['root']['enable']:
+
+    if config.getboolean('ROOT','enable'):
         add_root_module()
 
-    if cfg['modules']['modelbase']['enable']:
+    if config.getboolean('MODELBASE','enable'):
         add_modelbase_module()
 
-    if cfg['modules']['activitylogger']['enable']:
+    if config.getboolean('ACTIVTYLOGGER','enable'):
         add_activitylogger_module()
 
-    if cfg['modules']['webquery']['enable']:
+    if config.getboolean('WEBQUERY','enable'):
         add_webquery_module()
 
 
@@ -187,33 +186,33 @@ if __name__ == "__main__":
     Usage:
         Run this script to start the server locally!
     """
-    cfg_mb = cfg['modules']['modelbase']
+    
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-n", "--name",
-                        help="A name for the modelbase to start. Defaults to '{}'".format(cfg_mb['name']),
-                        type=str, default=cfg_mb['name'])
+                        help="A name for the modelbase to start. Defaults to '{}'".format(config['MODELBASE']['name']),
+                        type=str, default=config['MODELBASE']['name'])
     parser.add_argument("-d", "--directory", help="directory that contains the models to be loaded initially. Defaults "
-                                                  "to '{}'".format(cfg_mb['directory']),
-                        type=str, default=cfg_mb['directory'])
+                                                  "to '{}'".format(config['MODELBASE']['directory']),
+                        type=str, default=config['MODELBASE']['directory'])
     parser.add_argument("-l", "--loglevel", help="loglevel for command line output. You can set it to: CRITICAL, ERROR,"
-                                                 " WARNING, INFO or DEBUG. Defaults to {}".format(cfg['loglevel']),
-                        type=str, default=cfg['loglevel'])
+                                                 " WARNING, INFO or DEBUG. Defaults to {}".format(config['GENERAL']['loglevel']),
+                        type=str, default=config['GENERAL']['loglevel'])
 
-    # overwrite config of run_conf.py
+    # overwrite config of run_conf.cfg
     args = parser.parse_args()
-    cfg['modules']['modelbase']['directory'] = args.directory
-    cfg['modules']['modelbase']['name'] = args.name
-    cfg['loglevel'] = args.loglevel
+    config['MODELBASE']['directory'] = args.directory
+    config['MODELBASE']['name'] = args.name
+    config['GENERAL']['loglevel'] = args.loglevel
 
     init()
 
-    if cfg['ssl']['enable']:
+    if config.getboolean('SSL','enable'):
         from OpenSSL import SSL
 
-        context = (cfg['ssl']['cert_chain_path'], cfg['ssl']['cert_priv_key_path'])
-        app.run(host='0.0.0.0', port=cfg['port'], ssl_context=context, threaded=True)
+        context = (config['SSL']['cert_chain_path'], config['SSL']['cert_priv_key_path'])
+        app.run(host='0.0.0.0', port=int(config['GENERAL']['port']), ssl_context=context, threaded=True)
     else:
-        app.run(host='0.0.0.0', port=cfg['port'], threaded=True)
+        app.run(host='0.0.0.0', port=int(config['GENERAL']['port']), threaded=True)
 
     logger.info("web server running...")
     # pdb.run('app.run()')
