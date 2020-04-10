@@ -108,16 +108,24 @@ def get_discrete_fields(df, colnames):
     return fields
 
 
-def get_numerical_fields(df, colnames):
+def get_numerical_fields(df, colnames, extend_extent=False):
     """Returns numerical fields constructed from the columns in colname of dataframe df.
-    This assumes colnames only contains names of numerical columns of df. Also, since fields are constructed from
-    a data frame the variables are assumes to be 'observed' and not latent."""
+    This assumes colnames only contains names of numerical columns of df. Also, since fields are
+    constructed from a data frame the variables are assumes to be 'observed' and not latent.
+
+    Args:
+        colnames: list of string
+        extend_extent: bool, optional. Defaults to False.
+            If true extend the returned extent of fields by 10% of original extent at lower and
+            high end.
+    """
     fields = []
     for colname in colnames:
         column = df[colname]
         mi, ma = column.min(), column.max()
-        d = (ma - mi) * 0.1
-        field = Field(colname, dm.NumericDomain(), dm.NumericDomain(mi - d, ma + d), False, 'numerical', 'observed')
+        d = (ma - mi) * 0.1 if extend_extent else 0
+        field = Field(colname, dm.NumericDomain(), dm.NumericDomain(mi-d, ma+d),
+                      False, 'numerical', 'observed')
         fields.append(field)
     return fields
 

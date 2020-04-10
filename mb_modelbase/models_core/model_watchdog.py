@@ -14,14 +14,45 @@ logger.setLevel(logging.INFO)
 
 class ModelWatcher(PatternMatchingEventHandler):
     """
-    Modelbase which watches a folder and reacts to newly created *.mdl files
+    Modelbase which watches a folder and reacts to newly created and modified *.mdl files
     """
     # files to react to
     patterns = ["*.mdl"]
 
-    def __init__(self, modelbase):
+    @staticmethod
+    def _get_model_name (path):
+        return path.rsplit("/", 1)[-1][:-4]
+
+    def __init__(self, modelbase, reload_on_overwrite=True, reload_on_creation=True):
         super().__init__()
         self.modelbase = modelbase
+
+        self._reload_on_overwrite = reload_on_overwrite
+        self._reload_on_creation = reload_on_creation
+
+    def _load_candidate_model(self, model_path, file_name):
+        try:
+            model = gm.Model.load(str(model_path))
+            logger.info("Loaded model from file {}".format(file_name))
+        except TypeError as err:
+            logger.warning('file "{}" matches the naming pattern but does not contain a'
+                           'model instance. I ignored that file'.format(file_name))
+            logger.exception(err)
+        except UnpicklingError:
+            logger.info("Invalid model[pickle] object")
+        except Exception as err:
+            logger.exception(err)
+        else:
+            self.modelbase.add(model)
+
+    def on_modified(self, event):
+        if not self._reload_on_overwrite:
+            return
+
+        model_path = event.src_path
+        file_name = model_path.rsplit("/", 1)[-1]
+
+        self._load_candidate_model(model_path, file_name)
 
     def on_created(self, event):
         """
@@ -33,33 +64,27 @@ class ModelWatcher(PatternMatchingEventHandler):
                     src_path = path/to/observer
         :return:
         """
-        if not event.is_directory and event.src_path.rsplit("/", 1)[-1][:-4] not in self.modelbase.list_models():
-            try:
-                model = gm.Model.load(str(event.src_path))
-                logger.info("Loaded model from file {}".format(event.src_path.rsplit("/", 1)[-1]))
-            except TypeError as err:
-                logger.warning('file "' + event.src_path.rsplit("/", 1)[-1] +
-                               '" matches the naming pattern but does not contain a model instance. '
-                               'I ignored that file')
-                logger.exception(err)
-            except UnpicklingError:
-                logger.info("Invalid model[pickle] object")
-            except Exception as err:
-                logger.exception(err)
-            else:
-                self.modelbase.add(model)
-        else:
-            if not event.is_directory:
-                logger.info("Ignoring Model. Model with same name already exists".format(event.src_path.rsplit("/", 1)[-1]))
-                logger.info(self.modelbase.list_models())
+        if event.is_directory or not self._reload_on_creation:
+            return
+
+        model_path = event.src_path
+        model_name = ModelWatcher._get_model_name(model_path)
+        file_name = model_path.rsplit("/", 1)[-1]
+
+        if model_name in self.modelbase.list_models() and not self._reload_on_overwrite:
+            logger.info("Ignoring Model. Model with same name already exists{}".format(model_name))
+            logger.info(self.modelbase.list_models())
+            return
+
+        self._load_candidate_model(model_path, file_name)
 
 
-class ModelWatchObserver():
+class ModelWatchObserver:
     def __init__(self):
         self.observer = Observer()
 
-    def init_watchdog(self, modelbase, path):
-        self.observer.schedule(ModelWatcher(modelbase), path=path)
+    def init_watchdog(self, modelbase, path, **kwargs):
+        self.observer.schedule(ModelWatcher(modelbase, **kwargs), path=path)
         self.observer.start()
         # cleans the observer up at the end of the program
         atexit.register(self.observer.stop)

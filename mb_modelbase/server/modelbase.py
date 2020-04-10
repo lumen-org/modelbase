@@ -7,6 +7,7 @@ The modelbase module primarily provides the ModelBase class.
 
 import json
 import logging
+import pathlib
 from functools import reduce
 from pathlib import Path
 import os
@@ -17,7 +18,6 @@ import numpy
 
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
-from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import models_predict
 from mb_modelbase.models_core import model_watchdog
 from mb_modelbase.cache import model_key
@@ -130,6 +130,11 @@ def PQL_parse_json(query):
     return query
 
 
+def check_if_dir_exists(model_dir):
+    if not pathlib.Path(model_dir).is_dir():
+        raise OSError('Path is not a directory')
+
+
 class ModelBase:
     """A ModelBase is the analogon of a DataBase(-Management System) for
     models: it holds models and allows PQL queries against them.
@@ -164,18 +169,18 @@ class ModelBase:
         watchdog (bool): Observe model_dir for changes.
     """
 
-    def __init__(self, name, model_dir='data_models', load_all=True, cache=None, watchdog=True):
+    def __init__(self, name, model_dir='data_models', auto_load_models={}, load_all=True, cache=DictCache(), watchdog=True):
         """ Creates a new instance and loads models from some directory. """
+
+        check_if_dir_exists(model_dir)
 
         self.name = name
         self.models = {}
         self.model_dir = model_dir
-
+        self.cache = cache
         self.settings = {
             'float_format': '%.8f',
         }
-
-        self.cache = cache
 
         # load some initial models to play with
         if load_all:
@@ -188,12 +193,13 @@ class ModelBase:
                 logger.info("Successfully loaded " + str(len(loaded_models)) + " models into the modelbase: ")
                 logger.info(str([model[0] for model in loaded_models]))
 
+        self.model_watch_observer = None
         if watchdog:
             # init watchdog who oversees a given folder for new models
-            modle_watch_observer = model_watchdog.ModelWatchObserver()
+            self.model_watch_observer = model_watchdog.ModelWatchObserver()
             try:
+                self.model_watch_observer.init_watchdog(self, self.model_dir, **auto_load_models)
                 logger.info("Files under {} are watched for changes".format(self.model_dir))
-                modle_watch_observer.init_watchdog(self, self.model_dir)
             except Exception as err:
                 logger.exception("Watchdog failed!")
                 logger.exception(err)
@@ -219,6 +225,8 @@ class ModelBase:
         if directory is None:
             directory = self.model_dir
 
+        check_if_dir_exists(directory)
+
         # iterate over matching files in directory (including any subdirectories)
         loaded_models = []
         filenames = Path(directory).glob('**/' + '*' + ext)
@@ -228,7 +236,6 @@ class ModelBase:
             try:
                 model = gm.Model.load(str(file))
             except TypeError as err:
-                print(str(err))
                 logger.warning('file "' + str(file) +
                                '" matches the naming pattern but does not contain a model instance. '
                                'I ignored that file')
@@ -438,7 +445,8 @@ class ModelBase:
 
         elif 'PCI_GRAPH.GET' in query:
             model = self._extractFrom(query)
-            graph = pci_graph.to_json(model.pci_graph) if model.pci_graph else False
+            #graph = pci_graph.to_json(model.pci_graph) if model.pci_graph else False
+            graph = False
             return _json_dumps({
                 'model': model.name,
                 'graph': graph
