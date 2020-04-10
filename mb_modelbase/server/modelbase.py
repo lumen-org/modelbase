@@ -340,7 +340,7 @@ class ModelBase:
                     default_values=self._extractDefaultValue(query),
                     default_subsets=self._extractDefaultSubset(query),
                     hide=self._extractHide(query)),
-                if self.cache != None:
+                if self.cache is not None:
                     self.cache.set(key, derived_model)
             else:
                 derived_model.set_default_value(self._extractDefaultValue(query)) \
