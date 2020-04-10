@@ -330,7 +330,7 @@ class ModelBase:
             else:
                 derived_model = None
 
-            if derived_model == None:
+            if derived_model is None:
                 # maybe copy
                 derived_model = base if base.name == query["AS"] else base.copy(query["AS"])
                 # derive submodel
