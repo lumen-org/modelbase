@@ -2,7 +2,7 @@ from mb_modelbase.cache import BaseCache
 import time
 import pickle
 import threading
-
+import os
 
 class DictCache(BaseCache):
     """Cache with a regular python dictionary as a backend.
@@ -20,12 +20,18 @@ class DictCache(BaseCache):
     Todo:
         * Implement cache as a monitor like in the readers writers problem
         * Maybe lift mutual exclusion to superclass?
+        * Make name of cache file unique
     """
 
-    def __init__(self, save_path='/tmp/modelbaseCache', save_interval=30):
+    def __init__(self, save_path='/tmp', save_interval=30):
         BaseCache.__init__(self, serialize=False)
+
+        if not os.path.exists(save_path):
+            raise IOError('The path for the cache does not exist!')
+
         self.lock = threading.Lock()
-        self.save_path = save_path
+
+        self.save_path = os.path.abspath(save_path) + '/modelbaseCache'
         self.save_interval = save_interval
 
         # Initialize cache from file if it exists
