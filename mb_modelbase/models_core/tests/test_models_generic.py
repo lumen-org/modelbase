@@ -42,7 +42,9 @@ from mb_modelbase.models_core.mixture_gaussians import MixtureOfGaussiansModel
 from mb_modelbase.models_core.cond_gaussians import ConditionallyGaussianModel as CGModel
 from mb_modelbase.models_core.cond_gaussian_wm import CgWmModel as CGWMModel
 from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel as MCGModel
+from mb_modelbase.models_core.spflow import SPNModel
 from mb_modelbase.models_core.empirical_model import EmpiricalModel
+from mb_data.allbus import allbus
 
 # from mb_modelbase.utils import is_running_in_debug_mode
 # if is_running_in_debug_mode():
@@ -70,7 +72,7 @@ def _values_of_extents(extents):
 
 
 # stateful flag to set which aggregations and densities are to be tested
-density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': True}
+density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': False}
 
 def _test_all_density_and_aggregations(model, info):
     use = density_aggregation_flags
@@ -322,18 +324,17 @@ if __name__ == '__main__':
         'continuous': [MockUpModel],
         'mixed': []
     }
-    density_aggregation_flags = {'aggregations': True, 'density': False, 'density_sum': False}
+    density_aggregation_flags = {'aggregations': False, 'density': True, 'density_sum': False}
     #_test_all(models, models_setup, data_full, depth=3)
-
 
     ## dedicated MCG model test
     models = {
         'discrete': [],
-        'continuous': [],
+        'c   ontinuous': [],
         'mixed': [MCGModel]
     }
     density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': False}
-    _test_all(models, models_setup, data_full, depth=3)
+    #_test_all(models, models_setup, data_full, depth=3)
 
     ## dedicated density_sum test
     df = pd.read_csv('test_crabs.csv', usecols=['sex', 'RW'])
@@ -346,12 +347,15 @@ if __name__ == '__main__':
     density_aggregation_flags = {'aggregations': False, 'density': False, 'density_sum': True}
     # _test_all(models, models_setup, data, depth=2)
 
-
     ## RUN TESTS FOR ALL MODELS:
     models = {
         'discrete': [],
         'continuous': [],
-        'mixed': [EmpiricalModel]
+        #'mixed': [EmpiricalModel]
+        'mixed': [SPNModel]
+    }
+    models_setup = {
+
     }
     # _models= {
     #     'discrete': [MockUpModel, CategoricalModel],
@@ -360,8 +364,37 @@ if __name__ == '__main__':
     #     'mixed': [CGModel, CGWMModel],
     #     'mixed': [CGModel, CGWMModel, MCGModel]
     # }
-    density_aggregation_flags = {'aggregations': True, 'density': True, 'density_sum': False}
-    _test_all(models, models_setup, data_full, depth=3)
+
+    models = {
+        'discrete': [],
+        'continuous': [],
+        #'mixed': [EmpiricalModel]
+        'mixed': [SPNModel]
+    }
+    models_setup = {
+        ('continuous', MixtureOfGaussiansModel): lambda x: x.set_k(4)
+    }
+
+    density_aggregation_flags = {
+        'aggregations': True,
+        'density': True,
+        'density_sum': False
+    }
+
+    df = allbus.mixed()
+    all_, discrete, continuous = data_import_utils.get_columns_by_dtype(df)
+    data = {
+        'mixed': df
+    }
+    models_setup = {
+
+    }
+
+    models_setup = {
+        ('mixed', SPNModel): lambda x: x.set_var_types(allbus.spn_metatypes['philipp'])
+    }
+
+    _test_all(models, models_setup, data, depth=3)
 
 
 

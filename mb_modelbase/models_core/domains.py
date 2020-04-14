@@ -158,7 +158,8 @@ class NumericDomain(Domain):
 
 
 class DiscreteDomain(Domain):
-    """An (ordered) discrete domain that can be represented by a list of values [val1, val2, ... ]."""
+    """An (ordered) discrete domain that can be represented by a list of values [val1, val2, ... ].
+    """
 
     def __init__(self, *args):
         """Constructs a discrete domain.
