@@ -18,7 +18,7 @@ from mb_modelbase.models_core.models import *
 from mb_modelbase.models_core.pci_graph import *
 from mb_modelbase.models_core.splitter import *
 
-from mb_modelbase.models_core.spn import *
+# from mb_modelbase.models_core.spn import *
 
 from mb_modelbase.models_core.mspn import *
 
