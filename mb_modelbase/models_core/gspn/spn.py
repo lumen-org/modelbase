@@ -59,7 +59,7 @@ class LeafNode(Node):
         super().__init__(scope, children)
 
     def get_value(self, obs):
-        if self.scope not in obs:
+        if self.scope not in obs or obs[self.scope] is True:
             return 1.0
 
     def get_parameter(self):

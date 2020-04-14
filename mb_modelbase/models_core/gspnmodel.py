@@ -54,9 +54,11 @@ class GSPNModel(Model):
     self.gspn.fit(self.data, self.feature_types, KMeansLearnSPN(self.min_samples, self.max_cluster))
     
   def _marginalizeout(self, keep, remove):
+    tmp = {}
     for rem in remove:
       if rem in self.name_to_index:
-        del self.known_index_values[self.name_to_index[rem]]
+        self.known_index_values[self.name_to_index[rem]] = True
+    return []
     
   def _conditionout(self, keep, remove):
     inverse_name_to_index = {index: name for name, index in self.name_to_index.items()}
@@ -65,9 +67,10 @@ class GSPNModel(Model):
     for index, value in zip(indices, values):
       if index in inverse_name_to_index:
         #TODO: check if this is correct
-        known_index_values[index] = self.col_to_category[inverse_name_to_index[index]][value]
+        self.known_index_values[index] = self.col_to_category[inverse_name_to_index[index]][value]
       else:
-        known_index_values[index] = value
+        self.known_index_values[index] = value
+    return []
          
   def _density(self, x):
     inverse_name_to_index = {index: name for name, index in self.name_to_index.items()}
@@ -76,7 +79,7 @@ class GSPNModel(Model):
     for index, key in enumerate(tmp.keys()):
       if tmp[key] is None:
         if inverse_name_to_index[key] is not None and type(x[running_index]) is str:
-          column_name = inverse_na,e_to_index[key]
+          column_name = inverse_name_to_index[key]
           tmp[key] = float(self.col_to_category[colname][x[running_index]])
         else:
           tmp[key] = float(x[running_index])
