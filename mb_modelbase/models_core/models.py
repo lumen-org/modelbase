@@ -1112,7 +1112,7 @@ class Model:
             # 3. calculate 'unrestricted' aggregation on the remaining model
             try:
                 aggr_function = model._aggrMethods[method]
-            except KeyError:
+            except (KeyError, TypeError):
                 raise ValueError("Your model does not provide the requested aggregation: '" + method + "'")
             other_res = aggr_function()
 
