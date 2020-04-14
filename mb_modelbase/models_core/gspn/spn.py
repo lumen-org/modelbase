@@ -86,8 +86,13 @@ class BernoulliNode(LeafNode):
 
 class CategoricalNode(LeafNode):
     def learn_parameter(self, data):
-        for value in np.unique(data):
-            self.parameter[value] = np.count_nonzero(data == value) / len(data)
+      try:
+        n = len(data)
+      except:
+        print("curious")
+        n = 1.0
+      for value in np.unique(data):
+          self.parameter[value] = np.count_nonzero(data == value) /n
 
     def get_value(self, obs):
         if self.scope not in obs.keys():
@@ -101,8 +106,13 @@ class CategoricalNode(LeafNode):
 
 class GaussianNode(LeafNode):
     def learn_parameter(self, data):
-        mu = np.sum(data) / len(data)
-        sigma = np.sqrt(np.sum(np.square(data - mu)) / (len(data)))
+        try:
+          n = len(data)
+        except:
+          print("curious")
+          n = 1.0
+        mu = np.sum(data) / n
+        sigma = np.sqrt(np.sum(np.square(data - mu)) / (n))
         self.parameter["mu"] = mu
         self.parameter["sigma"] = sigma if sigma != 0.0 else 1e-12
 
@@ -120,6 +130,7 @@ class GaussianNode(LeafNode):
 class SPN(object):
     def __init__(self):
         self.root = None
+        self.normalize = 1.0
 
     def set_root(self, root):
         self.root = root
@@ -137,18 +148,22 @@ class SPN(object):
     def fit(self, data, var_types, learn_algorithm, params={}):
         learn_algorithm.learn(self, data, var_types, params)
         self.simplify()
+        self.calculate_normalize_constant()
 
     def marginalize(self, marg_out):
         pass
 
-    def inference(self, obs):
-        return self.root.get_value(obs)
+    def predict(self, obs):
+        return self.root.get_value(obs) / self.normalize
 
     def condition(self, obs):
         pass
 
     def simplify(self):
         pass
+
+    def calculate_normalize_constant(self):
+        self.normalize = self.predict({})
 
     def loglik(self, X):
         score = 0.0

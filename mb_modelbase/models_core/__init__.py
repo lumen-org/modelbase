@@ -22,6 +22,8 @@ from mb_modelbase.models_core.spn import *
 
 from mb_modelbase.models_core.mspn import *
 
+from mb_modelbase.models_core.gspn import *
+
 from mb_modelbase.models_core.tests import *
 #from mb_modelbase.models_core.spflow import *
 from mb_modelbase.models_core.pyMC3_model import *

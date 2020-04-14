@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.cluster import KMeans
 
-from base.SPN import SPN, SumNode, ProductNode, BernoulliNode, CategoricalNode, GaussianNode
+from mb_modelbase.models_core.gspn.spn import SPN, SumNode, ProductNode, BernoulliNode, CategoricalNode, GaussianNode
 
 
 class KMeansLearnSPN(object):
@@ -57,6 +57,7 @@ class KMeansLearnSPN(object):
         work_list.append((scope, data, root))
         # stepwise creation of the SPN
         while work_list:
+            print(work_list)
             scope, data, parent = work_list.pop(0)
             # learn parameters if only one element in the scope remains or if number of data is to small
             if len(scope) == 1 or len(data) <= self.min_number_of_samples:
