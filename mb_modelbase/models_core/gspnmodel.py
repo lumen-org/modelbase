@@ -88,7 +88,7 @@ class GSPNModel(Model):
       raise Exception("To many values.")
     return self.gspn.predict(tmp)
          
-  def _sample(self):
+  def _sample(self, n=1):
     raise NotImplementedError("Will do this later")
     
   def copy(self, name=None):
