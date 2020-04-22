@@ -20,8 +20,6 @@ from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import models_predict
 from mb_modelbase.models_core import model_watchdog
-from mb_modelbase.cache import model_key
-from mb_modelbase.cache import predict_key
 from mb_modelbase.cache import DictCache
 
 logger = logging.getLogger(__name__)
@@ -69,7 +67,9 @@ class NumpyCompliantJSONEncoder(json.JSONEncoder):
     Credits to: http://stackoverflow.com/questions/27050108/convert-numpy-type-to-python
     """
 
-    # TODO: Do i really want that? what side effects does it have if I, all of the sudde, have numpy objects instead of normal integer and floats in my model??? it was never intended for it
+    # TODO: Do i really want that? what side effects does it have if I, all of
+    # the sudde, have numpy objects instead of normal integer and floats in my
+    # model??? it was never intended for it
 
     def default(self, obj):
         if isinstance(obj, numpy.integer):
@@ -89,29 +89,37 @@ def _json_dumps(*args, **kwargs):
 
 
 def PQL_parse_json(query):
-    """ Parses a given PQL query and transforms it into a more readable and handy 
+    """ Parses a given PQL query and transforms it into a more readable and handy
     format that nicely matches the interface of models.py.
     """
 
     def _predict(clause):
         # TODO refactor: this should be a method of AaggregationTuple: e.g. AggregationTuple.fromJSON
-        # TODO refactor: density really is something else than an aggregation...
+        # TODO refactor: density really is something else than an
+        # aggregation...
         def _aggrSplit(e):
             if isinstance(e, str):
                 return e
             else:
-                names = [e["name"]] if isinstance(e["name"], str) else e["name"]
+                names = [e["name"]] if isinstance(
+                    e["name"], str) else e["name"]
                 args = e["args"] if "args" in e else None
                 yields = e["yields"] if "yields" in e else None
                 try:
-                    return base.AggregationTuple(names, e["aggregation"], yields, args)
+                    return base.AggregationTuple(
+                        names, e["aggregation"], yields, args)
                 except KeyError:
-                    raise ValueError("unsupported aggregation method: " + str(e))
+                    raise ValueError(
+                        "unsupported aggregation method: " + str(e))
 
         return list(map(_aggrSplit, clause))
 
     def _where(clause):
-        return [base.Condition(e["name"], e["operator"], e["value"]) for e in clause]
+        return [
+            base.Condition(
+                e["name"],
+                e["operator"],
+                e["value"]) for e in clause]
 
     def _splitby(clause):
         def _mapSplit(e):
@@ -174,7 +182,16 @@ class ModelBase:
         query_log_path (str): Path to the query log file
     """
 
-    def __init__(self, name, model_dir='data_models', auto_load_models={}, load_all=True, cache=DictCache(), watchdog=True, log_queries=False, query_log_path='./'):
+    def __init__(
+            self,
+            name,
+            model_dir='data_models',
+            auto_load_models={},
+            load_all=True,
+            cache=DictCache(),
+            watchdog=True,
+            log_queries=False,
+            query_log_path='./'):
         """ Creates a new instance and loads models from some directory. """
 
         check_if_dir_exists(model_dir)
@@ -194,10 +211,13 @@ class ModelBase:
             logger.info("Loading models from directory '" + model_dir + "'")
             loaded_models = self.load_all_models()
             if len(loaded_models) == 0:
-                logger.warning("I did not load ANY model. Make sure the provided model directory is correct! "
-                               "I continue anyway.")
+                logger.warning(
+                    "I did not load ANY model. Make sure the provided model directory is correct! "
+                    "I continue anyway.")
             else:
-                logger.info("Successfully loaded " + str(len(loaded_models)) + " models into the modelbase: ")
+                logger.info("Successfully loaded " +
+                            str(len(loaded_models)) +
+                            " models into the modelbase: ")
                 logger.info(str([model[0] for model in loaded_models]))
 
         self.model_watch_observer = None
@@ -205,8 +225,11 @@ class ModelBase:
             # init watchdog who oversees a given folder for new models
             self.model_watch_observer = model_watchdog.ModelWatchObserver()
             try:
-                self.model_watch_observer.init_watchdog(self, self.model_dir, **auto_load_models)
-                logger.info("Files under {} are watched for changes".format(self.model_dir))
+                self.model_watch_observer.init_watchdog(
+                    self, self.model_dir, **auto_load_models)
+                logger.info(
+                    "Files under {} are watched for changes".format(
+                        self.model_dir))
             except Exception as err:
                 logger.exception("Watchdog failed!")
                 logger.exception(err)
@@ -234,7 +257,8 @@ class ModelBase:
 
         check_if_dir_exists(directory)
 
-        # iterate over matching files in directory (including any subdirectories)
+        # iterate over matching files in directory (including any
+        # subdirectories)
         loaded_models = []
         filenames = Path(directory).glob('**/' + '*' + ext)
         for file in filenames:
@@ -243,9 +267,11 @@ class ModelBase:
             try:
                 model = gm.Model.load(str(file))
             except TypeError as err:
-                logger.warning('file "' + str(file) +
-                               '" matches the naming pattern but does not contain a model instance. '
-                               'I ignored that file')
+                logger.warning(
+                    'file "' +
+                    str(file) +
+                    '" matches the naming pattern but does not contain a model instance. '
+                    'I ignored that file')
             else:
                 self.add(model)
                 loaded_models.append((model.name, str(file)))
@@ -302,10 +328,10 @@ class ModelBase:
     def execute(self, query):
         path = ""
         queryLogName = self.query_log_path + "/interaction" + \
-                       time.strftime("%b:%d:%Y_%H", time.gmtime(time.time())) + ".log"
+            time.strftime("%b:%d:%Y_%H", time.gmtime(time.time())) + ".log"
 
         if self.log_queries:
-            if not "SHOW" in query.keys():
+            if "SHOW" not in query.keys():
                 with open(queryLogName, "a") as f:
                     f.write(json.dumps(query) + '\n')
                     logger.info(json.dumps(query))
@@ -316,7 +342,7 @@ class ModelBase:
             query: A word of the PQL language, either as JSON or as a string.
 
         Returns:
-            The result of the query as a JSON-string, i.e. 
+            The result of the query as a JSON-string, i.e.
             '''json.loads(result)''' works just fine on it.
 
         Raises:
@@ -330,15 +356,12 @@ class ModelBase:
             query = json.loads(query)
         query = PQL_parse_json(query)
 
-        # basic syntax and semantics checking of the given query is done in the _extract* methods
+        # basic syntax and semantics checking of the given query is done in the
+        # _extract* methods
         if 'MODEL' in query:
             base = self._extractFrom(query)
 
-            key = model_key(
-                name=query["AS"],
-                model=self._extractModel(query),
-                where=self._extractWhere(query)
-            )
+            key = self.model_key(query)
 
             if self.cache is not None:
                 derived_model = self.cache.get(key)
@@ -347,7 +370,8 @@ class ModelBase:
 
             if derived_model is None:
                 # maybe copy
-                derived_model = base if base.name == query["AS"] else base.copy(query["AS"])
+                derived_model = base if base.name == query["AS"] else base.copy(
+                    query["AS"])
                 # derive submodel
                 derived_model.model(
                     model=self._extractModel(query),
@@ -358,9 +382,10 @@ class ModelBase:
                 if self.cache is not None:
                     self.cache.set(key, derived_model)
             else:
-                derived_model.set_default_value(self._extractDefaultValue(query)) \
-                    .set_default_subset(self._extractDefaultSubset(query)) \
-                    .hide(self._extractHide(query))
+                derived_model.set_default_value(
+                    self._extractDefaultValue(query)) .set_default_subset(
+                    self._extractDefaultSubset(query)) .hide(
+                    self._extractHide(query))
 
             # add to modelbase
             self.add(derived_model, query["AS"])
@@ -370,34 +395,30 @@ class ModelBase:
 
         elif 'SELECT' in query:
             base = self._extractFrom(query)
+
             resultframe = base.select(
                 what=self._extractSelect(query),
                 where=self._extractWhere(query),
                 **self._extractOpts(query)
             )
 
-            return _json_dumps({"header": resultframe.columns.tolist(),
-                                "data": resultframe.to_csv(index=False, header=False)})
+            return _json_dumps({"header": resultframe.columns.tolist(
+            ), "data": resultframe.to_csv(index=False, header=False)})
 
         elif 'PREDICT' in query:
-            base = self._extractFrom(query)
-            predict_stmnt = self._extractPredict(query)
-            where_stmnt = self._extractWhere(query)
-            splitby_stmnt = self._extractSplitBy(query)
-
-            key = predict_key(
-                base=base,
-                predict_stmnt=predict_stmnt,
-                where_stmnt=where_stmnt,
-                splitby_stmnt=splitby_stmnt
-            )
-
+            key = self.predict_key(query)
             resultframe = None
 
             if self.cache is not None:
                 resultframe = self.cache.get(key)
 
             if resultframe is None:
+                # Extract multiple
+                base = self._extractFrom(query)
+                predict_stmnt = self._extractPredict(query)
+                where_stmnt = self._extractWhere(query)
+                splitby_stmnt = self._extractSplitBy(query)
+
                 resultframe = base.predict(
                     predict=predict_stmnt,
                     where=where_stmnt,
@@ -405,10 +426,11 @@ class ModelBase:
                     **self._extractOpts(query)
                 )
                 if self.cache is not None:
-                    self.cache.set(key,resultframe)
+                    self.cache.set(key, resultframe)
 
             # TODO: is this working?
-            if 'DIFFERENCE_TO' in query:  # query['DIFFERENCE_TO'] = 'mcg_iris_map'
+            # query['DIFFERENCE_TO'] = 'mcg_iris_map'
+            if 'DIFFERENCE_TO' in query:
                 base2 = self._extractDifferenceTo(query)
                 resultframe2 = base2.predict(
                     predict=predict_stmnt,
@@ -421,11 +443,13 @@ class ModelBase:
 
                 # calculate the diff only on the _predicted_ variables
                 if len(aggr_idx) > 0:
-                    resultframe.iloc[:, aggr_idx] = resultframe.iloc[:, aggr_idx] - resultframe2.iloc[:, aggr_idx]
+                    resultframe.iloc[:,
+                                     aggr_idx] = resultframe.iloc[:,
+                                                                  aggr_idx] - resultframe2.iloc[:,
+                                                                                                aggr_idx]
 
-            return _json_dumps({"header": resultframe.columns.tolist(),
-                                "data": resultframe.to_csv(index=False, header=False,
-                                                           float_format=self.settings['float_format'])})
+            return _json_dumps({"header": resultframe.columns.tolist(), "data": resultframe.to_csv(
+                index=False, header=False, float_format=self.settings['float_format'])})
 
         elif 'DROP' in query:
             self.drop(name=query['DROP'])
@@ -439,15 +463,16 @@ class ModelBase:
             elif show == "MODELS":
                 result = {'models': self.list_models()}
             else:
-                raise ValueError("invalid value given in SHOW-clause: " + str(show))
+                raise ValueError(
+                    "invalid value given in SHOW-clause: " + str(show))
             return _json_dumps(result)
 
         elif 'RELOAD' in query:
             what = self._extractReload(query)
             if what == '*':
                 loaded_models = self.load_all_models()
-                return _json_dumps({'STATUS': 'success',
-                                    'models': [model[0] for model in loaded_models]})
+                return _json_dumps({'STATUS': 'success', 'models': [
+                                   model[0] for model in loaded_models]})
             else:
                 raise ValueError("not implemented")
 
@@ -469,7 +494,8 @@ class ModelBase:
                 'graph': graph
             })
         else:
-            raise QueryIncompleteError("Missing Statement-Type (e.g. DROP, PREDICT, SELECT)")
+            raise QueryIncompleteError(
+                "Missing Statement-Type (e.g. DROP, PREDICT, SELECT)")
 
     def upload_files(self, models):
         """
@@ -483,7 +509,9 @@ class ModelBase:
         for model in models:
             try:
                 model = dill.loads(model)
-                if isinstance(model, gm.Model) and model.name not in self.models:
+                if isinstance(
+                        model,
+                        gm.Model) and model.name not in self.models:
                     model.save(self.model_dir)
                     model_list_saved.append(model.name)
                 else:
@@ -496,7 +524,7 @@ class ModelBase:
         logger.info("Models ignored: {}".format(model_list_existing))
         return "OK"
 
-    ### _extract* functions are helpers to extract a certain part of a PQL query
+    # _extract* functions are helpers to extract a certain part of a PQL query
     #   and do some basic syntax and semantic checks
 
     def _extractModelByStatement(self, query, keyword):
@@ -506,7 +534,8 @@ class ModelBase:
             raise QuerySyntaxError("{}-statement missing".format(keyword))
         modelName = query[keyword]
         if modelName not in self.models:
-            raise QueryValueError("The specified model does not exist: " + modelName)
+            raise QueryValueError(
+                "The specified model does not exist: " + modelName)
         return self.models[modelName]
 
     def _extractFrom(self, query):
@@ -630,7 +659,8 @@ class ModelBase:
         if what == '*':
             return '*'
         else:
-            raise NotImplementedError('model-specific reloads not yet implemented!')
+            raise NotImplementedError(
+                'model-specific reloads not yet implemented!')
 
     def _extractSelect(self, query):
         if 'SELECT' not in query:
@@ -639,6 +669,43 @@ class ModelBase:
             return self.models[query['FROM']].names
         else:
             return query['SELECT']
+
+    def model_key(self, query) -> str:
+        """A method that computes a key for the model needed by the query.
+
+        Args:
+            query: A PQL query.
+        Returns:
+            The key as a string.
+        """
+
+        base = query["AS"]
+        model = self._extractModel(query)
+        where = self._extractWhere(query)
+
+        key = str(base) + ':' + str(model).strip('[]') + ':' + str(where)
+        key = key.strip('[]')
+        key = key.replace(' ', '').replace('\'', '')
+
+        return key
+
+    def predict_key(self, query) -> str:
+        """A method that computes a key for the prediction query needed by the query.
+
+        Args:
+            query: A PQL query.
+        Returns:
+            The key as a string.
+        """
+
+        base = self._extractFrom(query)
+        predict = self._extractPredict(query)
+        where = self._extractWhere(query)
+        split = self._extractSplitBy(query)
+
+        key = str(base) + str(predict) + str(where) + str(split)
+
+        return key
 
 
 if __name__ == '__main__':
@@ -650,7 +717,8 @@ if __name__ == '__main__':
     i2.marginalize(remove=["sepal_length"])
     print(i2.aggregate(method='maximum'))
     print(i2.aggregate(method='average'))
-    aggr = md.AggregationTuple(['sepal_width', 'petal_length'], 'maximum', 'petal_length', [])
+    aggr = md.AggregationTuple(
+        ['sepal_width', 'petal_length'], 'maximum', 'petal_length', [])
     print(aggr)
 
     # foo = cc.copy().model(["total", "alcohol"], [gm.ConditionTuple("alcohol", "equals", 10)])

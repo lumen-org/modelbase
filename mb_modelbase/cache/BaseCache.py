@@ -1,44 +1,5 @@
 import abc
 import dill
-from typing import List
-
-
-def model_key(name: str, model: List[str], where: List[str]) -> str:
-    """Function that computes a key for a given model.
-
-    Args:
-        name:
-        model:
-        where:
-    """
-
-    return (
-        str(name) +
-        ':' +
-        str(model).strip('[]') +
-        ':' +
-        str(where).strip('[]')).replace(
-        ' ',
-        '')
-
-
-def predict_key(
-        base,
-        predict_stmnt: List[str],
-        where_stmnt,
-        splitby_stmnt) -> str:
-    """Function that computes a key for a given prediction query.
-
-    Args:
-        base:
-        predict_stmnt:
-        where_stmnt:
-        splitby_stmnt:
-    :return:
-    """
-
-    return str(base) + str(predict_stmnt) + \
-        str(where_stmnt) + str(splitby_stmnt)
 
 
 class BaseCache(abc.ABC):
