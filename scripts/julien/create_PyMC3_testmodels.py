@@ -12,8 +12,6 @@ import scipy.stats
 import math
 
 #import pymc_models_allbus
-import pymc_models_titanic
-import pymc_models_bank
 #import pymc_models_burglary
 
 
