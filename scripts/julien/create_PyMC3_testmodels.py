@@ -13,6 +13,7 @@ import math
 
 #import pymc_models_allbus
 import pymc_models_titanic
+import pymc_models_bank
 #import pymc_models_burglary
 
 
@@ -63,12 +64,21 @@ def create_pymc3_simplest_model(modelname='pymc3_simplest_model', fit=True):
 ######################################
 if __name__ == '__main__':
     modeldir = 'models'  # sub directory where to store created models
-    mypath = os.path.join(os.path.dirname(__file__), modeldir)
+    mypath = "/home/julien/Development/nips2020/fitted_models/"
     if not os.path.exists(mypath):
         os.makedirs(mypath)
     start = timeit.default_timer()
     testcasemodel_path = mypath
     testcasedata_path = mypath
+
+    from inspect import getmembers, isfunction
+    import scripts.julien.pymc_models_bank2 as bank
+    import scripts.julien.pymc_models_allbus2 as allbus
+
+    module = allbus
+
+    functions = [o[1] for o in getmembers(module) if isfunction(o[1])]
+    #print(functions)
 
     # This list specifies which models are created when the script is run. If you only want to create
     # specific models, adjust the list accordingly
@@ -85,11 +95,14 @@ if __name__ == '__main__':
         #pymc_models_allbus.create_allbus_model_8
 
         #pymc_models_titanic.create_titanic_model_1,
-        pymc_models_titanic.create_titanic_model_2,
+        #pymc_models_titanic.create_titanic_model_2,
         #pymc_models_titanic.create_titanic_model_3,
         #pymc_models_titanic.create_titanic_model_4,
         #pymc_models_titanic.create_titanic_model_5,
+
+        #pymc_models_bank.create_bank_model_1,
     ]
+    create_functions = functions
 
     for func in create_functions:
         data, m_fitted = func(fit=True)
@@ -101,6 +114,7 @@ if __name__ == '__main__':
         emp_model.fit(df=data)
 
         m_fitted.save(testcasemodel_path)
+        print(f"Saved in {testcasemodel_path}")
         emp_model.save(testcasemodel_path)
         if data is not None:
             data.to_csv(os.path.join(testcasedata_path, m_fitted.name + '.csv'), index=False)

@@ -15,7 +15,7 @@ IMPORTANT:
 """
 
 from mb_modelbase.models_core import Model
-from mb_modelbase.models_core.spn_model.spn import SPNParams, SPN
+from mb_modelbase.models_core.gausspn.spn import SPNParams, SPN
 
 from scipy.optimize import minimize
 import numpy as np
@@ -49,7 +49,7 @@ class SPNModel(Model):
       return []
 
     def _fit(self, iterations=5, **kwargs):
-        data = self.data.get_values()
+        data = self.data.values
         if self.data.empty:
             raise Exception("No data available to fit on.")
         self._spnmodel = SPN(self.variables, self.numcomp, self.params)

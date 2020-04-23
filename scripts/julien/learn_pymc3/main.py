@@ -1,17 +1,20 @@
 
 from scripts.julien.learn_pymc3.BayesianModel import BayesianModel
 
+from scripts.julien.learn_pymc3.PPLModelCreator import PPLModel
+
 
 
 if __name__ == "__main__":
     json_file = '../data/bnlearn_example_grade.json'
-    path = "/home/julien/PycharmProjects/lumen/modelbase/scripts/julien/data/"
+    path = "../data/"
     file = 'burglary_cleaned.csv'
     #file = 'students_cleaned.csv'
     #file = 'grade_model.csv'
     #file = 'mixture_gaussian_cleaned.csv'
     file = "allbus_cleaned.csv"
-    file = "titanic_orig.csv"
+    #file = "titanic_orig.csv"
+    #file = "bank_cleaned.csv"
     # file = "sprinkler_cleaned.csv"
     file = path + file
 
@@ -23,25 +26,26 @@ if __name__ == "__main__":
     """
 
     continuous_variables = []
+    discrete_variables = ['sex', 'lived_abroad']
     whitelist = []
     blacklist = []
     #blacklist_edges = [('income', 'age')]
-    continuous_variables = ['income', 'age']
-    whitelist = [('sex', 'educ')]
-    bayesian_model = BayesianModel(continuous_variables=continuous_variables, whitelist=whitelist, blacklist=blacklist)
-    bayesian_model.learn_through_r(file, relearn=True, verbose=True)
+    #continuous_variables = ['income', 'age']
+    #whitelist = [('sex', 'educ')]
 
-    descr = bayesian_model.get_graph_description()
-    print(descr)
+    algorithms = ["tabu", "hc", "gs", "iamb", "fast.iamb", "inter.iamb", "mmpc"]
+    scores = ["loglik-cg", "aic-cg", "bic-cg", "pred-loglik-cg"]
+    could_not_fit = 0
+    for algo in algorithms:
+        for score in scores:
+            model_name = f"allbus_{algo}_{score}".replace("-", "").replace(".", "")
+            ppl_model = PPLModel(model_name, file, discrete_variables=discrete_variables, verbose=False, algo=algo,
+                                 score=score)
+            could_not_fit += ppl_model.generate_pymc(model_name=model_name, save=True, output_file="/home/julien/PycharmProjects/modelbase/scripts/julien/pymc_models_allbus2.py")
+    print("COULD NOT FIT: ", could_not_fit)
 
-    bayesian_model.get_graph().export_as_graphviz("allbus_4", view=True)
 
-    from scripts.julien.learn_pymc3.ProbParameter import generate_prob_graphs, is_similar, merge_nodes, print_prob_table
-
-    if True:
-
-        generate_prob_graphs(bayesian_model)
-        """
+    """
         conditional_node_order = bayesian_model.get_condition_node_order()
         bayesian_json = {}
         bayesian_json["conditional node order"] = [node.get_name() for node in conditional_node_order]
@@ -68,17 +72,4 @@ if __name__ == "__main__":
                 if found:
                     break
         
-        """
-        from scripts.julien.learn_pymc3.BlogCreator import BlogCreator
-        from scripts.julien.learn_pymc3.PyMCCreator import PyMCCreator
-        # """
-        bc = BlogCreator(bayesian_model)
-        print("#### BLOG ####\n", bc.generate(), sep="")
-        """
-        """
-        pc = PyMCCreator(bayesian_model)
-        print("#### PYMC3 ####\n", pc.generate(), sep="")
-
-        print()
-        print(f"Learned bayesian network learned with {bayesian_model.get_number_of_parameter()} parameter.")
-        # """
+    """

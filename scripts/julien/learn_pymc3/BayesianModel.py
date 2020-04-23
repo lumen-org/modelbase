@@ -8,28 +8,35 @@ import numpy as np
 
 
 class BayesianModel(object):
-    def __init__(self, discrete_variables=[], continuous_variables=[], blacklist=None, level_dict=None, whitelist=None):
+    def __init__(self, discrete_variables=[], continuous_variables=[], blacklist=None, level_dict=None, whitelist=None, score="bic-cg", algo="hc"):
         self.graph = None
         self.level_dict = level_dict
         self.whitelist = whitelist
         self.blacklist = blacklist
         self.discrete_variables = discrete_variables
         self.continuous_variables = continuous_variables
+        self.score = score
+        self.algo = algo
         self.merged_parameter = 0
 
     def learn(self, data):
         raise NotImplementedError("Have to be done by using structure and parameter learning.")
 
     def learn_through_r(self, data_file, relearn=True, verbose=False):
+        # if an error occurs this returns True, else False
         if relearn:
-            jmc = JSONModelCreator(data_file, self.whitelist, self.discrete_variables, self.continuous_variables, self.blacklist)
+            jmc = JSONModelCreator(data_file, self.whitelist, self.discrete_variables, self.continuous_variables, self.blacklist, self.score, self.algo)
             (json_file, discrete_vars, continuous_vars) = jmc.generate_model_as_json_with_r(verbose)
+            if json_file == None:
+                bayesian_model = None
+                return True
             self.discrete_variables = discrete_vars
             self.continuous_variables = continuous_vars
         else:
             json_file = data_file + ".json"
         json_reader = JSONReader(self)
         bayesian_model = json_reader.parse(json_file)
+        return False
 
     def simplify(self, tolerance, verbose=False):
         prepared_nodes = []

@@ -777,8 +777,6 @@ class SPN(object):
 
         data = X.astype(float64)
 
-        print(data.shape)
-
         if featureNames is None:
             featureNames = ["X_%s_" % (i) for i in range(data.shape[1])]
 
@@ -934,7 +932,7 @@ class SPN(object):
             else:
                 raise Exception('Invalid operation: ' + operation)
 
-        # take dataslices and build spn
+        # take dataslices and build gausspn
         spn.root = spn.BuildSpn(rootSlice,
                                 bin_width=bin_width,
                                 alpha=alpha,
@@ -946,7 +944,7 @@ class SPN(object):
                                 kernel_bandwidth=kernel_bandwidth,
                                 kernel_metric=kernel_metric)
 
-        # prune spn
+        # prune gausspn
         spn.root.Prune()
 
         return spn

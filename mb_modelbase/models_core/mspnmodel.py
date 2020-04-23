@@ -31,7 +31,10 @@ IMPORTANT:
 
 import rpy2
 
-from mb_modelbase.models_core import Model, get_columns_by_dtype, to_category_cols
+from mb_modelbase.models_core import Model
+
+from mb_modelbase.utils.data_import_utils import get_columns_by_dtype, to_category_cols
+
 
 from mb_modelbase.models_core.mspn.tfspn.piecewise import estimate_domains
 from mb_modelbase.models_core.mspn.tfspn.SPN import SPN, Splitting
@@ -92,7 +95,7 @@ class \
         
         return []
 
-    def _fit(self):
+    def _fit(self, **kwargs):
         # data = np.array(self.data)
         # for i in range(len(data)):
         #     data[i] = [int(j) if self.featureTypes[i] == "categorical" else j for j in data[i]]

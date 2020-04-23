@@ -6,8 +6,8 @@ This data set is taken from: https://github.com/hadley/data-fuel-economy
 import pandas as pd
 import os
 
-#import spn_model.structure.leaves.parametric.Parametric as spn_parameter_types
-#import spn_model.structure.StatisticalTypes as spn_statistical_types
+#import gausspn.structure.leaves.parametric.Parametric as spn_parameter_types
+#import gausspn.structure.StatisticalTypes as spn_statistical_types
 
 _csvfilepath = os.path.splitext(__file__)[0] + ".csv"
 
