@@ -11,27 +11,32 @@ import math
 import os
 
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
-
-import pandas as pd
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 
-filepath = os.path.join(os.path.dirname(__file__), "data", "allbus_cleaned.csv")
+import pandas as pd
+
+filepath = os.path.join(os.path.dirname(__file__), "data", "allbus.csv")
 df = pd.read_csv(filepath)
 
-sample_size = 10000
+sample_size = 100000
 
 allbus_backward_map = {'sex': {'Female': 0, 'Male': 1}, 'eastwest': {'East': 0, 'West': 1},
-                       'lived_abroad': {'No': 0, 'Yes': 1},
-                       'spectrum': {'Center-left': 0, 'Center-right': 1, 'Left': 2, 'Right': 3}}
+                       'lived_abroad': {'No': 0, 'Yes': 1}
+                       }
+
+allbus_forward_map = {'sex': {0: 'Female', 1: 'Male'}, 'eastwest': {0: 'East', 1: 'West'},
+                      'lived_abroad': {0: 'No', 1: 'Yes'}
+                      }
 
 dtm = DataTypeMapper()
 for name, map_ in allbus_backward_map.items():
-    dtm.set_map(forward='auto', backward=map_, name=name)
+    dtm.set_map(forward=allbus_forward_map[name], backward=map_, name=name)
+
+    #####################
+    # 114 parameter
+    #####################
 
 
-#####################
-# 114 parameter
-#####################
 def create_allbus_tabu_loglikcg(filename="", modelname="allbus_tabu_loglikcg", fit=True):
     if fit:
         modelname = modelname + '_fitted'
