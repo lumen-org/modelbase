@@ -20,18 +20,20 @@ df = pd.read_csv(filepath)
 
 sample_size = 100000
 
-allbus_backward_map = {'sex': {'Female': 0, 'Male': 1}, 'eastwest': {'East': 0, 'West': 1},
+allbus_forward_map = {'sex': {'Female': 0, 'Male': 1}, 'eastwest': {'East': 0, 'West': 1},
                        'lived_abroad': {'No': 0, 'Yes': 1}
                        }
 
-allbus_forward_map = {'sex': {0: 'Female', 1: 'Male'}, 'eastwest': {0: 'East', 1: 'West'},
+allbus_backward_map = {'sex': {0: 'Female', 1: 'Male'}, 'eastwest': {0: 'East', 1: 'West'},
                       'lived_abroad': {0: 'No', 1: 'Yes'}
                       }
 
 dtm = DataTypeMapper()
 for name, map_ in allbus_backward_map.items():
     dtm.set_map(forward=allbus_forward_map[name], backward=map_, name=name)
+    print("f1")
 
+pass
     #####################
     # 114 parameter
     #####################

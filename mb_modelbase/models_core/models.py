@@ -625,7 +625,7 @@ class Model:
             self._empirical_model_name = kwargs['empirical_model_name']
 
         if df is not None:
-            return self.set_data(df, **kwargs).fit(**kwargs)
+            return self.set_data(df, **kwargs).fit(auto_extend=auto_extend, **kwargs)
 
         if self.data is None and self.mode != 'data':
             raise ValueError(

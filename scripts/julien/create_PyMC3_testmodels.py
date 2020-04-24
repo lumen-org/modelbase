@@ -62,7 +62,7 @@ def create_pymc3_simplest_model(modelname='pymc3_simplest_model', fit=True):
 ######################################
 if __name__ == '__main__':
     modeldir = 'models'  # sub directory where to store created models
-    mypath = "/home/julien/Development/nips2020/fitted_models/"
+    mypath = "../../../fitted_models/"
     if not os.path.exists(mypath):
         os.makedirs(mypath)
     start = timeit.default_timer()
@@ -70,7 +70,7 @@ if __name__ == '__main__':
     testcasedata_path = mypath
 
     from inspect import getmembers, isfunction
-    import scripts.julien.pymc_models_bank2 as bank
+    #import scripts.julien.pymc_models_bank2 as bank
     import scripts.julien.pymc_models_allbus2 as allbus
 
     module = allbus

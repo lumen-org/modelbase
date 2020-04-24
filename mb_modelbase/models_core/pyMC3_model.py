@@ -136,7 +136,10 @@ class ProbabilisticPymc3Model(Model):
                 original space and the modeling space.
 
                 Note that you must provide your training and test data in its original space representation with
-                .fit_data().
+                .fit_data(). For example: your data (original space) contain a variable 'sex' with
+                values 'male' and 'female' that you need internally inside your model as 0, 1.
+                Hence you use a data mapper with a forward map {'male': 0, 'female': 1}. When you
+                fit the model you provide the original data (that is with 'male' and 'female').
 
             sampling_chains: int, optional. Defaults to 1.
 
