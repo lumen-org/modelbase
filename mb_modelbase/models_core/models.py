@@ -455,12 +455,13 @@ class Model:
          - possibly existing data of the model are overwritten
          - possibly fitted model parameters are lost
 
-        Note that if the data does not fit to the specific type of the model, it will raise a TypeError. E.g. a gaussian
-        model cannot be fit on categorical data.
+        Note that if the data does not fit to the specific type of the model, it will raise a
+        TypeError. E.g. a gaussian odel cannot be fit on categorical data.
 
         Args:
             df: a pandas data frame
-            drop_silently: If set to True any column of df that is not suitable for the model to be learned will silently be dropped. Otherwise this will raise a TypeError.
+            drop_silently: If set to True any column of df that is not suitable for the model to be
+                learned will silently be dropped. Otherwise this will raise a TypeError.
             kwargs:
         Returns:
             self
