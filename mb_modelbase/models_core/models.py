@@ -415,6 +415,7 @@ class Model:
 
     def set_empirical_model_name(self, name):
         self._empirical_model_name = name
+        return self
 
     def set_model_params(self, **kwargs):
         """Sets explicitly the parameters of a model.
