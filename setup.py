@@ -31,7 +31,8 @@ setup(name='mb_modelbase',
           'networkx',
           'numba',
           'statsmodels',
-          'tensorflow==1.14'
+          'tensorflow==1.14',
+          'prettytable'
       ],
       zip_safe=False)
 

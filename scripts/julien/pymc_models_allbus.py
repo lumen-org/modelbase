@@ -1,24 +1,28 @@
 #!usr/bin/python
 # -*- coding: utf-8 -*-import string
 
-import numpy as np
-import pandas as pd
 import pymc3 as pm
 import theano.tensor as tt
-import theano
+from sklearn.model_selection import train_test_split
 
-import math
 import os
 
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
+from mb_modelbase.utils.Metrics import cll
 
 import pandas as pd
 
-filepath = os.path.join(os.path.dirname(__file__), "data", "allbus.csv")
+filepath = os.path.join(os.path.dirname(__file__), "data", "allbus_cleaned.csv")
 df = pd.read_csv(filepath)
 
-sample_size = 100000
+train_data, test_data = train_test_split(df, train_size=0.8)
+test_data = test_data.sort_index()
+train_data = train_data.sort_index()
+
+model_file = os.path.join(os.path.dirname(__file__), "metrics", "allbus_metrics.json")
+
+sample_size = 1000
 
 # forward map maps from original space to internal model space
 allbus_forward_map = {'sex': {'Female': 0, 'Male': 1},
@@ -38,10 +42,6 @@ for name, map_ in allbus_forward_map.items():
     # backward map is set automatically
     dtm.set_map(forward=map_, name=name)
     #dtm.set_map(backward=allbus_backward_map[name], forward=map_, name=name)
-
-    #####################
-    # 114 parameter
-    #####################
 
 
 def create_allbus_tabu_loglikcg(filename="", modelname="allbus_tabu_loglikcg", fit=True):
@@ -95,8 +95,9 @@ def create_allbus_tabu_loglikcg(filename="", modelname="allbus_tabu_loglikcg", f
                         sigma=tt.switch(tt.eq(lived_abroad, 0), tt.switch(tt.eq(sex, 0), 15.0116, 15.5783),
                                         tt.switch(tt.eq(sex, 0), 15.2106, 16.5573)))
 
-    m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm)
+    m = ProbabilisticPymc3Model(modelname, model)
     m.nr_of_posterior_samples = sample_size
     if fit:
-        m.fit(df, auto_extend=False)
+        m.fit(train_data, auto_extend=False)
+        cll(m, test_data, model_file)
     return df, m

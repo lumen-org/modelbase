@@ -72,14 +72,15 @@ class PPLModel():
 #####################
 def {function_name}(filename="", modelname="{model_name}", fit=True):
     if fit:
-        modelname = modelname + '_fitted'
+        modelname = modelname
     model = pm.Model()
     with model:
 {code}
-    m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm)
+    m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm, nr_of_posterior_samples=sample_size)
     m.nr_of_posterior_samples = sample_size
     if fit:
-        m.fit(df, auto_extend=False)
+        m.fit(train_data, auto_extend=False)
+        cll(m, test_data, model_file)
     return df, m""".format(**parameter_dict)
         if "NaN" in complete_code:
             print(f"Could not fit because of NAN (Number of parameter: {parameter})")
@@ -98,4 +99,40 @@ def {function_name}(filename="", modelname="{model_name}", fit=True):
         bc = BlogCreator(self.bayesian_model)
         return bc
 
+def generate_new_pymc_file(file_name, result_file):
+    code = """#!usr/bin/python
+# -*- coding: utf-8 -*-import string
 
+import pymc3 as pm
+import theano.tensor as tt
+
+from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
+from mb_modelbase.utils.data_type_mapper import DataTypeMapper
+from mb_modelbase.utils.Metrics import cll
+
+import scripts.experiments.allbus as allbus_data
+
+# LOAD FILES
+test_data = allbus_data.train(discrete_happy=True)
+train_data = allbus_data.test(discrete_happy=True)
+
+df = train_data
+
+# SAVE PARAMETER IN THIS FILE
+model_file = {model_file}
+
+sample_size = 100000
+
+allbus_forward_map = {'sex': {'Female': 0, 'Male': 1}, 'eastwest': {'East': 0, 'West': 1},
+                       'lived_abroad': {'No': 0, 'Yes': 1}, 'happiness': {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9, 'h10': 10}}
+
+allbus_backward_map = {'sex': {0: 'Female', 1: 'Male'}, 'eastwest': {0: 'East', 1: 'West'},
+                      'lived_abroad': {0: 'No', 1: 'Yes'}, 'happiness': {0: 'h0', 1: 'h1', 2: 'h2', 3: 'h3', 4: 'h4', 5: 'h5', 6: 'h6', 7: 'h7', 8: 'h8', 9: 'h9', 10: 'h10'}}
+
+dtm = DataTypeMapper()
+for name, map_ in allbus_backward_map.items():
+    dtm.set_map(forward=allbus_forward_map[name], backward=map_, name=name)
+
+""".replace("{model_file}", f"'{result_file}'")
+    with open(file_name, "w") as f:
+        f.write(code)
