@@ -74,15 +74,12 @@ if __name__ == "__main__":
     print("Calculate SPN model scores (skip emp)")
     number_of_spn_models = len([m for m in models if not m.startswith("emp")])
     for index, (model_name, property) in enumerate(models.items()):
+        print(f"Calculate SPN model {index} of {number_of_spn_models}")
         if not model_name.startswith("emp"):
-            print(f"Calculate SPN model {index} of {number_of_spn_models}")
-            if model_name.startswith("mspn"):
-                cll(property["model"], allbus.test(discrete_happy=False), result_file)
-                pass
-            elif model_name.startswith("spn_"):
+            if model_name.startswith("spn_"):
                 pass
             else:
-                cll(property["model"], allbus.test(), result_file)
+                cll(property["model"], allbus.test(discrete_happy=False), result_file)
     save_models(models, fitted_models_directory)
 
     print("Calculate bnlearn models")
@@ -92,7 +89,7 @@ if __name__ == "__main__":
     # model definition file
     pymc_model_file = "./models/pymc_models_allbus.py"
     # we have beforehand the following discrete variables
-    discrete_variables = ['sex', 'eastwest', 'happiness', 'lived_abroad']
+    discrete_variables = ['sex', 'eastwest', 'lived_abroad']
     # create a new pymc file
     generate_new_pymc_file(pymc_model_file, result_file)
     # create a model for different algorithms and scores
@@ -143,6 +140,7 @@ if __name__ == "__main__":
     print("Learn and try different sklearn models")
     def hit_score(y_true, y_predict):
         return np.sum(np.abs(y_true - y_predict)) / len(y_true)
+    # calculates the accuracy score for variable
     def _test_var(train, test, variable):
         y_train = train[variable]
         del train[variable]
@@ -158,6 +156,7 @@ if __name__ == "__main__":
             hit = hit_score(y_test, m.predict(X_test))
             model_scores[f"{m.__class__.__name__}"] = {'acc': acc, 'hit': hit}
         return model_scores
+    # calculate the scores and save them
     train_data = allbus.train(discretize_all=True)
     test_data = allbus.test(discretize_all=True)
     scores_happy = _test_var(train_data, test_data, "happiness")

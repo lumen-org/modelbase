@@ -26,7 +26,7 @@ spn_parameters = {
         'age': spn_parameter_types.Gaussian,
         'educ': spn_parameter_types.Gaussian,
         'income': spn_parameter_types.Gaussian,
-        'happiness': spn_parameter_types.Categorical,
+        'happiness': spn_parameter_types.Gaussian,
         'health': spn_parameter_types.Gaussian
     }
 }
@@ -39,7 +39,7 @@ spn_metatypes = {
         'age': spn_statistical_types.MetaType.REAL,
         'educ': spn_statistical_types.MetaType.DISCRETE,
         'income': spn_statistical_types.MetaType.REAL,
-        'happiness': spn_statistical_types.MetaType.DISCRETE,
+        'happiness': spn_statistical_types.MetaType.REAL,
         'health': spn_statistical_types.MetaType.REAL
     }
 }

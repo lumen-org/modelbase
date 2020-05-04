@@ -113,8 +113,8 @@ from mb_modelbase.utils.Metrics import cll
 import scripts.experiments.allbus as allbus_data
 
 # LOAD FILES
-test_data = allbus_data.train(discrete_happy=True)
-train_data = allbus_data.test(discrete_happy=True)
+test_data = allbus_data.train(discrete_happy=False)
+train_data = allbus_data.test(discrete_happy=False)
 
 df = train_data
 
