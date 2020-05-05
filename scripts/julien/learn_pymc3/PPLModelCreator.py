@@ -82,7 +82,7 @@ def {function_name}(filename="", modelname="{model_name}", fit=True):
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        {cll}(m, test_data, model_file, continues_data_file)
+        {cll}()
     return df, m""".format(**parameter_dict)
         if "NaN" in complete_code:
             if self.verbose:
@@ -103,7 +103,7 @@ def {function_name}(filename="", modelname="{model_name}", fit=True):
         bc = BlogCreator(self.bayesian_model)
         return bc
 
-def generate_new_pymc_file(file_name, result_file, sample_size=3000, continues_data_file="allbus_happiness_values.dat"):
+def generate_new_pymc_file_allbus(file_name, result_file, sample_size=3000, continues_data_file="allbus_happiness_values.dat"):
     code = """#!usr/bin/python
 # -*- coding: utf-8 -*-import string
 
@@ -139,5 +139,42 @@ for name, map_ in allbus_backward_map.items():
     dtm.set_map(forward=allbus_forward_map[name], backward=map_, name=name)
 
 """.replace("{model_file}", f"'{result_file}'").replace("{sample_size}", f"{sample_size}").replace("{continues_data_file}", f"'{continues_data_file}'")
+    with open(file_name, "w") as f:
+        f.write(code)
+
+def generate_new_pymc_file_iris(file_name, result_file, sample_size=3000):
+    code = """#!usr/bin/python
+# -*- coding: utf-8 -*-import string
+
+import pymc3 as pm
+import theano.tensor as tt
+
+from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
+from mb_modelbase.utils.data_type_mapper import DataTypeMapper
+from mb_modelbase.utils.Metrics import *
+
+import scripts.experiments.iris as iris_data
+
+# LOAD FILES
+df = iris_data.iris(discrete_species=False)
+train_data = df
+test_data = df
+
+# SAVE PARAMETER IN THIS FILE
+model_file = {model_file}
+
+sample_size = {sample_size}
+
+continues_data_file = None
+
+iris_forward_map = {'species': {'setosa': 0, 'versicolor': 1, 'virginica': 2}}
+
+iris_backward_map = {'species': {0: 'setosa', 1: 'versicolor', 2: 'virginica'}}
+
+dtm = DataTypeMapper()
+for name, map_ in iris_backward_map.items():
+    dtm.set_map(forward=iris_forward_map[name], backward=map_, name=name)
+
+""".replace("{model_file}", f"'{result_file}'").replace("{sample_size}", f"{sample_size}")
     with open(file_name, "w") as f:
         f.write(code)

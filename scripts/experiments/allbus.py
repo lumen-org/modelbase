@@ -98,5 +98,3 @@ def test_continuous(filepath=_test_data):
 
 if __name__ == '__main__':
     allbus_file_all_discrete = train(discretize_all=True)
-    allbus_file_all_discrete.to_csv(
-        "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_train_numeric.csv", index=False)

@@ -257,7 +257,7 @@ class ProbabilisticPymc3Model(Model):
         kde_input = self._samples_model_repr.values.T
         # require _multiple_ inputs. the 5 is a heuristic to prevent singular matrices due to all identical input
         if kde_input.size > 5:
-            self._samples_kde = stats.gaussian_kde(kde_input)
+            self._samples_kde = stats.gaussian_kde(kde_input+np.eye(*kde_input.shape)+1e-9)
         else:
             self._samples_kde = None
 
@@ -383,6 +383,7 @@ class ProbabilisticPymc3Model(Model):
             print('WARNING: number of samples differs from number of data points. To avoid problems during sampling, '
                   'number of samples is now automatically set to the number of data points')
             n = len(self.data)
+        #n = self.nr_of_posterior_samples
         sample = pd.DataFrame()
 
         # Generate samples for latent random variables

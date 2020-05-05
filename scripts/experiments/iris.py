@@ -11,21 +11,23 @@ iris_forward_map = {'species': {0: 'setosa', 1: 'versicolor', 2: 'virginica'}}
 
 iris_backward_map = {'species': {'setosa': 0, 'versicolor': 1, 'virginica': 2}}
 
-feature_names = ['sepal length', 'sepal width', 'petal length', 'petal width', 'species']
+feature_names = ['sepallength', 'sepalwidth', 'petallength', 'petalwidth', 'species']
+
+_numeric_data = os.path.splitext(__file__)[0] + "_numeric.csv"
 
 spn_parameters = {
-    'sepal length': spn_parameter_types.Gaussian,
-    'sepal width': spn_parameter_types.Gaussian,
-    'petal length':spn_parameter_types.Gaussian,
-    'petal width': spn_parameter_types.Gaussian,
+    'sepallength': spn_parameter_types.Gaussian,
+    'sepalwidth': spn_parameter_types.Gaussian,
+    'petallength':spn_parameter_types.Gaussian,
+    'petalwidth': spn_parameter_types.Gaussian,
     'species': spn_parameter_types.Categorical
 }
 
 spn_metatypes = {
-        'sepal length': spn_statistical_types.MetaType.REAL,
-        'sepal width': spn_statistical_types.MetaType.REAL,
-        'petal length':  spn_statistical_types.MetaType.REAL,
-        'petal width': spn_statistical_types.MetaType.REAL,
+        'sepallength': spn_statistical_types.MetaType.REAL,
+        'sepalwidth': spn_statistical_types.MetaType.REAL,
+        'petallength':  spn_statistical_types.MetaType.REAL,
+        'petalwidth': spn_statistical_types.MetaType.REAL,
         'species': spn_statistical_types.MetaType.DISCRETE,
 }
 
@@ -58,6 +60,5 @@ def train():
 
 
 if __name__ == '__main__':
-    print(iris())
-    print(iris(continuous = True))
-    print(iris(discrete_species=False))
+    df = iris(discrete_species=False)
+    print(df)

@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 
 from mb_modelbase.models_core.base import Condition
 
+def cll_iris():
+    pass
 
 def cll_allbus(model, test_data, model_file, continues_data_file):
     model_name = model.name
@@ -105,19 +107,36 @@ def _query(model, test_data, query_var, condition_vars):
     return pll
 
 
-def _get_metric_as_table_entry(model_file):
+def _get_metric_as_latex_table_entry(model_file):
     d = pd.read_csv(model_file)
     entries = []
+    header = ["|c" for _ in range(len(d.columns) - 1)]
+    header.insert(0, "l")
+    latex_table = """
+    \\begin{table}
+	\\scriptsize
+	\\begin{tabular}{header}
+		\\hline
+    """.replace("header", "".join(header))
+    latex_table += " & ".join(d.columns) + "\\\\\\\hline"
     for row in d.iterrows():
         entry = ""
         for i, e in enumerate(row[1]):
             if i > 0:
-                entry += ' & ' + str(round(float(e), 3))
+                if str(float(e)) == "nan":
+                    entry += ' & ' + str("N/A")
+                else:
+                    entry += ' & ' + str(round(float(e), 3))
             else:
                 entry += e.replace("_", "-")
-        entry += '\\\\'
-        entries.append(entry)
-    return entries
+        entry += ' \\\\\n\\hline\n'
+        latex_table += entry
+    latex_table += """
+    	\\end{tabular}
+	\\caption{N/A: not available, -inf: not possible to calculate, due to overflow}
+\\end{table}
+    """
+    return latex_table
 
 
 def get_results_from_file(model_file):
@@ -138,27 +157,31 @@ def get_results_from_file(model_file):
     return table
 
 
-def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat"):
+def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat", one_in_all=False):
     d = pd.read_csv(continues_data_file)
     plt.clf()
-    for row in d.iterrows():
+    if one_in_all:
+        fig, axs = plt.subplots(4,3, figsize=(20,20))
+    for index, row in enumerate(d.iterrows()):
         row_dict = dict(row[1])
         model_name = row_dict["model"]
         del row_dict["model"]
         x = np.array([float(i) for i in list(row_dict.keys())])
         y = np.array([float(i) for i in list(row_dict.values())])
-        plt.plot(x,y)
-        plt.title(model_name)
-        #raise NotImplementedError("DO PATH!!!!")
-        plt.savefig(os.path.join('/home/julien/PycharmProjects/modelbase/scripts/experiments/query_happiness_graphs', model_name))
-        plt.clf()
-        #plt.savefig(f"{os.path.join('scripts/experiments/query_happiness_graphs', model_name)}.png")
-
+        if one_in_all:
+            axs[int(index % 4), int(index/4) % 3].plot(x,y)
+            axs[int(index % 4), int(index/4) % 3].set_title(model_name)
+        else:
+            plt.plot(x,y)
+            plt.title(model_name)
+            plt.savefig(os.path.join('/home/julien/PycharmProjects/modelbase/scripts/experiments/query_happiness_graphs', model_name))
+            plt.clf()
+    if one_in_all:
+        plt.savefig(os.path.join('/home/julien/PycharmProjects/modelbase/scripts/experiments/query_happiness_graphs/all'))
 
 
 if __name__ == "__main__":
-    file = "/home/julien/PycharmProjects/modelbase/scripts/julien/allbus.dat"
-    entries = _get_metric_as_table_entry(file)
-    for e in entries:
-        print(e)
+    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_results.dat"
+    print(_get_metric_as_latex_table_entry(file))
+    generate_happiness_plots(one_in_all=True)
     # _print_metric_as_table_entry(os.path.join(os.path.dirname(__file__), "allbus.dat"))
