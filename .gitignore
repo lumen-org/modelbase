@@ -104,3 +104,5 @@ mb_modelbase/models_core/img/
 # ignore other mdl files
 doc/models/*.mdl
 
+/scripts/experiments/allbus_train_numeric.csv.json
+/scripts/run_conf_julien.py

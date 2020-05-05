@@ -39,9 +39,10 @@ class PPLModel():
             if verbose:
                 generate_prob_graphs(bayesian_model)
 
-    def generate_pymc(self, model_name="", output_file="", save=False):
+    def generate_pymc(self, model_name="", output_file="", save=False, continues_data_file=None, cll=None):
         if self.error:
-            print(f"Could not fit since bayesian model is wrong (R Error).")
+            if self.verbose:
+                print(f"Could not fit since bayesian model is wrong (R Error).")
             return 1
         pc = PyMCCreator(self.bayesian_model)
         code = pc.generate()
@@ -49,10 +50,10 @@ class PPLModel():
         if self.verbose:
             print(f"Learned bayesian network learned with {parameter} parameter.")
         if save:
-            code = self.save_complete_pymc_code(code=code, parameter=parameter, model_name=model_name, output_file=output_file)
+            code = self.save_complete_pymc_code(code=code, parameter=parameter, model_name=model_name, output_file=output_file, cll=cll)
         return code
 
-    def save_complete_pymc_code(self, code, parameter, model_name, output_file):
+    def save_complete_pymc_code(self, code, parameter, model_name, output_file, cll):
         # remove with model and imports
         code = code.replace("import pymc3 as pm\nimport theano.tensor as tt\nwith pm.Model() as model:\n", "")
         # add two tabs before each line of code
@@ -66,6 +67,7 @@ class PPLModel():
             "parameter": parameter,
             "function_name": "create_" + model_name,
             "model_name": model_name,
+            "cll": cll,
         }
         complete_code = """#####################
 # {parameter} parameter
@@ -80,10 +82,11 @@ def {function_name}(filename="", modelname="{model_name}", fit=True):
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        cll(m, test_data, model_file)
+        {cll}(m, test_data, model_file, continues_data_file)
     return df, m""".format(**parameter_dict)
         if "NaN" in complete_code:
-            print(f"Could not fit because of NAN (Number of parameter: {parameter})")
+            if self.verbose:
+                print(f"Could not fit because of NAN (Number of parameter: {parameter})")
             return 1
         try:
             f = open(output_file, "a+")
@@ -91,7 +94,8 @@ def {function_name}(filename="", modelname="{model_name}", fit=True):
             f.write("\n\n")
             f.close()
         except:
-            print("Could not save model file.")
+            if self.verbose:
+                print("Could not save model file.")
         return 0
 
 
@@ -99,7 +103,7 @@ def {function_name}(filename="", modelname="{model_name}", fit=True):
         bc = BlogCreator(self.bayesian_model)
         return bc
 
-def generate_new_pymc_file(file_name, result_file):
+def generate_new_pymc_file(file_name, result_file, sample_size=3000, continues_data_file="allbus_happiness_values.dat"):
     code = """#!usr/bin/python
 # -*- coding: utf-8 -*-import string
 
@@ -108,7 +112,7 @@ import theano.tensor as tt
 
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
-from mb_modelbase.utils.Metrics import cll
+from mb_modelbase.utils.Metrics import *
 
 import scripts.experiments.allbus as allbus_data
 
@@ -120,19 +124,20 @@ df = train_data
 
 # SAVE PARAMETER IN THIS FILE
 model_file = {model_file}
+continues_data_file = {continues_data_file}
 
-sample_size = 100000
+sample_size = {sample_size}
 
 allbus_forward_map = {'sex': {'Female': 0, 'Male': 1}, 'eastwest': {'East': 0, 'West': 1},
-                       'lived_abroad': {'No': 0, 'Yes': 1}, 'happiness': {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9, 'h10': 10}}
+                       'lived_abroad': {'No': 0, 'Yes': 1}}
 
 allbus_backward_map = {'sex': {0: 'Female', 1: 'Male'}, 'eastwest': {0: 'East', 1: 'West'},
-                      'lived_abroad': {0: 'No', 1: 'Yes'}, 'happiness': {0: 'h0', 1: 'h1', 2: 'h2', 3: 'h3', 4: 'h4', 5: 'h5', 6: 'h6', 7: 'h7', 8: 'h8', 9: 'h9', 10: 'h10'}}
+                      'lived_abroad': {0: 'No', 1: 'Yes'}}
 
 dtm = DataTypeMapper()
 for name, map_ in allbus_backward_map.items():
     dtm.set_map(forward=allbus_forward_map[name], backward=map_, name=name)
 
-""".replace("{model_file}", f"'{result_file}'")
+""".replace("{model_file}", f"'{result_file}'").replace("{sample_size}", f"{sample_size}").replace("{continues_data_file}", f"'{continues_data_file}'")
     with open(file_name, "w") as f:
         f.write(code)

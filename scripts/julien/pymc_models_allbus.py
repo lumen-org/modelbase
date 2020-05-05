@@ -9,7 +9,7 @@ import os
 
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
-from mb_modelbase.utils.Metrics import cll
+from mb_modelbase.utils.Metrics import cll_allbus
 
 import pandas as pd
 
@@ -99,5 +99,5 @@ def create_allbus_tabu_loglikcg(filename="", modelname="allbus_tabu_loglikcg", f
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        cll(m, test_data, model_file)
+        cll_allbus(m, test_data, model_file)
     return df, m

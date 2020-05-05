@@ -13,7 +13,7 @@ import math
 
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
-from mb_modelbase.utils.Metrics import cll
+from mb_modelbase.utils.Metrics import cll_allbus
 
 #import pymc_models_allbus
 #import pymc_models_burglary
@@ -162,7 +162,7 @@ def create_hand_tuned_model(modelname='allbus_hand_tuned', fit=True):
 
     if fit:
         m.fit(data)
-        cll(m, test_data, model_file)
+        cll_allbus(m, test_data, model_file)
     return data, m
 
 

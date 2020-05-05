@@ -6,7 +6,7 @@ import theano.tensor as tt
 
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
-from mb_modelbase.utils.Metrics import cll
+from mb_modelbase.utils.Metrics import cll_allbus
 
 import scripts.experiments.allbus as allbus_data
 
@@ -126,7 +126,7 @@ def create_allbus_tabubiccg(filename="", modelname="allbus_tabubiccg", fit=True)
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        cll(m, test_data, model_file)
+        cll_allbus(m, test_data, model_file)
     return df, m
 
 
@@ -360,7 +360,7 @@ def create_allbus_tabuaiccg(filename="", modelname="allbus_tabuaiccg", fit=True)
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        cll(m, test_data, model_file)
+        cll_allbus(m, test_data, model_file)
     return df, m
 
 
@@ -454,7 +454,7 @@ def create_allbus_hcbiccg(filename="", modelname="allbus_hcbiccg", fit=True):
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        cll(m, test_data, model_file)
+        cll_allbus(m, test_data, model_file)
     return df, m
 
 
@@ -696,7 +696,7 @@ def create_allbus_hcaiccg(filename="", modelname="allbus_hcaiccg", fit=True):
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        cll(m, test_data, model_file)
+        cll_allbus(m, test_data, model_file)
     return df, m
 
 
@@ -763,7 +763,7 @@ def create_allbus_gs(filename="", modelname="allbus_gs", fit=True):
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        cll(m, test_data, model_file)
+        cll_allbus(m, test_data, model_file)
     return df, m
 
 
@@ -793,7 +793,7 @@ def create_allbus_iamb(filename="", modelname="allbus_iamb", fit=True):
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        cll(m, test_data, model_file)
+        cll_allbus(m, test_data, model_file)
     return df, m
 
 
@@ -857,7 +857,7 @@ def create_allbus_fastiamb(filename="", modelname="allbus_fastiamb", fit=True):
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        cll(m, test_data, model_file)
+        cll_allbus(m, test_data, model_file)
     return df, m
 
 
@@ -894,6 +894,6 @@ def create_allbus_interiamb(filename="", modelname="allbus_interiamb", fit=True)
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        cll(m, test_data, model_file)
+        cll_allbus(m, test_data, model_file)
     return df, m
 

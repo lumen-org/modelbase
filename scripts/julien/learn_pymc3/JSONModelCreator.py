@@ -157,7 +157,8 @@ class JSONModelCreator(object):
             try:
                 t = SignatureTranslatedAnonymousPackage(replaced_code, "powerpack")
             except:
-                print("Fatal Error, skip configuration")
+                if verbose:
+                    print("Fatal Error, skip configuration")
                 return (None, None, None)
         if verbose:
             print(replaced_code)

@@ -9,17 +9,12 @@ _train_data = os.path.splitext(__file__)[0] + "_train.csv"
 _numeric_data = os.path.splitext(__file__)[0] + "_train_numeric.csv"
 
 allbus_forward_map = {'sex': {'Female': 0, 'Male': 1}, 'eastwest': {'East': 0, 'West': 1},
-                      'lived_abroad': {'No': 0, 'Yes': 1},
-                      'happiness': {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8,
-                                    'h9': 9, 'h10': 10}}
+                      'lived_abroad': {'No': 0, 'Yes': 1}}
 
 allbus_backward_map = {'sex': {0: 'Female', 1: 'Male'}, 'eastwest': {0: 'East', 1: 'West'},
-                       'lived_abroad': {0: 'No', 1: 'Yes'},
-                       'happiness': {0: 'h0', 1: 'h1', 2: 'h2', 3: 'h3', 4: 'h4', 5: 'h5', 6: 'h6', 7: 'h7', 8: 'h8',
-                                     9: 'h9', 10: 'h10'}}
+                       'lived_abroad': {0: 'No', 1: 'Yes'}}
 
 spn_parameters = {
-    'julien': {
         'sex': spn_parameter_types.Categorical,
         'eastwest': spn_parameter_types.Categorical,
         'lived_abroad': spn_parameter_types.Categorical,
@@ -28,11 +23,9 @@ spn_parameters = {
         'income': spn_parameter_types.Gaussian,
         'happiness': spn_parameter_types.Gaussian,
         'health': spn_parameter_types.Gaussian
-    }
 }
 
 spn_metatypes = {
-    'julien': {
         'sex': spn_statistical_types.MetaType.DISCRETE,
         'eastwest': spn_statistical_types.MetaType.DISCRETE,
         'lived_abroad': spn_statistical_types.MetaType.DISCRETE,
@@ -41,7 +34,6 @@ spn_metatypes = {
         'income': spn_statistical_types.MetaType.REAL,
         'happiness': spn_statistical_types.MetaType.REAL,
         'health': spn_statistical_types.MetaType.REAL
-    }
 }
 
 def train(filepath=_train_data, discrete_happy=True, discretize_all=False):
@@ -50,6 +42,9 @@ def train(filepath=_train_data, discrete_happy=True, discretize_all=False):
         for feature, feature_map in allbus_forward_map.items():
             df[feature] = pd.Series(df[feature]).map(feature_map)
         discrete_happy = True
+        happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
+                         'h10': 10}
+        df["happiness"] = pd.Series(df["happiness"]).map(happiness_map)
     if not discrete_happy:
         happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
                          'h10': 10}
@@ -63,6 +58,9 @@ def test(filepath=_test_data, discrete_happy=True, discretize_all=False):
         for feature, feature_map in allbus_forward_map.items():
             df[feature] = pd.Series(df[feature]).map(feature_map)
         discrete_happy = True
+        happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
+                         'h10': 10}
+        df["happiness"] = pd.Series(df["happiness"]).map(happiness_map)
     if not discrete_happy:
         happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
                          'h10': 10}
