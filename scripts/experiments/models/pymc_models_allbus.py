@@ -131,6 +131,30 @@ def create_allbus_hcaiccg(filename="", modelname="allbus_hcaiccg", fit=True):
 #####################
 # 56 parameter
 #####################
+def create_allbus_gs(filename="", modelname="allbus_gs", fit=True):
+    if fit:
+        modelname = modelname
+    model = pm.Model()
+    with model:
+        sex = pm.Categorical('sex', p=[0.4803,0.5197])
+        eastwest = pm.Categorical('eastwest', p=[0.347,0.653])
+        happiness = pm.Normal('happiness', mu=tt.switch(tt.eq(eastwest, 0), 7.4376, 8.016), sigma=tt.switch(tt.eq(eastwest, 0), 1.7636, 1.7225))
+        lived_abroad = pm.Categorical('lived_abroad', p=tt.switch(tt.eq(eastwest, 0), [0.8847,0.1153], [0.7859,0.2141]))
+        educ = pm.Normal('educ', mu=tt.switch(tt.eq(lived_abroad, 0), 3.3342, 4.061), sigma=tt.switch(tt.eq(lived_abroad, 0), 1.1388, 1.1689))
+        income = pm.Normal('income', mu=tt.switch(tt.eq(lived_abroad, 0), tt.switch(tt.eq(eastwest, 0), tt.switch(tt.eq(sex, 0), educ*142.1342+happiness*61.5163+270.2846, educ*361.5785+happiness*96.5958+-261.5227), tt.switch(tt.eq(sex, 0), educ*225.0456+happiness*-3.6509+597.9953, educ*352.8756+happiness*156.7481+-94.7012)), tt.switch(tt.eq(eastwest, 0), tt.switch(tt.eq(sex, 0), educ*145.0125+happiness*212.5877+-662.9993, educ*-34.9981+happiness*391.629+-862.6152), tt.switch(tt.eq(sex, 0), educ*173.5222+happiness*11.0788+734.7469, educ*441.8308+happiness*284.7614+-1278.1998))), sigma=tt.switch(tt.eq(lived_abroad, 0), tt.switch(tt.eq(eastwest, 0), tt.switch(tt.eq(sex, 0), 571.1388, 885.3193), tt.switch(tt.eq(sex, 0), 787.4688, 1351.6334)), tt.switch(tt.eq(eastwest, 0), tt.switch(tt.eq(sex, 0), 996.0851, 1343.732), tt.switch(tt.eq(sex, 0), 1055.6976, 1692.5275))))
+        age = pm.Normal('age', mu=educ*-4.6886+68.6804, sigma=16.5729)
+        health = pm.Normal('health', mu=age*-0.0156+educ*0.1089+happiness*0.2189+2.3369, sigma=0.8424)
+    
+    m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm, nr_of_posterior_samples=sample_size)
+    m.nr_of_posterior_samples = sample_size
+    if fit:
+        m.fit(train_data, auto_extend=False)
+        cll_allbus(m, test_data, model_file, continues_data_file)
+    return df, m
+
+#####################
+# 56 parameter
+#####################
 def create_allbus_iamb(filename="", modelname="allbus_iamb", fit=True):
     if fit:
         modelname = modelname

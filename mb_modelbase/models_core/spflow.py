@@ -101,7 +101,6 @@ class SPNModel(Model):
         self._spn_type = spn_type
 
     def _fit(self, var_types=None, **kwargs):
-
         if self._spn_type == None:
             raise Exception("No SPN-type provided")
 

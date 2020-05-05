@@ -102,7 +102,7 @@ fit_spn = False
 fit_bnlearn = True
 fit_sklearn = True
 
-data_set = "iris"
+data_set = "allbus"
 
 if __name__ == "__main__":
     start = time()
@@ -256,6 +256,8 @@ if __name__ == "__main__":
                         f"{scores_sex[model]['acc']}, {scores_sex[model]['mae']}\n")
 
     print(f"Calculated all scores and fitted all models in {time() - start}s")
-    print("\nRESULTS:")
-    print(get_results_from_file(result_file))
-    generate_happiness_plots(continues_data_file)
+    if data_set == "allbus":
+        print("\nRESULTS:")
+        print(get_results_from_file(result_file))
+        generate_happiness_plots(continues_data_file, output_path=os.path.dirname(__file__))
+        generate_happiness_plots(continues_data_file, output_path=os.path.dirname(__file__), one_in_all=True)

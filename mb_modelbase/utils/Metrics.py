@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from mb_modelbase.models_core.base import Condition
 
-def cll_iris():
+def cll_iris(model, test_data, model_file, continues_data_file):
     pass
 
 def cll_allbus(model, test_data, model_file, continues_data_file):
@@ -157,7 +157,7 @@ def get_results_from_file(model_file):
     return table
 
 
-def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat", one_in_all=False):
+def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat", output_path="", one_in_all=False):
     d = pd.read_csv(continues_data_file)
     plt.clf()
     if one_in_all:
@@ -174,10 +174,11 @@ def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat", 
         else:
             plt.plot(x,y)
             plt.title(model_name)
-            plt.savefig(os.path.join('/home/julien/PycharmProjects/modelbase/scripts/experiments/query_happiness_graphs', model_name))
+            plt.savefig(os.path.join(output_path, 'query_happiness_graphs', model_name))
             plt.clf()
     if one_in_all:
-        plt.savefig(os.path.join('/home/julien/PycharmProjects/modelbase/scripts/experiments/query_happiness_graphs/all'))
+        print(os.path.join(output_path, 'query_happiness_graphs', 'merged_graphs'))
+        plt.savefig(os.path.join(output_path, 'query_happiness_graphs', 'merged_graphs'))
 
 
 if __name__ == "__main__":

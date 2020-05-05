@@ -82,7 +82,7 @@ def {function_name}(filename="", modelname="{model_name}", fit=True):
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        {cll}()
+        {cll}(m, test_data, model_file, continues_data_file)
     return df, m""".format(**parameter_dict)
         if "NaN" in complete_code:
             if self.verbose:
