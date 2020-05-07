@@ -23,7 +23,7 @@ cfg = {
         'modelbase': {
             'enable': True,
             'route': '/webservice',
-            'directory': '/home/julien/PycharmProjects/fitted_models',
+            'directory': './experiments/fitted_models',
             'name': 'modelbase management system',
         },
         'activitylogger': {

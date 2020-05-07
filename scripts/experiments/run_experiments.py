@@ -91,18 +91,18 @@ spn_models = {
                                            'classopts': {'min_instances_slice': 150},
                                            'fitopts': {'empirical_model_name': 'emp_iris'}}),
         # GAUSSPN
-        'spn_allbus': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
+        'spn_iris': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
                                 'fitopts': {'iterations': 1, 'empirical_model_name': 'emp_iris_continuous'}}),
-        'spn_allbus_iterate_3': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
+        'spn_iris_iterate_3': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
                                           'fitopts': {'iterations': 3, 'empirical_model_name': 'emp_iris_continuous'}}),
     }
 }
 
-fit_spn = False
+fit_spn = True
 fit_bnlearn = True
 fit_sklearn = True
 
-data_set = "allbus"
+data_set = "iris"
 
 if __name__ == "__main__":
     start = time()
