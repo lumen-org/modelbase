@@ -43,11 +43,13 @@ def load_dataset():
         iris_df = pd.DataFrame(dict(zip(feature_names, iris_data)))
     return iris_df
 
-def iris(continuous=False, discrete_species=True):
+def iris(continuous=False, numeric_species=False):
     df = load_dataset().copy()
+    df["species"] = [int(i) for i in df["species"]]
     if continuous:
         del df["species"]
-    if not discrete_species:
+        numeric_species = True
+    if not numeric_species:
         df["species"] = pd.Series(df["species"]).map(iris_forward_map["species"])
     return df
 
@@ -60,5 +62,6 @@ def train():
 
 
 if __name__ == '__main__':
-    df = iris(discrete_species=False)
+    df = iris()
     print(df)
+    print(df.dtypes)

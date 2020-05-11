@@ -178,7 +178,6 @@ class ProbabilisticPymc3Model(Model):
         self.parallel_processing = False
         self.sampling_chains = sampling_chains
         self.sampling_cores = sampling_cores
-        self.nr_of_posterior_samples = None
         self.shared_vars = shared_vars
         self.nr_of_posterior_samples = nr_of_posterior_samples
         self.fixed_data_length = fixed_data_length
@@ -237,7 +236,7 @@ class ProbabilisticPymc3Model(Model):
         # arbitrarily, since independent and dependent variables have to have the same dimensions. Otherwise,
         # some models cannot compute posterior predictive samples
         # TODO: eurovis2020: this comes from the merge
-        self.nr_of_posterior_samples = len(df)
+        #self.nr_of_posterior_samples = len(df)
         return ()
 
     def _generate_samples_for_independent_variable(self, key, size):
@@ -382,7 +381,7 @@ class ProbabilisticPymc3Model(Model):
         if n != len(self.data):
             print('WARNING: number of samples differs from number of data points. To avoid problems during sampling, '
                   'number of samples is now automatically set to the number of data points')
-            n = len(self.data)
+            #n = len(self.data)
         #n = self.nr_of_posterior_samples
         sample = pd.DataFrame()
 

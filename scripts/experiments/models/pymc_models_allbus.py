@@ -11,8 +11,8 @@ from mb_modelbase.utils.Metrics import *
 import scripts.experiments.allbus as allbus_data
 
 # LOAD FILES
-test_data = allbus_data.train(discrete_happy=False)
-train_data = allbus_data.test(discrete_happy=False)
+test_data = allbus_data.train(numeric_happy=False)
+train_data = allbus_data.test(numeric_happy=False)
 
 df = train_data
 
@@ -20,7 +20,7 @@ df = train_data
 model_file = 'allbus_results.dat'
 continues_data_file = 'allbus_happiness_values.dat'
 
-sample_size = 3000
+sample_size = 30000
 
 allbus_forward_map = {'sex': {'Female': 0, 'Male': 1}, 'eastwest': {'East': 0, 'West': 1},
                        'lived_abroad': {'No': 0, 'Yes': 1}}

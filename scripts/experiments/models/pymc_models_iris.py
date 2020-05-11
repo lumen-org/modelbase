@@ -11,14 +11,14 @@ from mb_modelbase.utils.Metrics import *
 import scripts.experiments.iris as iris_data
 
 # LOAD FILES
-df = iris_data.iris(discrete_species=False)
+df = iris_data.iris(numeric_species=False)
 train_data = df
 test_data = df
 
 # SAVE PARAMETER IN THIS FILE
 model_file = 'allbus_results.dat'
 
-sample_size = 3000
+sample_size = 30000
 
 continues_data_file = None
 

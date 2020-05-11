@@ -36,50 +36,50 @@ spn_metatypes = {
         'health': spn_statistical_types.MetaType.REAL
 }
 
-def train(filepath=_train_data, discrete_happy=True, discretize_all=False):
+def train(filepath=_train_data, numeric_happy=True, discretize_all=False):
     df = pd.read_csv(filepath)
     if discretize_all:
         for feature, feature_map in allbus_forward_map.items():
             df[feature] = pd.Series(df[feature]).map(feature_map)
-        discrete_happy = True
+        numeric_happy = True
         happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
                          'h10': 10}
         df["happiness"] = pd.Series(df["happiness"]).map(happiness_map)
-    if not discrete_happy:
+    if not numeric_happy:
         happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
                          'h10': 10}
         df["happiness"] = pd.Series(df["happiness"]).map(happiness_map)
     return df
 
 
-def test(filepath=_test_data, discrete_happy=True, discretize_all=False):
+def test(filepath=_test_data, numeric_happy=True, discretize_all=False):
     df = pd.read_csv(filepath)
     if discretize_all:
         for feature, feature_map in allbus_forward_map.items():
             df[feature] = pd.Series(df[feature]).map(feature_map)
-        discrete_happy = True
+        numeric_happy = True
         happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
                          'h10': 10}
         df["happiness"] = pd.Series(df["happiness"]).map(happiness_map)
-    if not discrete_happy:
-        happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
-                         'h10': 10}
-        df["happiness"] = pd.Series(df["happiness"]).map(happiness_map)
-    return df
-
-
-def train_reduced(filepath=_train_data, discrete_happy=True):
-    df = pd.read_csv(filepath).drop(["lived_abroad", "health"], axis=1)
-    if not discrete_happy:
+    if not numeric_happy:
         happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
                          'h10': 10}
         df["happiness"] = pd.Series(df["happiness"]).map(happiness_map)
     return df
 
 
-def test_reduced(filepath=_test_data, discrete_happy=True):
+def train_reduced(filepath=_train_data, numeric_happy=True):
     df = pd.read_csv(filepath).drop(["lived_abroad", "health"], axis=1)
-    if not discrete_happy:
+    if not numeric_happy:
+        happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
+                         'h10': 10}
+        df["happiness"] = pd.Series(df["happiness"]).map(happiness_map)
+    return df
+
+
+def test_reduced(filepath=_test_data, numeric_happy=True):
+    df = pd.read_csv(filepath).drop(["lived_abroad", "health"], axis=1)
+    if not numeric_happy:
         happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
                          'h10': 10}
         df["happiness"] = pd.Series(df["happiness"]).map(happiness_map)
@@ -97,4 +97,7 @@ def test_continuous(filepath=_test_data):
 
 
 if __name__ == '__main__':
-    allbus_file_all_discrete = train(discretize_all=True)
+    df = train(numeric_happy=False)
+    print(df)
+    print(df.dtypes)
+

@@ -33,32 +33,44 @@ continues_data_file = "allbus_happiness_values.dat"
 # directory where the generated models for lumen are saved
 fitted_models_directory = "./fitted_models/"
 
+sample_size = 30000
+
+# if you do not want to refit models, set the flag to False
+
+fit_spn = True
+fit_bnlearn = False
+fit_sklearn = False
+
+# assign the data set for running the experiment
+
+data_set = "allbus"
+
 # defined models
 spn_models = {
     # NIPS 2020 Models
     # EMP
     "allbus": {
-        'emp_allbus': lambda: ({'class': EmpiricalModel, 'data': allbus.train(discrete_happy=False),
+        'emp_allbus': lambda: ({'class': EmpiricalModel, 'data': allbus.train(numeric_happy=False),
                                 'fitopts': {'empirical_model_name': 'emp_allbus'}}),
         'emp_allbus_continues': lambda: ({'class': EmpiricalModel, 'data': allbus.train_continuous(),
                                           'fitopts': {'empirical_model_name': 'emp_allbus_continues'}}),
         # SPFLOW
-        'spflow_allbus_spn': lambda: ({'class': SPFlowSPNModel, 'data': allbus.train(discrete_happy=False),
+        'spflow_allbus_spn': lambda: ({'class': SPFlowSPNModel, 'data': allbus.train(numeric_happy=False),
                                        'classopts': {'spn_type': 'spn'},
                                        'fitopts': {'var_types': allbus.spn_parameters,
                                                    'empirical_model_name': 'emp_allbus'}}),
-        'spflow_allbus_mspn': lambda: ({'class': SPFlowSPNModel, 'data': allbus.train(discrete_happy=False),
+        'spflow_allbus_mspn': lambda: ({'class': SPFlowSPNModel, 'data': allbus.train(numeric_happy=False),
                                         'classopts': {'spn_type': 'mspn'},
                                         'fitopts': {'var_types': allbus.spn_metatypes,
                                                     'empirical_model_name': 'emp_allbus'}}),
         # MSPN
-        'mspn_allbus': lambda: ({'class': MSPNModel, 'data': allbus.train(discrete_happy=False),
+        'mspn_allbus': lambda: ({'class': MSPNModel, 'data': allbus.train(numeric_happy=False),
                                  # 'classopts': {'threshold': 0.1, 'min_instances_slice': 50},
                                  'fitopts': {'empirical_model_name': 'emp_allbus'}}),
-        'mspn_allbus_threshold': lambda: ({'class': MSPNModel, 'data': allbus.train(discrete_happy=False),
+        'mspn_allbus_threshold': lambda: ({'class': MSPNModel, 'data': allbus.train(numeric_happy=False),
                                            'classopts': {'threshold': 0.1},
                                            'fitopts': {'empirical_model_name': 'emp_allbus'}}),
-        'mspn_allbus_min_slice': lambda: ({'class': MSPNModel, 'data': allbus.train(discrete_happy=False),
+        'mspn_allbus_min_slice': lambda: ({'class': MSPNModel, 'data': allbus.train(numeric_happy=False),
                                            'classopts': {'min_instances_slice': 150},
                                            'fitopts': {'empirical_model_name': 'emp_allbus'}}),
         # GAUSSPN
@@ -98,12 +110,6 @@ spn_models = {
     }
 }
 
-fit_spn = True
-fit_bnlearn = True
-fit_sklearn = True
-
-data_set = "iris"
-
 if __name__ == "__main__":
     start = time()
     print("Starting experiments...")
@@ -130,7 +136,7 @@ if __name__ == "__main__":
             if not model_name.startswith("emp"):
                 if not model_name.startswith("spn_"):
                     if data_set == "allbus":
-                        cll_allbus(property["model"], allbus.test(discrete_happy=False), result_file, continues_data_file)
+                        cll_allbus(property["model"], allbus.test(numeric_happy=False), result_file, continues_data_file)
         save_models(models, fitted_models_directory)
 
     if fit_bnlearn:
@@ -158,9 +164,9 @@ if __name__ == "__main__":
         while could_not_fit != 0 and iteration < 10:
             # create a new pymc file
             if data_set == "allbus":
-                generate_new_pymc_file_allbus(pymc_model_file, result_file, continues_data_file=continues_data_file)
+                generate_new_pymc_file_allbus(pymc_model_file, sample_size=sample_size, result_file=result_file, continues_data_file=continues_data_file)
             elif data_set == "iris":
-                generate_new_pymc_file_iris(pymc_model_file, result_file)
+                generate_new_pymc_file_iris(pymc_model_file, sample_size=sample_size, result_file=result_file)
             could_not_fit = 0
             iteration += 1
             number_of_fitted = 0

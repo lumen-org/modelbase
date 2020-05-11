@@ -117,8 +117,8 @@ from mb_modelbase.utils.Metrics import *
 import scripts.experiments.allbus as allbus_data
 
 # LOAD FILES
-test_data = allbus_data.train(discrete_happy=False)
-train_data = allbus_data.test(discrete_happy=False)
+test_data = allbus_data.train(numeric_happy=False)
+train_data = allbus_data.test(numeric_happy=False)
 
 df = train_data
 
@@ -156,7 +156,7 @@ from mb_modelbase.utils.Metrics import *
 import scripts.experiments.iris as iris_data
 
 # LOAD FILES
-df = iris_data.iris(discrete_species=False)
+df = iris_data.iris(numeric_species=False)
 train_data = df
 test_data = df
 
