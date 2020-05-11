@@ -140,34 +140,29 @@ def PQL_parse_json(query):
 
 def check_if_dir_exists(model_dir):
     if not pathlib.Path(model_dir).is_dir():
-        raise OSError('Path is not a directory')
+        raise OSError('Path is not a directory: {}'.format(str(model_dir)))
 
 
 class ModelBase:
-    """A ModelBase is the analogon of a DataBase(-Management System) for
-    models: it holds models and allows PQL queries against them.
+    """A ModelBase is the analog of a DataBase Management System for
+    models: it holds models and allows queries against them.
 
-    It is, in that sense, the PQL-interface for models. It is build against the
-    'raw' python interface for models, provided by the Model class.
+    Instead of SQL it uses PQL. It is, in that sense, the PQL-interface
+    for models. It is built against the 'raw' python interface for models,
+    provided by the Model class.
 
-    A Modelbase provides only one 'public' method:
+    Query Execution:
         ModelBase.execute: It executes a given PQL query. All input and output
             is provided as JSON objects, or a single string / number if
             applicable.
 
-    Furthermore it provides to 'public' attributes:
-        ModelBase.name: the id/name of this modelbase
-        ModelBase.models: a dictionary of all models in the modelbase. Each
-            model must have a unique string as its name, and this name is used
-            as a key in the dictionary.
-        ModelBase.settings: various settings:
-            .float_format : The float format used to encode floats in a result. Defaults to '%.5f'
-
     Attributes:
         name (str): the id/name of this modelbase.
-        models: A dictionary, using the name of a model as its key.
+        models: a dictionary of all models in the modelbase. Each model must have a unique string
+            as its name, and this name is used as a key in the dictionary.
         model_dir (str): The path to the directory where the models are managed.
-        settings: A dictionary with settings.
+        settings: A dictionary with various settings:
+            .float_format : The float format used to encode floats in a result. Defaults to '%.5f'
         cache (cache.BaseCache): a cache to store models and queries for reuse.
         log_queries (bool): Log executed queries to a file
         query_log_path (str): Path to the query log file
@@ -176,7 +171,8 @@ class ModelBase:
         name (str): the id/name of this modelbase.
         model_dir (str): The path to the directory where the models are managed.
         load_all (bool): Load all models in the model_dir at startup if True.
-        cache (cache.BaseCache): a cache to store models and queries for reuse.
+        cache (cache.BaseCache): A cache to store models and queries for reuse. Optional.
+            Pass None to disable caching.
         watchdog (bool): Observe model_dir for changes.
         log_queries (bool): Log executed queries to a file
         query_log_path (str): Path to the query log file
@@ -257,8 +253,7 @@ class ModelBase:
 
         check_if_dir_exists(directory)
 
-        # iterate over matching files in directory (including any
-        # subdirectories)
+        # iterate over matching files in directory (including any subdirectories)
         loaded_models = []
         filenames = Path(directory).glob('**/' + '*' + ext)
         for file in filenames:
@@ -291,10 +286,7 @@ class ModelBase:
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        # dir_ = Path(directory)
         for key, model in self.models.items():
-            # filepath = dir_.joinpath(model.name + ext)
-            # gm.Model.save_static(model, str(filepath))
             gm.Model.save_static(model, directory)
 
     def add(self, model, name=None):
@@ -326,17 +318,9 @@ class ModelBase:
         return list(self.models.keys())
 
     def execute(self, query):
-        path = ""
-        queryLogName = self.query_log_path + "/interaction" + \
-            time.strftime("%b:%d:%Y_%H", time.gmtime(time.time())) + ".log"
-
-        if self.log_queries:
-            if "SHOW" not in query.keys():
-                with open(queryLogName, "a") as f:
-                    f.write(json.dumps(query) + '\n')
-                    logger.info(json.dumps(query))
-
         """ Executes the given PQL query and returns the result as JSON (or None).
+
+        Note that queries may be cached, if caching is enabled. See also Modelbase.
 
         Args:
             query: A word of the PQL language, either as JSON or as a string.
@@ -350,6 +334,14 @@ class ModelBase:
             QueryValueError: If there is some problem with a value of the query.
         """
 
+        query_log_name = self.query_log_path + "/interaction" + \
+            time.strftime("%b:%d:%Y_%H", time.gmtime(time.time())) + ".log"
+        if self.log_queries:
+            if "SHOW" not in query.keys():
+                with open(query_log_name, "a") as f:
+                    f.write(json.dumps(query) + '\n')
+                    logger.info(json.dumps(query))
+
         # parse query
         # turn to JSON if not already JSON
         if isinstance(query, str):
@@ -360,7 +352,6 @@ class ModelBase:
         # _extract* methods
         if 'MODEL' in query:
             base = self._extractFrom(query)
-
             key = self.model_key(query)
 
             if self.cache is not None:
@@ -395,7 +386,6 @@ class ModelBase:
 
         elif 'SELECT' in query:
             base = self._extractFrom(query)
-
             resultframe = base.select(
                 what=self._extractSelect(query),
                 where=self._extractWhere(query),

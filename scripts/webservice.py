@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# Copyright (C) 2014-2018 , Philipp Lucas, philipp.lucas@gmail.com
-
+# Copyright (C) 2014-2020 , Philipp Lucas, philipp.lucas@dlr.de
 from flask import Flask, request
 from flask_cors import cross_origin
 from flask_socketio import SocketIO
@@ -19,6 +18,7 @@ from mb_modelbase import DictCache
 #     print("running in debug mode!")
 #     import mb_modelbase.models_core.models_debug
 
+
 def add_path_of_file_to_python_path():
     """Add the absolute path of __file__ to the python search path."""
     import os
@@ -26,10 +26,9 @@ def add_path_of_file_to_python_path():
     import sys
     sys.path.insert(0, path)
 
+
 # load config. user config overrides default config.
 add_path_of_file_to_python_path()
-
-
 config = ConfigParser()
 config.read('run_conf_defaults.cfg')
 config.read('run_conf.cfg')
@@ -192,15 +191,15 @@ if __name__ == "__main__":
                         help="A name for the modelbase to start. Defaults to '{}'".format(config['MODELBASE']['name']),
                         type=str, default=config['MODELBASE']['name'])
     parser.add_argument("-d", "--directory", help="directory that contains the models to be loaded initially. Defaults "
-                                                  "to '{}'".format(config['MODELBASE']['directory']),
-                        type=str, default=config['MODELBASE']['directory'])
+                                                  "to '{}'".format(config['MODELBASE']['model_directory']),
+                        type=str, default=config['MODELBASE']['model_directory'])
     parser.add_argument("-l", "--loglevel", help="loglevel for command line output. You can set it to: CRITICAL, ERROR,"
                                                  " WARNING, INFO or DEBUG. Defaults to {}".format(config['GENERAL']['loglevel']),
                         type=str, default=config['GENERAL']['loglevel'])
 
     # overwrite config of run_conf.cfg
     args = parser.parse_args()
-    config['MODELBASE']['directory'] = args.directory
+    config['MODELBASE']['model_directory'] = args.directory
     config['MODELBASE']['name'] = args.name
     config['GENERAL']['loglevel'] = args.loglevel
 

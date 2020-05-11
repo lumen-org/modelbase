@@ -4,6 +4,7 @@ import pickle
 import threading
 import os
 
+
 class DictCache(BaseCache):
     """Cache with a regular python dictionary as a backend.
     The cache stores the content after every save_interval to a file on disk.
@@ -27,7 +28,7 @@ class DictCache(BaseCache):
         BaseCache.__init__(self, serialize=False)
 
         if not os.path.exists(save_path):
-            raise IOError('The path for the cache does not exist!')
+            raise IOError('The path for the cache does not exist. Please create it: {}'.format(str(save_path)))
 
         self.lock = threading.Lock()
 
