@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # Copyright (C) 2014-2020 , Philipp Lucas, philipp.lucas@dlr.de
+import argparse
 from flask import Flask, request
 from flask_cors import cross_origin
 from flask_socketio import SocketIO
@@ -18,21 +19,6 @@ from mb_modelbase import DictCache
 #     print("running in debug mode!")
 #     import mb_modelbase.models_core.models_debug
 
-
-def add_path_of_file_to_python_path():
-    """Add the absolute path of __file__ to the python search path."""
-    import os
-    path = os.path.dirname(os.path.abspath(__file__))
-    import sys
-    sys.path.insert(0, path)
-
-
-# load config. user config overrides default config.
-add_path_of_file_to_python_path()
-config = ConfigParser()
-config.read('run_conf_defaults.cfg')
-config.read('run_conf.cfg')
-
 app = Flask(__name__, static_url_path='/static/')
 socketio = SocketIO(app)  # adds socket listener to Flask app
 
@@ -40,6 +26,14 @@ flask_logger = logging.getLogger('werkzeug')
 flask_logger.setLevel(logging.ERROR)
 
 logger = None  # create module variable
+
+
+def add_path_of_file_to_python_path():
+    """Add the absolute path of __file__ to the python search path."""
+    import os
+    path = os.path.dirname(os.path.abspath(__file__))
+    import sys
+    sys.path.insert(0, path)
 
 
 def add_root_module():
@@ -171,8 +165,6 @@ def init():
 
 # trigger to start the web server if this script is run
 if __name__ == "__main__":
-    import argparse
-
     # import pdb
 
     description = """
@@ -189,6 +181,12 @@ if __name__ == "__main__":
     Usage:
         Run this script to start the server locally!
     """
+
+    # load config from file
+    add_path_of_file_to_python_path()
+    config = ConfigParser()
+    config.read('run_conf_defaults.cfg')
+    config.read('run_conf.cfg')
     
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-n", "--name",
