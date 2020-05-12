@@ -23,7 +23,7 @@ app = Flask(__name__, static_url_path='/static/')
 socketio = SocketIO(app)  # adds socket listener to Flask app
 
 flask_logger = logging.getLogger('werkzeug')
-flask_logger.setLevel(logging.ERROR)
+flask_logger.setLevel(logging.WARNING)
 
 logger = None  # create module variable
 
@@ -149,7 +149,6 @@ def init():
     logger = logging.getLogger(__name__)
 
     # setup modules
-
     if config.getboolean('ROOT','enable'):
         add_root_module()
 
@@ -166,7 +165,6 @@ def init():
 # trigger to start the web server if this script is run
 if __name__ == "__main__":
     # import pdb
-
     description = """
     Starts a local web server that acts as an interface to a modelbase, i.e. the equivalent of a
     data base, but for graphical models. This interface provides various routes,
@@ -182,12 +180,18 @@ if __name__ == "__main__":
         Run this script to start the server locally!
     """
 
+    logger = logging.getLogger(__name__)
+
     # load config from file
     add_path_of_file_to_python_path()
     config = ConfigParser()
     config.read('run_conf_defaults.cfg')
-    config.read('run_conf.cfg')
-    
+    if not os.path.isfile('run_conf.cfg'):
+        logger.warning('run_conf.cfg is missing. All default configs apply.')
+    else:
+        config.read('run_conf.cfg')
+
+    # get command line args
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-n", "--name",
                         help="A name for the modelbase to start. Defaults to '{}'".format(config['MODELBASE']['name']),
@@ -205,11 +209,8 @@ if __name__ == "__main__":
     config['MODELBASE']['name'] = args.name
     config['GENERAL']['loglevel'] = args.loglevel
 
-    init()
-
     if config.getboolean('SSL','enable'):
         from OpenSSL import SSL
-
         context = (config['SSL']['cert_chain_path'], config['SSL']['cert_priv_key_path'])
         app.run(host='0.0.0.0', port=int(config['GENERAL']['port']), ssl_context=context, threaded=True)
     else:
