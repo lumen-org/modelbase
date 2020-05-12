@@ -5,15 +5,12 @@
 Automatically determines suitable extents of dimensions such that the
 extent covers the non-zero interval of the marginal model for that
 dimension.
-
 """
-
 import logging
+from mb_modelbase.models_core import domains as dm
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-from mb_modelbase.models_core import domains as dm
 
 
 def print_extents(model):

@@ -184,7 +184,7 @@ class ModelBase:
             model_dir='data_models',
             auto_load_models={},
             load_all=True,
-            cache=DictCache(),
+            cache=None,
             watchdog=True,
             log_queries=False,
             query_log_path='./'):
@@ -334,9 +334,9 @@ class ModelBase:
             QueryValueError: If there is some problem with a value of the query.
         """
 
-        query_log_name = self.query_log_path + "/interaction" + \
-            time.strftime("%b:%d:%Y_%H", time.gmtime(time.time())) + ".log"
         if self.log_queries:
+            query_log_name = self.query_log_path + "/interaction" + \
+                             time.strftime("%b:%d:%Y_%H", time.gmtime(time.time())) + ".log"
             if "SHOW" not in query.keys():
                 with open(query_log_name, "a") as f:
                     f.write(json.dumps(query) + '\n')
@@ -356,6 +356,10 @@ class ModelBase:
 
             if self.cache is not None:
                 derived_model = self.cache.get(key)
+
+                if derived_model is not None:
+                    print('m cache hit!')
+
             else:
                 derived_model = None
 
@@ -401,6 +405,9 @@ class ModelBase:
 
             if self.cache is not None:
                 resultframe = self.cache.get(key)
+
+                if resultframe is not None:
+                    print('rf cache hit!')
 
             if resultframe is None:
                 # Extract multiple

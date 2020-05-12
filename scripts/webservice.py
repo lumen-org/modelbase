@@ -9,8 +9,8 @@ import traceback
 from configparser import ConfigParser
 import os
 
-from mb_modelbase.utils import utils, ActivityLogger
 from mb_modelbase.server import modelbase as mbase
+from mb_modelbase.utils import utils, ActivityLogger
 from mb_modelbase import DictCache
 
 # from mb_modelbase.utils.utils import is_running_in_debug_mode
@@ -52,10 +52,17 @@ def add_root_module():
 
 def add_modelbase_module():
     # webservice interface to the model base
+    logger.info("starting modelbase ... ")
     c = config['MODELBASE']
 
-    # start ModelBase
-    logger.info("starting modelbase ... ")
+    if c.getboolean('cache_enable'):
+        model_cache = DictCache(
+            cache_dir=os.path.abspath(c['cache_path']),
+            save_interval=int(c['cache_interval'])
+        )
+    else:
+        model_cache = None
+
     mb = mbase.ModelBase(
         name=c['name'],
         model_dir=os.path.abspath(c['model_directory']),
@@ -63,10 +70,7 @@ def add_modelbase_module():
             'reload_on_overwrite': c.getboolean('reload_on_overwrite'),
             'reload_on_creation':  c.getboolean('reload_on_creation')
         },
-        cache=DictCache(
-            save_path=os.path.abspath(c['cache_path']),
-            save_interval=int(c['cache_interval'])
-        )
+        cache=model_cache
     )
     logger.info("... done (starting modelbase).")
 

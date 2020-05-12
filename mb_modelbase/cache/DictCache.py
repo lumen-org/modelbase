@@ -1,8 +1,14 @@
-from mb_modelbase.cache import BaseCache
+import logging
 import time
+import pathlib
 import pickle
 import threading
 import os
+
+from mb_modelbase.cache import BaseCache
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class DictCache(BaseCache):
@@ -11,28 +17,34 @@ class DictCache(BaseCache):
     Mutual exclusion is ensured with a lock.
 
     Attributes:
-        save_path (str): The path to where the cache should save the dictionary.
+        cache_dir (str): The path to where the cache should save the dictionary.
         save_interval (float): The interval in seconds on which to save the content of the dictionary.
         lock (threading.Lock): A lock for mutual exclusion.
     Args:
-        save_path (str): The path to where the cache should save the dictionary.
+        cache_dir (str): The path to where the cache should save the dictionary.
         save_interval (float): The interval in seconds on which to save the content of the dictionary.
 
     Todo:
         * Implement cache as a monitor like in the readers writers problem
         * Maybe lift mutual exclusion to superclass?
         * Make name of cache file unique
+        * Make writing out of cache more performant and asynchronous
     """
 
-    def __init__(self, save_path='/tmp', save_interval=30):
+    def __init__(self, cache_dir='/tmp', save_interval=30):
         BaseCache.__init__(self, serialize=False)
 
-        if not os.path.exists(save_path):
-            raise IOError('The path for the cache does not exist. Please create it: {}'.format(str(save_path)))
+        if not os.path.exists(cache_dir):
+            try:
+                pathlib.Path(cache_dir).mkdir(parents=True, exist_ok=True)
+            except IOError:
+                raise IOError('The base directory for the cache does not exists and can not be'
+                              ' created automatically.: {}'.format(str(cache_dir)))
+            else:
+                logger.info('created new base directory for cache at {}'.format(str(cache_dir)))
 
         self.lock = threading.Lock()
-
-        self.save_path = os.path.abspath(save_path) + '/modelbaseCache'
+        self.save_path = os.path.abspath(cache_dir) + '/modelbaseCache'
         self.save_interval = save_interval
 
         # Initialize cache from file if it exists
