@@ -357,9 +357,6 @@ class ModelBase:
             if self.cache is not None:
                 derived_model = self.cache.get(key)
 
-                if derived_model is not None:
-                    print('m cache hit!')
-
             else:
                 derived_model = None
 
@@ -405,9 +402,6 @@ class ModelBase:
 
             if self.cache is not None:
                 resultframe = self.cache.get(key)
-
-                if resultframe is not None:
-                    print('rf cache hit!')
 
             if resultframe is None:
                 # Extract multiple
