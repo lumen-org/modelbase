@@ -386,6 +386,7 @@ class ProbabilisticPymc3Model(Model):
         #n = self.nr_of_posterior_samples
 
         if self.sample is None:
+            self.sample = True
             sample = pd.DataFrame()
 
             # Generate samples for latent random variables
@@ -446,7 +447,7 @@ class ProbabilisticPymc3Model(Model):
 
             self.check_data_and_shared_vars_on_equality()
         else:
-            sample = self.sample
+            sample = self.samples
 
         # map samples from model space in to data space
         if mode is 'model':
