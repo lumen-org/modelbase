@@ -20,7 +20,8 @@ def print_extents(model):
 
 
 def field_to_auto_extent(model, dim_name, prec=1e-03, step=.02):
-    """Extends the extent of the quantitative dimension with name dim_name of model such that the range covers all non-zero values of the marginal model on dim_name.
+    """Extends the extent of the quantitative dimension with name dim_name of model such that the
+    range covers all non-zero values of the marginal model on dim_name.
     It returns the extended range for that dimension as a 2-element tuple (low, high)
 
     Args:

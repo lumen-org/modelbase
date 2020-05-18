@@ -391,6 +391,7 @@ class Model:
         self.parallel_processing = True
         self._empirical_model_name = None
         self.pci_graph = None
+        self.probabilistic_program_graph = None
 
     def _setempty(self):
         self._update_remove_fields()
@@ -414,6 +415,7 @@ class Model:
 
     def set_empirical_model_name(self, name):
         self._empirical_model_name = name
+        return self
 
     def set_model_params(self, **kwargs):
         """Sets explicitly the parameters of a model.
@@ -454,12 +456,13 @@ class Model:
          - possibly existing data of the model are overwritten
          - possibly fitted model parameters are lost
 
-        Note that if the data does not fit to the specific type of the model, it will raise a TypeError. E.g. a gaussian
-        model cannot be fit on categorical data.
+        Note that if the data does not fit to the specific type of the model, it will raise a
+        TypeError. E.g. a gaussian odel cannot be fit on categorical data.
 
         Args:
             df: a pandas data frame
-            drop_silently: If set to True any column of df that is not suitable for the model to be learned will silently be dropped. Otherwise this will raise a TypeError.
+            drop_silently: If set to True any column of df that is not suitable for the model to be
+                learned will silently be dropped. Otherwise this will raise a TypeError.
             kwargs:
         Returns:
             self

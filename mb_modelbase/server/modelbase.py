@@ -8,17 +8,16 @@ The modelbase module primarily provides the ModelBase class.
 import json
 import logging
 import pathlib
-from functools import reduce
-from pathlib import Path
 import os
 import time
-
 import dill
-import numpy
+import numpy as np
+from functools import reduce
 
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import models_predict
+from mb_modelbase.model_eval import posterior_predictive_checking as ppc
 from mb_modelbase.models_core import model_watchdog
 from mb_modelbase.cache import DictCache
 
@@ -72,11 +71,11 @@ class NumpyCompliantJSONEncoder(json.JSONEncoder):
     # model??? it was never intended for it
 
     def default(self, obj):
-        if isinstance(obj, numpy.integer):
+        if isinstance(obj, np.integer):
             return int(obj)
-        elif isinstance(obj, numpy.floating):
+        elif isinstance(obj, np.floating):
             return float(obj)
-        elif isinstance(obj, numpy.ndarray):
+        elif isinstance(obj, np.ndarray):
             return obj.tolist()
         else:
             return super(NumpyCompliantJSONEncoder, self).default(obj)
@@ -138,7 +137,7 @@ def PQL_parse_json(query):
     return query
 
 
-def check_if_dir_exists(model_dir):
+def _check_if_dir_exists(model_dir):
     if not pathlib.Path(model_dir).is_dir():
         raise OSError('Path is not a directory: {}'.format(str(model_dir)))
 
@@ -190,7 +189,7 @@ class ModelBase:
             query_log_path='./'):
         """ Creates a new instance and loads models from some directory. """
 
-        check_if_dir_exists(model_dir)
+        _check_if_dir_exists(model_dir)
 
         self.name = name
         self.models = {}
@@ -251,11 +250,11 @@ class ModelBase:
         if directory is None:
             directory = self.model_dir
 
-        check_if_dir_exists(directory)
+        _check_if_dir_exists(directory)
 
         # iterate over matching files in directory (including any subdirectories)
         loaded_models = []
-        filenames = Path(directory).glob('**/' + '*' + ext)
+        filenames = pathlib.Path(directory).glob('**/' + '*' + ext)
         for file in filenames:
             logger.debug("loading model from file: " + str(file))
             # try loading the model
@@ -366,7 +365,7 @@ class ModelBase:
                     query["AS"])
                 # derive submodel
                 derived_model.model(
-                    model=self._extractModel(query),
+                    model=self._extractVariables(query),
                     where=self._extractWhere(query),
                     default_values=self._extractDefaultValue(query),
                     default_subsets=self._extractDefaultSubset(query),
@@ -420,7 +419,6 @@ class ModelBase:
                     self.cache.set(key, resultframe)
 
             # TODO: is this working?
-            # query['DIFFERENCE_TO'] = 'mcg_iris_map'
             if 'DIFFERENCE_TO' in query:
                 base2 = self._extractDifferenceTo(query)
                 resultframe2 = base2.predict(
@@ -439,8 +437,36 @@ class ModelBase:
                                                                   aggr_idx] - resultframe2.iloc[:,
                                                                                                 aggr_idx]
 
-            return _json_dumps({"header": resultframe.columns.tolist(), "data": resultframe.to_csv(
-                index=False, header=False, float_format=self.settings['float_format'])})
+            resultframe_csv = resultframe.to_csv(index=False,
+                                                 header=False,
+                                                 float_format=self.settings['float_format'])
+
+            return _json_dumps({"header": resultframe.columns.tolist(), "data": resultframe_csv})
+
+        elif 'PPC' in query:  # posterior predictive checks
+            var_names = self._extractVariables(query,keyword='PPC')
+            base_model = self._extractFrom(query)
+            opts = self._extractOpts(query)
+
+            if not 'TEST_QUANTITY' in opts:
+                raise ValueError("missing parameter 'TEST_QUANTITY'")
+            test_quantity = opts['TEST_QUANTITY']
+            if not test_quantity in ppc.TestQuantities:
+                raise ValueError("invalid value for parameter 'TEST_QUANTITY': '{}'".format(test_quantity))
+            test_quantity_fct = ppc.TestQuantities[test_quantity]
+
+            # TODO: issue #XX: it is a questionable design decision: is it a good idea to marginalize a model
+            #  just to create marginal samples? e.g. for cg models it should be faster to not marginalize but simply
+            #  throw not needed attributes from the samples.
+            marginal_model = base_model.copy().marginalize(keep=var_names)
+            res = ppc.posterior_predictive_check(marginal_model, test_quantity_fct,
+                                                 round(opts.get('k', None)), round(opts.get('n', None)))
+            res_dict = {
+                'header': var_names,
+                'reference': res[0],
+                'test': res[1]
+            }
+            return _json_dumps(res_dict)
 
         elif 'DROP' in query:
             self.drop(name=query['DROP'])
@@ -568,8 +594,8 @@ class ModelBase:
             return []
         return query['SPLIT BY']
 
-    def _extractModel(self, query):
-        """ Extracts the names of the random variables to model and returns it
+    def _extractVariables(self, query, keyword='MODEL'):
+        """ Extracts the names of the random variables for <keyword>-clause and returns it
         as a list of strings. The order is preserved.
 
         Note that it returns only strings, not actual Field objects.
@@ -577,12 +603,12 @@ class ModelBase:
         TODO: internally this function refers to self.models[query['FROM']].
             Remove this dependency
         """
-        if 'MODEL' not in query:
-            raise QuerySyntaxError("'MODEL'-statement missing")
-        if query['MODEL'] == '*':
+        if keyword not in query:
+            raise QuerySyntaxError("'{}'-statement missing".format(keyword))
+        if query[keyword] == '*':
             return self.models[query['FROM']].names
         else:
-            return query['MODEL']
+            return query[keyword]
 
     def _extractPredict(self, query):
         """ Extracts from query the fields to predict and returns them in a
