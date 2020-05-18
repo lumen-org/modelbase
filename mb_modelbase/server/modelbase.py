@@ -353,11 +353,9 @@ class ModelBase:
             base = self._extractFrom(query)
             key = self.model_key(query)
 
+            derived_model = None
             if self.cache is not None:
                 derived_model = self.cache.get(key)
-
-            else:
-                derived_model = None
 
             if derived_model is None:
                 # maybe copy
@@ -398,7 +396,6 @@ class ModelBase:
         elif 'PREDICT' in query:
             key = self.predict_key(query)
             resultframe = None
-
             if self.cache is not None:
                 resultframe = self.cache.get(key)
 
