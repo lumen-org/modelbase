@@ -694,7 +694,7 @@ class ModelBase:
         """
 
         base = query["AS"]
-        model = self._extractModel(query)
+        model = self._extractVariables(query)
         where = self._extractWhere(query)
 
         key = str(base) + ':' + str(model).strip('[]') + ':' + str(where)

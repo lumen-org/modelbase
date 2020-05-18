@@ -1,39 +1,44 @@
 #!/usr/bin/env python
 # Copyright (C) 2014-2020 , Philipp Lucas, philipp.lucas@dlr.de
-import argparse
+
 from flask import Flask, request
 from flask_cors import cross_origin
 from flask_socketio import SocketIO
+
+import argparse
 import logging
 import json
 import traceback
-from configparser import ConfigParser
 import os
+import sys
+
+from configparser import ConfigParser
 
 from mb_modelbase.server import modelbase as mbase
 from mb_modelbase.utils import utils, ActivityLogger
 from mb_modelbase import DictCache
+
 
 # from mb_modelbase.utils.utils import is_running_in_debug_mode
 # if is_running_in_debug_mode():
 #     print("running in debug mode!")
 #     import mb_modelbase.models_core.models_debug
 
-app = Flask(__name__, static_url_path='/static/')
-socketio = SocketIO(app)  # adds socket listener to Flask app
-
-flask_logger = logging.getLogger('werkzeug')
-flask_logger.setLevel(logging.WARNING)
-
-logger = None  # create module variable
-
 
 def add_path_of_file_to_python_path():
     """Add the absolute path of __file__ to the python search path."""
-    import os
     path = os.path.dirname(os.path.abspath(__file__))
-    import sys
     sys.path.insert(0, path)
+
+
+add_path_of_file_to_python_path()
+
+app = Flask(__name__, static_url_path='/static/')
+socketio = SocketIO(app)  # adds socket listener to Flask app
+
+flask_logger = logging.getLogger('__name__')
+flask_logger.setLevel(logging.WARNING)
+logger = None  # create module variable
 
 
 def add_root_module():
@@ -62,7 +67,7 @@ def add_modelbase_module():
         model_dir=os.path.abspath(c['model_directory']),
         auto_load_models={
             'reload_on_overwrite': c.getboolean('reload_on_overwrite'),
-            'reload_on_creation':  c.getboolean('reload_on_creation')
+            'reload_on_creation': c.getboolean('reload_on_creation')
         },
         cache=model_cache
     )
@@ -149,16 +154,16 @@ def init():
     logger = logging.getLogger(__name__)
 
     # setup modules
-    if config.getboolean('ROOT','enable'):
+    if config.getboolean('ROOT', 'enable'):
         add_root_module()
 
-    if config.getboolean('MODELBASE','enable'):
+    if config.getboolean('MODELBASE', 'enable'):
         add_modelbase_module()
 
-    if config.getboolean('ACTIVITYLOGGER','enable'):
+    if config.getboolean('ACTIVITYLOGGER', 'enable'):
         add_activitylogger_module()
 
-    if config.getboolean('WEBQUERY','enable'):
+    if config.getboolean('WEBQUERY', 'enable'):
         add_webquery_module()
 
 
@@ -169,13 +174,13 @@ if __name__ == "__main__":
     Starts a local web server that acts as an interface to a modelbase, i.e. the equivalent of a
     data base, but for graphical models. This interface provides various routes,
     as follows.
-    
+
       * '/': the index page
       * '/webservice': a user can send PQL queries in a POST-request to this route
       * '/webqueryclient': provides a simple website to sent PQL queries to this
           model base (probably not functional at the moment)
       * '/playground': just for debugging / testing / playground purposes
-    
+
     Usage:
         Run this script to start the server locally!
     """
@@ -183,7 +188,6 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
 
     # load config from file
-    add_path_of_file_to_python_path()
     config = ConfigParser()
     config.read('run_conf_defaults.cfg')
     if not os.path.isfile('run_conf.cfg'):
@@ -192,15 +196,20 @@ if __name__ == "__main__":
         config.read('run_conf.cfg')
 
     # get command line args
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=description,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-n", "--name",
-                        help="A name for the modelbase to start. Defaults to '{}'".format(config['MODELBASE']['name']),
+                        help="A name for the modelbase to start. Defaults to '{}'".format(
+                            config['MODELBASE']['name']),
                         type=str, default=config['MODELBASE']['name'])
-    parser.add_argument("-d", "--directory", help="directory that contains the models to be loaded initially. Defaults "
-                                                  "to '{}'".format(config['MODELBASE']['model_directory']),
+    parser.add_argument("-d", "--directory",
+                        help="directory that contains the models to be loaded initially. Defaults "
+                             "to '{}'".format(config['MODELBASE']['model_directory']),
                         type=str, default=config['MODELBASE']['model_directory'])
-    parser.add_argument("-l", "--loglevel", help="loglevel for command line output. You can set it to: CRITICAL, ERROR,"
-                                                 " WARNING, INFO or DEBUG. Defaults to {}".format(config['GENERAL']['loglevel']),
+    parser.add_argument("-l", "--loglevel",
+                        help="loglevel for command line output. You can set it to: CRITICAL, ERROR,"
+                             " WARNING, INFO or DEBUG. Defaults to {}".format(
+                            config['GENERAL']['loglevel']),
                         type=str, default=config['GENERAL']['loglevel'])
 
     # overwrite config of run_conf.cfg
@@ -209,10 +218,14 @@ if __name__ == "__main__":
     config['MODELBASE']['name'] = args.name
     config['GENERAL']['loglevel'] = args.loglevel
 
-    if config.getboolean('SSL','enable'):
+    init()
+
+    if config.getboolean('SSL', 'enable'):
         from OpenSSL import SSL
+
         context = (config['SSL']['cert_chain_path'], config['SSL']['cert_priv_key_path'])
-        app.run(host='0.0.0.0', port=int(config['GENERAL']['port']), ssl_context=context, threaded=True)
+        app.run(host='0.0.0.0', port=int(config['GENERAL']['port']), ssl_context=context,
+                threaded=True)
     else:
         app.run(host='0.0.0.0', port=int(config['GENERAL']['port']), threaded=True)
 
