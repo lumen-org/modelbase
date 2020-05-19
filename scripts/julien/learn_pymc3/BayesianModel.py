@@ -1,5 +1,7 @@
-from scripts.julien.learn_pymc3.Graph import Graph, Node, DiscreteNode, ContinuousNode
+import json
+import os
 
+from scripts.julien.learn_pymc3.Graph import Graph, Node, DiscreteNode, ContinuousNode
 from scripts.julien.learn_pymc3.JSONModelCreator import JSONModelCreator
 from scripts.julien.learn_pymc3.JSONReader import JSONReader
 from scripts.julien.learn_pymc3.ProbParameter import is_similar, merge_nodes
@@ -37,6 +39,15 @@ class BayesianModel(object):
         json_reader = JSONReader(self)
         bayesian_model = json_reader.parse(json_file)
         return False
+
+    def generate_json_for_sampler(self, output_file_name):
+        conditional_node_order = self.get_condition_node_order()
+        bayesian_json = {}
+        bayesian_json["conditional node order"] = [node.get_name() for node in conditional_node_order]
+        for node in conditional_node_order:
+            bayesian_json[node.get_name()] = node.get_parameter().to_json()
+        with open(os.path.join(os.path.dirname(__file__), "json_files_for_sampler", output_file_name), "w") as json_file:
+            json_file.write(json.dumps(bayesian_json))
 
     def simplify(self, tolerance, verbose=False):
         prepared_nodes = []

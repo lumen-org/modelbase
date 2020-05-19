@@ -33,9 +33,9 @@ class PPLModel():
             if verbose:
                 print("Network Description", descr)
                 bayesian_model.get_graph().export_as_graphviz(model_name, view=verbose)
-
+            # generate json for sampler
+            bayesian_model.generate_json_for_sampler(f"{model_name}_sampler.json")
             self.bayesian_model = bayesian_model
-
             if verbose:
                 generate_prob_graphs(bayesian_model)
 
