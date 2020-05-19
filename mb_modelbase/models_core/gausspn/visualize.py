@@ -48,4 +48,4 @@ def generateSPNPdf (spn,filename="img/gausspn") :
                #do it next time
                worklist.append((cIndex,child))
                used.append(cIndex)
-    dot.render(filename)
+    dot.render(filename, cleanup=True)

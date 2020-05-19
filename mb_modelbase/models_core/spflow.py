@@ -15,6 +15,7 @@ from spn.algorithms.Condition import condition
 # from spn.algorithms.Inference import eval_spn_bottom_up
 from spn.algorithms.Inference import likelihood
 from spn.algorithms.Sampling import sample_instances
+from spn.io.Graphics import plot_spn, plot_spn2, plot_spn_to_svg
 from numpy.random.mtrand import RandomState
 from mb_modelbase.utils import data_import_utils as diu
 
@@ -26,6 +27,7 @@ import copy as cp
 import dill
 import scipy.optimize as scpo
 from spn.algorithms.stats.Expectations import Expectation
+from pathlib import Path
 
 
 class SPNModel(Model):
@@ -152,6 +154,9 @@ class SPNModel(Model):
             self._spn = learn_mspn(df.values, context)
         else:
             raise Exception("Type of SPN not known: " + self._spn_type)
+        if self._spn:
+            plot_spn(self._spn, fname=Path(f"../../scripts/experiments/spn_graphs/{self.name}.pdf"))
+            plot_spn_to_svg(self._spn, fname=Path(f"../../scripts/experiments/spn_graphs/{self.name}.svg"))
         return self._unbound_updater,
 
     def _marginalizeout(self, keep, remove):

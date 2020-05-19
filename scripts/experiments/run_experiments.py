@@ -33,13 +33,14 @@ continues_data_file = "allbus_happiness_values.dat"
 # directory where the generated models for lumen are saved
 fitted_models_directory = "./fitted_models/"
 
-sample_size = 30000
+sample_size = 15000
 
 # if you do not want to refit models, set the flag to False
 
-fit_spn = True
-fit_bnlearn = False
+fit_bnlearn = True
+fit_spn = False
 fit_sklearn = False
+fit_hand_tuned = True
 
 # assign the data set for running the experiment
 
@@ -98,19 +99,25 @@ spn_models = {
                                  'fitopts': {'empirical_model_name': 'emp_iris'}}),
         'mspn_iris_threshold': lambda: ({'class': MSPNModel, 'data': iris.iris(),
                                            'classopts': {'threshold': 0.1},
-                                           'fitopts': {'empirical_model_name': 'emp_allbus'}}),
+                                           'fitopts': {'empirical_model_name': 'emp_iris'}}),
         'mspn_iris_min_slice': lambda: ({'class': MSPNModel, 'data': iris.iris(),
-                                           'classopts': {'min_instances_slice': 150},
+                                           'classopts': {'min_instances_slice': 25},
                                            'fitopts': {'empirical_model_name': 'emp_iris'}}),
         # GAUSSPN
-        'spn_iris': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
+        'spn_iris_thres_001': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
+                               'classopts': {'corrthresh': 0.01, 'batchsize': 1, 'mergebatch': 1},
                                 'fitopts': {'iterations': 1, 'empirical_model_name': 'emp_iris_continuous'}}),
-        'spn_iris_iterate_3': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
-                                          'fitopts': {'iterations': 3, 'empirical_model_name': 'emp_iris_continuous'}}),
+        'spn_iris_thres_01': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
+                                'classopts': {'corrthresh': 0.1, 'batchsize': 5, 'mergebatch': 5},
+                                'fitopts': {'iterations': 1, 'empirical_model_name': 'emp_iris_continuous'}}),
+        'spn_iris_thres_04': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
+                                 'classopts': {'corrthresh': 0.4, 'batchsize': 15, 'mergebatch': 15},
+                                        'fitopts': {'iterations': 1, 'empirical_model_name': 'emp_iris_continuous'}}),
     }
 }
 
 if __name__ == "__main__":
+    # generate_happiness_plots(continues_data_file, output_path=os.path.dirname(__file__), one_in_all=True)
     start = time()
     print("Starting experiments...")
 
@@ -125,19 +132,6 @@ if __name__ == "__main__":
         # create contines data file
         with open(continues_data_file, "w+") as f:
             f.write(f"model,{','.join([str(i) for i in np.arange(0, 10, 0.1)])}\n")
-
-    if fit_spn:
-        print("Calculate SPN models")
-        models = fit_models(spn_models[data_set], verbose=True, include=spn_models[data_set])
-        print("Calculate SPN model scores (skip emp)")
-        number_of_spn_models = len([m for m in models if not m.startswith("emp")])
-        for index, (model_name, property) in enumerate(models.items()):
-            print(f"Calculate SPN model {index+1} of {number_of_spn_models}")
-            if not model_name.startswith("emp"):
-                if not model_name.startswith("spn_"):
-                    if data_set == "allbus":
-                        cll_allbus(property["model"], allbus.test(numeric_happy=False), result_file, continues_data_file)
-        save_models(models, fitted_models_directory)
 
     if fit_bnlearn:
         print("Calculate bnlearn models")
@@ -156,8 +150,9 @@ if __name__ == "__main__":
             # we have beforehand the following discrete variables
             discrete_variables = ['species']
         # create a model for different algorithms and scores
-        algorithms = ["tabu", "hc", "gs", "iamb", "fast.iamb", "inter.iamb"]
+        algorithms = ["tabu", "inter.iamb", "fast.iamb", "hc", "gs", "iamb"]
         scores = ["loglik-cg", "bic-cg"]
+        algorithms = []
         could_not_fit = 1
         iteration = 0
         number_of_fitted = 0
@@ -176,7 +171,7 @@ if __name__ == "__main__":
                 else:
                     scores = [""]
                 for score in scores:
-                    model_name = f"{data_set}_{algo}{score}".replace("-", "").replace(".", "")
+                    model_name = f"bnlearn_{data_set}_{algo}{score}".replace("-", "").replace(".", "")
                     ppl_model = PPLModel(model_name, data_file_all_numeric, discrete_variables=discrete_variables,
                                          verbose=False, algo=algo, score=score)
                     # the function returns 1 if the model could not be translated
@@ -193,23 +188,25 @@ if __name__ == "__main__":
             functions = [o[1] for o in getmembers(pymc_allbus_models) if isfunction(o[1]) and o[0].startswith("create")]
             create_functions = functions
             # add the hand tuned model
-            from scripts.experiments.models.pymc_model_hand_tuned import create_hand_tuned_model
-            create_functions.append(create_hand_tuned_model)
+            if fit_hand_tuned:
+                from scripts.experiments.models.pymc_model_hand_tuned import create_hand_tuned_model
+                create_functions.append(create_hand_tuned_model)
         elif data_set == "iris":
             import scripts.experiments.models.pymc_models_iris as pymc_iris_models
             functions = [o[1] for o in getmembers(pymc_iris_models) if isfunction(o[1]) and o[0].startswith("create")]
             create_functions = functions
         # fit all the files
-        for func in create_functions:
+        for index, func in enumerate(create_functions):
+            print(f"Calculate metrics for bnlearn model {index+1} of {len(create_functions)}")
             ready = False
             tried = 0
             try:
                 data, m_fitted = func(fit=True)
             except SamplingError as se:
-                # the hand tuned model raisses and error, after 20 tries skip this model
+                # the hand tuned model raises an error, after number_of_hand_tuned_fits tries skip this model
                 iteration = 0
                 print("Try fit the hand tuned model.")
-                number_of_hand_tuned_fits = 5
+                number_of_hand_tuned_fits = 10
                 while iteration < number_of_hand_tuned_fits:
                     try:
                         print(f"Try: {iteration+1} of {number_of_hand_tuned_fits}")
@@ -228,6 +225,21 @@ if __name__ == "__main__":
             emp_model.save(fitted_models_directory)
             if data is not None:
                 data.to_csv(os.path.join(fitted_models_directory, m_fitted.name + '.csv'), index=False)
+
+    if fit_spn:
+        print("Calculate SPN models")
+        models = fit_models(spn_models[data_set], verbose=True, include=[model for model in spn_models[data_set] if str(model).startswith("spflow")])
+        print("Calculate SPN model scores (skip emp)")
+        number_of_spn_models = len(models)
+        for index, (model_name, property) in enumerate(models.items()):
+            print(f"Calculate SPN model {index+1} of {number_of_spn_models} ({model_name})")
+            if not model_name.startswith("emp"):
+                if not model_name.startswith("spn_"):
+                    if data_set == "allbus":
+                        cll_allbus(property["model"], allbus.test(numeric_happy=False), result_file, continues_data_file)
+                if data_set == "iris":
+                    print("\tLikelihood on train data:", property["model"].loglikelihood())
+        save_models(models, fitted_models_directory)
 
     if fit_sklearn and data_set == "allbus":
         print("Learn and try different sklearn models")

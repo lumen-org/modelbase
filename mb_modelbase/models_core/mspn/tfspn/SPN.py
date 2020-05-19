@@ -1212,31 +1212,21 @@ class SPN(object):
     def to_graph(self):
         import networkx as nx
         G = nx.DiGraph()
-
         rootNode = self.root
-
         G.add_node(rootNode.name, label=rootNode.label)
-
         nodes = [rootNode]
-
         while(len(nodes) > 0):
-
             node = nodes.pop(0)
-
             for i, c in enumerate(node.children):
-
                 G.add_node(c.name, label=c.label)
-
                 weight = ""
                 if hasattr(node, "weights"):
                     weight = round(node.weights[i], 2)
-
                 G.add_edge(node.name, c.name, weight=1.0, label=weight)
-
                 if c.children and len(c.children) > 0:
                     nodes.append(c)
-
         return G
+
 
     def save_pdf_graph(self, outputfile=None):
 

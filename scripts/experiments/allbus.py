@@ -97,7 +97,7 @@ def test_continuous(filepath=_test_data):
 
 
 if __name__ == '__main__':
-    df = train(numeric_happy=False)
+    df = test(numeric_happy=False)
     print(df)
     print(df.dtypes)
 

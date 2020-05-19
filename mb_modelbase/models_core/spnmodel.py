@@ -12,19 +12,21 @@ What did we do to make it run:
 
 IMPORTANT:
   * the model only allows continous data
+
 """
-
-from mb_modelbase.models_core import Model
-from mb_modelbase.models_core.gausspn.spn import SPNParams, SPN
-
-from scipy.optimize import minimize
 import numpy as np
 import pandas as pd
 import copy as cp
+from pathlib import Path
 
+from scipy.optimize import minimize
+
+from mb_modelbase.models_core import Model
+from mb_modelbase.models_core.gausspn.spn import SPNParams, SPN
+from mb_modelbase.models_core.gausspn.visualize import generateSPNPdf
 
 class SPNModel(Model):
-    def __init__(self, name, batchsize=1, mergebatch=10, \
+    def __init__(self, name, batchsize=128, mergebatch=128, \
                  corrthresh=0.1, equalweight=True, updatestruct=True, \
                  mvmaxscope=0, leaftype="normal", numcomp=2):
         super().__init__(name)
@@ -48,13 +50,14 @@ class SPNModel(Model):
          self.index[i] = None
       return []
 
-    def _fit(self, iterations=5, **kwargs):
+    def _fit(self, iterations=1, **kwargs):
         data = self.data.values
         if self.data.empty:
             raise Exception("No data available to fit on.")
         self._spnmodel = SPN(self.variables, self.numcomp, self.params)
         for i in range(iterations):
             self._spnmodel.update(data)
+        generateSPNPdf(self._spnmodel, filename=Path(f"../../scripts/experiments/spn_graphs/{self.name}"))
         return []
 
     def _marginalizeout(self, keep, remove):

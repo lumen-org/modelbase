@@ -11,7 +11,8 @@ setup(name='mb_modelbase',
       packages=find_packages(exclude=['scripts']),
       install_requires=[
           'xarray',
-          'numpy<=1.17',
+          #'numpy<=1.17',
+          'numpy<=1.18.4'
           'pandas>=0.24',
           'scikit-learn',
           'scipy>=0.19.1',

@@ -30,6 +30,7 @@ IMPORTANT:
 """
 
 import rpy2
+from pathlib import Path
 
 from mb_modelbase.models_core import Model
 
@@ -101,9 +102,13 @@ class \
         # for i in range(len(data)):
         #     data[i] = [int(j) if self.featureTypes[i] == "categorical" else j for j in data[i]]
         self._mspnmodel = SPN.LearnStructure(np.array(self._data), featureTypes=self.featureTypes, \
+                                             featureNames=self.names, \
                                              row_split_method=Splitting.KmeansRows(), \
                                              col_split_method=Splitting.RDCTest(threshold=self.threshold), \
-                                             min_instances_slice=self.min_instances_slice).root
+                                             min_instances_slice=self.min_instances_slice)
+
+        self._mspnmodel.save_pdf_graph(outputfile=Path(f"../../scripts/experiments/spn_graphs/{self.name}.pdf"))
+        self._mspnmodel = self._mspnmodel.root
         self.normalizeFactor = self._getNormalizeFactor()
         
         #print("FIT:", self.colToCategory)
