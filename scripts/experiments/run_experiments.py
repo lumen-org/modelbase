@@ -189,8 +189,8 @@ if __name__ == "__main__":
             create_functions = functions
             # add the hand tuned model
             if fit_hand_tuned:
-                from scripts.experiments.models.pymc_model_hand_tuned import create_hand_tuned_model
-                create_functions.append(create_hand_tuned_model)
+                from scripts.experiments.models.pymc_model_hand_tuned import create_allbus_model_N1
+                create_functions.append(create_allbus_model_N1)
         elif data_set == "iris":
             import scripts.experiments.models.pymc_models_iris as pymc_iris_models
             functions = [o[1] for o in getmembers(pymc_iris_models) if isfunction(o[1]) and o[0].startswith("create")]
@@ -211,6 +211,7 @@ if __name__ == "__main__":
                     try:
                         print(f"Try: {iteration+1} of {number_of_hand_tuned_fits}")
                         data, m_fitted = func(fit=True)
+                        break
                     except SamplingError as se2:
                         iteration += 1
                 print("Could not fit the hand tuned model")
