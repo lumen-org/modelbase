@@ -29,10 +29,12 @@ def cll_allbus(model, test_data, model_file, continues_data_file):
     with open(model_file, "a+") as f:
         json = f.write(f"{model_name}, {acc_happy}, {mae_happy}, {acc_sex}, {mae_sex}, {acc_ew}, {mae_ew}, {acc_la}, {mae_la}, {q1}, {q2}, {q3}, {q4}\n")
     density_of_happiness_for_same_query(model, test_data, "happiness",
-                                        {"sex": "Female", "educ": 3, "eastwest": "East", "health": 4},
+                                        {"sex": "Female", "lived_abroad": "Yes", "eastwest": "East"},
                                         continues_data_file)
 
 def density_of_happiness_for_same_query(model, test_data, query_var, condition_vars, continues_data_file):
+    if str(model.name).startswith("allbus"):
+        print(f"Calculated this score on {len([x for x in model.samples.values if x[0] == 'Female' and x[1] == 'East' and x[2] == 'Yes'])} many points.")
     cur_model = model.copy()
     marg_variables = []
     marg_variables.append(query_var)
@@ -59,6 +61,8 @@ def classify(model, test_data, variable, variable_map=None):
     acc_score = 0
     mae_score = 0
     number_of_samples = len(test_data.values)
+    cur_model = model.copy()
+    cur_model.marginalize(keep=list(test_data.columns))
     for x, true_value in zip(test_data[inference_columns].values, test_data[variable]):
         # collect variable, value pairs
         for name, value in zip(inference_columns, x):
@@ -68,7 +72,7 @@ def classify(model, test_data, variable, variable_map=None):
         if variable_map is None:
             for value in np.arange(np.min(test_data[variable]), np.max(test_data[variable]), 0.1):
                 evidence[variable] = value
-                density = model.density(evidence)
+                density = cur_model.density(evidence)
                 prediction[value] = density
             pred_value = [k for k, v in prediction.items() if v == max(prediction.values())][0]
             # MAPE (https://en.wikipedia.org/wiki/Mean_absolute_percentage_error)
@@ -78,7 +82,7 @@ def classify(model, test_data, variable, variable_map=None):
             # calculate the density value
             for value in variable_values:
                 evidence[variable] = value
-                prediction[value] = model.density(evidence)
+                prediction[value] = cur_model.density(evidence)
             prediction = [k for k, v in prediction.items() if v == max(prediction.values())][0]
             if prediction == true_value:
                 acc_score += 1
@@ -88,7 +92,7 @@ def classify(model, test_data, variable, variable_map=None):
 
 def _query(model, test_data, query_var, condition_vars):
     cur_model = model.copy()
-    variables = list(test_data.columns)
+    variables = list(model.names)
     marg_variables = variables.copy()
     marg_variables.remove(query_var)
     for var in condition_vars:
@@ -107,18 +111,20 @@ def _query(model, test_data, query_var, condition_vars):
     return pll
 
 
-def _get_metric_as_latex_table_entry(model_file):
+def _get_metric_as_latex_table_entry(model_file, table_skeleton=True):
     d = pd.read_csv(model_file)
     entries = []
-    header = ["|c" for _ in range(len(d.columns) - 1)]
-    header.insert(0, "l")
-    latex_table = """
-    \\begin{table}
-	\\scriptsize
-	\\begin{tabular}{header}
-		\\hline
-    """.replace("header", "".join(header))
-    latex_table += " & ".join(d.columns) + "\\\\\\\hline"
+    latex_table = ""
+    if table_skeleton:
+        header = ["|c" for _ in range(len(d.columns) - 1)]
+        header.insert(0, "l")
+        latex_table = """
+        \\begin{table}
+        \\scriptsize
+        \\begin{tabular}{header}
+            \\hline
+        """.replace("header", "".join(header))
+        latex_table += " & ".join(d.columns) + "\\\\\\\hline"
     for row in d.iterrows():
         entry = ""
         for i, e in enumerate(row[1]):
@@ -131,11 +137,11 @@ def _get_metric_as_latex_table_entry(model_file):
                 entry += e.replace("_", "-")
         entry += ' \\\\\n\\hline\n'
         latex_table += entry
-    latex_table += """
-    	\\end{tabular}
-	\\caption{N/A: not available, -inf: not possible to calculate, due to overflow}
-\\end{table}
-    """
+    if table_skeleton:
+        latex_table += """
+        	\\end{tabular}
+	        \\caption{N/A: not available, -inf: not possible to calculate, due to overflow}
+            \\end{table}"""
     return latex_table
 
 
@@ -161,7 +167,7 @@ def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat", 
     d = pd.read_csv(continues_data_file)
     plt.clf()
     if one_in_all:
-        fig, axs = plt.subplots(4,3, figsize=(20,20))
+        fig, axs = plt.subplots(2, 4, figsize=(20,10))
     for index, row in enumerate(d.iterrows()):
         row_dict = dict(row[1])
         model_name = row_dict["model"]
@@ -169,8 +175,8 @@ def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat", 
         x = np.array([float(i) for i in list(row_dict.keys())])
         y = np.array([float(i) for i in list(row_dict.values())])
         if one_in_all:
-            axs[int(index % 4), int(index/4) % 3].plot(x,y)
-            axs[int(index % 4), int(index/4) % 3].set_title(model_name)
+            axs[int(index % 2), int(index/2) % 4].plot(x,y)
+            axs[int(index % 2), int(index/2) % 4].set_title(model_name)
         else:
             plt.plot(x,y)
             plt.title(model_name)
@@ -182,7 +188,8 @@ def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat", 
 
 
 if __name__ == "__main__":
-    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_results.dat"
-    print(_get_metric_as_latex_table_entry(file))
-    generate_happiness_plots(one_in_all=True)
+    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_happiness_values_15000_samples.dat"
+    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_results_full.dat"
+    print(_get_metric_as_latex_table_entry(file, table_skeleton=False))
+    #generate_happiness_plots("/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_happiness_values.dat", one_in_all=True)
     # _print_metric_as_table_entry(os.path.join(os.path.dirname(__file__), "allbus.dat"))
