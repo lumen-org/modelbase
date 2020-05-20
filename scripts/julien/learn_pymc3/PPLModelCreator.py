@@ -78,7 +78,7 @@ def {function_name}(filename="", modelname="{model_name}", fit=True):
     model = pm.Model()
     with model:
 {code}
-    m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm, nr_of_posterior_samples=sample_size)
+    m = ProbabilisticPymc3Model(modelname, model, data_mapping=dtm, nr_of_posterior_samples=sample_size, sample_prior_predictive=True)
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)

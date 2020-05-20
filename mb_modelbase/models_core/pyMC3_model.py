@@ -109,7 +109,7 @@ class ProbabilisticPymc3Model(Model):
         """
 
     def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=1000, fixed_data_length=False,
-                 data_mapping=None, sampling_chains=1, sampling_cores=1, probabilistic_program_graph=None):
+                 data_mapping=None, sampling_chains=1, sampling_cores=1, probabilistic_program_graph=None, sample_prior_predictive=False):
         """Bayesian models built by the PyMC3 library
 
         Parameters:
@@ -199,6 +199,7 @@ class ProbabilisticPymc3Model(Model):
 
         self._update_samples_model_representation()
         self.samples = None
+        self.sample_prior_predictive = sample_prior_predictive
 
     def _set_data(self, df, drop_silently, **kwargs):
         assert df.index.is_monotonic, 'The data is not sorted by index. Please sort data by index and try again'
@@ -277,9 +278,7 @@ class ProbabilisticPymc3Model(Model):
         return cartesian_prod
 
     def _fit(self):
-        if str(self.name).startswith("bnlearn") and ("iris" in str(self.name) or "allbus" in str(self.name)):
-            #self._samples_model_repr = gen_samples_for_model(self.nr_of_posterior_samples, self.name)
-            #self.samples = self._data_type_mapper.backward(self._samples_model_repr, inplace=False)
+        if self.sample_prior_predictive:
             self.samples, self._samples_model_repr = self._sample(self.nr_of_posterior_samples, mode='both', pp=True)
         else:
             self.samples, self._samples_model_repr = self._sample(self.nr_of_posterior_samples, mode='both')
