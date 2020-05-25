@@ -5,7 +5,6 @@ from mb_modelbase.models_core.models import Model
 from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.models_core.empirical_model import EmpiricalModel
 import theano
-from scripts.run_conf import cfg as user_cfg
 import os
 import timeit
 import scipy.stats
@@ -569,18 +568,22 @@ def create_allbus_model_5(filename='test_allbus.csv', modelname='allbus_model_5'
         m.fit(data)
     return data, m
 
+
 ######################################
 # Call all model generating functions
 ######################################
 if __name__ == '__main__':
+    from configparser import ConfigParser
+    config = ConfigParser()
+    config.read('scripts/run_conf_defaults.cfg')
+    config.read('scripts/run_conf.cfg')
 
     start = timeit.default_timer()
-
     try:
-        testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory']
-        testcasedata_path = user_cfg['modules']['modelbase']['test_data_directory']
+        testcasemodel_path = config['MODELBASE']['test_model_directory']
+        testcasedata_path = config['MODELBASE']['test_data_directory']
     except KeyError:
-        print('Specify a test_model_directory and a test_data_direcory in run_conf.py')
+        print('Specify a test_model_directory and a test_data_direcory in run_conf.cfg')
         raise
 
     # This list specifies which models are created when the script is run. If you only want to create

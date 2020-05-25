@@ -21,6 +21,7 @@ import warnings
 from itertools import compress
 
 from mb_modelbase.models_core import base
+from mb_modelbase.models_core import domains as dm
 from mb_modelbase.models_core.base import Condition, Split, Density
 from mb_modelbase.models_core.base import NAME_IDX, METHOD_IDX, YIELDS_IDX, ARGS_IDX, OP_IDX, VALUE_IDX
 from mb_modelbase.models_core import splitter as sp
@@ -29,7 +30,7 @@ from mb_modelbase.utils import utils
 from mb_modelbase.utils import data_import_utils
 from mb_modelbase.models_core import data_aggregation
 from mb_modelbase.models_core import data_operations
-from mb_modelbase.models_core import pci_graph
+# from mb_modelbase.models_core import pci_graph
 from mb_modelbase.models_core import auto_extent
 
 logger = logging.getLogger(__name__)
@@ -162,8 +163,10 @@ class Model:
             A flag that indicates whether certain queries should be executed in parallel on multiple available cores
             or not.
 
-        .pci_graph : None or something
+        .pci_graph : None or dict
 
+            A graph representing the pair-wise conditionally independence (pci) structure of the model.
+            See also the pci_graph module.
 
         .test_data : pd.DataFrame
 
@@ -315,7 +318,7 @@ class Model:
         else:
             return [self._name2idx[name] for name in names]
 
-    def byname(self, names):
+    def byname(self, names, attr=None):
         """Given a single name or a sequence of names of a field, return the corresponding single field or sequence
         of fields of this model.
 
@@ -325,10 +328,24 @@ class Model:
         def _byname(name):
             return self.fields[self._name2idx[name]]
 
+        def _bynameAndAttr(name):
+            return self.fields[self._name2idx[name]][attr]
+
+        _getter = _byname if attr is None else _bynameAndAttr
+
         if isinstance(names, str):
-            return _byname(names)
+            return _getter(names)
         else:
-            return [_byname(name) for name in names]
+            return [_getter(name) for name in names]
+
+    def dtypes(self, names):
+        """Given a single name or a sequence of names of a field, return the corresponding single dtype or sequence
+        of dtypes of these fields.
+
+        Equivalent to self.byname(names, attr='dtype'
+        Returns : string or list of string
+        """
+        return self.byname(names, attr='dtype')
 
     def isfieldname(self, names):
         """Returns true iff the single string or list of strings given as variables names are (all) names of random
@@ -388,6 +405,7 @@ class Model:
         self.parallel_processing = True
         self._empirical_model_name = None
         self.pci_graph = None
+        self.probabilistic_program_graph = None
 
     def _setempty(self):
         self._update_remove_fields()
@@ -411,6 +429,7 @@ class Model:
 
     def set_empirical_model_name(self, name):
         self._empirical_model_name = name
+        return self
 
     def set_model_params(self, **kwargs):
         """Sets explicitly the parameters of a model.
@@ -451,12 +470,13 @@ class Model:
          - possibly existing data of the model are overwritten
          - possibly fitted model parameters are lost
 
-        Note that if the data does not fit to the specific type of the model, it will raise a TypeError. E.g. a gaussian
-        model cannot be fit on categorical data.
+        Note that if the data does not fit to the specific type of the model, it will raise a
+        TypeError. E.g. a gaussian odel cannot be fit on categorical data.
 
         Args:
             df: a pandas data frame
-            drop_silently: If set to True any column of df that is not suitable for the model to be learned will silently be dropped. Otherwise this will raise a TypeError.
+            drop_silently: If set to True any column of df that is not suitable for the model to be
+                learned will silently be dropped. Otherwise this will raise a TypeError.
             kwargs:
         Returns:
             self
@@ -490,7 +510,9 @@ class Model:
         if callbacks is not None:
             [c() for c in callbacks]
 
-        self.pci_graph = pci_graph.create(self.data) if kwargs['pci_graph'] else None
+        # see issue #93
+        # self.pci_graph = pci_graph.create(self.data) if kwargs['pci_graph'] else None
+        self.pci_graph = None
         return self
 
     def _init_history(self):
@@ -613,6 +635,10 @@ class Model:
                 The pandas data frame that holds the data to fit the model to. You can also
                 previously set the data to fit to using the set_data method.
 
+            auto_extend: bool, optional. Defaults to True
+                If enabled the model will automatically derive a suitable extend for all its
+                numerical variables where it is has non-zero density.
+
         Raises:
             ValueError:
                 if no data is available to fit to and the models mode is different from 'data'
@@ -620,7 +646,6 @@ class Model:
         Returns:
             The modified, fitted model.
         """
-
         if 'empirical_model_name' in kwargs:
             self._empirical_model_name = kwargs['empirical_model_name']
 
@@ -950,6 +975,38 @@ class Model:
         See also `Model.hide()`.
         """
         return self.hide(dims, False)
+
+    def set_category_order(self, dims, category_orders=None):
+        if dims is None:
+            dims = {}
+
+        # normalize to dict
+        if not isinstance(dims, dict):
+            if len(dims) != len(category_orders):
+                raise ValueError('dims and category_order are of different length')
+            dims = base.to_name_sequence(dims)  # normalize to sequence of dim names
+            dims = dict(zip(dims, category_orders))
+
+        if not self.isfieldname(dims.keys()):
+            raise ValueError("fields must be specified by their name and must be a field of this "
+                             "model")
+
+        for name, cat_order in dims.items():
+            field = self.byname(name)
+
+            if field['dtype'] != 'string':
+                raise ValueError(
+                    "Cannot set category order on non-categorical field {}".format(name))
+
+            if set(cat_order) != set(field['extent'].values()):
+                raise ValueError(
+                    "Values of category order do not match extent of field:\n"
+                    "values of field: {}\n"
+                    "values of new order: {}".format(field['extent'].values(), cat_order))
+
+            field['extent'] = dm.DiscreteDomain(cat_order)
+
+        return self
 
     def set_default_value(self, dims, values=None):
         """Sets default values for fields.
@@ -1420,6 +1477,7 @@ class Model:
         mycopy.history = cp.deepcopy(self.history)
         mycopy.parallel_processing = self.parallel_processing
         mycopy.pci_graph = cp.deepcopy(self.pci_graph)
+        mycopy._empirical_model_name = self._empirical_model_name
         return mycopy
 
     def _condition_values(self, names=None, pairflag=False, to_scalar=True):

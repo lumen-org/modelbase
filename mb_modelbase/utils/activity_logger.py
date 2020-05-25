@@ -5,6 +5,7 @@
 An ActivityLogger allows to store log data.
 """
 
+import json
 
 class ActivityLogger:
 
@@ -37,4 +38,4 @@ class ActivityLogger:
             self._filehandler = open(self._logfile, file_mode, 1)  # 1 means line buffering
 
         # log it baby!
-        self._filehandler.write(str(json_obj) + ',\n')
+        self._filehandler.write(json.dumps(json_obj) + '\n')

@@ -12,7 +12,7 @@ try:
     testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + \
                      '/pymc3_getting_started_model_independent_vars_fitted.mdl'
 except KeyError:
-    print('Specify a test_model_directory in run_conf.py and create the model '
+    print('Specify a test_model_directory in run_conf.cfg and create the model '
           'pymc3_getting_started_model_independent_vars_fitted by calling create_PyMC3_testmodels.py')
     raise
 

@@ -1,5 +1,8 @@
 # README #
 
+[![Travis](https://travis-ci.org/lumen-org/modelbase.svg?branch=ci_travis)](
+    https://travis-ci.org/lumen-org/modelbase)
+    
 A SQL-like interface for python and the web to query data together with probability models on the data.
 
 Version: 0.95
@@ -39,6 +42,8 @@ For normal (non-development) usage:
 2. Install the `mb_modelbase` package locally, i.e, do `cd <root> && pip3 install .`
 3. Install the `CGModelSelection` package. This provides a model selection capabilities for various types of multivariate Gaussian and Conditional Gaussian (CG) models. **currently this package is not publicly available and unfortunately lumen will not fully work without it**. Get in touch with me or Frank Nussbaum for access. The repository is hosted [here](https://ci.inf-i2.uni-jena.de/ra86ted/CGmodelselection).
 4. Set your R_HOME path variable containing your R install directory (for example in `home/.profile`)
+3. Install the `cgmodsel` package with `git submodule init && git submodule update` 
+4. Install submodule `pip3 install cgmodsel`
 
 For a development setup, see further below.
 

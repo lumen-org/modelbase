@@ -235,35 +235,39 @@ class SPNModel(Model):
         res = self._numeric_to_names(e)
         return res
 
-    # Convert the categorical variables in the input vector from their numerical representation to the a string representation
-    def _numeric_to_names(self, x):
-        for i in range(len(x)):
-            if self.names[i] in self._categorical_variables:
-                x[i] = self._categorical_variables[self.names[i]]['int_to_name'][round(x[i])]
-        return x
+    def _maximum(self):
+        fun = lambda x : -1 * self._density(x)
+        xmax = None
+        xlength = len(self.names)
 
-    # Convert the categorical variables in the input list
-    def _names_to_numeric(self, x: list):
-        for i in range(len(x)):
-            if self.names[i] in self._categorical_variables:
-                x[i] = self._categorical_variables[self.names[i]]['name_to_int'][x[i]]
-        return x
+        #startVectors = self.data.sample(20).values
+        startVectors = self.data.mean()
 
-    def _maximum(self) -> list:
-        fun = lambda x: -1 * self._opt_density(x)
-        n_samples = 10
-        samples = self.data.sample(n_samples)
-        numeric_samples = [self._names_to_numeric(samples.iloc[i, :].tolist()) for i in range(samples.shape[0])]
-        optima = [scpo.minimize(fun, np.array(x), method='Nelder-Mead') for x in numeric_samples]
-        maxima = [x['x'] for x in optima]
-        return max(maxima).tolist()
+        for x0 in startVectors:
+            xopt = scpo.minimize(fun, x0, method='Nelder-Mead')
+            if xmax is None or self._density(xmax) <= self._density(xopt.x):
+                xmax = xopt.x
+        return xmax
 
     def _sample(self, n=1, random_state=RandomState(123)):
         placeholder = np.repeat(np.array(self._condition), n, axis=0)
         s = sample_instances(self._spn, placeholder, random_state)
+
         indices = [self._initial_names_to_index[name] for name in self.names]
         result = s[:, indices]
-        result = [self._numeric_to_names(l) for l in result.tolist()]
+        result = result.tolist()
+
+        # performance shortcuts
+        names = self.names
+        cat_vars = self._categorical_variables
+
+        # convert integers back to categorical names
+        # TODO: double for loop ... :-(
+        for r in result:
+            for i in range(len(r)):
+                if names[i] in cat_vars:
+                    r[i] = cat_vars[names[i]]['int_to_name'][round(r[i])]
+
         return result
 
     def copy(self, name=None):
@@ -275,7 +279,7 @@ class SPNModel(Model):
         mycopy._initial_names_count = len(mycopy._initial_names)
         mycopy._marginalized = self._marginalized.copy()
         mycopy._conditioned = self._conditioned.copy()
-        mycopy._state_mask = self._state_mask.copy()
+        mycopy._density_mask = self._density_mask.copy()
         mycopy._condition = self._condition.copy()
         mycopy._categorical_variables = self._categorical_variables.copy()
         mycopy._initial_names_to_index = self._initial_names_to_index.copy()

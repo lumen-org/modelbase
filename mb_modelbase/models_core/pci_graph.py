@@ -2,7 +2,9 @@
 """
 @author: Philipp Lucas
 """
-from CGmodelselection.graph import get_graph_from_data
+
+# see #93
+#from CGmodelselection.graph import get_graph_from_data
 
 from mb_modelbase.utils import update_opts
 
@@ -23,6 +25,8 @@ def create(df, **kwargs):
         'disp': False,
     }
     opts = update_opts(default_create_opts, kwargs, valid_create_opts)
+
+    raise NotImplementedError('see issue #93')
 
     grpnormmat, graph, dlegend = get_graph_from_data(df, **opts)
     return {
