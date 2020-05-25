@@ -104,5 +104,14 @@ mb_modelbase/models_core/img/
 # ignore other mdl files
 doc/models/*.mdl
 
+# ignore dev/ stuff
+# you can still add it, but local changes and files will not mess up your status messages
+dev/
+
+# ignore som of juliens specific stuff...
 /scripts/experiments/allbus_train_numeric.csv.json
 /scripts/run_conf_julien.py
+
+
+
+

@@ -1,0 +1,2 @@
+# ignore model files as these are created on the fly
+*.mdl
