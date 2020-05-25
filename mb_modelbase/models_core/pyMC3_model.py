@@ -108,8 +108,9 @@ class ProbabilisticPymc3Model(Model):
             'forbidden_edges': list of edges. Optional.
         """
 
-    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=5000, fixed_data_length=False,
-                 data_mapping=None, sampling_chains=1, sampling_cores=1, probabilistic_program_graph=None, sample_prior_predictive=False):
+    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=5000,
+                 fixed_data_length=False, data_mapping=None, sampling_chains=1, sampling_cores=1,
+                 probabilistic_program_graph=None, sample_prior_predictive=False):
         """Bayesian models built by the PyMC3 library
 
         Parameters:
@@ -123,7 +124,11 @@ class ProbabilisticPymc3Model(Model):
                 NOT guaranteed that shared_vars always holds the original independent variables, since they are changed
                 during the _fit()-method
 
-            nr_of_posterior_samples: integer scalar specifying the number of posterior samples to be generated
+            nr_of_posterior_samples: integer, defaults to 5000.
+
+                The number of posterior samples to be generated, that is, this is the number of
+                samples that is used to approximate the true distribution as represented by the
+                underlying sampler.
 
             fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
 
@@ -200,6 +205,8 @@ class ProbabilisticPymc3Model(Model):
         self._update_samples_model_representation()
         self.samples = None
         self.sample_prior_predictive = sample_prior_predictive
+
+        self._prefetched_samples = None
 
     def _set_data(self, df, drop_silently, **kwargs):
         assert df.index.is_monotonic, 'The data is not sorted by index. Please sort data by index and try again'
@@ -374,15 +381,22 @@ class ProbabilisticPymc3Model(Model):
     def _negdensity(self, x):
         return -self._density(x)
 
-    def _sample(self, n, mode='original', pp=False):
+    def _sample(self, n, mode='original', pp=False, sample_mode='first'):
         """
         Draw a sample of size n.
         :param n:
         :param mode: str. one of 'original', 'model', 'both'
             Chooses in which representation space the samples are returned.
+        :param pp
+            TODO document
+        :param sample_mode str.
+            Chooses what method to use for generating samples.
+            'first' takes the first n elements of self.samples. 'choice' randomly selects n elements
+            from self.samples.
         :return:
         """
-        # TODO: eurovis2020: this comes from the merge
+
+        # TODO: fix
         # If number of samples differs from number of data points, posterior predictive samples
         # cannot be generated
         if n != len(self.data):
@@ -455,7 +469,21 @@ class ProbabilisticPymc3Model(Model):
 
             self.check_data_and_shared_vars_on_equality()
         else:
-            sample = self.samples
+            # sampling is done by selecting some of the posterior samples
+            samples_len = len(self.samples)
+
+            # mode 1: always choose the first n
+            if sample_mode == 'first':
+                if n > samples_len:
+                    sample = np.tile(self.samples, np.ceil(n/samples_len))
+                sample = sample[:n]
+
+            # mode 2: choose randomly
+            if sample_mode == 'choice':
+                if n > samples_len:
+                    sample = np.random.choice(self.samples, size=n, replace=True)
+                else:
+                    sample = np.random.choice(self.samples, size=n, replace=False)
 
         # map samples from model space in to data space
         if mode is 'model':
