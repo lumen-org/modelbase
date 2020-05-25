@@ -63,7 +63,11 @@ class ProbabilisticPymc3Model(Model):
             NOT guaranteed that shared_vars always holds the original independent variables, since they are changed
             during the _fit()-method
 
-        nr_of_posterior_samples: integer scalar specifying the number of posterior samples to be generated
+        nr_of_posterior_samples: integer, defaults to 5000.
+
+            The number of posterior samples to be generated, that is, this is the number of
+            samples that is used to approximate the true distribution as represented by the
+            underlying sampler.
 
         fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
 
@@ -78,15 +82,21 @@ class ProbabilisticPymc3Model(Model):
             original space and the modeling space.
 
             Note that you must provide your training and test data in its original space representation with
-            .fit_data().
+            .fit_data(). For example: your data (original space) contain a variable 'sex' with
+            values 'male' and 'female' that you need internally inside your model as 0, 1.
+            Hence you use a data mapper with a forward map {'male': 0, 'female': 1}. When you
+            fit the model you provide the original data (that is with 'male' and 'female').
 
         sampling_chains: int, optional. Defaults to 1.
 
-            See https://docs.pymc.io/api/inference.html and there the parameter chains of .sample()
+            See https://docs.pymc.io/api/inference.html and there the parameter chains of
+            .sample(). Setting it to None lets PyMC3 chose it automatically.
 
-        sampling_cores: int, optional. Defaults to 1.
+        sampling_cores: int, optional. Defaults to None.
 
-            See https://docs.pymc.io/api/inference.html and there the parameter cores of .sample()
+            See https://docs.pymc.io/api/inference.html and there the parameter cores of
+            .sample(). Setting it to None lets PyMC3 chose it automatically.
+
 
         probabilistic_program_graph: dict, optional. Defaults to None.
 
@@ -109,73 +119,10 @@ class ProbabilisticPymc3Model(Model):
         """
 
     def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=5000,
-                 fixed_data_length=False, data_mapping=None, sampling_chains=1, sampling_cores=1,
-                 probabilistic_program_graph=None, sample_prior_predictive=False):
-        """Bayesian models built by the PyMC3 library
+                 fixed_data_length=False, data_mapping=None, sampling_chains=1,
+                 sampling_cores=None, probabilistic_program_graph=None,
+                 sample_prior_predictive=False):
 
-        Parameters:
-
-            model_structure : a PyMC3 Model() instance
-
-            shared_vars : dictionary of theano shared variables
-
-                If the model has independent variables, they have to be encoded as theano shared variables and provided
-                in this dictionary, additional to the general dataframe containing all observed data. Watch out: It is
-                NOT guaranteed that shared_vars always holds the original independent variables, since they are changed
-                during the _fit()-method
-
-            nr_of_posterior_samples: integer, defaults to 5000.
-
-                The number of posterior samples to be generated, that is, this is the number of
-                samples that is used to approximate the true distribution as represented by the
-                underlying sampler.
-
-            fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
-
-                Some probabilistic models require a fixed length of the data. This is important because normally
-                new data points are generated with a different length than the original data
-
-            data_mapping: dict or DataTypeMapper, optional. Defaults to the identify mapping.
-
-                The actual probabilistic modelling may require that you encode variables differently than you want to
-                expose them to the outside. E.g. a variable may be modelled as an integer value of 0 or 1 but actually
-                it represents the sex of a person ('male' or 'female'). Here you specify such mappings between the
-                original space and the modeling space.
-
-                Note that you must provide your training and test data in its original space representation with
-                .fit_data(). For example: your data (original space) contain a variable 'sex' with
-                values 'male' and 'female' that you need internally inside your model as 0, 1.
-                Hence you use a data mapper with a forward map {'male': 0, 'female': 1}. When you
-                fit the model you provide the original data (that is with 'male' and 'female').
-
-            sampling_chains: int, optional. Defaults to 1.
-
-                See https://docs.pymc.io/api/inference.html and there the parameter chains of .sample()
-
-            sampling_cores: int, optional. Defaults to 1.
-
-                See https://docs.pymc.io/api/inference.html and there the parameter cores of .sample()
-
-            probabilistic_program_graph: dict, optional. Defaults to None.
-
-                The graph of the probabilistic program this model is based on. This only makes sense in the special
-                case where the PyMC3 program is derived automatically from a bayesian network. The graph represents
-                the data flow in the network, but also contains information about the user defined constrains that
-                were taken into account when learning the bayesian network. It is a dict organized as follows:
-
-                'nodes': list of strings.
-                    Name of every node of the graph. It includes all nodes, also the enforced ones below.
-
-                'edges': 2-tuple of strings
-                    Directed edges of the graph as pairs of nodes. It includes all edges, even the forbidden ones.
-
-                'enforced_node_dtypes': dict of <node name: dtype>, where dtype maybe 'numerical' or 'string'. Optional.
-
-                'enforced_edges': list of edges. Optional.
-
-                'forbidden_edges': list of edges. Optional.
-
-        """
         super().__init__(name)
         self.model_structure = model_structure
         self.samples = pd.DataFrame()
@@ -389,16 +336,19 @@ class ProbabilisticPymc3Model(Model):
             if pp:
                 trace = pd.DataFrame(pm.sample_prior_predictive(n))
                 return self._data_type_mapper.backward(trace, inplace=False), trace
-            trace = pm.sample(n, chains=self.sampling_chains, cores=self.sampling_cores,
+            trace = pm.sample(n,
+                              chains=self.sampling_chains,
+                              cores=self.sampling_cores,
                               progressbar=False)
 
         for varname in trace.varnames:
             # check if trace consists of more than one variable
             if len(trace[varname].shape) == 2:
                 for i in range(trace[varname].shape[1]):
-                    sample[varname + '_' + str(i)] = [var[i] for var in trace[varname]]
+                    sample[varname + '_' + str(i)] = [var[i] for var in trace[varname][:n]]
             else:
-                sample[varname] = trace[varname]
+                sample[varname] = trace[varname][:n]
+
         # Generate samples for observed independent variables
         if self.shared_vars:
             samples_independent_vars = pd.DataFrame(columns=self.shared_vars.keys())
