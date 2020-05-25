@@ -82,11 +82,11 @@ class ProbabilisticPymc3Model(Model):
 
         sampling_chains: int, optional. Defaults to 1.
 
-            See https://docs.pymc.io/api/inference.html and there the paramter chains of .sample()
+            See https://docs.pymc.io/api/inference.html and there the parameter chains of .sample()
 
         sampling_cores: int, optional. Defaults to 1.
 
-            See https://docs.pymc.io/api/inference.html and there the paramter cores of .sample()
+            See https://docs.pymc.io/api/inference.html and there the parameter cores of .sample()
 
         probabilistic_program_graph: dict, optional. Defaults to None.
 
@@ -150,11 +150,11 @@ class ProbabilisticPymc3Model(Model):
 
             sampling_chains: int, optional. Defaults to 1.
 
-                See https://docs.pymc.io/api/inference.html and there the paramter chains of .sample()
+                See https://docs.pymc.io/api/inference.html and there the parameter chains of .sample()
 
             sampling_cores: int, optional. Defaults to 1.
 
-                See https://docs.pymc.io/api/inference.html and there the paramter cores of .sample()
+                See https://docs.pymc.io/api/inference.html and there the parameter cores of .sample()
 
             probabilistic_program_graph: dict, optional. Defaults to None.
 
@@ -476,17 +476,18 @@ class ProbabilisticPymc3Model(Model):
         #    n = len(self.data)
         #n = self.nr_of_posterior_samples
 
-        samples_len = len(self.samples) if self.samples else 0
-
         # mode 1: sample by selecting the first n of the posterior samples
         if sample_mode == 'first':
-            if n > samples_len:
-                sample = np.tile(self.samples, np.ceil(n/samples_len))
-            sample = sample[:n]
+            assert(self.samples is not None)
+            if n > len(self.samples):
+                sample = np.tile(self.samples, np.ceil(n/len(self.samples)))[:n]
+            else:
+                sample = self.samples[:n]
 
         # mode 2: sample by choose randomly n of the posterior samples
         elif sample_mode == 'choice':
-            if n > samples_len:
+            assert (self.samples is not None)
+            if n > len(self.samples):
                 sample = np.random.choice(self.samples, size=n, replace=True)
             else:
                 sample = np.random.choice(self.samples, size=n, replace=False)
@@ -496,6 +497,8 @@ class ProbabilisticPymc3Model(Model):
             sample = self._draw_new_samples(n, pp)
         else:
             raise ValueError('invalid value for sample_mode: {}'.format(sample_mode))
+
+        assert(len(sample) == n)
 
         # map samples from model space in to data space
         if mode is 'model':
