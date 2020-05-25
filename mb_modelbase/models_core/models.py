@@ -318,7 +318,7 @@ class Model:
         else:
             return [self._name2idx[name] for name in names]
 
-    def byname(self, names):
+    def byname(self, names, attr=None):
         """Given a single name or a sequence of names of a field, return the corresponding single field or sequence
         of fields of this model.
 
@@ -328,10 +328,24 @@ class Model:
         def _byname(name):
             return self.fields[self._name2idx[name]]
 
+        def _bynameAndAttr(name):
+            return self.fields[self._name2idx[name]][attr]
+
+        _getter = _byname if attr is None else _bynameAndAttr
+
         if isinstance(names, str):
-            return _byname(names)
+            return _getter(names)
         else:
-            return [_byname(name) for name in names]
+            return [_getter(name) for name in names]
+
+    def dtypes(self, names):
+        """Given a single name or a sequence of names of a field, return the corresponding single dtype or sequence
+        of dtypes of these fields.
+
+        Equivalent to self.byname(names, attr='dtype'
+        Returns : string or list of string
+        """
+        return self.byname(names, attr='dtype')
 
     def isfieldname(self, names):
         """Returns true iff the single string or list of strings given as variables names are (all) names of random
