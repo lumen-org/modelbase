@@ -16,6 +16,7 @@ import dill
 import numpy as np
 import pandas as pd
 import os
+import pathlib
 import logging
 import warnings
 from itertools import compress
@@ -1536,6 +1537,7 @@ class Model:
         """
         if filename is None:
             filename = self._default_filename()
+        pathlib.Path(dir).mkdir(parents=True, exist_ok=True)  # create folder if it not exists
         path = os.path.join(dir, filename)
         with open(path, 'wb') as output:
             dill.dump(self, output, dill.HIGHEST_PROTOCOL)
