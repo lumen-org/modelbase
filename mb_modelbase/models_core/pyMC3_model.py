@@ -108,7 +108,7 @@ class ProbabilisticPymc3Model(Model):
             'forbidden_edges': list of edges. Optional.
         """
 
-    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=1000, fixed_data_length=False,
+    def __init__(self, name, model_structure, shared_vars=None, nr_of_posterior_samples=5000, fixed_data_length=False,
                  data_mapping=None, sampling_chains=1, sampling_cores=1, probabilistic_program_graph=None, sample_prior_predictive=False):
         """Bayesian models built by the PyMC3 library
 
