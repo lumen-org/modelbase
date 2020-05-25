@@ -12,6 +12,7 @@ setup(name='mb_modelbase',
       install_requires=[
           'anytree', #84 requires scipy==1.2, https://github.com/lumen-org/modelbase/issues/84
           'astropy',
+          'Cython'
           'dill',
           'dill',
           'flask>=1.1.1'
