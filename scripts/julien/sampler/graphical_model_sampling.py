@@ -35,8 +35,11 @@ import pandas as pd
 import time
 
 from scripts.julien.sampler.create_tree import create_tree
+
+# prepare for Cython import
+import pyximport
+pyximport.install()
 # Cython Modules
-#TODO BUG: missing import generate_samples
 from scripts.julien.sampler.gen_samples import generate_samples
 
 
