@@ -18,6 +18,9 @@ Please use the following command to see all arguments available.
 
 An example execution could be the following (with output existing directory):
 > python graphical_model_sampling.py data/ALLBUS/example.json -s 10 -o output
+
+Before using this program you have to compile the source as it uses c sources.
+Run `python setup.py build_ext --inplace` in a shell from this directory.
 """
 
 from pathlib import Path
