@@ -1,20 +1,13 @@
 import numpy as np
 import pandas as pd
 import pymc3 as pm
-import mb_modelbase as mbase
 import unittest
-from run_conf import cfg as user_cfg
 
+import mb_modelbase as mbase
 
 # Load model. The model first has to be created by create_PyMC3_testmodels.py
-
-try:
-    testcasemodel_path = user_cfg['modules']['modelbase']['test_model_directory'] + \
-                     '/pymc3_getting_started_model_independent_vars_fitted.mdl'
-except KeyError:
-    print('Specify a test_model_directory in run_conf.cfg and create the model '
-          'pymc3_getting_started_model_independent_vars_fitted by calling create_PyMC3_testmodels.py')
-    raise
+testcasemodel_path = './models/'
+testcasedata_path = './data/'
 
 mymod = mbase.Model.load(testcasemodel_path)
 
@@ -77,5 +70,4 @@ class Test(unittest.TestCase):
                                            variate + ' Covariate: ' + covariate + ' covariate_value: '+ str(val))
 
 if __name__ == "__main__":
-
     unittest.main()

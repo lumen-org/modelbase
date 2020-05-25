@@ -573,26 +573,27 @@ def create_allbus_model_5(filename='test_allbus.csv', modelname='allbus_model_5'
 # Call all model generating functions
 ######################################
 if __name__ == '__main__':
-    from configparser import ConfigParser
-    config = ConfigParser()
-    config.read('scripts/run_conf_defaults.cfg')
-    config.read('scripts/run_conf.cfg')
+    import pathlib
+
+    testcasemodel_path = 'models/'
+    testcasedata_path = 'data/'
+    pathlib.Path(testcasemodel_path).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(testcasedata_path).mkdir(parents=True, exist_ok=True)
 
     start = timeit.default_timer()
-    try:
-        testcasemodel_path = config['MODELBASE']['test_model_directory']
-        testcasedata_path = config['MODELBASE']['test_data_directory']
-    except KeyError:
-        print('Specify a test_model_directory and a test_data_direcory in run_conf.cfg')
-        raise
 
     # This list specifies which models are created when the script is run. If you only want to create
     # specific models, adjust the list accordingly
-    create_functions = [create_pymc3_simplest_model, create_pymc3_getting_started_model,
-                        create_pymc3_getting_started_model_independent_vars,
-                        create_pymc3_coal_mining_disaster_model,
-                        create_getting_started_model_shape, create_flight_delay_model_1, create_flight_delay_model_2,
-                        create_flight_delay_model_3, create_allbus_model_4]
+    create_functions = [create_pymc3_simplest_model,
+                        # create_pymc3_getting_started_model,
+                        # create_pymc3_getting_started_model_independent_vars,
+                        # create_pymc3_coal_mining_disaster_model,
+                        # create_getting_started_model_shape,
+                        # create_flight_delay_model_1,
+                        # create_flight_delay_model_2,
+                        # create_flight_delay_model_3,
+                        # create_allbus_model_4
+                        ]
 
     for func in create_functions:
         data, m = func(fit=False)
