@@ -485,14 +485,14 @@ class ProbabilisticPymc3Model(Model):
             sample = sample[:n]
 
         # mode 2: sample by choose randomly n of the posterior samples
-        if sample_mode == 'choice':
+        elif sample_mode == 'choice':
             if n > samples_len:
                 sample = np.random.choice(self.samples, size=n, replace=True)
             else:
                 sample = np.random.choice(self.samples, size=n, replace=False)
 
         # mode 3: true sampling of new samples
-        if sample_mode == 'new samples':
+        elif sample_mode == 'new samples':
             sample = self._draw_new_samples(n, pp)
         else:
             raise ValueError('invalid value for sample_mode: {}'.format(sample_mode))
