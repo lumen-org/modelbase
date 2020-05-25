@@ -470,13 +470,13 @@ class ProbabilisticPymc3Model(Model):
         # TODO: fix
         # If number of samples differs from number of data points, posterior predictive samples
         # cannot be generated
-        if n != len(self.data):
-            print('WARNING: number of samples differs from number of data points. To avoid problems during sampling, '
-                  'number of samples is now automatically set to the number of data points')
-            #n = len(self.data)
+        #if n != len(self.data):
+        #    print('WARNING: number of samples differs from number of data points. To avoid problems during sampling, '
+        #          'number of samples is now automatically set to the number of data points')
+        #    n = len(self.data)
         #n = self.nr_of_posterior_samples
 
-        samples_len = len(self.samples)
+        samples_len = len(self.samples) if self.samples else 0
 
         # mode 1: sample by selecting the first n of the posterior samples
         if sample_mode == 'first':
