@@ -28,7 +28,6 @@ def cll_allbus(model, test_data, model_file, happy_query_file, income_query_file
     q2 = _query(model, test_data, "happiness", ["sex", "eastwest", "health"])
     q3 = _query(model, test_data, "eastwest", ["income", "educ", "health"])
     q4 = _query(model, test_data, "lived_abroad", ["income", "educ", "sex", "happiness"])
-<<<<<<< HEAD
 
     if overwrite or not os.path.exists(model_file+".csv"):
         with open(model_file+".csv", "w") as f:
@@ -253,7 +252,7 @@ def generate_income_plots(continues_data_file="allbus_income_values.dat", output
         plt.savefig(os.path.join(output_path, 'query_income_graphs', 'merged_graphs'))
 
 if __name__ == "__main__":
-    model_file = "..."
+    model_file = "/home/goral/Applications/lumen/pymc_models/experiments/allbus_results"
     with open(model_file+"_pretty.txt", "w") as f:
         f.write(str(get_results_from_file(model_file+".csv")))
 
