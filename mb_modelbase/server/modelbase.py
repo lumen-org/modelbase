@@ -14,11 +14,13 @@ import dill
 import numpy as np
 from functools import reduce
 
+import mb_modelbase as mb
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import models_predict
 from mb_modelbase.model_eval import posterior_predictive_checking as ppc
 from mb_modelbase.models_core import model_watchdog
+#from mb_modelbase.utils import make_empirical_model
 from mb_modelbase.cache import DictCache
 
 logger = logging.getLogger(__name__)
@@ -295,7 +297,7 @@ class ModelBase:
         if name is None:
             name = model.name
         self.models[name] = model
-        return None
+        return model
 
     def drop(self, name):
         """ Drops a model from the model base and returns the dropped model."""
@@ -492,6 +494,7 @@ class ModelBase:
 
         elif 'PCI_GRAPH.GET' in query:
             model = self._extractFrom(query)
+            #TODO: why is this disabled? fix it?
             #graph = pci_graph.to_json(model.pci_graph) if model.pci_graph else False
             graph = False
             return _json_dumps({
@@ -546,11 +549,12 @@ class ModelBase:
         refers to. """
         if keyword not in query:
             raise QuerySyntaxError("{}-statement missing".format(keyword))
-        modelName = query[keyword]
-        if modelName not in self.models:
-            raise QueryValueError(
-                "The specified model does not exist: " + modelName)
-        return self.models[modelName]
+        model_name = query[keyword]
+
+        if model_name not in self.models:
+            self._automatically_create_model(model_name, self._extractOpts(query))
+
+        return self.models[model_name]
 
     def _extractFrom(self, query):
         """ Returns the model that the value of the "FROM"-statement of query
@@ -683,6 +687,47 @@ class ModelBase:
             return self.models[query['FROM']].names
         else:
             return query['SELECT']
+
+    def _automatically_create_model(self, model_name, query_opts):
+        """Automatically create model or raise error if not possible.
+
+        The syntax for this particular option in query opts is as follows:
+
+        AUTO_CREATE_MODEL: {
+            MODEL_TYPE: string, defaults to "empirical"
+                The model type to be created. One of ["kde" "empirical"].
+            FOR_MODEL: string
+                The name/id of the model to create this new model for.
+            }
+
+        :return:
+        """
+        opts = query_opts.get('AUTO_CREATE_MODEL', None)
+        if opts is None:
+            raise QueryValueError(
+                "The specified model does not exist: " + model_name)
+
+        for_model_name = opts.get('FOR_MODEL', None)
+        if for_model_name is None:
+            raise QueryValueError(
+                "Missing FOR_MODEL parameter in AUTO_CREATE_MODEL option statement")
+        for_model = self.models.get(for_model_name, None)
+        if for_model is None:
+            raise QueryValueError('model {} does not exist and hence an empirical model cannot'
+                                  ' be created for it.'.format(for_model_name))
+
+        model_type = opts.get('MODEL_TYPE', 'empirical')
+        if model_type not in ['empirical', 'kde']:
+            raise QueryValueError('Cannot create model automatically. Invalid value for '
+                                  'MODEL_TYPE: {}. '.format(model_type))
+
+        if model_type == 'kde':
+            raise NotImplementedError()
+
+        # TODO: what about test data? ensure identical split!
+        df = for_model.data
+        data_model = mb.utils.make_empirical_model(modelname=model_name, df=df)
+        return self.add(data_model, model_name)
 
     def model_key(self, query) -> str:
         """A method that computes a key for the model needed by the query.
