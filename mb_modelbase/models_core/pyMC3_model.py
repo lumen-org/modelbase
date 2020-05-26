@@ -18,7 +18,7 @@ from mb_modelbase.utils.data_import_utils import get_numerical_fields
 from mb_modelbase.models_core import data_operations as data_op
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 
-from scripts.julien.sampler.graphical_model_sampling import gen_samples_for_model
+#from scripts.julien.sampler.graphical_model_sampling import gen_samples_for_model
 
 
 class ProbabilisticPymc3Model(Model):
@@ -386,9 +386,9 @@ class ProbabilisticPymc3Model(Model):
         # TODO: eurovis2020: this comes from the merge
         # If number of samples differs from number of data points, posterior predictive samples
         # cannot be generated
-        if n != len(self.data):
-            print('WARNING: number of samples differs from number of data points. To avoid problems during sampling, '
-                  'number of samples is now automatically set to the number of data points')
+        #if n != len(self.data):
+        #    print('WARNING: number of samples differs from number of data points. To avoid problems during sampling, '
+        #          'number of samples is now automatically set to the number of data points')
             #n = len(self.data)
         #n = self.nr_of_posterior_samples
 
