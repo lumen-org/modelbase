@@ -107,7 +107,7 @@ class \
                                              col_split_method=Splitting.RDCTest(threshold=self.threshold), \
                                              min_instances_slice=self.min_instances_slice)
 
-        self._mspnmodel.save_pdf_graph(outputfile=Path(f"../../scripts/experiments/spn_graphs/{self.name}.pdf"))
+#        self._mspnmodel.save_pdf_graph(outputfile=Path(f"../../scripts/experiments/spn_graphs/{self.name}.pdf"))
         self._mspnmodel = self._mspnmodel.root
         self.normalizeFactor = self._getNormalizeFactor()
         

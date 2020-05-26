@@ -2,11 +2,12 @@ from scripts.julien.learn_pymc3.BlogCreator import BlogCreator
 from scripts.julien.learn_pymc3.PyMCCreator import PyMCCreator
 from scripts.julien.learn_pymc3.BayesianModel import BayesianModel
 from scripts.julien.learn_pymc3.ProbParameter import generate_prob_graphs, is_similar, merge_nodes, \
-            print_prob_table
+    print_prob_table
 
 
 class PPLModel():
-    def __init__(self, model_name, csv_file, continuous_variables=[], discrete_variables=[], whitelist_edges=[], blacklist_edges=[],
+    def __init__(self, model_name, csv_file, continuous_variables=[], discrete_variables=[], whitelist_edges=[],
+                 blacklist_edges=[],
                  score="", algo="", verbose=False):
         self.file = csv_file
         self.model_name = model_name
@@ -50,7 +51,8 @@ class PPLModel():
         if self.verbose:
             print(f"Learned bayesian network learned with {parameter} parameter.")
         if save:
-            code = self.save_complete_pymc_code(code=code, parameter=parameter, model_name=model_name, output_file=output_file, cll=cll)
+            code = self.save_complete_pymc_code(code=code, parameter=parameter, model_name=model_name,
+                                                output_file=output_file, cll=cll)
         return code
 
     def save_complete_pymc_code(self, code, parameter, model_name, output_file, cll):
@@ -82,7 +84,7 @@ def {function_name}(filename="", modelname="{model_name}", fit=True):
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        {cll}(m, test_data, model_file, continues_data_file)
+        {cll}(m, test_data, model_file, happy_query_file, income_query_file)
     return df, m""".format(**parameter_dict)
         if "NaN" in complete_code:
             if self.verbose:
@@ -98,12 +100,14 @@ def {function_name}(filename="", modelname="{model_name}", fit=True):
                 print("Could not save model file.")
         return 0
 
-
     def generate_blog(self):
         bc = BlogCreator(self.bayesian_model)
         return bc
 
-def generate_new_pymc_file_allbus(file_name, result_file, sample_size=3000, continues_data_file="allbus_happiness_values.dat"):
+
+def generate_new_pymc_file_allbus(file_name, result_file, sample_size=3000,
+                                  happy_query_file="allbus_happiness_values.dat",
+                                  income_query_file="allbus_income_values.dat"):
     code = """#!usr/bin/python
 # -*- coding: utf-8 -*-import string
 
@@ -117,14 +121,15 @@ from mb_modelbase.utils.Metrics import *
 import scripts.experiments.allbus as allbus_data
 
 # LOAD FILES
-test_data = allbus_data.train(numeric_happy=False)
-train_data = allbus_data.test(numeric_happy=False)
+test_data = allbus_data.test(numeric_happy=False)
+train_data = allbus_data.train(numeric_happy=False)
 
 df = train_data
 
 # SAVE PARAMETER IN THIS FILE
 model_file = {model_file}
-continues_data_file = {continues_data_file}
+happy_query_file = {happy_query_file}
+income_query_file = {income_query_file}
 
 sample_size = {sample_size}
 
@@ -138,9 +143,13 @@ dtm = DataTypeMapper()
 for name, map_ in allbus_backward_map.items():
     dtm.set_map(forward=allbus_forward_map[name], backward=map_, name=name)
 
-""".replace("{model_file}", f"'{result_file}'").replace("{sample_size}", f"{sample_size}").replace("{continues_data_file}", f"'{continues_data_file}'")
+""".replace("{model_file}", f"'{result_file}'")\
+        .replace("{sample_size}", f"{sample_size}")\
+        .replace("{happy_query_file}", f"'{happy_query_file}'")\
+        .replace("{income_query_file}", f"'{income_query_file}'")
     with open(file_name, "w") as f:
         f.write(code)
+
 
 def generate_new_pymc_file_iris(file_name, result_file, sample_size=3000):
     code = """#!usr/bin/python
