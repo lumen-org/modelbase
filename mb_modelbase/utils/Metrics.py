@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 
 from mb_modelbase.models_core.base import Condition
 
-def cll_iris(model, test_data, model_file, continues_data_file):
+def cll_iris(model, test_data, model_file, happy_query_file, income_query_file):
     pass
 
-def cll_allbus(model, test_data, model_file, continues_data_file, overwrite=False):
+def cll_allbus(model, test_data, model_file, happy_query_file, income_query_file, overwrite=False):
     model_name = model.name
     # happiness scores
     acc_happy, mae_happy = classify(model, test_data, "happiness")
@@ -28,6 +28,7 @@ def cll_allbus(model, test_data, model_file, continues_data_file, overwrite=Fals
     q2 = _query(model, test_data, "happiness", ["sex", "eastwest", "health"])
     q3 = _query(model, test_data, "eastwest", ["income", "educ", "health"])
     q4 = _query(model, test_data, "lived_abroad", ["income", "educ", "sex", "happiness"])
+<<<<<<< HEAD
 
     if overwrite or not os.path.exists(model_file+".csv"):
         with open(model_file+".csv", "w") as f:
@@ -38,9 +39,12 @@ def cll_allbus(model, test_data, model_file, continues_data_file, overwrite=Fals
             json = f.write(f"{model_name}, {acc_happy}, {mae_happy}, {acc_sex}, {mae_sex}, {acc_ew}, {mae_ew}, {acc_la}, {mae_la}, {q1}, {q2}, {q3}, {q4}\n")
     
 
-    density_of_happiness_for_same_query(model, test_data, "happiness",
-                                        {"sex": "Female", "lived_abroad": "Yes", "eastwest": "East"},
-                                        continues_data_file)
+    density_of_variable_for_same_query(model, test_data, "happiness",
+                                       {"sex": "Female", "lived_abroad": "No", "eastwest": "West"},
+                                       happy_query_file, stepwidth=0.1)
+    density_of_variable_for_same_query(model, test_data, "income",
+                                       {"sex": "Male", "lived_abroad": "No", "eastwest": "East"},
+                                       income_query_file, stepwidth=100)
 
     with open(model_file+"_pretty.txt", "w") as f:
         f.write(str(get_results_from_file(model_file+".csv")))
@@ -58,20 +62,19 @@ def make_result_pdf(model_file):
 
     templatefile.close()
 
-    # construct pdf:
-    #if not os.path.exists("tex"):
-    #    os.makedirs("tex/")
     if not os.path.exists("pdf"):
         os.makedirs("pdf/")
     
     os.chdir("pdf/")
     call(["pdflatex", "-output-directory=.", model_file+"_pretty.tex"])
-    #os.chdir("..")
-    #call(["rm", "pdf/"+model_file+"_pretty.aux", "pdf/"+model_file+"_pretty.log"])
 
-def density_of_happiness_for_same_query(model, test_data, query_var, condition_vars, continues_data_file):
+def density_of_variable_for_same_query(model, test_data, query_var, condition_vars, query_file, stepwidth=0.1):
     if str(model.name).startswith("allbus"):
-        print(f"Calculated this score on {len([x for x in model.samples.values if x[0] == 'Female' and x[1] == 'East' and x[2] == 'Yes'])} many points.")
+        if query_var == "happiness":
+            print(f"Calculated this score for {query_var} on {len([x for x in model.samples.values if x[0] == 'Female' and x[1] == 'West' and x[2] == 'No'])} points.")
+        else:
+            print(
+                f"Calculated this score for {query_var } on {len([x for x in model.samples.values if x[0] == 'Male' and x[1] == 'East' and x[2] == 'No'])} points.")
     cur_model = model.copy()
     marg_variables = []
     marg_variables.append(query_var)
@@ -82,12 +85,12 @@ def density_of_happiness_for_same_query(model, test_data, query_var, condition_v
     evidence = {}
     for name, value in condition_vars.items():
         evidence[name] = value
-    for value in np.arange(np.min(test_data[query_var]), np.max(test_data[query_var]), 0.1):
+    for value in np.arange(np.min(test_data[query_var]), np.max(test_data[query_var]), stepwidth):
         evidence[query_var] = value
         density = cur_model.density(evidence)
         prediction[value] = density
     # save predictions for query
-    with open(continues_data_file, "a+") as f:
+    with open(query_file, "a+") as f:
         f.write(f"{model.name}, {','.join([str(i) for i in prediction.values()])}\n")
 
 def classify(model, test_data, variable, variable_map=None):
@@ -207,7 +210,7 @@ def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat", 
     d = pd.read_csv(continues_data_file)
     plt.clf()
     if one_in_all:
-        fig, axs = plt.subplots(2, 4, figsize=(20,10))
+        fig, axs = plt.subplots(4, 4, figsize=(20,20))
     for index, row in enumerate(d.iterrows()):
         row_dict = dict(row[1])
         model_name = row_dict["model"]
@@ -215,8 +218,8 @@ def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat", 
         x = np.array([float(i) for i in list(row_dict.keys())])
         y = np.array([float(i) for i in list(row_dict.values())])
         if one_in_all:
-            axs[int(index % 2), int(index/2) % 4].plot(x,y)
-            axs[int(index % 2), int(index/2) % 4].set_title(model_name)
+            axs[int(index % 4), int(index/4) % 4].plot(x,y)
+            axs[int(index % 4), int(index/4) % 4].set_title(model_name)
         else:
             plt.plot(x,y)
             plt.title(model_name)
@@ -226,6 +229,28 @@ def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat", 
         print(os.path.join(output_path, 'query_happiness_graphs', 'merged_graphs'))
         plt.savefig(os.path.join(output_path, 'query_happiness_graphs', 'merged_graphs'))
 
+def generate_income_plots(continues_data_file="allbus_income_values.dat", output_path="", one_in_all=False):
+    d = pd.read_csv(continues_data_file)
+    plt.clf()
+    if one_in_all:
+        fig, axs = plt.subplots(4, 4, figsize=(20,20))
+    for index, row in enumerate(d.iterrows()):
+        row_dict = dict(row[1])
+        model_name = row_dict["model"]
+        del row_dict["model"]
+        x = np.array([float(i) for i in list(row_dict.keys())])
+        y = np.array([float(i) for i in list(row_dict.values())])
+        if one_in_all:
+            axs[int(index % 4), int(index/4) % 4].plot(x,y)
+            axs[int(index % 4), int(index/4) % 4].set_title(model_name)
+        else:
+            plt.plot(x,y)
+            plt.title(model_name)
+            plt.savefig(os.path.join(output_path, 'query_income_graphs', model_name))
+            plt.clf()
+    if one_in_all:
+        print(os.path.join(output_path, 'query_income_graphs', 'merged_graphs'))
+        plt.savefig(os.path.join(output_path, 'query_income_graphs', 'merged_graphs'))
 
 if __name__ == "__main__":
     model_file = "..."

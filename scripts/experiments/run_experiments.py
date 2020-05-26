@@ -17,23 +17,26 @@ from mb_modelbase import EmpiricalModel
 from mb_modelbase.models_core.mspnmodel import MSPNModel
 from mb_modelbase.models_core.spnmodel import SPNModel
 from mb_modelbase.models_core.spflow import SPNModel as SPFlowSPNModel
-from mb_modelbase.utils.Metrics import cll_allbus, get_results_from_file, generate_happiness_plots, cll_iris
+from mb_modelbase.utils.Metrics import cll_allbus, get_results_from_file, generate_happiness_plots, cll_iris, \
+    generate_income_plots
 from mb_modelbase.utils import fit_models, save_models
 
 import scripts.experiments.allbus as allbus
 import scripts.experiments.iris as iris
-from scripts.julien.learn_pymc3.PPLModelCreator import PPLModel, generate_new_pymc_file_allbus, generate_new_pymc_file_iris
+from scripts.julien.learn_pymc3.PPLModelCreator import PPLModel, generate_new_pymc_file_allbus, \
+    generate_new_pymc_file_iris
 
 # file where results from the experiments are saved
 result_file = "allbus_results.dat"
 
 # file for the density prediction values of happiness
-continues_data_file = "allbus_happiness_values.dat"
+happy_query_file = "allbus_happiness_values.dat"
+income_query_file = "allbus_income_values.dat"
 
 # directory where the generated models for lumen are saved
 fitted_models_directory = "./fitted_models/"
 
-sample_size = 15000
+sample_size = 45000
 
 # if you do not want to refit models, set the flag to False
 
@@ -66,7 +69,6 @@ spn_models = {
                                                     'empirical_model_name': 'emp_allbus'}}),
         # MSPN
         'mspn_allbus': lambda: ({'class': MSPNModel, 'data': allbus.train(numeric_happy=False),
-                                 # 'classopts': {'threshold': 0.1, 'min_instances_slice': 50},
                                  'fitopts': {'empirical_model_name': 'emp_allbus'}}),
         'mspn_allbus_threshold': lambda: ({'class': MSPNModel, 'data': allbus.train(numeric_happy=False),
                                            'classopts': {'threshold': 0.1},
@@ -78,41 +80,42 @@ spn_models = {
         'spn_allbus': lambda: ({'class': SPNModel, 'data': allbus.train_continuous(),
                                 'fitopts': {'iterations': 1, 'empirical_model_name': 'emp_allbus_continues'}}),
         'spn_allbus_iterate_3': lambda: ({'class': SPNModel, 'data': allbus.train_continuous(),
-                                          'fitopts': {'iterations': 3, 'empirical_model_name': 'emp_allbus_continues'}}),
+                                          'fitopts': {'iterations': 3,
+                                                      'empirical_model_name': 'emp_allbus_continues'}}),
     },
     "iris": {
         'emp_iris': lambda: ({'class': EmpiricalModel, 'data': iris.iris(),
-                                'fitopts': {'empirical_model_name': 'emp_iris'}}),
+                              'fitopts': {'empirical_model_name': 'emp_iris'}}),
         'emp_iris_continuous': lambda: ({'class': EmpiricalModel, 'data': iris.iris(continuous=True),
-                                          'fitopts': {'empirical_model_name': 'emp_iris_continuous'}}),
+                                         'fitopts': {'empirical_model_name': 'emp_iris_continuous'}}),
         # SPFLOW
         'spflow_iris_spn': lambda: ({'class': SPFlowSPNModel, 'data': iris.iris(),
-                                       'classopts': {'spn_type': 'spn'},
-                                       'fitopts': {'var_types': iris.spn_parameters,
-                                                   'empirical_model_name': 'emp_iris'}}),
+                                     'classopts': {'spn_type': 'spn'},
+                                     'fitopts': {'var_types': iris.spn_parameters,
+                                                 'empirical_model_name': 'emp_iris'}}),
         'spflow_iris_mspn': lambda: ({'class': SPFlowSPNModel, 'data': iris.iris(),
-                                        'classopts': {'spn_type': 'mspn'},
-                                        'fitopts': {'var_types': iris.spn_metatypes,
-                                                    'empirical_model_name': 'emp_iris'}}),
+                                      'classopts': {'spn_type': 'mspn'},
+                                      'fitopts': {'var_types': iris.spn_metatypes,
+                                                  'empirical_model_name': 'emp_iris'}}),
         # MSPN
         'mspn_iris': lambda: ({'class': MSPNModel, 'data': iris.iris(),
-                                 'fitopts': {'empirical_model_name': 'emp_iris'}}),
+                               'fitopts': {'empirical_model_name': 'emp_iris'}}),
         'mspn_iris_threshold': lambda: ({'class': MSPNModel, 'data': iris.iris(),
-                                           'classopts': {'threshold': 0.1},
-                                           'fitopts': {'empirical_model_name': 'emp_iris'}}),
+                                         'classopts': {'threshold': 0.1},
+                                         'fitopts': {'empirical_model_name': 'emp_iris'}}),
         'mspn_iris_min_slice': lambda: ({'class': MSPNModel, 'data': iris.iris(),
-                                           'classopts': {'min_instances_slice': 25},
-                                           'fitopts': {'empirical_model_name': 'emp_iris'}}),
+                                         'classopts': {'min_instances_slice': 25},
+                                         'fitopts': {'empirical_model_name': 'emp_iris'}}),
         # GAUSSPN
         'spn_iris_thres_001': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
-                               'classopts': {'corrthresh': 0.01, 'batchsize': 1, 'mergebatch': 1},
-                                'fitopts': {'iterations': 1, 'empirical_model_name': 'emp_iris_continuous'}}),
-        'spn_iris_thres_01': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
-                                'classopts': {'corrthresh': 0.1, 'batchsize': 5, 'mergebatch': 5},
-                                'fitopts': {'iterations': 1, 'empirical_model_name': 'emp_iris_continuous'}}),
-        'spn_iris_thres_04': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
-                                 'classopts': {'corrthresh': 0.4, 'batchsize': 15, 'mergebatch': 15},
+                                        'classopts': {'corrthresh': 0.01, 'batchsize': 1, 'mergebatch': 1},
                                         'fitopts': {'iterations': 1, 'empirical_model_name': 'emp_iris_continuous'}}),
+        'spn_iris_thres_01': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
+                                       'classopts': {'corrthresh': 0.1, 'batchsize': 5, 'mergebatch': 5},
+                                       'fitopts': {'iterations': 1, 'empirical_model_name': 'emp_iris_continuous'}}),
+        'spn_iris_thres_04': lambda: ({'class': SPNModel, 'data': iris.iris(continuous=True),
+                                       'classopts': {'corrthresh': 0.4, 'batchsize': 15, 'mergebatch': 15},
+                                       'fitopts': {'iterations': 1, 'empirical_model_name': 'emp_iris_continuous'}}),
     }
 }
 
@@ -120,6 +123,11 @@ if __name__ == "__main__":
     # generate_happiness_plots(continues_data_file, output_path=os.path.dirname(__file__), one_in_all=True)
     start = time()
     print("Starting experiments...")
+
+    generate_happiness_plots(happy_query_file, output_path=os.path.dirname(__file__))
+    generate_happiness_plots(happy_query_file, output_path=os.path.dirname(__file__), one_in_all=True)
+    generate_income_plots(income_query_file, output_path=os.path.dirname(__file__))
+    generate_income_plots(income_query_file, output_path=os.path.dirname(__file__), one_in_all=True)
 
     if data_set == "allbus":
         print("Resetting results")
@@ -130,9 +138,11 @@ if __name__ == "__main__":
 
         print("Resetting continues data results for happiness")
         # create contines data file
-        with open(continues_data_file, "w+") as f:
+        with open(happy_query_file, "w+") as f:
             f.write(f"model,{','.join([str(i) for i in np.arange(0, 10, 0.1)])}\n")
-
+        with open(income_query_file, "w+") as f:
+            f.write(
+                f"model,30,130,230,330,430,530,630,730,830,930,1030,1130,1230,1330,1430,1530,1630,1730,1830,1930,2030,2130,2230,2330,2430,2530,2630,2730,2830,2930,3030,3130,3230,3330,3430,3530,3630,3730,3830,3930,4030,4130,4230,4330,4430,4530,4630,4730,4830,4930,5030,5130,5230,5330,5430,5530,5630,5730,5830,5930,6030,6130,6230,6330,6430,6530,6630,6730,6830,6930,7030,7130,7230,7330,7430,7530,7630,7730,7830,7930,8030,8130,8230,8330,8430,8530,8630,8730,8830,8930,9030,9130,9230,9330,9430\n")
     if fit_bnlearn:
         print("Calculate bnlearn models")
         # Since there are random initialisations, you have to restart the calculation different times, until all have fit
@@ -152,14 +162,14 @@ if __name__ == "__main__":
         # create a model for different algorithms and scores
         algorithms = ["tabu", "inter.iamb", "fast.iamb", "hc", "gs", "iamb"]
         scores = ["loglik-cg", "bic-cg"]
-        algorithms = []
         could_not_fit = 1
         iteration = 0
         number_of_fitted = 0
         while could_not_fit != 0 and iteration < 10:
             # create a new pymc file
             if data_set == "allbus":
-                generate_new_pymc_file_allbus(pymc_model_file, sample_size=sample_size, result_file=result_file, continues_data_file=continues_data_file)
+                generate_new_pymc_file_allbus(pymc_model_file, sample_size=sample_size, result_file=result_file,
+                                              happy_query_file=happy_query_file, income_query_file=income_query_file)
             elif data_set == "iris":
                 generate_new_pymc_file_iris(pymc_model_file, sample_size=sample_size, result_file=result_file)
             could_not_fit = 0
@@ -175,7 +185,8 @@ if __name__ == "__main__":
                     ppl_model = PPLModel(model_name, data_file_all_numeric, discrete_variables=discrete_variables,
                                          verbose=False, algo=algo, score=score)
                     # the function returns 1 if the model could not be translated
-                    error = ppl_model.generate_pymc(model_name=model_name, save=True, output_file=pymc_model_file, cll=f"cll_{data_set}")
+                    error = ppl_model.generate_pymc(model_name=model_name, save=True, output_file=pymc_model_file,
+                                                    cll=f"cll_{data_set}")
                     if error:
                         could_not_fit += error
                     else:
@@ -184,20 +195,28 @@ if __name__ == "__main__":
         # import the beforehand created file
         if data_set == "allbus":
             import scripts.experiments.models.pymc_models_allbus as pymc_allbus_models
+
             # read all model functions
             functions = [o[1] for o in getmembers(pymc_allbus_models) if isfunction(o[1]) and o[0].startswith("create")]
             create_functions = functions
             # add the hand tuned model
             if fit_hand_tuned:
-                from scripts.experiments.models.pymc_model_hand_tuned import create_allbus_model_N1
-                create_functions.append(create_allbus_model_N1)
+                from scripts.experiments.models.pymc_model_hand_tuned import create_allbus_model_NH0, \
+                    create_allbus_model_NH1, create_allbus_model_NH2, create_bnlearn_allbus_tabubiccg_adjusted
+
+                # create_functions.append(create_allbus_model_N_onlymargs)
+                # create_functions.append(create_allbus_model_NH0)
+                # create_functions.append(create_allbus_model_NH1)
+                create_functions.append(create_allbus_model_NH2)
+                # create_functions.append(create_bnlearn_allbus_tabubiccg_adjusted)
         elif data_set == "iris":
             import scripts.experiments.models.pymc_models_iris as pymc_iris_models
+
             functions = [o[1] for o in getmembers(pymc_iris_models) if isfunction(o[1]) and o[0].startswith("create")]
             create_functions = functions
         # fit all the files
         for index, func in enumerate(create_functions):
-            print(f"Calculate metrics for bnlearn model {index+1} of {len(create_functions)}")
+            print(f"Calculate metrics for bnlearn model {index + 1} of {len(create_functions)}")
             ready = False
             tried = 0
             try:
@@ -209,7 +228,7 @@ if __name__ == "__main__":
                 number_of_hand_tuned_fits = 10
                 while iteration < number_of_hand_tuned_fits:
                     try:
-                        print(f"Try: {iteration+1} of {number_of_hand_tuned_fits}")
+                        print(f"Try: {iteration + 1} of {number_of_hand_tuned_fits}")
                         data, m_fitted = func(fit=True)
                         break
                     except SamplingError as se2:
@@ -229,23 +248,28 @@ if __name__ == "__main__":
 
     if fit_spn:
         print("Calculate SPN models")
-        models = fit_models(spn_models[data_set], verbose=True, include=[model for model in spn_models[data_set] if str(model).startswith("spflow")])
+        models = fit_models(spn_models[data_set], verbose=True, include=[model for model in spn_models[data_set]])
         print("Calculate SPN model scores (skip emp)")
         number_of_spn_models = len(models)
         for index, (model_name, property) in enumerate(models.items()):
-            print(f"Calculate SPN model {index+1} of {number_of_spn_models} ({model_name})")
+            print(f"Calculate SPN model {index + 1} of {number_of_spn_models} ({model_name})")
             if not model_name.startswith("emp"):
                 if not model_name.startswith("spn_"):
                     if data_set == "allbus":
-                        cll_allbus(property["model"], allbus.test(numeric_happy=False), result_file, continues_data_file)
+                        cll_allbus(property["model"], allbus.test(numeric_happy=False), result_file, happy_query_file,
+                                   income_query_file)
                 if data_set == "iris":
                     print("\tLikelihood on train data:", property["model"].loglikelihood())
         save_models(models, fitted_models_directory)
 
     if fit_sklearn and data_set == "allbus":
         print("Learn and try different sklearn models")
+
+
         def mae_score(y_true, y_predict):
             return np.sum(np.abs(y_true - y_predict)) / len(y_true)
+
+
         # calculates the accuracy score for variable
         def _test_var(train, test, variable):
             y_train = train[variable]
@@ -262,6 +286,8 @@ if __name__ == "__main__":
                 mae = mae_score(y_test, m.predict(X_test))
                 model_scores[f"{m.__class__.__name__}"] = {'acc': acc, 'mae': mae}
             return model_scores
+
+
         # calculate the scores and save them
         train_data = allbus.train(discretize_all=True)
         test_data = allbus.test(discretize_all=True)
@@ -278,5 +304,7 @@ if __name__ == "__main__":
     if data_set == "allbus":
         print("\nRESULTS:")
         print(get_results_from_file(result_file))
-        generate_happiness_plots(continues_data_file, output_path=os.path.dirname(__file__))
-        generate_happiness_plots(continues_data_file, output_path=os.path.dirname(__file__), one_in_all=True)
+        generate_happiness_plots(happy_query_file, output_path=os.path.dirname(__file__))
+        generate_happiness_plots(happy_query_file, output_path=os.path.dirname(__file__), one_in_all=True)
+        generate_income_plots(income_query_file, output_path=os.path.dirname(__file__))
+        generate_income_plots(income_query_file, output_path=os.path.dirname(__file__), one_in_all=True)
