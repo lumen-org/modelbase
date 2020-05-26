@@ -404,7 +404,7 @@ class Model:
         self.mode = None
         self.history = {}
         self.parallel_processing = True
-        self._empirical_model_name = None
+        self._empirical_model_name = name + "_emp"
         self.pci_graph = None
         self.probabilistic_program_graph = None
 
