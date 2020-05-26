@@ -49,8 +49,8 @@ def cll_allbus(model, test_data, model_file, happy_query_file, income_query_file
         f.write(str(get_results_from_file(model_file+".csv")))
 
 def make_result_pdf(model_file):
-    latex_table = str(_get_metric_as_latex_table_entry(model_file+".csv"))
-    print (latex_table)
+    latex_table = str(_get_metric_as_latex_table_entry(model_file+".csv", colorize=True))
+    #print (latex_table)
     replace_dict = {"%%%TABLE%%%" : latex_table}
     replace_regex = re.compile("|".join(map(re.escape, replace_dict.keys(  ))))
 
@@ -150,7 +150,7 @@ def _query(model, test_data, query_var, condition_vars):
     return pll
 
 
-def _get_metric_as_latex_table_entry(model_file, table_skeleton=True):
+def _get_metric_as_latex_table_entry(model_file, table_skeleton=True, colorize=False):
     d = pd.read_csv(model_file)
     entries = []
     latex_table = ""
@@ -167,14 +167,61 @@ def _get_metric_as_latex_table_entry(model_file, table_skeleton=True):
         #latex_table += " & ".join(["\\textbf{"+c+"}".replace("_", "\\_") for c in d.columns]) + "\\\\ \\hline \\hline\n"
         latex_table += " & ".join(["\\textbf{"+c+"}" for c in d.columns]).replace("_", "\\_") + "\\\\ \\hline \\hline\n"
         #latex_table += " & ".join(d.columns).replace("_", "\\_") + "\\\\ \\hline \\hline\n"
+
+    if colorize:
+        columns = [[] for _ in range(len(d.columns)-1)]
+        for row in d.iterrows():
+            for i, e in enumerate(row[1]):
+                if i > 0:
+                    columns[i-1].append(e)
+        
+        positions = [[] for _ in range(len(d.columns)-1)]
+        for c_i in range(len(columns)):
+            order = pd.Index(columns[c_i]).argsort().argsort()#pd.Index(columns[c_i]).argsort()
+            for r_i in range(len(order)):
+                positions[c_i].append(order[r_i])
+
+            print (columns[c_i])
+            print (positions[c_i])
+
+    max_index = len(positions[0])-1
+    print (max_index)
+    low_quart = max(1,max_index//4)-1e-6
+    print (low_quart)
+    high_quart = max_index-low_quart+1e-6
+    print (high_quart)
+    r_i = -1
     for row in d.iterrows():
+        r_i += 1
         entry = ""
         for i, e in enumerate(row[1]):
+            colstring = ""
             if i > 0:
+                if colorize:
+                    if str(float(e)) == "nan":
+                        colstring = "\\cellcolor{blue!20}"
+                    elif "mae_" in d.columns[i]:
+                        if positions[i-1][r_i] == 0:
+                            colstring = "\\cellcolor{green!30}"
+                        elif positions[i-1][r_i] < low_quart:
+                            colstring = "\\cellcolor{green!10}"
+                        elif positions[i-1][r_i] == max_index:
+                            colstring = "\\cellcolor{red!30}"
+                        elif positions[i-1][r_i] > high_quart:
+                            colstring = "\\cellcolor{red!10}"
+                    else:
+                        if positions[i-1][r_i] == max_index:
+                            colstring = "\\cellcolor{green!30}"
+                        elif positions[i-1][r_i] > high_quart:
+                            colstring = "\\cellcolor{green!10}"
+                        elif positions[i-1][r_i] == 0:
+                            colstring = "\\cellcolor{red!30}"
+                        elif positions[i-1][r_i] < low_quart:
+                            colstring = "\\cellcolor{red!10}"
                 if str(float(e)) == "nan":
-                    entry += ' & ' + str("N/A")
+                    entry += ' & ' + colstring + " " + str("N/A")
                 else:
-                    entry += ' & ' + str(round(float(e), 3))
+                    entry += ' & ' + colstring + " " + str(round(float(e), 3))
             else:
                 entry += e.replace("_", "-")
         entry += ' \\\\\n\\hline\n'
@@ -252,7 +299,7 @@ def generate_income_plots(continues_data_file="allbus_income_values.dat", output
         plt.savefig(os.path.join(output_path, 'query_income_graphs', 'merged_graphs'))
 
 if __name__ == "__main__":
-    model_file = "/home/goral/Applications/lumen/pymc_models/experiments/allbus_results"
+    model_file = "..."
     with open(model_file+"_pretty.txt", "w") as f:
         f.write(str(get_results_from_file(model_file+".csv")))
 
