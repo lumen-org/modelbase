@@ -22,8 +22,13 @@ logger = logging.getLogger(__name__)
 path_prefix = os.path.join(os.path.dirname(__file__), os.pardir, 'mb_data')
 
 
-def make_empirical_model(modelname, output_directory=None, input_file=None, df=None, verbose=False):
+def make_empirical_model(modelname, output_directory=None, input_file: str = None,
+                         base_model = None, df: pd.DataFrame = None,
+                         verbose: bool = False):
     """A one-stop function to create an `EmpiricalModel` from data.
+
+    You may specify either a base_model or input_file or df. If you use base_model the empirical
+    model will also match in terms of test and training data. base_model takes precedence.
 
     Args:
         modelname: str
@@ -32,37 +37,51 @@ def make_empirical_model(modelname, output_directory=None, input_file=None, df=N
         output_directory: str, optional.
             path of directory where to store the model (not file name!). If set to None, model will
              not be saved on filesystem but only returned.
+        base_model: Model, optional.
+            The model that is used as basis for this empirical model.
         input_file: str, optional.
             path of csv file to read for data to use for training of model. Alternatively, directly
              specify the data in `df`.
         df: pd.DataFrame, optional.
             Data to use for model fitting. Alternatively specify a csv file in `input_file`.
+        verbose: bool
+            Enable to print debug output.
     Return:
         The learned model.
 
     """
-    if input_file is None and df is None:
-        raise ValueError("you must specify at least one of `input_file` or `df`.")
+    if input_file is None and df is None and base_model is None:
+        raise ValueError("you must specify at least one of `input_file` or `df` or `base_model`")
 
     if input_file is not None:
         df = pd.read_csv(input_file, index_col=False, skip_blank_lines=True)
         if verbose:
             print("read data from file {}".format(input_file))
 
+    if df is not None:
+        row_count = df.shape[0]
+        df = df.dropna(axis=0, how="any", inplace=True)
+        dropped_rows = row_count - df.shape[0]
+        if dropped_rows > 0 and verbose:
+            print("dropped {} rows due to nans in data".format(dropped_rows))
+        training_data = df
+        test_data = pd.DataFrame(columns=training_data.columns)
+
+    if base_model is not None:
+        training_data = base_model.data
+        test_data = base_model.test_data
+
     if verbose:
         print("Your data frame looks like this: \n{}".format(str(df.head())))
 
-    # preprocess
-    df2 = df.dropna(axis=0, how="any")
-    dropped_rows = df.shape[0] - df2.shape[0]
-    if dropped_rows > 0 and verbose:
-        print("dropped {} rows due to nans in data".format(dropped_rows))
-
     # fit model
     model = EmpiricalModel(modelname)
-    model.set_data(df=df2, split_data=False)\
-        .fit(df2)\
+    model.set_data(df=training_data, split_data=False)\
+        .fit()\
         .set_empirical_model_name(modelname)
+    # TODO: its not clean to set test_data like this ...
+    model.test_data = test_data
+
     if verbose:
         print("Successfully fitted empirical model!")
 

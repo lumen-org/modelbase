@@ -14,13 +14,12 @@ import dill
 import numpy as np
 from functools import reduce
 
-import mb_modelbase as mb
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
 from mb_modelbase.models_core import models_predict
 from mb_modelbase.model_eval import posterior_predictive_checking as ppc
 from mb_modelbase.models_core import model_watchdog
-#from mb_modelbase.utils import make_empirical_model
+from mb_modelbase.utils import fit_models
 from mb_modelbase.cache import DictCache
 
 logger = logging.getLogger(__name__)
@@ -724,9 +723,8 @@ class ModelBase:
         if model_type == 'kde':
             raise NotImplementedError()
 
-        # TODO: what about test data? ensure identical split!
-        df = for_model.data
-        data_model = mb.utils.make_empirical_model(modelname=model_name, df=df)
+        data_model = fit_models.make_empirical_model(modelname=model_name, base_model=for_model,
+                                                     output_directory=self.model_dir)
         return self.add(data_model, model_name)
 
     def model_key(self, query) -> str:
