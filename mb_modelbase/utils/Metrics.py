@@ -1,5 +1,7 @@
 import random
 import os
+import re
+from subprocess import call
 
 import numpy as np
 import pandas as pd
@@ -11,7 +13,7 @@ from mb_modelbase.models_core.base import Condition
 def cll_iris(model, test_data, model_file, continues_data_file):
     pass
 
-def cll_allbus(model, test_data, model_file, continues_data_file):
+def cll_allbus(model, test_data, model_file, continues_data_file, overwrite=False):
     model_name = model.name
     # happiness scores
     acc_happy, mae_happy = classify(model, test_data, "happiness")
@@ -26,11 +28,46 @@ def cll_allbus(model, test_data, model_file, continues_data_file):
     q2 = _query(model, test_data, "happiness", ["sex", "eastwest", "health"])
     q3 = _query(model, test_data, "eastwest", ["income", "educ", "health"])
     q4 = _query(model, test_data, "lived_abroad", ["income", "educ", "sex", "happiness"])
-    with open(model_file, "a+") as f:
-        json = f.write(f"{model_name}, {acc_happy}, {mae_happy}, {acc_sex}, {mae_sex}, {acc_ew}, {mae_ew}, {acc_la}, {mae_la}, {q1}, {q2}, {q3}, {q4}\n")
+
+    if overwrite or not os.path.exists(model_file+".csv"):
+        with open(model_file+".csv", "w") as f:
+            f.write("model_name, acc_happy, mae_happy, acc_sex, mae_sex, acc_ew, mae_ew, acc_la, mae_la, q1, q2, q3, q4\n")
+            json = f.write(f"{model_name}, {acc_happy}, {mae_happy}, {acc_sex}, {mae_sex}, {acc_ew}, {mae_ew}, {acc_la}, {mae_la}, {q1}, {q2}, {q3}, {q4}\n")
+    else:
+        with open(model_file+".csv", "a+") as f:
+            json = f.write(f"{model_name}, {acc_happy}, {mae_happy}, {acc_sex}, {mae_sex}, {acc_ew}, {mae_ew}, {acc_la}, {mae_la}, {q1}, {q2}, {q3}, {q4}\n")
+    
+
     density_of_happiness_for_same_query(model, test_data, "happiness",
                                         {"sex": "Female", "lived_abroad": "Yes", "eastwest": "East"},
                                         continues_data_file)
+
+    with open(model_file+"_pretty.txt", "w") as f:
+        f.write(str(get_results_from_file(model_file+".csv")))
+
+def make_result_pdf(model_file):
+    latex_table = str(_get_metric_as_latex_table_entry(model_file+".csv"))
+    print (latex_table)
+    replace_dict = {"%%%TABLE%%%" : latex_table}
+    replace_regex = re.compile("|".join(map(re.escape, replace_dict.keys(  ))))
+
+    templatefile = open('tex_template.tex')
+    with open(model_file+"_pretty.tex", "w") as texout:
+        for line in templatefile:
+            texout.write(replace_regex.sub(lambda match: replace_dict[match.group(0)], line))
+
+    templatefile.close()
+
+    # construct pdf:
+    #if not os.path.exists("tex"):
+    #    os.makedirs("tex/")
+    if not os.path.exists("pdf"):
+        os.makedirs("pdf/")
+    
+    os.chdir("pdf/")
+    call(["pdflatex", "-output-directory=.", model_file+"_pretty.tex"])
+    #os.chdir("..")
+    #call(["rm", "pdf/"+model_file+"_pretty.aux", "pdf/"+model_file+"_pretty.log"])
 
 def density_of_happiness_for_same_query(model, test_data, query_var, condition_vars, continues_data_file):
     if str(model.name).startswith("allbus"):
@@ -117,14 +154,17 @@ def _get_metric_as_latex_table_entry(model_file, table_skeleton=True):
     latex_table = ""
     if table_skeleton:
         header = ["|c" for _ in range(len(d.columns) - 1)]
-        header.insert(0, "l")
+        header.insert(0, "l|")
         latex_table = """
         \\begin{table}
         \\scriptsize
         \\begin{tabular}{header}
             \\hline
-        """.replace("header", "".join(header))
-        latex_table += " & ".join(d.columns) + "\\\\\\\hline"
+        """.replace("header", "".join(header))#["\\textbf{"+h+"}" for h in header]))
+
+        #latex_table += " & ".join(["\\textbf{"+c+"}".replace("_", "\\_") for c in d.columns]) + "\\\\ \\hline \\hline\n"
+        latex_table += " & ".join(["\\textbf{"+c+"}" for c in d.columns]).replace("_", "\\_") + "\\\\ \\hline \\hline\n"
+        #latex_table += " & ".join(d.columns).replace("_", "\\_") + "\\\\ \\hline \\hline\n"
     for row in d.iterrows():
         entry = ""
         for i, e in enumerate(row[1]):
@@ -188,10 +228,8 @@ def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat", 
 
 
 if __name__ == "__main__":
-    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_happiness_values_15000_samples.dat"
-    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_results_full.dat"
-    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_results_full.dat"
-    # print(_get_metric_as_latex_table_entry(file, table_skeleton=False))
-    print(get_results_from_file(file))
-    #generate_happiness_plots("/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_happiness_values.dat", one_in_all=True)
-    # _print_metric_as_table_entry(os.path.join(os.path.dirname(__file__), "allbus.dat"))
+    model_file = "..."
+    with open(model_file+"_pretty.txt", "w") as f:
+        f.write(str(get_results_from_file(model_file+".csv")))
+
+    make_result_pdf(model_file)
