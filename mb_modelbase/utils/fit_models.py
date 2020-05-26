@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 path_prefix = os.path.join(os.path.dirname(__file__), os.pardir, 'mb_data')
 
 
-def make_empirical_model(modelname, output_directory, input_file=None, df=None, verbose=False):
+def make_empirical_model(modelname, output_directory=None, input_file=None, df=None, verbose=False):
     """A one-stop function to create an `EmpiricalModel` from data.
 
     Args:
@@ -31,8 +31,7 @@ def make_empirical_model(modelname, output_directory, input_file=None, df=None, 
              saved model.
         output_directory: str, optional.
             path of directory where to store the model (not file name!). If set to None, model will
-             not be saved on
-            filesystem.
+             not be saved on filesystem but only returned.
         input_file: str, optional.
             path of csv file to read for data to use for training of model. Alternatively, directly
              specify the data in `df`.
