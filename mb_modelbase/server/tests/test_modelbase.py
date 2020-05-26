@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2017-2020 Philipp Lucas (philipp.lucas@dlr.de)
 """
 @author: Philipp Lucas
 
@@ -7,8 +7,7 @@ Test Suite for the modelbase module.py
 
 import unittest
 
-from modelbase import ModelBase
-import data.crabs.crabs as crabs
+import mb_modelbase as mb
 
 
 class TestJustRun(unittest.TestCase):
@@ -16,7 +15,7 @@ class TestJustRun(unittest.TestCase):
      without raising any exception """
 
     def setUp(self):
-        self.mb = ModelBase(name="my mb", model_dir='test_models')
+        self.mb = mb.ModelBase(name="my mb", model_dir='test_models')
 
     def test_A(self):
         self.assertTrue('cg_crabs' in self.mb.list_models(), 'this test suite requires the cg_crabs model')
