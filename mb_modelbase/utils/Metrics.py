@@ -162,11 +162,9 @@ def _get_metric_as_latex_table_entry(model_file, table_skeleton=True, colorize=F
         \\scriptsize
         \\begin{tabular}{header}
             \\hline
-        """.replace("header", "".join(header))#["\\textbf{"+h+"}" for h in header]))
+        """.replace("header", "".join(header))
 
-        #latex_table += " & ".join(["\\textbf{"+c+"}".replace("_", "\\_") for c in d.columns]) + "\\\\ \\hline \\hline\n"
         latex_table += " & ".join(["\\textbf{"+c+"}" for c in d.columns]).replace("_", "\\_") + "\\\\ \\hline \\hline\n"
-        #latex_table += " & ".join(d.columns).replace("_", "\\_") + "\\\\ \\hline \\hline\n"
 
     if colorize:
         columns = [[] for _ in range(len(d.columns)-1)]
@@ -177,28 +175,37 @@ def _get_metric_as_latex_table_entry(model_file, table_skeleton=True, colorize=F
         
         positions = [[] for _ in range(len(d.columns)-1)]
         for c_i in range(len(columns)):
-            order = pd.Index(columns[c_i]).argsort().argsort()#pd.Index(columns[c_i]).argsort()
+            indices_to_remove = []
+            for i in range(len(columns[c_i])):
+                if str(float(columns[c_i][i])) == 'nan' or 'inf' in str(float(columns[c_i][i])):
+                    indices_to_remove.append(i)
+            #print (columns[c_i])
+            #print (indices_to_remove)
+            while len(indices_to_remove) > 0:
+                #print (indices_to_remove[-1])
+                columns[c_i].pop(indices_to_remove.pop(-1))
+            order = pd.Index(columns[c_i]).argsort().argsort()
             for r_i in range(len(order)):
                 positions[c_i].append(order[r_i])
 
-            print (columns[c_i])
-            print (positions[c_i])
+            #print (columns[c_i])
+            #print (positions[c_i])
 
-    max_index = len(positions[0])-1
-    print (max_index)
-    low_quart = max(1,max_index//4)-1e-6
-    print (low_quart)
-    high_quart = max_index-low_quart+1e-6
-    print (high_quart)
     r_i = -1
     for row in d.iterrows():
         r_i += 1
         entry = ""
         for i, e in enumerate(row[1]):
-            colstring = ""
             if i > 0:
+                colstring = ""
                 if colorize:
-                    if str(float(e)) == "nan":
+                    max_index = len(positions[i-1])-1
+                    #print (max_index)
+                    low_quart = max(1,max_index//4)-1e-6
+                    #print (low_quart)
+                    high_quart = max_index-low_quart+1e-6
+                    #print (high_quart)
+                    if str(float(e)) == "nan" or 'inf' in str(float(e)):
                         colstring = "\\cellcolor{blue!20}"
                     elif "mae_" in d.columns[i]:
                         if positions[i-1][r_i] == 0:
@@ -299,7 +306,7 @@ def generate_income_plots(continues_data_file="allbus_income_values.dat", output
         plt.savefig(os.path.join(output_path, 'query_income_graphs', 'merged_graphs'))
 
 if __name__ == "__main__":
-    model_file = "..."
+    model_file = "/home/goral/Applications/lumen/pymc_models/experiments/allbus_results_final"
     with open(model_file+"_pretty.txt", "w") as f:
         f.write(str(get_results_from_file(model_file+".csv")))
 
