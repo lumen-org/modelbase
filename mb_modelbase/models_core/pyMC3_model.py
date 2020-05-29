@@ -152,8 +152,11 @@ class ProbabilisticPymc3Model(Model):
         self._update_samples_model_representation()
         self.samples = None
         self.sample_prior_predictive = sample_prior_predictive
-
         self._prefetched_samples = None
+        self._has_independent_variables = None
+
+    def __str__(self):
+        return '{}\nkde_bandwidth={}'.format(super().__str__(), self.kde_bandwidth())
 
     def _set_data(self, df, drop_silently, **kwargs):
         assert df.index.is_monotonic, 'The data is not sorted by index. Please sort data by index and try again'
@@ -261,7 +264,6 @@ class ProbabilisticPymc3Model(Model):
         # Change order of sample columns so that it matches order of fields
         self.samples = self.samples[self.names]
         self._samples_model_repr = self._samples_model_repr[self.names]
-
         self._update_samples_model_representation(recreate_samples_model_repr=False)
 
         # Mark variables as independent. Independent variables are variables that appear in the data but
@@ -271,7 +273,11 @@ class ProbabilisticPymc3Model(Model):
                     field['name'] not in [str(var) for var in self.model_structure.basic_RVs]:
                     # field['name'] not in [str(var) for var in self.model_structure.observed_RVs]:
                 field['independent'] = True
+        self._update_has_independent_variables()
         return ()
+
+    def _update_has_independent_variables(self):
+        self._has_independent_variables = any(map(lambda f: f['independent'], self.fields))
 
     def _marginalizeout(self, keep, remove):
         keep_not_in_names = [name for name in keep if name not in self.names]
@@ -286,6 +292,7 @@ class ProbabilisticPymc3Model(Model):
         self.samples = self.samples.drop(list(cols_to_remove), axis=1)
 
         self._update_samples_model_representation()
+        self._update_has_independent_variables()
         return ()
 
     def _conditionout(self, keep, remove):
@@ -307,10 +314,10 @@ class ProbabilisticPymc3Model(Model):
         return ()
 
     def _density(self, x):
-        if any(self.fields[i]['independent'] for i in range(self.dim)):
+        if self._has_independent_variables:
             #raise ValueError("Density is queried for a model with independent variables")
             return np.NaN
-        elif self.samples.empty | len(self.samples) == 1:
+        elif self.samples.empty or len(self.samples) == 1:
             #raise ValueError("There are not enough samples in the model")
             return np.NaN
         else:
@@ -487,6 +494,8 @@ class ProbabilisticPymc3Model(Model):
         mycopy._data_type_mapper = self._data_type_mapper.copy()
         mycopy.probabilistic_program_graph = cp.copy(self.probabilistic_program_graph)
         mycopy._update_samples_model_representation(recreate_samples_model_repr=False)
+        if mycopy._samples_kde:
+            mycopy._samples_kde.set_bandwidth(self._samples_kde.factor)
         return mycopy
 
     def _maximum(self):
@@ -510,3 +519,16 @@ class ProbabilisticPymc3Model(Model):
             for name in list(self.shared_vars.keys()):
                 if name in self.data.columns:
                     assert np.array_equal(self.shared_vars[name].get_value(), np.array(self.data[name]))
+
+    def kde_bandwidth(self, bandwidth=None):
+        kde = self._samples_kde
+        if bandwidth is None:
+            return None if kde is None else kde.factor
+        if kde is not None:
+            kde.set_bandwidth(bandwidth)
+        return self
+
+    def set_configuration(self, config):
+        if 'kdeBandwidth' in config:
+            self.kde_bandwidth(config['kdeBandwidth'])
+        return self
