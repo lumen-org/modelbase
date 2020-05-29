@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from mb_modelbase.models_core.base import Condition
 
-def cll_iris(model, test_data, model_file, happy_query_file, income_query_file):
+def cll_iris(model, test_data, model_file, happy_query_file="", income_query_file=""):
     pass
 
 def cll_allbus(model, test_data, model_file, happy_query_file, income_query_file):
@@ -28,12 +28,8 @@ def cll_allbus(model, test_data, model_file, happy_query_file, income_query_file
     q4 = _query(model, test_data, "lived_abroad", ["income", "educ", "sex", "happiness"])
     with open(model_file, "a+") as f:
         json = f.write(f"{model_name}, {acc_happy}, {mae_happy}, {acc_sex}, {mae_sex}, {acc_ew}, {mae_ew}, {acc_la}, {mae_la}, {q1}, {q2}, {q3}, {q4}\n")
-    density_of_variable_for_same_query(model, test_data, "happiness",
-                                       {"sex": "Female", "lived_abroad": "No", "eastwest": "West"},
-                                       happy_query_file, stepwidth=0.1)
-    density_of_variable_for_same_query(model, test_data, "income",
-                                       {"sex": "Male", "lived_abroad": "No", "eastwest": "East"},
-                                       income_query_file, stepwidth=100)
+    #density_of_variable_for_same_query(model, test_data, "happiness", {"sex": "Female", "lived_abroad": "No", "eastwest": "West"}, happy_query_file, stepwidth=0.1)
+    #density_of_variable_for_same_query(model, test_data, "income", {"sex": "Male", "lived_abroad": "No", "eastwest": "East"}, income_query_file, stepwidth=100)
 
 def density_of_variable_for_same_query(model, test_data, query_var, condition_vars, query_file, stepwidth=0.1):
     if str(model.name).startswith("allbus"):
@@ -82,8 +78,7 @@ def classify(model, test_data, variable, variable_map=None):
                 density = cur_model.density(evidence)
                 prediction[value] = density
             pred_value = [k for k, v in prediction.items() if v == max(prediction.values())][0]
-            # MAPE (https://en.wikipedia.org/wiki/Mean_absolute_percentage_error)
-            acc_score += np.abs((pred_value+1 - true_value+1)/(true_value+1))
+            acc_score += (pred_value - true_value)**2
             mae_score += np.abs(pred_value - true_value)
         else:
             # calculate the density value
@@ -95,6 +90,8 @@ def classify(model, test_data, variable, variable_map=None):
                 acc_score += 1
             else:
                 mae_score += np.abs(variable_map[prediction] - variable_map[true_value])
+    if not variable_map:
+        return np.sqrt(acc_score / number_of_samples), mae_score / number_of_samples
     return acc_score / number_of_samples, mae_score / number_of_samples
 
 def _query(model, test_data, query_var, condition_vars):
@@ -118,37 +115,95 @@ def _query(model, test_data, query_var, condition_vars):
     return pll
 
 
-def _get_metric_as_latex_table_entry(model_file, table_skeleton=True):
+def _get_metric_as_latex_table_entry(model_file, table_skeleton=True, colorize=False):
     d = pd.read_csv(model_file)
     entries = []
     latex_table = ""
     if table_skeleton:
         header = ["|c" for _ in range(len(d.columns) - 1)]
-        header.insert(0, "l")
+        header.insert(0, "l|")
         latex_table = """
-        \\begin{table}
-        \\scriptsize
-        \\begin{tabular}{header}
-            \\hline
-        """.replace("header", "".join(header))
-        latex_table += " & ".join(d.columns) + "\\\\\\\hline"
+            \\begin{table}
+            \\tiny
+            \\begin{tabular}{header}
+                \\hline
+            """.replace("header", "".join(header))
+
+        latex_table += " & ".join(["\\textbf{" + c + "}" for c in d.columns]).replace("_",
+                                                                                      "\\_") + "\\\\ \\hline \\hline\n"
+
+    if colorize:
+        columns = [[] for _ in range(len(d.columns) - 1)]
+        for row in d.iterrows():
+            for i, e in enumerate(row[1]):
+                if i > 0:
+                    columns[i - 1].append(e)
+
+        positions = [[] for _ in range(len(d.columns) - 1)]
+        for c_i in range(len(columns)):
+            indices_to_remove = []
+            for i in range(len(columns[c_i])):
+                if str(float(columns[c_i][i])) == 'nan' or 'inf' in str(float(columns[c_i][i])):
+                    indices_to_remove.append(i)
+            # print (columns[c_i])
+            # print (indices_to_remove)
+            while len(indices_to_remove) > 0:
+                # print (indices_to_remove[-1])
+                columns[c_i].pop(indices_to_remove.pop(-1))
+            order = pd.Index(columns[c_i]).argsort().argsort()
+            for r_i in range(len(order)):
+                positions[c_i].append(order[r_i])
+
+            # print (columns[c_i])
+            # print (positions[c_i])
+
+    r_i = -1
     for row in d.iterrows():
+        r_i += 1
         entry = ""
         for i, e in enumerate(row[1]):
             if i > 0:
+                colstring = ""
+                if colorize:
+                    max_index = len(positions[i - 1]) - 1
+                    # print (max_index)
+                    low_quart = max(1, max_index // 4) - 1e-6
+                    # print (low_quart)
+                    high_quart = max_index - low_quart + 1e-6
+                    # print (high_quart)
+                    if str(float(e)) == "nan" or 'inf' in str(float(e)):
+                        colstring = "\\cellcolor{blue!20}"
+                    elif "-mae" in d.columns[i]:
+                        if positions[i - 1][r_i] == 0:
+                            colstring = "\\cellcolor{green!30}"
+                        elif positions[i - 1][r_i] < low_quart:
+                            colstring = "\\cellcolor{green!10}"
+                        elif positions[i - 1][r_i] == max_index:
+                            colstring = "\\cellcolor{red!30}"
+                        elif positions[i - 1][r_i] > high_quart:
+                            colstring = "\\cellcolor{red!10}"
+                    else:
+                        if positions[i - 1][r_i] == max_index:
+                            colstring = "\\cellcolor{green!30}"
+                        elif positions[i - 1][r_i] > high_quart:
+                            colstring = "\\cellcolor{green!10}"
+                        elif positions[i - 1][r_i] == 0:
+                            colstring = "\\cellcolor{red!30}"
+                        elif positions[i - 1][r_i] < low_quart:
+                            colstring = "\\cellcolor{red!10}"
                 if str(float(e)) == "nan":
-                    entry += ' & ' + str("N/A")
+                    entry += ' & ' + colstring + " " + str("N/A")
                 else:
-                    entry += ' & ' + str(round(float(e), 3))
+                    entry += ' & ' + colstring + " " + str(round(float(e), 3))
             else:
                 entry += e.replace("_", "-")
         entry += ' \\\\\n\\hline\n'
         latex_table += entry
     if table_skeleton:
         latex_table += """
-        	\\end{tabular}
-	        \\caption{N/A: not available, -inf: not possible to calculate, due to overflow}
-            \\end{table}"""
+            	\\end{tabular}
+    	        \\caption{N/A: not available, -inf: not possible to calculate, due to overflow}
+                \\end{table}"""
     return latex_table
 
 
@@ -218,9 +273,8 @@ def generate_income_plots(continues_data_file="allbus_income_values.dat", output
 
 if __name__ == "__main__":
     file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_happiness_values_15000_samples.dat"
-    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_results_full.dat"
-    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_results_full.dat"
-    print(_get_metric_as_latex_table_entry(file, table_skeleton=False))
+    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_results_copy.dat"
+    print(_get_metric_as_latex_table_entry(file, table_skeleton=True, colorize=True))
     #print(get_results_from_file(file))
     #generate_happiness_plots("/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_happiness_values.dat", one_in_all=True)
     # _print_metric_as_table_entry(os.path.join(os.path.dirname(__file__), "allbus.dat"))

@@ -176,6 +176,9 @@ sample_size = {sample_size}
 
 continues_data_file = None
 
+happy_query_file = ""
+income_query_file = ""
+
 iris_forward_map = {'species': {'setosa': 0, 'versicolor': 1, 'virginica': 2}}
 
 iris_backward_map = {'species': {0: 'setosa', 1: 'versicolor', 2: 'virginica'}}

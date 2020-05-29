@@ -36,7 +36,7 @@ spn_metatypes = {
         'health': spn_statistical_types.MetaType.REAL
 }
 
-def train(filepath=_train_data, numeric_happy=True, discretize_all=False):
+def train(filepath=_train_data, numeric_happy=True, discretize_all=False, inverse_happy=False):
     df = pd.read_csv(filepath)
     if discretize_all:
         for feature, feature_map in allbus_forward_map.items():
@@ -49,10 +49,12 @@ def train(filepath=_train_data, numeric_happy=True, discretize_all=False):
         happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
                          'h10': 10}
         df["happiness"] = pd.Series(df["happiness"]).map(happiness_map)
+        if inverse_happy:
+            df["happiness"] = 11 - df["happiness"]
     return df
 
 
-def test(filepath=_test_data, numeric_happy=True, discretize_all=False):
+def test(filepath=_test_data, numeric_happy=True, discretize_all=False, inverse_happy=False):
     df = pd.read_csv(filepath)
     if discretize_all:
         for feature, feature_map in allbus_forward_map.items():
@@ -65,6 +67,8 @@ def test(filepath=_test_data, numeric_happy=True, discretize_all=False):
         happiness_map = {'h0': 0, 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'h7': 7, 'h8': 8, 'h9': 9,
                          'h10': 10}
         df["happiness"] = pd.Series(df["happiness"]).map(happiness_map)
+        if inverse_happy:
+            df["happiness"] = 11 - df["happiness"]
     return df
 
 
@@ -97,7 +101,7 @@ def test_continuous(filepath=_test_data):
 
 
 if __name__ == '__main__':
-    df = test(numeric_happy=False)
+    df = test(numeric_happy=False, inverse_happy=True)
     print(df)
     print(df.dtypes)
 
