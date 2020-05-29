@@ -883,6 +883,17 @@ class Model:
         self._update_extents(names)
         return self
 
+    def set_configuration(self, config):
+        """Apply the provided configuration.
+
+        This method can be implemented by any actual model that derived from the abstract Model
+        class if there is the need to use any specific configuration.
+
+        Returns: Model
+            Returns itself.
+        """
+        return self
+
     def _conditionout(self, keep, remove):
         """Condition the field with name in `remove` on their available, //not unbounded// domain and
         marginalizes them out.
@@ -1693,10 +1704,6 @@ class Model:
             for_data: pd.DataFrame, optional.
                 Set of data points to do prediction for. Is combined with the values of `splitby` (if they overlap).
                 The columns of the dataframe must be labelled with the corresponding names of the dimensions in self.
-
-            returnbasemodel: bool
-                If set this method will return the pair (result-dataframe, basemodel-for-the-prediction). Defaults to
-                False.
 
         Returns:
 

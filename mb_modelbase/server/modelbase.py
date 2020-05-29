@@ -509,6 +509,16 @@ class ModelBase:
                 'model': model.name,
                 'graph': graph
             })
+
+        elif 'CONFIGURE' in query:
+            model = self._extractModelByStatement(query, 'CONFIGURE')
+            config = self._extractDictByKeyword(query, 'WITH')
+            model.set_configuration(config)
+            return _json_dumps({
+                'model': model.name,
+                'status': 'configuration changed'
+            })
+
         else:
             raise QueryIncompleteError(
                 "Missing Statement-Type (e.g. DROP, PREDICT, SELECT)")
@@ -664,10 +674,13 @@ class ModelBase:
         else:
             return query['WHERE']
 
-    def _extractOpts(self, query):
-        if 'OPTS' not in query:
+    def _extractDictByKeyword(self, query, keyword="OPTS"):
+        if keyword not in query:
             return {}
-        return query['OPTS']
+        return query[keyword]
+
+    def _extractOpts(self, query):
+        return self._extractDictByKeyword(query)
 
     def _extractReload(self, query):
         if 'RELOAD' not in query:
