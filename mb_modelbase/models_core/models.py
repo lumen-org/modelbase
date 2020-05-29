@@ -384,13 +384,15 @@ class Model:
         """
         return utils.sort_filter_list(names, self.names)
 
-    def __init__(self, name="model"):
+    def __init__(self, name="model", description=""):
         """Construct and return a new model.
 
         Args:
             name [string]: name of the model. Defaults to 'model'.
         """
         self.name = name
+        self.model_type = type(self).__name__
+        self.description = description
         # the following is all done in _fields_set_empty, which is called below
         # self.fields = []
         # self.names = []
@@ -424,7 +426,9 @@ class Model:
         json = {
             "name": self.name,
             "fields": self.json_fields(),
-            "empirical model": self._empirical_model_name
+            "empirical model": self._empirical_model_name,
+            "model type": self.model_type,
+            "description": self.description,
         }
         return json
 
