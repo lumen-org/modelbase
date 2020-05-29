@@ -79,9 +79,6 @@ class ModelWatcher(PatternMatchingEventHandler):
         if filename in mbase.modelname_by_filename:
             model = mbase.get(mbase.modelname_by_filename[filename])
             mbase.drop(model.name)
-            print('model dropped deleted: {}'.format(model.name))
-        else:
-            print('file deleted: {}'.format(filename))
 
     def on_created(self, event):
         """
