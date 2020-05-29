@@ -194,6 +194,7 @@ class ModelBase:
 
         self.name = name
         self.models = {}
+        self.modelname_by_filename = {}
         self.model_dir = model_dir
         self.cache = cache
         self.log_queries = log_queries
@@ -255,21 +256,24 @@ class ModelBase:
 
         # iterate over matching files in directory (including any subdirectories)
         loaded_models = []
-        filenames = pathlib.Path(directory).glob('**/' + '*' + ext)
-        for file in filenames:
-            logger.debug("loading model from file: " + str(file))
+        filepaths = pathlib.Path(directory).glob('**/' + '*' + ext)
+        for filepath in filepaths:
+            filename = filepath.name
+            filepath = str(filepath)
+            logger.debug("loading model from file: " + filepath)
             # try loading the model
             try:
-                model = gm.Model.load(str(file))
+                model = gm.Model.load(filepath)
             except TypeError as err:
                 logger.warning(
                     'file "' +
-                    str(file) +
+                    filepath +
                     '" matches the naming pattern but does not contain a model instance. '
                     'I ignored that file')
             else:
-                self.add(model)
-                loaded_models.append((model.name, str(file)))
+
+                self.add(model, filename=filename)
+                loaded_models.append((model.name, filepath))
         return loaded_models
 
     def save_all_models(self, directory=None, ext='.mdl'):
@@ -289,12 +293,14 @@ class ModelBase:
         for key, model in self.models.items():
             gm.Model.save_static(model, directory)
 
-    def add(self, model, name=None):
+    def add(self, model, name=None, filename=None):
         """ Adds a model to the model base using the given name or the models name. """
         if name in self.models:
             logger.warning('Overwriting existing model in model base: ' + name)
         if name is None:
             name = model.name
+        if filename is not None:
+            self.modelname_by_filename[filename] = model.name
         self.models[name] = model
         return model
 
@@ -302,7 +308,12 @@ class ModelBase:
         """ Drops a model from the model base and returns the dropped model."""
         model = self.models[name]
         del self.models[name]
-        return model
+
+        for key, modelname in self.modelname_by_filename.items():
+            if modelname == name:
+                filename = key
+                break
+        del self.modelname_by_filename[filename]
 
     def drop_all(self):
         """ Drops all models of this modelbase."""
@@ -311,8 +322,15 @@ class ModelBase:
             self.drop(name)
 
     def get(self, name):
-        """Gets a model from the modelbase by name and returns it."""
-        return self.models[name]
+        """Gets a model from the modelbase by name and returns it or None if a model with that
+        name does not exists.
+
+        Arguments:
+            name: string
+                Name of the model to retrieve.
+        Returns: Model
+        """
+        return self.models.get(name, None)
 
     def list_models(self):
         return list(self.models.keys())
@@ -738,7 +756,7 @@ class ModelBase:
 
         data_model = fit_models.make_empirical_model(modelname=model_name, base_model=for_model,
                                                      output_directory=self.model_dir)
-        return self.add(data_model, model_name)
+        return self.add(data_model, name=model_name, filename=model_name+".mdl")
 
     def model_key(self, query) -> str:
         """A method that computes a key for the model needed by the query.

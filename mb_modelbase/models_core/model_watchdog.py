@@ -13,8 +13,20 @@ logger.setLevel(logging.INFO)
 
 
 class ModelWatcher(PatternMatchingEventHandler):
-    """
-    Modelbase which watches a folder and reacts to newly created and modified *.mdl files
+    """Modelbase which watches a folder and reacts to changes.
+
+    Depending on its configuration it reacts on different situations, see below.
+
+    Arguments:
+        modelbase: Modelbase
+            the modelbase to enable the watcher for.
+        reload_on_overwrite: bool, defaults to true.
+            Iff true automatically reload a model that was overwritten on disk.
+        reolaod_on_creation: bool, defaults to true,
+            Iff true automatically load a new model.
+        discard_on_delete: bool, defaults to true,
+            Iff true automatically delete a model that was deleted from disk also from the
+            modelbase.
     """
     # files to react to
     patterns = ["*.mdl"]
@@ -23,12 +35,14 @@ class ModelWatcher(PatternMatchingEventHandler):
     def _get_model_name (path):
         return path.rsplit("/", 1)[-1][:-4]
 
-    def __init__(self, modelbase, reload_on_overwrite=True, reload_on_creation=True):
+    def __init__(self, modelbase, reload_on_overwrite=True, reload_on_creation=True,
+                 discard_on_delete=True):
         super().__init__()
         self.modelbase = modelbase
 
         self._reload_on_overwrite = reload_on_overwrite
         self._reload_on_creation = reload_on_creation
+        self._discard_on_delete = discard_on_delete
 
     def _load_candidate_model(self, model_path, file_name):
         try:
@@ -53,6 +67,21 @@ class ModelWatcher(PatternMatchingEventHandler):
         file_name = model_path.rsplit("/", 1)[-1]
 
         self._load_candidate_model(model_path, file_name)
+
+    def on_deleted(self, event):
+        if not self._discard_on_delete:
+            return
+
+        model_path = event.src_path
+        filename = model_path.rsplit("/", 1)[-1]
+        mbase = self.modelbase
+
+        if filename in mbase.modelname_by_filename:
+            model = mbase.get(mbase.modelname_by_filename[filename])
+            mbase.drop(model.name)
+            print('model dropped deleted: {}'.format(model.name))
+        else:
+            print('file deleted: {}'.format(filename))
 
     def on_created(self, event):
         """
