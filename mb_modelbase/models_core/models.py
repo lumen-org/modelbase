@@ -1419,13 +1419,14 @@ class Model:
         """
         # volume of all combined each quantitative domains
         vol = functools.reduce(operator.mul, [high - low for low, high in num_domains], 1)
+
         # map quantitative domains to their mid
         y = [(high + low) / 2 for low, high in num_domains]
 
         # sum up density over all elements of the cartesian product of the categorical part of the event
         # TODO: generalize
-        assert (all(len(d) == 1 for d in
-                    cat_domains)), "did not implement the case where categorical domain has more than one element"
+        assert (all(len(d) == 1 for d in cat_domains)),\
+            "did not implement the case where categorical domain has more than one element"
         x = list([d[0] for d in cat_domains])
         return vol * self._density(x + y)
         # return vol * self._density(list(cat_domains) + y)
