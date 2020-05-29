@@ -71,14 +71,11 @@ class ModelWatcher(PatternMatchingEventHandler):
     def on_deleted(self, event):
         if not self._discard_on_delete:
             return
-
         model_path = event.src_path
         filename = model_path.rsplit("/", 1)[-1]
-        mbase = self.modelbase
-
-        if filename in mbase.modelname_by_filename:
-            model = mbase.get(mbase.modelname_by_filename[filename])
-            mbase.drop(model.name)
+        model = self.modelbase.get(filename=filename)
+        if model is not None:
+            self.modelbase.drop(model.name)
 
     def on_created(self, event):
         """

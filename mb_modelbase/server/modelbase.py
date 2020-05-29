@@ -194,7 +194,7 @@ class ModelBase:
 
         self.name = name
         self.models = {}
-        self.modelname_by_filename = {}
+        self._modelname_by_filename = {}
         self.model_dir = model_dir
         self.cache = cache
         self.log_queries = log_queries
@@ -300,7 +300,7 @@ class ModelBase:
         if name is None:
             name = model.name
         if filename is not None:
-            self.modelname_by_filename[filename] = model.name
+            self._modelname_by_filename[filename] = model.name
         self.models[name] = model
         return model
 
@@ -309,11 +309,11 @@ class ModelBase:
         model = self.models[name]
         del self.models[name]
 
-        for key, modelname in self.modelname_by_filename.items():
+        for key, modelname in self._modelname_by_filename.items():
             if modelname == name:
                 filename = key
                 break
-        del self.modelname_by_filename[filename]
+        del self._modelname_by_filename[filename]
 
     def drop_all(self):
         """ Drops all models of this modelbase."""
@@ -321,15 +321,22 @@ class ModelBase:
         for name in names:
             self.drop(name)
 
-    def get(self, name):
-        """Gets a model from the modelbase by name and returns it or None if a model with that
-        name does not exists.
+    def get(self, name=None, filename=None):
+        """Gets a model from the modelbase by name or filename and returns it or None if such a
+        model does not exist.
 
         Arguments:
-            name: string
+            name: string, optional.
                 Name of the model to retrieve.
+            filename: string, optional.
+                The filename of the model to retrieve. Do not pass a full path, just the filename.
         Returns: Model
         """
+        if name is None and filename is None:
+            raise ValueError("Neither name nor filename given.")
+
+        if filename is not None:
+            name = self._modelname_by_filename.get(filename, None)
         return self.models.get(name, None)
 
     def list_models(self):
