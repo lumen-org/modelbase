@@ -1,6 +1,6 @@
-from mb_modelbase.models_core.spn.sum_node import SumNode
-from mb_modelbase.models_core.spn.normal_leaf_node import NormalLeafNode
-from mb_modelbase.models_core.spn.multi_normal_leaf_node import MultiNormalLeafNode
+from mb_modelbase.models_core.gausspn.sum_node import SumNode
+from mb_modelbase.models_core.gausspn.normal_leaf_node import NormalLeafNode
+from mb_modelbase.models_core.gausspn.multi_normal_leaf_node import MultiNormalLeafNode
 
 def count_nodes(network):
 	nextnodes = [network.root.children[0]]

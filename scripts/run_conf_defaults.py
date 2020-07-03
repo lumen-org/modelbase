@@ -23,11 +23,7 @@ cfg = {
         'modelbase': {
             'enable': True,
             'route': '/webservice',
-            'auto_load_models': {
-                'reload_on_overwrite': True,
-                'reload_on_creation': True,
-            },
-            'directory': '../../fitted_models',
+            'directory': './experiments/fitted_models',
             'name': 'modelbase management system',
         },
         'activitylogger': {

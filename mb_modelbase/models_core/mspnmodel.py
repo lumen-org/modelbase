@@ -30,9 +30,12 @@ IMPORTANT:
 """
 
 import rpy2
+from pathlib import Path
 
 from mb_modelbase.models_core import Model
-from mb_modelbase.utils import get_columns_by_dtype, to_category_cols
+
+from mb_modelbase.utils.data_import_utils import get_columns_by_dtype, to_category_cols
+
 
 from mb_modelbase.models_core.mspn.tfspn.piecewise import estimate_domains
 from mb_modelbase.models_core.mspn.tfspn.SPN import SPN, Splitting
@@ -62,6 +65,7 @@ class \
         _, cat_names, num_names = get_columns_by_dtype(df)
         self._set_data_mixed(df, drop_silently, num_names, cat_names)
         self.featureTypes = ["categorical"]*len(cat_names) + ['continuous']*len(num_names)
+        self._data = self.data.copy()
         if self.min_instances_slice is None:
             # if there is not minimum slice width we set it to 8% of the data length
             self.min_instances_slice = len(self.data) * 0.08         
@@ -80,8 +84,8 @@ class \
           
           # replace category with number 
           for category in catToNumber:
-            occurenceIndex = (self.data[colname] == category)
-            self.data.loc[occurenceIndex,colname] = catToNumber[category]
+            occurenceIndex = (self._data[colname] == category)
+            self._data.loc[occurenceIndex,colname] = catToNumber[category]
             # self.data[colname][occurenceIndex] = catToNumber[category]
         ### end replace category with number ###
         
@@ -97,22 +101,17 @@ class \
         # data = np.array(self.data)
         # for i in range(len(data)):
         #     data[i] = [int(j) if self.featureTypes[i] == "categorical" else j for j in data[i]]
-        print(self.featureTypes)
-        print(self.data)
-        self._mspnmodel = SPN.LearnStructure(np.array(self.data), featureTypes=self.featureTypes, \
+        self._mspnmodel = SPN.LearnStructure(np.array(self._data), featureTypes=self.featureTypes, \
+                                             featureNames=self.names, \
                                              row_split_method=Splitting.KmeansRows(), \
                                              col_split_method=Splitting.RDCTest(threshold=self.threshold), \
                                              min_instances_slice=self.min_instances_slice)
-                
-        #print("FIT:", self.colToCategory)
-        print()
-        print(f"FITTED Model with {self._mspnmodel.n_nodes()} nodes and {self._mspnmodel.n_edges()} edges.")
+
+#        self._mspnmodel.save_pdf_graph(outputfile=Path(f"../../scripts/experiments/spn_graphs/{self.name}.pdf"))
         self._mspnmodel = self._mspnmodel.root
-        print()
-        print(f"LOGLIKELIHOOD {self.loglikelihood()/len(self.data)}.")
-        print()
         self.normalizeFactor = self._getNormalizeFactor()
         
+        #print("FIT:", self.colToCategory)
         
         return []
 
@@ -157,9 +156,12 @@ class \
                 if inverseNTI[i] is not None and type(x[j]) is str:
                    colname = ""
                    colname = inverseNTI[i]
-                   tmp[i] = float(self.colToCategory[colname][x[j]])
+                   try:
+                        tmp[i] = float(self.colToCategory[colname][x[j]])
+                   except:
+                       print("kjahsd")
                 else:
-                   tmp[i] = float(x[j])
+                    tmp[i] = float(x[j])
                 j += 1
         #print("DataAfter:", x)
         if len(x) != j:

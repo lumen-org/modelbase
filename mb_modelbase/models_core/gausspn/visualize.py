@@ -10,7 +10,7 @@ import numpy as np
 index = 0
 
 
-def generateSPNPdf (spn,filename="img/spn") :
+def generateSPNPdf (spn,filename="img/gausspn") :
     """
     Generates a PDF with a visualisation of an SPN
     """
@@ -48,4 +48,4 @@ def generateSPNPdf (spn,filename="img/spn") :
                #do it next time
                worklist.append((cIndex,child))
                used.append(cIndex)
-    dot.render(filename)
+    dot.render(filename, cleanup=True)

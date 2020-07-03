@@ -101,6 +101,7 @@ class Node(object):
     def __init__(self):
         self.id = Node.id_counter
         Node.id_counter += 1
+        self.Serializable_attrs = []
 
         self.label = ''
 
