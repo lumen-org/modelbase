@@ -1,26 +1,26 @@
-from mb_modelbase.models_core.auto_extent import *
-from mb_modelbase.models_core.base import *
-from mb_modelbase.models_core.categoricals import *
-from mb_modelbase.models_core.cond_gaussian_fitting import *
-from mb_modelbase.models_core.cond_gaussian_wm import *
-from mb_modelbase.models_core.cond_gaussians import *
-from mb_modelbase.models_core.data_aggregation import *
-from mb_modelbase.models_core.domains import *
-from mb_modelbase.models_core.empirical_model import *
-from mb_modelbase.models_core.fixed_mixture_model import *
-from mb_modelbase.models_core.gaussians import *
-from mb_modelbase.models_core.mixable_cond_gaussian import *
-from mb_modelbase.models_core.mixture_cond_gaussian_wm import *
-from mb_modelbase.models_core.mixture_gaussians import *
-from mb_modelbase.models_core.mockup_model import *
-# from mb_modelbase.models_core.models_debug import *
-from mb_modelbase.models_core.models import *
-from mb_modelbase.models_core.pci_graph import *
-from mb_modelbase.models_core.splitter import *
-from mb_modelbase.models_core.gausspn import *
-from mb_modelbase.models_core.mspn import *
-from mb_modelbase.models_core.tests import *
-# from mb_modelbase.models_core.spflow import *
-from mb_modelbase.models_core.pyMC3_model import *
-from mb_modelbase.models_core.kde_model import *
+from .auto_extent import *
+from .base import *
+from .categoricals import *
+from .cond_gaussian_fitting import *
+from .cond_gaussian_wm import *
+from .cond_gaussians import *
+from .data_aggregation import *
+from .domains import *
+from .empirical_model import *
+from .fixed_mixture_model import *
+from .gaussians import *
+from .gausspn import *
+from .kde_model import *
+from .mixable_cond_gaussian import *
+from .mixture_cond_gaussian_wm import *
+from .mixture_gaussians import *
+from .mockup_model import *
+# from .models_debug import *
+from .models import *
+from .mspn import *
+# from .spflow import *
+from .pyMC3_model import *
+# from .pci_graph import *
+from .splitter import *
+from .tests import *
 

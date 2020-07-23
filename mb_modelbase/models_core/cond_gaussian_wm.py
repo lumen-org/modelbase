@@ -6,7 +6,7 @@ from numpy import nan, pi, exp, dot, abs, ix_
 from numpy.linalg import inv, det
 import xarray as xr
 
-import mb_modelbase.utils as utils
+from mb_modelbase import utils as utils
 from mb_modelbase.utils import no_nan
 from mb_modelbase.models_core import models as md
 from mb_modelbase.models_core import cond_gaussian_fitting as cgf

@@ -1,12 +1,10 @@
 from mb_modelbase.server import ModelBase
 from mb_modelbase.utils.benchmark import ModelbaseActivityfileBenchmark
 import pandas as pd
-
 from mb_modelbase import DictCache
-import time
-import json
-import abc
 import os
+
+"""This script compares the performance of modelbases with various cache types."""
 
 if __name__ == '__main__':
     model_dir = os.path.expanduser("~/git/lumen/fitted_models")
@@ -27,18 +25,19 @@ if __name__ == '__main__':
 
     bases = [
         no_cache,
-        dict_cache
+        dict_cache  # ,
+        # mem_cache
     ]
+
+    # Disable parallel processing to enable profiling with cProfile/snakeviz
+    for m in dict_cache.models.values():
+        m.parallel_processing = False
 
     benchmarks = [
         ModelbaseActivityfileBenchmark
     ]
 
-    df = pd.DataFrame({
-        base.name: [benchmark(os.path.expanduser('~/git/lumen/modelbase/mb_modelbase/utils/benchmark/interactions/interactionFeb:10:2020_13.log')).run(base) for benchmark in benchmarks] for base in bases
-    })
+    df = pd.DataFrame({base.name: [benchmark('interactionPhilippMod.log').run(
+        base) for benchmark in benchmarks] for base in bases})
 
-    df.to_csv(os.path.expanduser("~/git/lumen_caching/data/modelbaseCache_" + time.strftime("%b:%d:%Y_%H:%M:%S", time.gmtime(time.time())) + ".csv"))
-
-
-
+    # df.to_csv(os.path.expanduser("~/git/lumen_caching/data/modelbaseCache_" + time.strftime("%b:%d:%Y_%H:%M:%S", time.gmtime(time.time())) + ".csv"))

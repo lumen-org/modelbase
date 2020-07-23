@@ -56,7 +56,7 @@ class SPNModel(Model):
 
     def _update(self):
         """
-        the _density_mask is updated when the model is marginalized or conditioned
+        the _state_mask is updated when the model is marginalized or conditioned
         marginalized variables are represented with np.nan according to spflow
         conditioned variables are represented with 2
         untouched variables are represented with 1
@@ -126,7 +126,7 @@ class SPNModel(Model):
         self._initial_names_count = len(self._initial_names)
         self._initial_names_to_index = {self._initial_names[i]: i for i in range(self._initial_names_count)}
 
-        # Initialize _density_mask with np.nan
+        # Initialize _state_mask with np.nan
         self._state_mask = np.array(
             [np.nan for i in self._initial_names]
         ).reshape(-1, self._initial_names_count).astype(float)
@@ -154,6 +154,8 @@ class SPNModel(Model):
             self._spn = learn_mspn(df.values, context)
         else:
             raise Exception("Type of SPN not known: " + self._spn_type)
+
+        # TODO: DEBUG OUTPUT for NIPS2020
         if self._spn:
             plot_spn(self._spn, fname=Path(f"../../scripts/experiments/spn_graphs/{self.name}.pdf"))
             plot_spn_to_svg(self._spn, fname=Path(f"../../scripts/experiments/spn_graphs/{self.name}.svg"))
@@ -176,9 +178,12 @@ class SPNModel(Model):
 
         return self._unbound_updater,
 
-    # A dedicated density function that does not convert the input to numerical arguments like _density
-    # Used in the _maximum as objective function for the optimizer
     def _opt_density(self, x):
+        """A dedicated density function that does not convert the input to numerical arguments like
+         _density.
+
+        Used in the _maximum as objective function for the optimizer.
+        """
         state_mask = self._state_mask.copy()
 
         # Values of x get written to the respective positions in the state mask
@@ -230,33 +235,47 @@ class SPNModel(Model):
         with open(path, 'wb') as output:
             dill.dump(self, output, dill.HIGHEST_PROTOCOL)
 
-    def _expectation(self):
-        e = Expectation(self._spn)[0].tolist()
-        res = self._numeric_to_names(e)
-        return res
-
-    # Convert the categorical variables in the input vector from their numerical representation to the a string representation
     def _numeric_to_names(self, x):
+        """Convert the categorical variables in the input vector from their numerical representation
+         to the a string representation.
+        """
         for i in range(len(x)):
             if self.names[i] in self._categorical_variables:
                 x[i] = self._categorical_variables[self.names[i]]['int_to_name'][round(x[i])]
         return x
 
-    # Convert the categorical variables in the input list
     def _names_to_numeric(self, x: list):
+        """Convert the categorical variables in the input list.
+        """
         for i in range(len(x)):
             if self.names[i] in self._categorical_variables:
                 x[i] = self._categorical_variables[self.names[i]]['name_to_int'][x[i]]
         return x
 
+    def _expectation(self):
+        e = Expectation(self._spn)[0].tolist()
+        res = self._numeric_to_names(e)
+        return res
+
     def _maximum(self) -> list:
         fun = lambda x: -1 * self._opt_density(x)
-        n_samples = 10
+        n_samples = 10  # TOOD: make as argument!
         samples = self.data.sample(n_samples)
-        numeric_samples = [self._names_to_numeric(samples.iloc[i, :].tolist()) for i in range(samples.shape[0])]
-        optima = [scpo.minimize(fun, np.array(x), method='Nelder-Mead') for x in numeric_samples]
-        maxima = [x['x'] for x in optima]
+        numeric_samples = [self._names_to_numeric(samples.iloc[i, :].tolist())
+                           for i in range(samples.shape[0])]
+
+        optima = [ scpo.minimize(fun, np.array(x), method='Nelder-Mead') for x in numeric_samples ]
+        maxima = [ x['x'] for x in optima]
+        # NIPS2020: returns here
         return max(maxima).tolist()
+
+        # CL version continues as follows:
+        #values = [ x['fun'] for x in optima ]
+
+        #x0 = np.random.rand(len(self.data.columns.values))
+        #xopt = scpo.minimize(fun, x0, method='Nelder-Mead')
+        #res = self._numeric_to_names(list(xopt['x']))
+        #return res
 
     def _sample(self, n=1, random_state=RandomState(123)):
         placeholder = np.repeat(np.array(self._condition), n, axis=0)
@@ -265,6 +284,16 @@ class SPNModel(Model):
         result = s[:, indices]
         result = [self._numeric_to_names(l) for l in result.tolist()]
         return result
+
+        # master (CL) instead does:
+        # result = result.tolist()
+        # names = self.names
+        # # convert integers back to categorical names
+        # for r in result:
+        #    for i in range(len(r)):
+        #        if names[i] in self._categorical_variables:
+        #            r[i] = self._categorical_variables[names[i]]['int_to_name'][round(r[i])]
+        # return result
 
     def copy(self, name=None):
         mycopy = self._defaultcopy(name)

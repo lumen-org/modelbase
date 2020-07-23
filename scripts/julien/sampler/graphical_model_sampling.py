@@ -18,6 +18,9 @@ Please use the following command to see all arguments available.
 
 An example execution could be the following (with output existing directory):
 > python graphical_model_sampling.py data/ALLBUS/example.json -s 10 -o output
+
+Before using this program you have to compile the source as it uses c sources.
+Run `python setup.py build_ext --inplace` in a shell from this directory.
 """
 
 from pathlib import Path
@@ -31,10 +34,14 @@ import pstats
 import pandas as pd
 import time
 
-
 from scripts.julien.sampler.create_tree import create_tree
+
+# prepare for Cython import
+import pyximport
+pyximport.install()
 # Cython Modules
 from scripts.julien.sampler.gen_samples import generate_samples
+
 
 def get_arguments(trees, conditional_nodes, sample_count, process_count):
     samples_per_process = sample_count // process_count

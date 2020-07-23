@@ -16,6 +16,7 @@ import dill
 import numpy as np
 import pandas as pd
 import os
+import pathlib
 import logging
 import warnings
 from itertools import compress
@@ -318,7 +319,7 @@ class Model:
         else:
             return [self._name2idx[name] for name in names]
 
-    def byname(self, names):
+    def byname(self, names, attr=None):
         """Given a single name or a sequence of names of a field, return the corresponding single field or sequence
         of fields of this model.
 
@@ -328,10 +329,24 @@ class Model:
         def _byname(name):
             return self.fields[self._name2idx[name]]
 
+        def _bynameAndAttr(name):
+            return self.fields[self._name2idx[name]][attr]
+
+        _getter = _byname if attr is None else _bynameAndAttr
+
         if isinstance(names, str):
-            return _byname(names)
+            return _getter(names)
         else:
-            return [_byname(name) for name in names]
+            return [_getter(name) for name in names]
+
+    def dtypes(self, names):
+        """Given a single name or a sequence of names of a field, return the corresponding single dtype or sequence
+        of dtypes of these fields.
+
+        Equivalent to self.byname(names, attr='dtype'
+        Returns : string or list of string
+        """
+        return self.byname(names, attr='dtype')
 
     def isfieldname(self, names):
         """Returns true iff the single string or list of strings given as variables names are (all) names of random
@@ -369,13 +384,15 @@ class Model:
         """
         return utils.sort_filter_list(names, self.names)
 
-    def __init__(self, name="model"):
+    def __init__(self, name="model", description=""):
         """Construct and return a new model.
 
         Args:
             name [string]: name of the model. Defaults to 'model'.
         """
         self.name = name
+        self.model_type = type(self).__name__
+        self.description = description
         # the following is all done in _fields_set_empty, which is called below
         # self.fields = []
         # self.names = []
@@ -389,8 +406,9 @@ class Model:
         self.mode = None
         self.history = {}
         self.parallel_processing = True
-        self._empirical_model_name = None
+        self._empirical_model_name = name + "_emp"
         self.pci_graph = None
+        self.probabilistic_program_graph = None
 
     def _setempty(self):
         self._update_remove_fields()
@@ -408,12 +426,15 @@ class Model:
         json = {
             "name": self.name,
             "fields": self.json_fields(),
-            "empirical model": self._empirical_model_name
+            "empirical model": self._empirical_model_name,
+            "model type": self.model_type,
+            "description": self.description,
         }
         return json
 
     def set_empirical_model_name(self, name):
         self._empirical_model_name = name
+        return self
 
     def set_model_params(self, **kwargs):
         """Sets explicitly the parameters of a model.
@@ -454,12 +475,13 @@ class Model:
          - possibly existing data of the model are overwritten
          - possibly fitted model parameters are lost
 
-        Note that if the data does not fit to the specific type of the model, it will raise a TypeError. E.g. a gaussian
-        model cannot be fit on categorical data.
+        Note that if the data does not fit to the specific type of the model, it will raise a
+        TypeError. E.g. a gaussian odel cannot be fit on categorical data.
 
         Args:
             df: a pandas data frame
-            drop_silently: If set to True any column of df that is not suitable for the model to be learned will silently be dropped. Otherwise this will raise a TypeError.
+            drop_silently: If set to True any column of df that is not suitable for the model to be
+                learned will silently be dropped. Otherwise this will raise a TypeError.
             kwargs:
         Returns:
             self
@@ -863,6 +885,17 @@ class Model:
             self.data = data_operations.condition_data(self.data, conditions)
             self.test_data = data_operations.condition_data(self.test_data, conditions)
         self._update_extents(names)
+        return self
+
+    def set_configuration(self, config):
+        """Apply the provided configuration.
+
+        This method can be implemented by any actual model that derived from the abstract Model
+        class if there is the need to use any specific configuration.
+
+        Returns: Model
+            Returns itself.
+        """
         return self
 
     def _conditionout(self, keep, remove):
@@ -1390,13 +1423,14 @@ class Model:
         """
         # volume of all combined each quantitative domains
         vol = functools.reduce(operator.mul, [high - low for low, high in num_domains], 1)
+
         # map quantitative domains to their mid
         y = [(high + low) / 2 for low, high in num_domains]
 
         # sum up density over all elements of the cartesian product of the categorical part of the event
         # TODO: generalize
-        assert (all(len(d) == 1 for d in
-                    cat_domains)), "did not implement the case where categorical domain has more than one element"
+        assert (all(len(d) == 1 for d in cat_domains)),\
+            "did not implement the case where categorical domain has more than one element"
         x = list([d[0] for d in cat_domains])
         return vol * self._density(x + y)
         # return vol * self._density(list(cat_domains) + y)
@@ -1519,6 +1553,7 @@ class Model:
         """
         if filename is None:
             filename = self._default_filename()
+        pathlib.Path(dir).mkdir(parents=True, exist_ok=True)  # create folder if it not exists
         path = os.path.join(dir, filename)
         with open(path, 'wb') as output:
             dill.dump(self, output, dill.HIGHEST_PROTOCOL)
@@ -1674,10 +1709,6 @@ class Model:
             for_data: pd.DataFrame, optional.
                 Set of data points to do prediction for. Is combined with the values of `splitby` (if they overlap).
                 The columns of the dataframe must be labelled with the corresponding names of the dimensions in self.
-
-            returnbasemodel: bool
-                If set this method will return the pair (result-dataframe, basemodel-for-the-prediction). Defaults to
-                False.
 
         Returns:
 

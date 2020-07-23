@@ -13,11 +13,20 @@ import itertools
 
 
 class KDEModel(Model):
-    """
-    A Kernel Density Estimator (KDE) model is a model whose distribution is determined by using a kernel
-    density estimator. KDE work in a way that to each point of the observed data a so-called kernel distribution is
-    assigned centered at that point (e.g. a normal distribution). The distributions from all data points
-    are then summed up and build up the joint distribution for the model.
+    """ A Kernel Density Estimator (KDE) model is a model whose distribution is determined by
+    using a kernel density estimator. KDE work in a way that to each point of the observed data a
+    so-called kernel distribution is assigned centered at that point (e.g. a normal
+    distribution). The distributions from all data points are then summed up and build up the
+    joint distribution for the model.
+
+    Attributes:
+        name : string
+            Name of the model.
+        _kde_factor: number
+            The kde bandwidth. By default the kde bandwidth is chosen automatically. In this case
+            the bandwidth may be different for all individual kdes. _kde_factor is then None. If,
+            however, kde_bandwidth is set from the outside, all kdes use the same bandwidth,
+            that the value of _kde_factor.
     """
 
     def __init__(self, name):
@@ -29,21 +38,23 @@ class KDEModel(Model):
             'maximum': self._maximum,
         }
         self.parallel_processing = False
+        self._kde_factor = None
 
     def _set_data(self, df, drop_silently, **kwargs):
         self._set_data_mixed(df, drop_silently, split_data=False)
         self.test_data = self.data.iloc[0:0, :]
         # We need an additional structure for the model data, since the _conditionout method
-        # needs the data, however when it is called by _marginalize, the actual self.data
-        # is already marginalized abd thus not usable by _conditionout
+        # needs the data, however when it is called by _marginalize, the actual self.data is
+        # already marginalized and thus not usable by _conditionout
         self._emp_data = self.data.copy()
         return ()
 
     def _fit(self):
-        return()
+        return ()
 
     def _conditionout(self, keep, remove):
-        """Conditions the random variables with name in remove on their domain and marginalizes them out.
+        """Conditions the random variables with name in remove on their domain and marginalizes
+        them out.
         """
         for name in remove:
             # Remove all rows from the _emp_data that are outside the domain in name
@@ -66,7 +77,8 @@ class KDEModel(Model):
         return()
 
     def _marginalizeout(self, keep, remove):
-        """Marginalizes the dimensions in remove, keeping all those in keep"""
+        """Marginalizes the dimensions in remove, keeping all those in keep
+        """
         # Fit the model to the current data. The data dimension to marginalize over
         # should have been removed before
         self._fit()
@@ -77,8 +89,8 @@ class KDEModel(Model):
 
     def get_relative_frequency(self, value):
         value = list(value)
-        occurence = [row == value for row in self.data.values.tolist()]
-        freq = sum(occurence)
+        occurrence = [row == value for row in self.data.values.tolist()]
+        freq = sum(occurrence)
         rel_freq = freq / self.data.shape[0]
         return rel_freq
 
@@ -118,7 +130,7 @@ class KDEModel(Model):
                 for i in cat_idx:
                     cond_data = cond_data[cond_data.iloc[:, i] == x[i]]
                 # Get density of conditioned model p(num|cat)
-                kde = stats.gaussian_kde(cond_data.iloc[:, num_idx].T)
+                kde = stats.gaussian_kde(cond_data.iloc[:, num_idx].T, bw_method=self._kde_factor)
                 self.kde[str(x_cat)] = kde
                 x_num = np.reshape(x_num, (1, len(x_num)))
                 cond_density = kde.evaluate(x_num)
@@ -202,6 +214,7 @@ class KDEModel(Model):
             else:
                 cat_idx.append(idx)
         # Build kde
+        # TODO: why does it require a additional kde? can it not simply reuse the existing one??
         if len(num_idx) > 0:
             kde = stats.gaussian_kde(self.data.iloc[:, num_idx].T)
             # get samples for numerical dimensions
@@ -211,6 +224,19 @@ class KDEModel(Model):
             sample.iloc[:, cat_idx] = self.data.iloc[:, cat_idx].sample(n).values
         return sample
 
+    def kde_bandwidth(self, bandwidth=None):
+        if bandwidth is None:
+            return self._kde_factor
+        self._kde_factor = bandwidth
+        for kde in self.kde.values():
+            kde.set_bandwidth(bandwidth)
+        return self
+
+    def set_configuration(self, config):
+        if 'kdeBandwidth' in config:
+            self.kde_bandwidth(config['kdeBandwidth'])
+        return self
+
     def copy(self, name=None):
         name = self.name if name is None else name
         mycopy = self._defaultcopy(name)
@@ -219,6 +245,7 @@ class KDEModel(Model):
         mycopy._categoricals = self._categoricals.copy()
         mycopy._numericals = self._numericals.copy()
         mycopy.set_empirical_model_name(self._empirical_model_name)
+        mycopy._kde_factor = self._kde_factor
         return mycopy
 
 
