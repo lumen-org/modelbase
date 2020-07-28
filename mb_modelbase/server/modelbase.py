@@ -544,6 +544,23 @@ class ModelBase:
                 'status': 'configuration changed'
             })
 
+        elif 'LEARN_BN' in query:
+            success = True
+            model = self._extractModelByStatement(query, 'FROM')
+            # model.data
+
+            # TODO: do it julien
+            # Parameter: whitelist_edges, blacklistes_edges, discrete_nodes, continues_nodes,
+            # scores={bic, aic, loglik}, algorithm={tabu, hc, iamb, fast.iamb, inter.iamb, gs},
+            # threshold (for merging parameter), name, data (as data.frame).
+
+            # df, bn_model = my_fancy_bnlearn(data, whitelist, ...)
+
+
+            return _json_dumps({
+                'model': model.name,
+                'status': 'success' if success else 'failed learning'
+            })
         else:
             raise QueryIncompleteError(
                 "Missing Statement-Type (e.g. DROP, PREDICT, SELECT)")

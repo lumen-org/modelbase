@@ -40,7 +40,7 @@ class PPLModel():
             if verbose:
                 generate_prob_graphs(bayesian_model)
 
-    def generate_pymc(self, model_name="", output_file="", save=False, continues_data_file=None, cll=None):
+    def generate_pymc(self, model_name="", output_file="", save=False, continues_data_file=None):
         if self.error:
             if self.verbose:
                 print(f"Could not fit since bayesian model is wrong (R Error).")
@@ -52,10 +52,10 @@ class PPLModel():
             print(f"Learned bayesian network learned with {parameter} parameter.")
         if save:
             code = self.save_complete_pymc_code(code=code, parameter=parameter, model_name=model_name,
-                                                output_file=output_file, cll=cll)
+                                                output_file=output_file)
         return code
 
-    def save_complete_pymc_code(self, code, parameter, model_name, output_file, cll):
+    def save_complete_pymc_code(self, code, parameter, model_name, output_file):
         # remove with model and imports
         code = code.replace("import pymc3 as pm\nimport theano.tensor as tt\nwith pm.Model() as model:\n", "")
         # add two tabs before each line of code
@@ -69,7 +69,6 @@ class PPLModel():
             "parameter": parameter,
             "function_name": "create_" + model_name,
             "model_name": model_name,
-            "cll": cll,
         }
         complete_code = """#####################
 # {parameter} parameter
@@ -84,7 +83,6 @@ def {function_name}(filename="", modelname="{model_name}", fit=True):
     m.nr_of_posterior_samples = sample_size
     if fit:
         m.fit(train_data, auto_extend=False)
-        {cll}(m, test_data, model_file, happy_query_file, income_query_file)
     return df, m""".format(**parameter_dict)
         if "NaN" in complete_code:
             if self.verbose:
@@ -105,9 +103,7 @@ def {function_name}(filename="", modelname="{model_name}", fit=True):
         return bc
 
 
-def generate_new_pymc_file_allbus(file_name, result_file, sample_size=3000,
-                                  happy_query_file="allbus_happiness_values.dat",
-                                  income_query_file="allbus_income_values.dat"):
+def generate_new_pymc_file_allbus(file_name, sample_size=3000):
     code = """#!usr/bin/python
 # -*- coding: utf-8 -*-import string
 
@@ -143,10 +139,7 @@ dtm = DataTypeMapper()
 for name, map_ in allbus_backward_map.items():
     dtm.set_map(forward=allbus_forward_map[name], backward=map_, name=name)
 
-""".replace("{model_file}", f"'{result_file}'")\
-        .replace("{sample_size}", f"{sample_size}")\
-        .replace("{happy_query_file}", f"'{happy_query_file}'")\
-        .replace("{income_query_file}", f"'{income_query_file}'")
+""".replace("{sample_size}", f"{sample_size}")
     with open(file_name, "w") as f:
         f.write(code)
 

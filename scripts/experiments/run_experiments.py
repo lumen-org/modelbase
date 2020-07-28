@@ -1,6 +1,8 @@
 from time import time
 import os
 from inspect import getmembers, isfunction
+import logging
+
 import pandas as pd
 import numpy as np
 
@@ -26,12 +28,6 @@ import scripts.experiments.iris as iris
 from scripts.julien.learn_pymc3.PPLModelCreator import PPLModel, generate_new_pymc_file_allbus, \
     generate_new_pymc_file_iris
 
-# file where results from the experiments are saved
-result_file = "allbus_results.dat"
-
-# file for the density prediction values of happiness
-happy_query_file = "allbus_happiness_values.dat"
-income_query_file = "allbus_income_values.dat"
 
 # directory where the generated models for lumen are saved
 fitted_models_directory = "./fitted_models/"
@@ -44,10 +40,6 @@ fit_bnlearn = True
 fit_spn = False
 fit_sklearn = False
 fit_hand_tuned = True
-
-# assign the data set for running the experiment
-
-data_set = "allbus"
 
 # defined models
 spn_models = {
@@ -124,96 +116,52 @@ if __name__ == "__main__":
     start = time()
     print("Starting experiments...")
 
-    generate_happiness_plots(happy_query_file, output_path=os.path.dirname(__file__))
-    generate_happiness_plots(happy_query_file, output_path=os.path.dirname(__file__), one_in_all=True)
-    generate_income_plots(income_query_file, output_path=os.path.dirname(__file__))
-    generate_income_plots(income_query_file, output_path=os.path.dirname(__file__), one_in_all=True)
-
-    if data_set == "allbus":
-        print("Resetting results")
-        with open(result_file, "w") as f:
-            f.write(
-                f"modelname, h-mape, h-mae, sex-acc, sex-mae, ewa-acc, ew-mae, la-acc, "
-                f"la-mae, q1, q2, q3, q4\n")
-
-        print("Resetting continues data results for happiness")
-        # create contines data file
-        with open(happy_query_file, "w+") as f:
-            f.write(f"model,{','.join([str(i) for i in np.arange(0, 10, 0.1)])}\n")
-        with open(income_query_file, "w+") as f:
-            f.write(
-                f"model,30,130,230,330,430,530,630,730,830,930,1030,1130,1230,1330,1430,1530,1630,1730,1830,1930,2030,2130,2230,2330,2430,2530,2630,2730,2830,2930,3030,3130,3230,3330,3430,3530,3630,3730,3830,3930,4030,4130,4230,4330,4430,4530,4630,4730,4830,4930,5030,5130,5230,5330,5430,5530,5630,5730,5830,5930,6030,6130,6230,6330,6430,6530,6630,6730,6830,6930,7030,7130,7230,7330,7430,7530,7630,7730,7830,7930,8030,8130,8230,8330,8430,8530,8630,8730,8830,8930,9030,9130,9230,9330,9430\n")
     if fit_bnlearn:
         print("Calculate bnlearn models")
         # Since there are random initialisations, you have to restart the calculation different times, until all have fit
         # BNLearn just works on numbers
-        if data_set == "allbus":
-            data_file_all_numeric = allbus._numeric_data
-            # model definition file
-            pymc_model_file = "./models/pymc_models_allbus.py"
-            # we have beforehand the following discrete variables
-            discrete_variables = ['sex', 'eastwest', 'lived_abroad']
-        elif data_set == "iris":
-            data_file_all_numeric = iris._numeric_data
-            # model definition file
-            pymc_model_file = "./models/pymc_models_iris.py"
-            # we have beforehand the following discrete variables
-            discrete_variables = ['species']
+        data_file_all_numeric = allbus._numeric_data
+        # model definition file
+        pymc_model_file = "./models/pymc_models_allbus.py"
+        # we have beforehand the following discrete variables
+        discrete_variables = ['sex', 'eastwest', 'lived_abroad']
         # create a model for different algorithms and scores
-        algorithms = ["tabu", "inter.iamb", "fast.iamb", "hc", "gs", "iamb"]
-        scores = ["loglik-cg", "bic-cg"]
         could_not_fit = 1
         iteration = 0
         number_of_fitted = 0
-        while could_not_fit != 0 and iteration < 10:
-            # create a new pymc file
-            if data_set == "allbus":
-                generate_new_pymc_file_allbus(pymc_model_file, sample_size=sample_size, result_file=result_file,
-                                              happy_query_file=happy_query_file, income_query_file=income_query_file)
-            elif data_set == "iris":
-                generate_new_pymc_file_iris(pymc_model_file, sample_size=sample_size, result_file=result_file)
-            could_not_fit = 0
-            iteration += 1
-            number_of_fitted = 0
-            for algo in algorithms:
-                if algo in ["tabu", "hc"]:
-                    scores = ["bic-cg", "aic-cg"]
+        for algo, score in [("hc", "biccg"), ("fast.iamb", "")]:
+            while could_not_fit != 0 and iteration < 10:
+                # create a new pymc file
+                generate_new_pymc_file_allbus(pymc_model_file, sample_size=sample_size)
+                could_not_fit = 0
+                iteration += 1
+                number_of_fitted = 0
+                model_name = f"bnlearn_allbus_{algo}".replace("-", "").replace(".", "")
+                ppl_model = PPLModel(model_name, data_file_all_numeric, discrete_variables=discrete_variables,
+                                     verbose=False, algo=algo, score=score)
+                # the function returns 1 if the model could not be translated
+                error = ppl_model.generate_pymc(model_name=model_name, save=True, output_file=pymc_model_file)
+                if error:
+                    could_not_fit += error
                 else:
-                    scores = [""]
-                for score in scores:
-                    model_name = f"bnlearn_{data_set}_{algo}{score}".replace("-", "").replace(".", "")
-                    ppl_model = PPLModel(model_name, data_file_all_numeric, discrete_variables=discrete_variables,
-                                         verbose=False, algo=algo, score=score)
-                    # the function returns 1 if the model could not be translated
-                    error = ppl_model.generate_pymc(model_name=model_name, save=True, output_file=pymc_model_file,
-                                                    cll=f"cll_{data_set}")
-                    if error:
-                        could_not_fit += error
-                    else:
-                        number_of_fitted += 1
+                    number_of_fitted += 1
         print(f"Could fit: {number_of_fitted} of {could_not_fit + number_of_fitted} bnlearn models")
         # import the beforehand created file
-        if data_set == "allbus":
-            import scripts.experiments.models.pymc_models_allbus as pymc_allbus_models
+        import scripts.experiments.models.pymc_models_allbus as pymc_allbus_models
 
-            # read all model functions
-            functions = [o[1] for o in getmembers(pymc_allbus_models) if isfunction(o[1]) and o[0].startswith("create")]
-            create_functions = functions
-            # add the hand tuned model
-            if fit_hand_tuned:
-                from scripts.experiments.models.pymc_model_hand_tuned import create_allbus_model_NH0, \
-                    create_allbus_model_NH1, create_allbus_model_NH2, create_bnlearn_allbus_tabubiccg_adjusted
+        # read all model functions
+        functions = [o[1] for o in getmembers(pymc_allbus_models) if isfunction(o[1]) and o[0].startswith("create")]
+        create_functions = functions
+        # add the hand tuned model
+        if fit_hand_tuned:
+            from scripts.experiments.models.pymc_model_hand_tuned import create_allbus_model_NH0, \
+                create_allbus_model_NH1, create_allbus_model_NH2, create_bnlearn_allbus_tabubiccg_adjusted
 
-                # create_functions.append(create_allbus_model_N_onlymargs)
-                # create_functions.append(create_allbus_model_NH0)
-                # create_functions.append(create_allbus_model_NH1)
-                create_functions.append(create_allbus_model_NH2)
-                # create_functions.append(create_bnlearn_allbus_tabubiccg_adjusted)
-        elif data_set == "iris":
-            import scripts.experiments.models.pymc_models_iris as pymc_iris_models
-
-            functions = [o[1] for o in getmembers(pymc_iris_models) if isfunction(o[1]) and o[0].startswith("create")]
-            create_functions = functions
+            # create_functions.append(create_allbus_model_N_onlymargs)
+            # create_functions.append(create_allbus_model_NH0)
+            # create_functions.append(create_allbus_model_NH1)
+            create_functions.append(create_allbus_model_NH2)
+            # create_functions.append(create_bnlearn_allbus_tabubiccg_adjusted)
         # fit all the files
         for index, func in enumerate(create_functions):
             print(f"Calculate metrics for bnlearn model {index + 1} of {len(create_functions)}")
@@ -248,63 +196,6 @@ if __name__ == "__main__":
 
     if fit_spn:
         print("Calculate SPN models")
-        models = fit_models(spn_models[data_set], verbose=True, include=[model for model in spn_models[data_set]])
-        print("Calculate SPN model scores (skip emp)")
-        number_of_spn_models = len(models)
-        for index, (model_name, property) in enumerate(models.items()):
-            print(f"Calculate SPN model {index + 1} of {number_of_spn_models} ({model_name})")
-            if not model_name.startswith("emp"):
-                if not model_name.startswith("spn_"):
-                    if data_set == "allbus":
-                        cll_allbus(property["model"], allbus.test(numeric_happy=False), result_file, happy_query_file,
-                                   income_query_file)
-                if data_set == "iris":
-                    print("\tLikelihood on train data:", property["model"].loglikelihood())
+        models = fit_models(spn_models["allbus"], verbose=True, include=[model for model in spn_models["allbus"]])
         save_models(models, fitted_models_directory)
 
-    if fit_sklearn and data_set == "allbus":
-        print("Learn and try different sklearn models")
-
-
-        def mae_score(y_true, y_predict):
-            return np.sum(np.abs(y_true - y_predict)) / len(y_true)
-
-
-        # calculates the accuracy score for variable
-        def _test_var(train, test, variable):
-            y_train = train[variable]
-            del train[variable]
-            X_train = train
-            y_test = test[variable]
-            del test[variable]
-            X_test = test
-            model_scores = {}
-            for model in [model1, model2, model3, model4, model5]:
-                m = model()
-                m.fit(X_train, y_train)
-                acc = accuracy_score(y_test, m.predict(X_test))
-                mae = mae_score(y_test, m.predict(X_test))
-                model_scores[f"{m.__class__.__name__}"] = {'acc': acc, 'mae': mae}
-            return model_scores
-
-
-        # calculate the scores and save them
-        train_data = allbus.train(discretize_all=True)
-        test_data = allbus.test(discretize_all=True)
-        scores_happy = _test_var(train_data, test_data, "happiness")
-        scores_sex = _test_var(train_data, test_data, "sex")
-        scores_eastwest = _test_var(train_data, test_data, "eastwest")
-        scores_lived_abroad = _test_var(train_data, test_data, "lived_abroad")
-        with open(result_file, "a+") as f:
-            for model in scores_happy.keys():
-                f.write(f"{model}, {scores_happy[model]['acc']}, {scores_happy[model]['mae']}, "
-                        f"{scores_sex[model]['acc']}, {scores_sex[model]['mae']}\n")
-
-    print(f"Calculated all scores and fitted all models in {time() - start}s")
-    if data_set == "allbus":
-        print("\nRESULTS:")
-        print(get_results_from_file(result_file))
-        generate_happiness_plots(happy_query_file, output_path=os.path.dirname(__file__))
-        generate_happiness_plots(happy_query_file, output_path=os.path.dirname(__file__), one_in_all=True)
-        generate_income_plots(income_query_file, output_path=os.path.dirname(__file__))
-        generate_income_plots(income_query_file, output_path=os.path.dirname(__file__), one_in_all=True)
