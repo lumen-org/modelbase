@@ -157,8 +157,9 @@ class SPNModel(Model):
 
         # TODO: DEBUG OUTPUT for NIPS2020
         if self._spn:
-            plot_spn(self._spn, fname=Path(f"../../scripts/experiments/spn_graphs/{self.name}.pdf"))
-            plot_spn_to_svg(self._spn, fname=Path(f"../../scripts/experiments/spn_graphs/{self.name}.svg"))
+            pass
+            # plot_spn(self._spn, fname=Path(f"../../scripts/experiments/spn_graphs/{self.name}.pdf"))
+            # plot_spn_to_svg(self._spn, fname=Path(f"../../scripts/experiments/spn_graphs/{self.name}.svg"))
         return self._unbound_updater,
 
     def _marginalizeout(self, keep, remove):

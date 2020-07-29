@@ -342,7 +342,7 @@ class ProbabilisticPymc3Model(Model):
         with self.model_structure:
             if pp:
                 trace = pd.DataFrame(pm.sample_prior_predictive(n))
-                return self._data_type_mapper.backward(trace, inplace=False), trace
+                return trace
             trace = pm.sample(n,
                               chains=self.sampling_chains,
                               cores=self.sampling_cores,
@@ -455,7 +455,7 @@ class ProbabilisticPymc3Model(Model):
         else:
             raise ValueError('invalid value for sample_mode: {}'.format(sample_mode))
 
-        assert(len(sample) == n)
+#        assert(len(sample) == n)
 
         # map samples from model space in to data space
         if mode is 'model':
