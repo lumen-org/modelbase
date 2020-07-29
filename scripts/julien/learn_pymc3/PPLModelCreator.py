@@ -35,7 +35,7 @@ class PPLModel():
                 print("Network Description", descr)
                 bayesian_model.get_graph().export_as_graphviz(model_name, view=verbose)
             # generate json for sampler
-            bayesian_model.generate_json_for_sampler(f"{model_name}_sampler.json")
+            # bayesian_model.generate_json_for_sampler(f"{model_name}_sampler.json")
             self.bayesian_model = bayesian_model
             if verbose:
                 generate_prob_graphs(bayesian_model)
@@ -121,11 +121,6 @@ test_data = allbus_data.test(numeric_happy=False)
 train_data = allbus_data.train(numeric_happy=False)
 
 df = train_data
-
-# SAVE PARAMETER IN THIS FILE
-model_file = {model_file}
-happy_query_file = {happy_query_file}
-income_query_file = {income_query_file}
 
 sample_size = {sample_size}
 
