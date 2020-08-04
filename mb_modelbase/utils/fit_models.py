@@ -8,6 +8,7 @@ import os.path
 import pandas as pd
 
 from mb_modelbase.models_core.empirical_model import EmpiricalModel
+from mb_modelbase.models_core.kde_model import KDEModel
 from mb_modelbase.server import ModelBase
 
 # setup logger
@@ -23,7 +24,7 @@ path_prefix = os.path.join(os.path.dirname(__file__), os.pardir, 'mb_data')
 
 
 def make_empirical_model(modelname, output_directory=None, input_file: str = None,
-                         base_model = None, df: pd.DataFrame = None,
+                         base_model = None, df: pd.DataFrame = None, model_type = 'empirical',
                          verbose: bool = False):
     """A one-stop function to create an `EmpiricalModel` from data.
 
@@ -44,6 +45,8 @@ def make_empirical_model(modelname, output_directory=None, input_file: str = Non
              specify the data in `df`.
         df: pd.DataFrame, optional.
             Data to use for model fitting. Alternatively specify a csv file in `input_file`.
+        model_type: str, optional. Defaults to 'empirical'
+            The type of model to create.
         verbose: bool
             Enable to print debug output.
     Return:
@@ -75,7 +78,13 @@ def make_empirical_model(modelname, output_directory=None, input_file: str = Non
         print("Your data frame looks like this: \n{}".format(str(df.head())))
 
     # fit model
-    model = EmpiricalModel(modelname)
+    if model_type == 'empirical':
+        model = EmpiricalModel(modelname)
+    elif model_type == 'kde':
+        model = KDEModel(modelname)
+    else:
+        raise ValueError('Cannot create model automatically. Invalid value for model_type: {}. '
+                         ''.format(model_type))
     model.set_data(df=training_data, split_data=False)\
         .fit()\
         .set_empirical_model_name(modelname)

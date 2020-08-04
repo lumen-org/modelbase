@@ -406,7 +406,7 @@ class Model:
         self.mode = None
         self.history = {}
         self.parallel_processing = True
-        self._empirical_model_name = name + "_emp"
+        self._datamodel_name = name + "_datamodel"
         self.pci_graph = None
         self.probabilistic_program_graph = None
 
@@ -426,14 +426,14 @@ class Model:
         json = {
             "name": self.name,
             "fields": self.json_fields(),
-            "empirical model": self._empirical_model_name,
-            "model type": self.model_type,
+            "data-model name": self._datamodel_name,
+            "model type": str(self.model_type),
             "description": self.description,
         }
         return json
 
     def set_empirical_model_name(self, name):
-        self._empirical_model_name = name
+        self._datamodel_name = name
         return self
 
     def set_model_params(self, **kwargs):
@@ -516,7 +516,9 @@ class Model:
             [c() for c in callbacks]
 
         # see issue #93
-        # self.pci_graph = pci_graph.create(self.data) if kwargs['pci_graph'] else None
+        if kwargs['pci_graph']:
+            raise NotImplementedError("Cannot compute PCI graph for now. See https://github.com/lumen-org/modelbase/issues/93")
+            # self.pci_graph = pci_graph.create(self.data) if kwargs['pci_graph'] else None
         self.pci_graph = None
         return self
 
@@ -652,7 +654,7 @@ class Model:
             The modified, fitted model.
         """
         if 'empirical_model_name' in kwargs:
-            self._empirical_model_name = kwargs['empirical_model_name']
+            self._datamodel_name = kwargs['empirical_model_name']
 
         if df is not None:
             return self.set_data(df, **kwargs).fit(auto_extend=auto_extend, **kwargs)
@@ -1494,7 +1496,9 @@ class Model:
         mycopy.history = cp.deepcopy(self.history)
         mycopy.parallel_processing = self.parallel_processing
         mycopy.pci_graph = cp.deepcopy(self.pci_graph)
-        mycopy._empirical_model_name = self._empirical_model_name
+        mycopy.set_empirical_model_name(self._datamodel_name)
+        mycopy.model_type = self.model_type
+        mycopy.description = self.description
         return mycopy
 
     def _condition_values(self, names=None, pairflag=False, to_scalar=True):
@@ -2071,7 +2075,7 @@ class Model:
         # TODO: why is there np.array ? isn't that slow?
         # TODO: why pass data in the first place?
         # TODO: why sum over it?
-        return sum([np.log(self._density(x)) for x in np.array(data)])
+        return sum([np.log(self._density(x)) for x in np.asarray(data)])
 
 
 if __name__ == '__main__':

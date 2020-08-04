@@ -1,4 +1,4 @@
-# Copyright (c) 2019 Philipp Lucas (philipp.lucas@dlr.de)
+# Copyright (c) 2019-2020 Philipp Lucas (philipp.lucas@dlr.de)
 """
 @author: Philipp Lucas
 """
@@ -42,8 +42,8 @@ class DataTypeMapper:
         if obj_type is pd.DataFrame:
             if inplace is False:
                 data = data.copy()
-            columns = data.columns.intersection(mapping.keys())
-            for c in columns:
+            column_names = data.columns.intersection(mapping.keys())
+            for c in column_names:
                 self._map(data.loc[:, c], mapping, inplace=True)
             return data
 

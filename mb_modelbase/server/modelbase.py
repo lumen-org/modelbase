@@ -752,17 +752,10 @@ class ModelBase:
         if for_model is None:
             raise QueryValueError('model {} does not exist and hence an empirical model cannot'
                                   ' be created for it.'.format(for_model_name))
-
         model_type = opts.get('MODEL_TYPE', 'empirical')
-        if model_type not in ['empirical', 'kde']:
-            raise QueryValueError('Cannot create model automatically. Invalid value for '
-                                  'MODEL_TYPE: {}. '.format(model_type))
-
-        if model_type == 'kde':
-            raise NotImplementedError()
 
         data_model = fit_models.make_empirical_model(modelname=model_name, base_model=for_model,
-                                                     output_directory=self.model_dir)
+                                                     output_directory=self.model_dir, model_type=model_type)
         return self.add(data_model, name=model_name, filename=model_name+".mdl")
 
     def model_key(self, query) -> str:

@@ -228,10 +228,10 @@ class TestMethodsOnFittedModel(unittest.TestCase):
                                     "Model: " + mymod.name)
 
             #Test empiricial_model_name
-            old_emp_name = mymod._empirical_model_name
+            old_emp_name = mymod._datamodel_name
             new_emp_name = 'qwertzuiopü'
             mymod.set_empirical_model_name(new_emp_name)
-            self.assertTrue(mymod_copy._empirical_model_name == old_emp_name,
+            self.assertTrue(mymod_copy._datamodel_name == old_emp_name,
                             "Empricial model name of copy is affected by changes in original model. "
                             "Model: " + mymod.name)
 

@@ -244,7 +244,6 @@ class KDEModel(Model):
         mycopy._emp_data = self._emp_data.copy()
         mycopy._categoricals = self._categoricals.copy()
         mycopy._numericals = self._numericals.copy()
-        mycopy.set_empirical_model_name(self._empirical_model_name)
         mycopy._kde_factor = self._kde_factor
         return mycopy
 
