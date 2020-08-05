@@ -734,7 +734,7 @@
     <!-- '"` --><!-- </textarea></xmp> --></option></form><form data-remote="true" class="clearfix js-social-form js-social-container" action="/notifications/subscribe" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="QCJ1py4qzXrGg+DbWTMaKETbHRX0di4JK9AgmGiSh481+ln3Xcsj1i/uLXknK0C/HEWcWuaemLI4+Dy8xuF0UQ==" />      <input type="hidden" name="repository_id" value="152430015">
 
       <details class="details-reset details-overlay select-menu float-left">
-        <summary class="select-menu-button float-left btn btn-sm btn-with-count" data-hydro-click="{&quot;event_type&quot;:&quot;repository.click&quot;,&quot;payload&quot;:{&quot;target&quot;:&quot;WATCH_BUTTON&quot;,&quot;repository_id&quot;:152430015,&quot;originating_url&quot;:&quot;https://github.com/lumen-org/modelbase/blob/nips2020/scripts/julien/learn_pymc3/ProbParameter.py&quot;,&quot;user_id&quot;:726737}}" data-hydro-click-hmac="c9df74ae288ed5c9d41d5fbf8ae06162de8ee1039de2651e77784787c064c476" data-ga-click="Repository, click Watch settings, action:blob#show">          <span data-menu-button>
+        <summary class="select-menu-button float-left btn btn-sm btn-with-count" data-hydro-click="{&quot;event_type&quot;:&quot;repository.click&quot;,&quot;payload&quot;:{&quot;target&quot;:&quot;WATCH_BUTTON&quot;,&quot;repository_id&quot;:152430015,&quot;originating_url&quot;:&quot;https://github.com/lumen-org/modelbase/blob/nips2020/bin/julien/learn_pymc3/ProbParameter.py&quot;,&quot;user_id&quot;:726737}}" data-hydro-click-hmac="c9df74ae288ed5c9d41d5fbf8ae06162de8ee1039de2651e77784787c064c476" data-ga-click="Repository, click Watch settings, action:blob#show">          <span data-menu-button>
               <svg class="octicon octicon-eye v-align-text-bottom" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8.06 2C3 2 0 8 0 8s3 6 8.06 6C13 14 16 8 16 8s-3-6-7.94-6zM8 12c-2.2 0-4-1.78-4-4 0-2.2 1.8-4 4-4 2.22 0 4 1.8 4 4 0 2.22-1.78 4-4 4zm2-4c0 1.11-.89 2-2 2-1.11 0-2-.89-2-2 0-1.11.89-2 2-2 1.11 0 2 .89 2 2z"></path></svg>
               Unwatch
           </span>
@@ -807,7 +807,7 @@
       <div class="js-toggler-container js-social-container starring-container ">
     <form class="starred js-social-form" action="/lumen-org/modelbase/unstar" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="HEIRNZ16HWquDtF5nhpERZ09uVxw7fDuWW6JzUAOGErenolUVmiJTLlcse50AMU6fH+2R83OKAtspA4wh3NmRQ==" />
       <input type="hidden" name="context" value="repository"></input>
-      <button type="submit" class="btn btn-sm btn-with-count js-toggler-target" aria-label="Unstar this repository" title="Unstar lumen-org/modelbase" data-hydro-click="{&quot;event_type&quot;:&quot;repository.click&quot;,&quot;payload&quot;:{&quot;target&quot;:&quot;UNSTAR_BUTTON&quot;,&quot;repository_id&quot;:152430015,&quot;originating_url&quot;:&quot;https://github.com/lumen-org/modelbase/blob/nips2020/scripts/julien/learn_pymc3/ProbParameter.py&quot;,&quot;user_id&quot;:726737}}" data-hydro-click-hmac="a97a57b3013e38e625b0a72cfd6abac2f59daab00447b047e8dc6d73601b5ee2" data-ga-click="Repository, click unstar button, action:blob#show; text:Unstar">        <svg height="16" class="octicon octicon-star v-align-text-bottom" vertical_align="text_bottom" viewBox="0 0 14 16" version="1.1" width="14" aria-hidden="true"><path fill-rule="evenodd" d="M14 6l-4.9-.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14 7 11.67 11.33 14l-.93-4.74L14 6z"></path></svg>
+      <button type="submit" class="btn btn-sm btn-with-count js-toggler-target" aria-label="Unstar this repository" title="Unstar lumen-org/modelbase" data-hydro-click="{&quot;event_type&quot;:&quot;repository.click&quot;,&quot;payload&quot;:{&quot;target&quot;:&quot;UNSTAR_BUTTON&quot;,&quot;repository_id&quot;:152430015,&quot;originating_url&quot;:&quot;https://github.com/lumen-org/modelbase/blob/nips2020/bin/julien/learn_pymc3/ProbParameter.py&quot;,&quot;user_id&quot;:726737}}" data-hydro-click-hmac="a97a57b3013e38e625b0a72cfd6abac2f59daab00447b047e8dc6d73601b5ee2" data-ga-click="Repository, click unstar button, action:blob#show; text:Unstar">        <svg height="16" class="octicon octicon-star v-align-text-bottom" vertical_align="text_bottom" viewBox="0 0 14 16" version="1.1" width="14" aria-hidden="true"><path fill-rule="evenodd" d="M14 6l-4.9-.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14 7 11.67 11.33 14l-.93-4.74L14 6z"></path></svg>
 
         Unstar
 </button>        <a class="social-count js-social-count" href="/lumen-org/modelbase/stargazers"
@@ -817,7 +817,7 @@
 </form>
     <form class="unstarred js-social-form" action="/lumen-org/modelbase/star" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="xTj8wnWr334nM77r+PwT6wIFTQrzA6aJjOp54rSGt8TdR7sSLM3nN3PJYeInNgNQd2nMwxIGYJ/rcUCI8TB+pw==" />
       <input type="hidden" name="context" value="repository"></input>
-      <button type="submit" class="btn btn-sm btn-with-count js-toggler-target" aria-label="Unstar this repository" title="Star lumen-org/modelbase" data-hydro-click="{&quot;event_type&quot;:&quot;repository.click&quot;,&quot;payload&quot;:{&quot;target&quot;:&quot;STAR_BUTTON&quot;,&quot;repository_id&quot;:152430015,&quot;originating_url&quot;:&quot;https://github.com/lumen-org/modelbase/blob/nips2020/scripts/julien/learn_pymc3/ProbParameter.py&quot;,&quot;user_id&quot;:726737}}" data-hydro-click-hmac="61ad083e5890f0d0895b9b28091fedc9866a61a22bd01e79d859f9cf412fa302" data-ga-click="Repository, click star button, action:blob#show; text:Star">        <svg height="16" class="octicon octicon-star v-align-text-bottom" vertical_align="text_bottom" viewBox="0 0 14 16" version="1.1" width="14" aria-hidden="true"><path fill-rule="evenodd" d="M14 6l-4.9-.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14 7 11.67 11.33 14l-.93-4.74L14 6z"></path></svg>
+      <button type="submit" class="btn btn-sm btn-with-count js-toggler-target" aria-label="Unstar this repository" title="Star lumen-org/modelbase" data-hydro-click="{&quot;event_type&quot;:&quot;repository.click&quot;,&quot;payload&quot;:{&quot;target&quot;:&quot;STAR_BUTTON&quot;,&quot;repository_id&quot;:152430015,&quot;originating_url&quot;:&quot;https://github.com/lumen-org/modelbase/blob/nips2020/bin/julien/learn_pymc3/ProbParameter.py&quot;,&quot;user_id&quot;:726737}}" data-hydro-click-hmac="61ad083e5890f0d0895b9b28091fedc9866a61a22bd01e79d859f9cf412fa302" data-ga-click="Repository, click star button, action:blob#show; text:Star">        <svg height="16" class="octicon octicon-star v-align-text-bottom" vertical_align="text_bottom" viewBox="0 0 14 16" version="1.1" width="14" aria-hidden="true"><path fill-rule="evenodd" d="M14 6l-4.9-.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14 7 11.67 11.33 14l-.93-4.74L14 6z"></path></svg>
 
         Star
 </button>        <a class="social-count js-social-count" href="/lumen-org/modelbase/stargazers"
@@ -1021,7 +1021,7 @@
   
 
 
-    <a class="d-none js-permalink-shortcut" data-hotkey="y" href="/lumen-org/modelbase/blob/cae248850dbc94eccdc4a892a1a7b986d226da75/scripts/julien/learn_pymc3/ProbParameter.py">Permalink</a>
+    <a class="d-none js-permalink-shortcut" data-hotkey="y" href="/lumen-org/modelbase/blob/cae248850dbc94eccdc4a892a1a7b986d226da75/bin/julien/learn_pymc3/ProbParameter.py">Permalink</a>
 
     <!-- blob contrib key: blob_contributors:v22:e203d731bbeb26c6cc2d19b2637f7476 -->
     
@@ -1038,7 +1038,7 @@
     <span class="dropdown-caret"></span>
   </summary>
 
-  <details-menu class="SelectMenu SelectMenu--hasFilter" src="/lumen-org/modelbase/refs/nips2020/scripts/julien/learn_pymc3/ProbParameter.py?source_action=show&amp;source_controller=blob" preload>
+  <details-menu class="SelectMenu SelectMenu--hasFilter" src="/lumen-org/modelbase/refs/nips2020/bin/julien/learn_pymc3/ProbParameter.py?source_action=show&amp;source_controller=blob" preload>
     <div class="SelectMenu-modal">
       <include-fragment class="SelectMenu-loading" aria-label="Menu is loading">
         <svg class="octicon octicon-octoface anim-pulse" height="32" viewBox="0 0 16 16" version="1.1" width="32" aria-hidden="true"><path fill-rule="evenodd" d="M14.7 5.34c.13-.32.55-1.59-.13-3.31 0 0-1.05-.33-3.44 1.3-1-.28-2.07-.32-3.13-.32s-2.13.04-3.13.32c-2.39-1.64-3.44-1.3-3.44-1.3-.68 1.72-.26 2.99-.13 3.31C.49 6.21 0 7.33 0 8.69 0 13.84 3.33 15 7.98 15S16 13.84 16 8.69c0-1.36-.49-2.48-1.3-3.35zM8 14.02c-3.3 0-5.98-.15-5.98-3.35 0-.76.38-1.48 1.02-2.07 1.07-.98 2.9-.46 4.96-.46 2.07 0 3.88-.52 4.96.46.65.59 1.02 1.3 1.02 2.07 0 3.19-2.68 3.35-5.98 3.35zM5.49 9.01c-.66 0-1.2.8-1.2 1.78s.54 1.79 1.2 1.79c.66 0 1.2-.8 1.2-1.79s-.54-1.78-1.2-1.78zm5.02 0c-.66 0-1.2.79-1.2 1.78s.54 1.79 1.2 1.79c.66 0 1.2-.8 1.2-1.79s-.53-1.78-1.2-1.78z"></path></svg>
@@ -1054,15 +1054,15 @@
                 data-hotkey="t">
             Find file
           </a>
-          <clipboard-copy value="scripts/julien/learn_pymc3/ProbParameter.py" class="btn btn-sm BtnGroup-item">
+          <clipboard-copy value="bin/julien/learn_pymc3/ProbParameter.py" class="btn btn-sm BtnGroup-item">
             Copy path
           </clipboard-copy>
         </div>
       </span>
       <h2 id="blob-path" class="breadcrumb flex-auto min-width-0 text-normal flex-md-self-center ml-md-2 mr-md-3 my-2 my-md-0">
-        <span class="js-repo-root text-bold"><span class="js-path-segment d-inline-block wb-break-all"><a data-pjax="true" href="/lumen-org/modelbase/tree/nips2020"><span>modelbase</span></a></span></span><span class="separator">/</span><span class="js-path-segment d-inline-block wb-break-all"><a data-pjax="true" href="/lumen-org/modelbase/tree/nips2020/scripts"><span>scripts</span></a></span><span class="separator">/</span><span class="js-path-segment d-inline-block wb-break-all"><a data-pjax="true" href="/lumen-org/modelbase/tree/nips2020/scripts/julien"><span>julien</span></a></span><span class="separator">/</span><span class="js-path-segment d-inline-block wb-break-all"><a data-pjax="true" href="/lumen-org/modelbase/tree/nips2020/scripts/julien/learn_pymc3"><span>learn_pymc3</span></a></span><span class="separator">/</span><strong class="final-path">ProbParameter.py</strong>
+        <span class="js-repo-root text-bold"><span class="js-path-segment d-inline-block wb-break-all"><a data-pjax="true" href="/lumen-org/modelbase/tree/nips2020"><span>modelbase</span></a></span></span><span class="separator">/</span><span class="js-path-segment d-inline-block wb-break-all"><a data-pjax="true" href="/lumen-org/modelbase/tree/nips2020/bin"><span>scripts</span></a></span><span class="separator">/</span><span class="js-path-segment d-inline-block wb-break-all"><a data-pjax="true" href="/lumen-org/modelbase/tree/nips2020/bin/julien"><span>julien</span></a></span><span class="separator">/</span><span class="js-path-segment d-inline-block wb-break-all"><a data-pjax="true" href="/lumen-org/modelbase/tree/nips2020/bin/julien/learn_pymc3"><span>learn_pymc3</span></a></span><span class="separator">/</span><strong class="final-path">ProbParameter.py</strong>
           <span class="separator">/</span><details class="details-reset details-overlay d-inline" id="jumpto-symbol-select-menu">
-  <summary class="btn-link link-gray css-truncate" aria-haspopup="true" data-hotkey="r" data-hydro-click="{&quot;event_type&quot;:&quot;code_navigation.click_on_blob_definitions&quot;,&quot;payload&quot;:{&quot;action&quot;:&quot;click_on_blob_definitions&quot;,&quot;repository_id&quot;:152430015,&quot;ref&quot;:&quot;nips2020&quot;,&quot;language&quot;:&quot;Python&quot;,&quot;originating_url&quot;:&quot;https://github.com/lumen-org/modelbase/blob/nips2020/scripts/julien/learn_pymc3/ProbParameter.py&quot;,&quot;user_id&quot;:726737}}" data-hydro-click-hmac="3f79d19149d455e548a86ed58dac823f27ecc66b239f8cd5bf8b45a6d31a6be1">
+  <summary class="btn-link link-gray css-truncate" aria-haspopup="true" data-hotkey="r" data-hydro-click="{&quot;event_type&quot;:&quot;code_navigation.click_on_blob_definitions&quot;,&quot;payload&quot;:{&quot;action&quot;:&quot;click_on_blob_definitions&quot;,&quot;repository_id&quot;:152430015,&quot;ref&quot;:&quot;nips2020&quot;,&quot;language&quot;:&quot;Python&quot;,&quot;originating_url&quot;:&quot;https://github.com/lumen-org/modelbase/blob/nips2020/bin/julien/learn_pymc3/ProbParameter.py&quot;,&quot;user_id&quot;:726737}}" data-hydro-click-hmac="3f79d19149d455e548a86ed58dac823f27ecc66b239f8cd5bf8b45a6d31a6be1">
       <svg class="octicon octicon-code" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M9.5 3L8 4.5 11.5 8 8 11.5 9.5 13 14 8 9.5 3zm-5 0L0 8l4.5 5L6 11.5 2.5 8 6 4.5 4.5 3z"></path></svg>
     <span data-menu-button>Jump to</span>
     <span class="dropdown-caret"></span>
@@ -1103,7 +1103,7 @@
               data-hotkey="t">
           Find file
         </a>
-        <clipboard-copy value="scripts/julien/learn_pymc3/ProbParameter.py" class="btn btn-sm BtnGroup-item">
+        <clipboard-copy value="bin/julien/learn_pymc3/ProbParameter.py" class="btn btn-sm BtnGroup-item">
           Copy path
         </clipboard-copy>
       </div>
@@ -1111,7 +1111,7 @@
 
 
 
-    <include-fragment src="/lumen-org/modelbase/contributors/nips2020/scripts/julien/learn_pymc3/ProbParameter.py" class="Box Box--condensed commit-loader">
+    <include-fragment src="/lumen-org/modelbase/contributors/nips2020/bin/julien/learn_pymc3/ProbParameter.py" class="Box Box--condensed commit-loader">
       <div class="Box-body bg-blue-light f6">
         Fetching contributors&hellip;
       </div>
@@ -1140,9 +1140,9 @@
   <div class="d-flex py-1 py-md-0 flex-auto flex-order-1 flex-md-order-2 flex-sm-grow-0 flex-justify-between">
 
     <div class="BtnGroup">
-      <a id="raw-url" class="btn btn-sm BtnGroup-item" href="/lumen-org/modelbase/raw/nips2020/scripts/julien/learn_pymc3/ProbParameter.py">Raw</a>
-        <a class="btn btn-sm js-update-url-with-hash BtnGroup-item" data-hotkey="b" href="/lumen-org/modelbase/blame/nips2020/scripts/julien/learn_pymc3/ProbParameter.py">Blame</a>
-      <a rel="nofollow" class="btn btn-sm BtnGroup-item" href="/lumen-org/modelbase/commits/nips2020/scripts/julien/learn_pymc3/ProbParameter.py">History</a>
+      <a id="raw-url" class="btn btn-sm BtnGroup-item" href="/lumen-org/modelbase/raw/nips2020/bin/julien/learn_pymc3/ProbParameter.py">Raw</a>
+        <a class="btn btn-sm js-update-url-with-hash BtnGroup-item" data-hotkey="b" href="/lumen-org/modelbase/blame/nips2020/bin/julien/learn_pymc3/ProbParameter.py">Blame</a>
+      <a rel="nofollow" class="btn btn-sm BtnGroup-item" href="/lumen-org/modelbase/commits/nips2020/bin/julien/learn_pymc3/ProbParameter.py">History</a>
     </div>
 
 
@@ -1155,13 +1155,13 @@
               <svg class="octicon octicon-device-desktop" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M15 2H1c-.55 0-1 .45-1 1v9c0 .55.45 1 1 1h5.34c-.25.61-.86 1.39-2.34 2h8c-1.48-.61-2.09-1.39-2.34-2H15c.55 0 1-.45 1-1V3c0-.55-.45-1-1-1zm0 9H1V3h14v8z"></path></svg>
           </a>
 
-          <!-- '"` --><!-- </textarea></xmp> --></option></form><form class="inline-form js-update-url-with-hash" action="/lumen-org/modelbase/edit/nips2020/scripts/julien/learn_pymc3/ProbParameter.py" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="6O+IIHDv777cEDGyR7n3f79YSfMWBXJiKvTB6KyoyfflgnPBohdwn8nV7kymnELTgduYv+5k8xAAMkFU9nDiHA==" />
+          <!-- '"` --><!-- </textarea></xmp> --></option></form><form class="inline-form js-update-url-with-hash" action="/lumen-org/modelbase/edit/nips2020/bin/julien/learn_pymc3/ProbParameter.py" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="6O+IIHDv777cEDGyR7n3f79YSfMWBXJiKvTB6KyoyfflgnPBohdwn8nV7kymnELTgduYv+5k8xAAMkFU9nDiHA==" />
             <button class="btn-octicon tooltipped tooltipped-nw" type="submit"
               aria-label="Edit this file" data-hotkey="e" data-disable-with>
               <svg class="octicon octicon-pencil" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 12v3h3l8-8-3-3-8 8zm3 2H1v-2h1v1h1v1zm10.3-9.3L12 6 9 3l1.3-1.3a.996.996 0 011.41 0l1.59 1.59c.39.39.39 1.02 0 1.41z"></path></svg>
             </button>
 </form>
-          <!-- '"` --><!-- </textarea></xmp> --></option></form><form class="inline-form" action="/lumen-org/modelbase/delete/nips2020/scripts/julien/learn_pymc3/ProbParameter.py" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="3PUD9LSeImDfxAjsHtS1zDyWea+0V91evld/Rl2W0SdWgxb6docFUTLIw7A18XEkiRi/S3SJhkyMnCGCPO+jlw==" />
+          <!-- '"` --><!-- </textarea></xmp> --></option></form><form class="inline-form" action="/lumen-org/modelbase/delete/nips2020/bin/julien/learn_pymc3/ProbParameter.py" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="3PUD9LSeImDfxAjsHtS1zDyWea+0V91evld/Rl2W0SdWgxb6docFUTLIw7A18XEkiRi/S3SJhkyMnCGCPO+jlw==" />
             <button class="btn-octicon btn-octicon-danger tooltipped tooltipped-nw" type="submit"
               aria-label="Delete this file" data-disable-with>
               <svg class="octicon octicon-trashcan" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M11 2H9c0-.55-.45-1-1-1H5c-.55 0-1 .45-1 1H2c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1v9c0 .55.45 1 1 1h7c.55 0 1-.45 1-1V5c.55 0 1-.45 1-1V3c0-.55-.45-1-1-1zm-1 12H3V5h1v8h1V5h1v8h1V5h1v8h1V5h1v9zm1-10H2V3h9v1z"></path></svg>
@@ -2192,7 +2192,7 @@
             Copy permalink
           </clipboard-copy>
         </li>
-        <li><a class="dropdown-item js-update-url-with-hash" id="js-view-git-blame" role="menuitem" href="/lumen-org/modelbase/blame/cae248850dbc94eccdc4a892a1a7b986d226da75/scripts/julien/learn_pymc3/ProbParameter.py">View git blame</a></li>
+        <li><a class="dropdown-item js-update-url-with-hash" id="js-view-git-blame" role="menuitem" href="/lumen-org/modelbase/blame/cae248850dbc94eccdc4a892a1a7b986d226da75/bin/julien/learn_pymc3/ProbParameter.py">View git blame</a></li>
           <li><a class="dropdown-item" id="js-new-issue" role="menuitem" href="/lumen-org/modelbase/issues/new">Reference in new issue</a></li>
       </ul>
     </details-menu>
@@ -2217,7 +2217,7 @@
      hidden
      data-tagsearch-url="/lumen-org/modelbase/find-symbols"
      data-tagsearch-ref="nips2020"
-     data-tagsearch-path="scripts/julien/learn_pymc3/ProbParameter.py"
+     data-tagsearch-path="bin/julien/learn_pymc3/ProbParameter.py"
      data-tagsearch-lang="Python"
      data-hydro-click="{&quot;event_type&quot;:&quot;code_navigation.click_on_symbol&quot;,&quot;payload&quot;:{&quot;action&quot;:&quot;click_on_symbol&quot;,&quot;repository_id&quot;:152430015,&quot;ref&quot;:&quot;nips2020&quot;,&quot;language&quot;:&quot;Python&quot;,&quot;originating_url&quot;:&quot;https://github.com/lumen-org/modelbase/blob/nips2020/scripts/julien/learn_pymc3/ProbParameter.py&quot;,&quot;user_id&quot;:726737}}"
      data-hydro-click-hmac="c67412500d494c0caa256988953625282fdc7a7b89ae7d1418a0c783bca728cf">

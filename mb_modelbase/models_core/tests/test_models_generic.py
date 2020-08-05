@@ -8,7 +8,7 @@ Generically tests model classes by running automatically generated queries on th
 these queries go through without any exception being raised. It does not test if the returned results are correct as
 such and it is not intended for that.
 
-Such tests must be model specific and are hence found in the corresponding model specific test scripts.
+Such tests must be model specific and are hence found in the corresponding model specific test bin.
 
 What queries are generated?
 

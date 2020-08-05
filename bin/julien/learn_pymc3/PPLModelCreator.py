@@ -1,7 +1,7 @@
-from scripts.julien.learn_pymc3.BlogCreator import BlogCreator
-from scripts.julien.learn_pymc3.PyMCCreator import PyMCCreator
-from scripts.julien.learn_pymc3.BayesianModel import BayesianModel
-from scripts.julien.learn_pymc3.ProbParameter import generate_prob_graphs, is_similar, merge_nodes, \
+from bin.julien.learn_pymc3.BlogCreator import BlogCreator
+from bin.julien.learn_pymc3.PyMCCreator import PyMCCreator
+from bin.julien.learn_pymc3.BayesianModel import BayesianModel
+from bin.julien.learn_pymc3.ProbParameter import generate_prob_graphs, is_similar, merge_nodes, \
             print_prob_table
 
 
@@ -114,7 +114,7 @@ from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 from mb_modelbase.utils.Metrics import *
 
-import scripts.experiments.allbus as allbus_data
+import bin.experiments.allbus as allbus_data
 
 # LOAD FILES
 test_data = allbus_data.train(numeric_happy=False)
@@ -153,7 +153,7 @@ from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 from mb_modelbase.utils.Metrics import *
 
-import scripts.experiments.iris as iris_data
+import bin.experiments.iris as iris_data
 
 # LOAD FILES
 df = iris_data.iris(numeric_species=False)

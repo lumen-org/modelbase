@@ -20,9 +20,9 @@ from mb_modelbase.models_core.spflow import SPNModel as SPFlowSPNModel
 from mb_modelbase.utils.Metrics import cll_allbus, get_results_from_file, generate_happiness_plots, cll_iris
 from mb_modelbase.utils import fit_models, save_models
 
-import scripts.experiments.allbus as allbus
-import scripts.experiments.iris as iris
-from scripts.julien.learn_pymc3.PPLModelCreator import PPLModel, generate_new_pymc_file_allbus, generate_new_pymc_file_iris
+import bin.experiments.allbus as allbus
+import bin.experiments.iris as iris
+from bin.julien.learn_pymc3.PPLModelCreator import PPLModel, generate_new_pymc_file_allbus, generate_new_pymc_file_iris
 
 # file where results from the experiments are saved
 result_file = "allbus_results.dat"
@@ -183,16 +183,16 @@ if __name__ == "__main__":
         print(f"Could fit: {number_of_fitted} of {could_not_fit + number_of_fitted} bnlearn models")
         # import the beforehand created file
         if data_set == "allbus":
-            import scripts.experiments.models.pymc_models_allbus as pymc_allbus_models
+            import bin.experiments.models.pymc_models_allbus as pymc_allbus_models
             # read all model functions
             functions = [o[1] for o in getmembers(pymc_allbus_models) if isfunction(o[1]) and o[0].startswith("create")]
             create_functions = functions
             # add the hand tuned model
             if fit_hand_tuned:
-                from scripts.experiments.models.pymc_model_hand_tuned import create_allbus_model_N1
+                from bin.experiments.models.pymc_model_hand_tuned import create_allbus_model_N1
                 create_functions.append(create_allbus_model_N1)
         elif data_set == "iris":
-            import scripts.experiments.models.pymc_models_iris as pymc_iris_models
+            import bin.experiments.models.pymc_models_iris as pymc_iris_models
             functions = [o[1] for o in getmembers(pymc_iris_models) if isfunction(o[1]) and o[0].startswith("create")]
             create_functions = functions
         # fit all the files

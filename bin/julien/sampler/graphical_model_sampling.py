@@ -34,13 +34,13 @@ import pstats
 import pandas as pd
 import time
 
-from scripts.julien.sampler.create_tree import create_tree
+from bin.julien.sampler.create_tree import create_tree
 
 # prepare for Cython import
 import pyximport
 pyximport.install()
 # Cython Modules
-from scripts.julien.sampler.gen_samples import generate_samples
+from bin.julien.sampler.gen_samples import generate_samples
 
 
 def get_arguments(trees, conditional_nodes, sample_count, process_count):
@@ -96,4 +96,4 @@ def sample(n_samples, json_desc_file):
 
 # Main Guard
 if __name__ == "__main__":
-    print(sample(1000000, "/home/julien/PycharmProjects/modelbase/scripts/julien/learn_pymc3/json_files_for_sampler/bnlearn_iris_fastiamb_sampler.json"))
+    print(sample(1000000, "/home/julien/PycharmProjects/modelbase/bin/julien/learn_pymc3/json_files_for_sampler/bnlearn_iris_fastiamb_sampler.json"))

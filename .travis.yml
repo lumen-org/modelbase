@@ -6,7 +6,7 @@ install:
   - pip install .
   - pip install pytest-cov
 before_script:
-  - echo $RUN_CONFIG > scripts/run_conf.cfg
+  - echo $RUN_CONFIG > bin/run_conf.cfg
 script:
   - python -m pytest --cov-report=xml --cov=mb_modelbase tests/
 after_success:

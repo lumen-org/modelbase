@@ -11,7 +11,7 @@ from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 from mb_modelbase.utils.Metrics import cll_allbus
 
-import scripts.experiments.allbus as allbus_data
+import bin.experiments.allbus as allbus_data
 
 # LOAD FILES
 test_data = allbus_data.train(numeric_happy=False)

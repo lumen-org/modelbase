@@ -8,7 +8,7 @@ from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 from mb_modelbase.utils.Metrics import *
 
-import scripts.experiments.iris as iris_data
+import bin.experiments.iris as iris_data
 
 # LOAD FILES
 df = iris_data.iris(numeric_species=False)

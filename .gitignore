@@ -109,8 +109,8 @@ doc/models/*.mdl
 dev/
 
 # ignore som of juliens specific stuff...
-/scripts/experiments/allbus_train_numeric.csv.json
-/scripts/run_conf_julien.py
+/bin/experiments/allbus_train_numeric.csv.json
+/bin/run_conf_julien.py
 
 
 

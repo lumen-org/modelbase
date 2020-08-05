@@ -8,7 +8,7 @@ setup(name='mb_modelbase',
       author='Philip Lucas',
       author_email='philipp.lucas@dlr.de',
       license='lgpl-3.0',
-      packages=find_packages(exclude=['scripts']),
+      packages=find_packages(exclude=['bin']),
       install_requires=[
           'anytree', #84 requires scipy==1.2, https://github.com/lumen-org/modelbase/issues/84
           'astropy',

@@ -188,10 +188,10 @@ def generate_happiness_plots(continues_data_file="allbus_happiness_values.dat", 
 
 
 if __name__ == "__main__":
-    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_happiness_values_15000_samples.dat"
-    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_results_full.dat"
-    file = "/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_results_full.dat"
+    file = "/home/julien/PycharmProjects/modelbase/bin/experiments/allbus_happiness_values_15000_samples.dat"
+    file = "/home/julien/PycharmProjects/modelbase/bin/experiments/allbus_results_full.dat"
+    file = "/home/julien/PycharmProjects/modelbase/bin/experiments/allbus_results_full.dat"
     # print(_get_metric_as_latex_table_entry(file, table_skeleton=False))
     print(get_results_from_file(file))
-    #generate_happiness_plots("/home/julien/PycharmProjects/modelbase/scripts/experiments/allbus_happiness_values.dat", one_in_all=True)
+    #generate_happiness_plots("/home/julien/PycharmProjects/modelbase/bin/experiments/allbus_happiness_values.dat", one_in_all=True)
     # _print_metric_as_table_entry(os.path.join(os.path.dirname(__file__), "allbus.dat"))
