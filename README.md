@@ -19,7 +19,7 @@ We also developed [lumen](https://github.com/lumen-org/lumen), an interactive we
 
 The `modelbase` repository contains the python package `mb_modelbase` in the likewise named folder. 
  
-The folder `scripts` contains scripts to run an instance of the webservice-backend locally. In particular you may execute `webservice.py` to run the webservice as a local Flask app (see below). 
+The folder `bin` contains scripts to run an instance of the webservice-backend locally. In particular you may execute `webservice.py` to run the webservice as a local Flask app (see below). 
  
 The `docs` directory contains documentation and examples.
 
@@ -31,15 +31,15 @@ The `modelbase` package is the kernel of Lumen. It provides a generic modelling 
 
 ### Setup modelbase ###
 
-Requirements:
+**Requirements:**
 
  * `modelbase` requires python3.
  * jupyterlab or jupyternotebook is required to run the intro examples and many other tutorials. See [here](https://jupyter.org/install) for instructions.
 
-Optional requirements: 
+**Optional requirements:** 
  * If you want to work with mspn (mixed sum-product networks) then R is required. See [here](https://www.r-project.org/) for instructions. 
 
-Setup:
+**Setup:**
 
 *Note: It is strongly recommended to use some virtual environment of python to install this software.* 
 
@@ -48,12 +48,14 @@ Setup:
 3. Install other dependencies that are only available as git repositories (so called submodules):
     * Install the `cgmodsel` package with `git submodule init && git submodule update`
     * Install submodule `pip3 install cgmodsel` from `<root>`.
+4. Run `bin/initialize.py`: this will create some simples models to start with in `bin/fitted_models`. This is also a
+   a sanity check that things are all right with your installation.    
     
-Setup of optional components:
+**Setup of optional components:**
  * If you want to work with mspn (mixed sum-product networks), then you need to configure R correctly. 
  That is, set your `R_HOME` path variable such that it contains your R install directory (for example in `home/.profile`).
 
-For a development setup, see further below.
+For a development setup: see further below.
 
 If you use Anaconda:
 
@@ -82,7 +84,7 @@ Since you have installed it as a package in your local python installation, you 
 
 This repository contains the code for the python package `mb_modelbase` (in the folder with identical name). If you 
  followed the setup steps above this package is installed to your python environment.
-Apart from the package the repo also contains the `scripts` directory which we will use to run the backend. 
+Apart from the package the repo also contains the `bin` directory which we will use to run the backend. 
 
 There is two intended ways to run the modelbase backend.
 1. execute `webservice.py`. This starts a simple Flask web server locally. _Note that this should not be used for
@@ -96,8 +98,9 @@ When you start the webservice it will load the models from the directory you pro
 There is three ways to configure the backend. In order of precedence (highest to lowest):
   * use command line arguments to `webservice.py`. This cannot be used if you run modelbase as a WSGI
     application. See `webservice.py --help` for available options.
-  * set options in `run_conf.py`. This is respected by both ways of running `modelbase` (see above). `run_conf.py` may have any subset of the options in `default_run_conf.py` and has the same format. Note that `run_conf.py` does initially *not* exist after cloning the project. To find out what options are available, please see `default_run_conf.py`.
-  * set options in `default_run_conf.py`. Changing settings here is not recommended. 
+  * set options in `run_conf.cfg`. This is respected by both ways of running `modelbase` (see above). `run_conf.cfg`
+   may have any subset of the options in `default_run_conf.cfg` and has the same format. Note that `run_conf.cfg` does initially *not* exist after cloning the project. To find out what options are available, please see `default_run_conf.cfg`.
+  * set options in `default_run_conf.cfg`. Changing settings here is not recommended. 
 
 #### Hosting models 
 
