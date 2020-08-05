@@ -33,17 +33,25 @@ The `modelbase` package is the kernel of Lumen. It provides a generic modelling 
 
 Requirements:
 
- * `modelbase` requires python3
- * `modelbase` requires R
+ * `modelbase` requires python3.
+ * jupyterlab or jupyternotebook is required to run the intro examples and many other tutorials. See [here](https://jupyter.org/install) for instructions.
 
-For normal (non-development) usage:
+Optional requirements: 
+ * If you want to work with mspn (mixed sum-product networks) then R is required. See [here](https://www.r-project.org/) for instructions. 
+
+Setup:
+
+*Note: It is strongly recommended to use some virtual environment of python to install this software.* 
 
 1. Clone this repository into a folder of your choice. Let's call it `<root>`.
 2. Install the `mb_modelbase` package locally, i.e, do `cd <root> && pip3 install .`
-3. Install the `CGModelSelection` package. This provides a model selection capabilities for various types of multivariate Gaussian and Conditional Gaussian (CG) models. **currently this package is not publicly available and unfortunately lumen will not fully work without it**. Get in touch with me or Frank Nussbaum for access. The repository is hosted [here](https://ci.inf-i2.uni-jena.de/ra86ted/CGmodelselection).
-4. Set your R_HOME path variable containing your R install directory (for example in `home/.profile`)
-3. Install the `cgmodsel` package with `git submodule init && git submodule update` 
-4. Install submodule `pip3 install cgmodsel`
+3. Install other dependencies that are only available as git repositories (so called submodules):
+    * Install the `cgmodsel` package with `git submodule init && git submodule update`
+    * Install submodule `pip3 install cgmodsel` from `<root>`.
+    
+Setup of optional components:
+ * If you want to work with mspn (mixed sum-product networks), then you need to configure R correctly. 
+ That is, set your `R_HOME` path variable such that it contains your R install directory (for example in `home/.profile`).
 
 For a development setup, see further below.
 
