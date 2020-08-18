@@ -13,6 +13,7 @@ import time
 import dill
 import numpy as np
 from functools import reduce
+from inspect import getmembers, isfunction
 
 from mb_modelbase.models_core import models as gm
 from mb_modelbase.models_core import base as base
@@ -21,6 +22,9 @@ from mb_modelbase.model_eval import posterior_predictive_checking as ppc
 from mb_modelbase.models_core import model_watchdog
 from mb_modelbase.utils import fit_models
 from mb_modelbase.cache import DictCache
+
+from leapp.PPLModelCreator import PPLModel, generate_new_pymc_file
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -549,13 +553,38 @@ class ModelBase:
             model = self._extractModelByStatement(query, 'FROM')
             # model.data
 
-            # TODO: do it julien
-            # Parameter: whitelist_edges, blacklistes_edges, discrete_nodes, continues_nodes,
-            # scores={bic, aic, loglik}, algorithm={tabu, hc, iamb, fast.iamb, inter.iamb, gs},
-            # threshold (for merging parameter), name, data (as data.frame).
+            parameter = self._extractParameterDict(query)
+            data_frame = self._getDataFrameFor(query)
+            # the data_frame should contain just numbers
+            file = os.path.join("tmp", "file.csv")
+            data_frame.as_csv(file, index=None)
 
-            # df, bn_model = my_fancy_bnlearn(data, whitelist, ...)
+            pymc_file_name = os.path.join("..", "..", "leapp", "leapp", "ppl_code")
 
+            generate_new_pymc_file(pymc_file_name, sample_size=parameter["sample_size"],
+                                   forward_map=parameter["forward_map"], backward_map=parameter["backward_map"],
+                                   data_file=file)
+
+            ppl_model = PPLModel(model_name=parameter["modelname"], csv_file=file,
+                                simplify_tolerance=parameter["threshold"],
+                                discrete_variables=parameter["discrete_variables"],
+                                continuous_variables=parameter["continuous_variables"],
+                                blacklist_edges=parameter["blacklist_edges"],
+                                whitelist_edges=parameter["whitelist_edges"],
+                                score=parameter["score"],
+                                algo=parameter["algorithm"])
+
+            error = ppl_model.generate_pymc(model_name=parameter["modelname"], save=True, output_file=pymc_file_name)
+
+            import leapp.ppl_code as pymc_models
+            functions = [o[1] for o in getmembers(pymc_models) if isfunction(o[1]) and o[0].startswith("create")]
+            for index, func in enumerate(functions):
+                try:
+                    df, bn_model = func(fit=True)
+                except Exception as e:
+                    raise Exception("Something strange occured. Please try using different parameters. "
+                                    "Remember: it is not allowed to create an edge from continuous variables to categorical variables."
+                                    f"\n({e})")
 
             return _json_dumps({
                 'model': model.name,
@@ -594,6 +623,26 @@ class ModelBase:
 
     # _extract* functions are helpers to extract a certain part of a PQL query
     #   and do some basic syntax and semantic checks
+
+
+
+
+
+    def _extractParameterDict(self, query):
+        parameter_dict = {}
+        #TODO: philipp can you fill this?
+        return parameter_dict
+
+    def _getDataFrameFor(self, query):
+        data_frame = None
+        #TODO: philipp I need here the data_frame for the model
+        return data_frame
+
+
+
+
+
+
 
     def _extractModelByStatement(self, query, keyword):
         """ Returns the model that the value of the <keyword<-statement of query
