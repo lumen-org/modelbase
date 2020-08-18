@@ -2,3 +2,8 @@
 	path = cgmodsel
 	url = https://github.com/franknu/cgmodsel
 	branch = master
+
+[submodule "leapp"]
+    path = leapp
+    url = https://github.com/julien-klaus/leapp
+    branch = master
