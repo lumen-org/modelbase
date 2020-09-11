@@ -11,7 +11,7 @@ def repredict(model, data, include=None):
     """Predicts attribute values of data given all but the predicted attributes.
 
     Arguments:
-        model: Model
+        model: Modelproj
             A compatible model for prediction.
         data: pd.DataFrame
             A data frame of data to repredict and use as conditions for predictions.
