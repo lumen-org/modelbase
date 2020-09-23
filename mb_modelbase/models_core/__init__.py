@@ -15,12 +15,15 @@ from .mixable_cond_gaussian import *
 from .mixture_cond_gaussian_wm import *
 from .mixture_gaussians import *
 from .mockup_model import *
+
 # from .models_debug import *
 from .models import *
 from .mspn import *
+
 # from .spflow import *
 from .pyMC3_model import *
+from .stan_model import StanPPLModel
+
 # from .pci_graph import *
 from .splitter import *
 from .tests import *
-
