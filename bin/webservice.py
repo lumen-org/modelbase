@@ -186,14 +186,18 @@ if __name__ == "__main__":
     """
 
     logger = logging.getLogger(__name__)
+    bin_dir = os.path.dirname(os.path.abspath(__file__))
+
+    conf_default_path = os.path.join(bin_dir, 'run_conf_defaults.cfg')
+    conf_path = os.path.join(bin_dir, 'run_conf.cfg')
 
     # load config from file
     config = ConfigParser()
-    config.read('run_conf_defaults.cfg')
-    if not os.path.isfile('run_conf.cfg'):
+    config.read(conf_default_path)
+    if not os.path.isfile(conf_path):
         logger.warning('run_conf.cfg is missing. All default configs apply.')
     else:
-        config.read('run_conf.cfg')
+        config.read(conf_path)
 
     # get command line args
     parser = argparse.ArgumentParser(description=description,

@@ -63,7 +63,7 @@ def make_empirical_model(modelname, output_directory=None, input_file: str = Non
 
     if df is not None:
         row_count = df.shape[0]
-        df = df.dropna(axis=0, how="any", inplace=True)
+        df.dropna(axis=0, how="any", inplace=True)
         dropped_rows = row_count - df.shape[0]
         if dropped_rows > 0 and verbose:
             print("dropped {} rows due to nans in data".format(dropped_rows))

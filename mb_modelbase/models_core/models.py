@@ -436,6 +436,9 @@ class Model:
         self._datamodel_name = name
         return self
 
+    def get_empirical_model_name(self):
+        return self._datamodel_name
+
     def set_model_params(self, **kwargs):
         """Sets explicitly the parameters of a model.
 
