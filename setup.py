@@ -4,11 +4,22 @@ from setuptools import setup
 setup(name='mb_modelbase',
       version='0.9.1',
       description='A webservice and python backend for SQL-like queries to data and probabilistic models',
-      url='https://github.com/lumen-org/lumen',
+      url='https://github.com/lumen-org/modelbase',
       author='Philip Lucas',
       author_email='philipp.lucas@dlr.de',
       license='lgpl-3.0',
-      packages=find_packages(exclude=['bin']),
+      keywords='visualization, data exploration, model exploration, model criticism,'
+               ' probabilistic programming',
+      packages=find_packages(
+          exclude=[
+              'bin',
+              #'cgmodsel', # TODO: exclude?
+          ]
+      ),
+      project_urls={
+          'Source': 'https://github.com/lumen-org/modelbase',
+          'Tracker': 'https://github.com/lumen-org/modelbase/issues',
+      },
       install_requires=[
           'anytree', #84 requires scipy==1.2, https://github.com/lumen-org/modelbase/issues/84
           'astropy',
