@@ -9,7 +9,7 @@ Version: 0.95
 
 ### Content ###
 
-modelbase` can be used to model tabular data with generic probabilistic modelling as well to analyse, use and explore both, the fitted model as well as the data. To this end the fitted models offer different types of operations such as prediction, conditionalization or marginalization. Semantically equivalent operations, namely aggregation, row select and column selection are also available for data.
+`modelbase` can be used to model tabular data with generic probabilistic modelling as well to analyse, use and explore both, the fitted model as well as the data. To this end the fitted models offer different types of operations such as prediction, conditionalization or marginalization. Semantically equivalent operations, namely aggregation, row select and column selection are also available for data.
  
 An overview over the capabilities of `mb_modelbase` and a short introductory example can be found in the jupyter-notebook files `doc/Functions_overview.ipynb` and `doc/Intro_example.ipynb`. There it is shown how the python-package `mb_modelbase` is applied.
 
@@ -17,11 +17,12 @@ We also developed [lumen](https://github.com/lumen-org/lumen), an interactive we
 
 ### Repository Overview ###
 
-The `modelbase` repository contains the python package `mb_modelbase` in the likewise named folder. 
- 
-The folder `bin` contains scripts to run an instance of the webservice-backend locally. In particular you may execute `webservice.py` to run the webservice as a local Flask app (see below). 
- 
-The `docs` directory contains documentation and examples.
+The `modelbase` repository contains the python package `mb_modelbase` in the likewise named folder.
+
+ * `bin`: This folder contains scripts to run an instance of the webservice-backend locally. In particular you may execute `webservice.py` to run the webservice as a local Flask app (see below) 
+ * `docs`: This folder contains documentation.
+ * `jupyter`: This directory contains runnable examples that serve as starting points for different use cases and tasks.
+ * `cgmodsel`: Contains a required external python package (resolved as a git submodule).
 
 ### The Lumen Project ###
 
