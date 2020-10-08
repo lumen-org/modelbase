@@ -81,6 +81,9 @@ def preprocess(file=_mpg_filepath, do_not_change_columns=['cylinder'], drop_colu
 
 
 if __name__ == '__main__':
+    """Running this file recreates the content of mpg_clean.csv. For convenience mpg_clean.csv is
+        already part of the repository.
+    """
     df = preprocess(do_not_change_columns=[], drop_columns=[])
     df.head()
     df.to_csv('./mpg_clean.csv', index=False)
