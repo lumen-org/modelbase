@@ -1,4 +1,4 @@
-from mb_modelbase.models_core.spflow import SPNModel
+from mb_modelbase.core.spflow import SPNModel
 from mb_data.allbus import allbus
 import spn.structure.leaves.parametric.Parametric as spn_parameter_types
 import spn.structure.StatisticalTypes as spn_statistical_types

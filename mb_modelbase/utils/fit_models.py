@@ -7,8 +7,8 @@ import logging
 import os.path
 import pandas as pd
 
-from mb_modelbase.models_core.empirical_model import EmpiricalModel
-from mb_modelbase.models_core.kde_model import KDEModel
+from mb_modelbase.core.empirical_model import EmpiricalModel
+from mb_modelbase.core.kde_model import KDEModel
 from mb_modelbase.server import ModelBase
 
 # setup logger

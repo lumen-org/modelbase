@@ -21,7 +21,7 @@ how to use it:
 import time
 
 from mb_modelbase.server import modelbase as mb
-from mb_modelbase.models_core import models as md
+from mb_modelbase.core import models as md
 
 from mb_modelbase.utils.utils import is_running_in_debug_mode
 if is_running_in_debug_mode():

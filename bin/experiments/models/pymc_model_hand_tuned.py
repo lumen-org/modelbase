@@ -7,7 +7,7 @@ import theano.tensor as tt
 import pandas as pd
 import numpy as np
 
-from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
+from mb_modelbase.core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 from mb_modelbase.utils.Metrics import cll_allbus
 

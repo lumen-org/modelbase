@@ -22,7 +22,7 @@ from mb_modelbase import DictCache
 # from mb_modelbase.utils.utils import is_running_in_debug_mode
 # if is_running_in_debug_mode():
 #     print("running in debug mode!")
-#     import mb_modelbase.models_core.models_debug
+#     import mb_modelbase.core.models_debug
 
 
 def add_path_of_file_to_python_path():

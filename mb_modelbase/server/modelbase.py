@@ -14,11 +14,11 @@ import dill
 import numpy as np
 from functools import reduce
 
-from mb_modelbase.models_core import models as gm
-from mb_modelbase.models_core import base as base
-from mb_modelbase.models_core import models_predict
-from mb_modelbase.model_eval import posterior_predictive_checking as ppc
-from mb_modelbase.models_core import model_watchdog
+from mb_modelbase.core import models as gm
+from mb_modelbase.core import base as base
+from mb_modelbase.core import models_predict
+from mb_modelbase.eval import posterior_predictive_checking as ppc
+from mb_modelbase.core import model_watchdog
 from mb_modelbase.utils import fit_models
 from mb_modelbase.cache import DictCache
 
