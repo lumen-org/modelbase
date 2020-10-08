@@ -108,9 +108,12 @@ doc/models/*.mdl
 # you can still add it, but local changes and files will not mess up your status messages
 dev/
 
-# ignore som of juliens specific stuff...
-/bin/experiments/allbus_train_numeric.csv.json
-/bin/run_conf_julien.py
+# ignore some of juliens specific stuff...
+bin/experiments/allbus_train_numeric.csv.json
+bin/run_conf_julien.py
+
+# ignore old bin path
+scripts/
 
 
 
