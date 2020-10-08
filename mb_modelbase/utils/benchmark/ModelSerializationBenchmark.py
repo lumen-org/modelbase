@@ -1,5 +1,5 @@
 from mb_modelbase.utils.benchmark.Benchmark import Benchmark
-from mb_modelbase.models_core.models import Model
+from mb_modelbase.core.models import Model
 
 
 class ModelSerializationBenchmark(Benchmark):

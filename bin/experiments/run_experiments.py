@@ -14,9 +14,9 @@ from sklearn.linear_model import LogisticRegression as model5
 from pymc3.exceptions import SamplingError
 
 from mb_modelbase import EmpiricalModel
-from mb_modelbase.models_core.mspnmodel import MSPNModel
-from mb_modelbase.models_core.spnmodel import SPNModel
-from mb_modelbase.models_core.spflow import SPNModel as SPFlowSPNModel
+from mb_modelbase.core.mspnmodel import MSPNModel
+from mb_modelbase.core.spnmodel import SPNModel
+from mb_modelbase.core.spflow import SPNModel as SPFlowSPNModel
 from mb_modelbase.utils.Metrics import cll_allbus, get_results_from_file, generate_happiness_plots, cll_iris
 from mb_modelbase.utils import fit_models, save_models
 

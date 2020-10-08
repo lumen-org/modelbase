@@ -110,7 +110,7 @@ def generate_new_pymc_file_allbus(file_name, result_file, sample_size=3000, cont
 import pymc3 as pm
 import theano.tensor as tt
 
-from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
+from mb_modelbase.core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 from mb_modelbase.utils.Metrics import *
 
@@ -149,7 +149,7 @@ def generate_new_pymc_file_iris(file_name, result_file, sample_size=3000):
 import pymc3 as pm
 import theano.tensor as tt
 
-from mb_modelbase.models_core.pyMC3_model import ProbabilisticPymc3Model
+from mb_modelbase.core.pyMC3_model import ProbabilisticPymc3Model
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
 from mb_modelbase.utils.Metrics import *
 

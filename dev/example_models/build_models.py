@@ -4,7 +4,7 @@ if __name__ == '__main__':
     import pandas as pd
 
     import mb_modelbase as mb
-    from mb_modelbase.models_core.mixable_cond_gaussian import MixableCondGaussianModel
+    from mb_modelbase.core.mixable_cond_gaussian import MixableCondGaussianModel
 
     specs = {
         'mcg_iris': {'class': MixableCondGaussianModel, 'data': pd.read_csv('./iris.csv'),

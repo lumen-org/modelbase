@@ -6,7 +6,7 @@ import pandas as pd
 from prettytable import PrettyTable
 import matplotlib.pyplot as plt
 
-from mb_modelbase.models_core.base import Condition
+from mb_modelbase.core.base import Condition
 
 def cll_iris(model, test_data, model_file, continues_data_file):
     pass

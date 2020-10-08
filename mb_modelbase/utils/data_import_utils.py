@@ -2,8 +2,8 @@ import logging
 import numpy as np
 import pandas as pd
 
-from mb_modelbase.models_core import domains as dm
-from mb_modelbase.models_core.base import Field
+from mb_modelbase.core import domains as dm
+from mb_modelbase.core.base import Field
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
