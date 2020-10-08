@@ -1,19 +1,24 @@
 #!/usr/bin/env python
 # Copyright (C) 2020 , Philipp Lucas, philipp.lucas@dlr.de
 
+import os
+import sys
+import pandas as pd
+
+_dirname = os.path.dirname(__file__)
+
+
 def _learn_initial_models():
     """Trains some simple probabilistic models and stores them in ./fitted_models."""
-    import sys
-    import pandas as pd
 
-    sys.path.append('../doc')
+    sys.path.append(os.path.join(_dirname, '../doc'))
     import doc.data.titanic as titanic
     import mb_modelbase as mb
 
     print('Training some simple models ...')
     specs = {
         'mcg_iris': {'class': mb.MixableCondGaussianModel,
-                     'data': pd.read_csv('../doc/data/iris.csv'),
+                     'data': pd.read_csv(os.path.join(_dirname, '../doc/data/iris.csv')),
                      'fitopts': {'fit_algo': 'map'}},
         'mcg_titanic': {'class': mb.MixableCondGaussianModel,
                         'data': titanic.mixed(),
@@ -21,7 +26,7 @@ def _learn_initial_models():
     }
 
     models = mb.fit_models(specs)
-    mb.save_models(models, './fitted_models')
+    mb.save_models(models, os.path.join(_dirname, './fitted_models'))
     print('...done.')
 
 
@@ -39,7 +44,7 @@ def _create_empty_config():
     """
     print('creating empty config file...')
     try:
-        config_file = open('./run_conf.cfg', 'x')
+        config_file = open(os.path.join(_dirname, './run_conf.cfg'), 'x')
         config_file.write(config_content)
         config_file.close()
     except FileExistsError:
