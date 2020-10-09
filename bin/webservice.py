@@ -14,15 +14,13 @@ import sys
 
 from configparser import ConfigParser
 
-from mb_modelbase.server import modelbase as mbase
-from mb_modelbase.utils import utils, ActivityLogger
-from mb_modelbase import DictCache
+from mb import modelbase as mbase
+from mb.modelbase import utils, DictCache
 
-
-# from mb_modelbase.utils.utils import is_running_in_debug_mode
+# from modelbase.utils.utils import is_running_in_debug_mode
 # if is_running_in_debug_mode():
 #     print("running in debug mode!")
-#     import mb_modelbase.core.models_debug
+#     import modelbase.core.models_debug
 
 
 def add_path_of_file_to_python_path():
@@ -114,7 +112,7 @@ def add_modelbase_module():
 
 def add_activitylogger_module():
     # user activity logger
-    activitylogger = ActivityLogger()
+    activitylogger = utils.ActivityLogger()
 
     c = config['ACTIVITYLOGGER']
 
@@ -225,7 +223,6 @@ if __name__ == "__main__":
     init()
 
     if config.getboolean('SSL', 'enable'):
-        from OpenSSL import SSL
 
         context = (config['SSL']['cert_chain_path'], config['SSL']['cert_priv_key_path'])
         app.run(host='0.0.0.0', port=int(config['GENERAL']['port']), ssl_context=context,

@@ -4,12 +4,11 @@
 import pymc3 as pm
 import theano
 import theano.tensor as tt
-import pandas as pd
 import numpy as np
 
-from mb_modelbase.core.pyMC3_model import ProbabilisticPymc3Model
-from mb_modelbase.utils.data_type_mapper import DataTypeMapper
-from mb_modelbase.utils.Metrics import cll_allbus
+from mb.modelbase import ProbabilisticPymc3Model
+from mb.modelbase import DataTypeMapper
+from mb.modelbase import cll_allbus
 
 import bin.experiments.allbus as allbus_data
 

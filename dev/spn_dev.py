@@ -1,10 +1,6 @@
-from mb_modelbase.core.spflow import SPNModel
+from mb.modelbase import SPNModel
 from mb_data.allbus import allbus
-import spn.structure.leaves.parametric.Parametric as spn_parameter_types
 import spn.structure.StatisticalTypes as spn_statistical_types
-import numpy as np
-
-
 
 m = SPNModel("m", spn_type ='mspn')
 df = allbus.categorical_as_strings()

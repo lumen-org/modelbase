@@ -8,6 +8,6 @@ install:
 before_script:
   - echo $RUN_CONFIG > bin/run_conf.cfg
 script:
-  - python -m pytest --cov-report=xml --cov=mb_modelbase tests/
+  - python -m pytest --cov-report=xml --cov=modelbase tests/
 after_success:
   - bash <(curl -s https://codecov.io/bash)

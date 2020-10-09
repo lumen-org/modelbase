@@ -1,7 +1,6 @@
 from time import time
 import os
 from inspect import getmembers, isfunction
-import pandas as pd
 import numpy as np
 
 from sklearn.metrics import accuracy_score
@@ -13,12 +12,12 @@ from sklearn.linear_model import LogisticRegression as model5
 
 from pymc3.exceptions import SamplingError
 
-from mb_modelbase import EmpiricalModel
-from mb_modelbase.core.mspnmodel import MSPNModel
-from mb_modelbase.core.spnmodel import SPNModel
-from mb_modelbase.core.spflow import SPNModel as SPFlowSPNModel
-from mb_modelbase.utils.Metrics import cll_allbus, get_results_from_file, generate_happiness_plots, cll_iris
-from mb_modelbase.utils import fit_models, save_models
+from mb.modelbase import EmpiricalModel
+from mb.modelbase import MSPNModel
+from mb.modelbase import SPNModel
+from mb.modelbase import SPNModel as SPFlowSPNModel
+from mb.modelbase import cll_allbus, get_results_from_file, generate_happiness_plots
+from mb.modelbase import fit_models, save_models
 
 import bin.experiments.allbus as allbus
 import bin.experiments.iris as iris

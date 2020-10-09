@@ -3,8 +3,8 @@ import unittest.mock as mock
 import dill
 import logging
 
-from mb_modelbase import Model
-from mb_modelbase.client import Client
+from mb.modelbase import Model
+from mb.modelbase import Client
 
 logging.getLogger().setLevel(logging.ERROR)
 

@@ -1,12 +1,10 @@
 #!usr/bin/python
 # -*- coding: utf-8 -*-import string
 
-import pymc3 as pm
 import theano.tensor as tt
 
-from mb_modelbase.core.pyMC3_model import ProbabilisticPymc3Model
-from mb_modelbase.utils.data_type_mapper import DataTypeMapper
-from mb_modelbase.utils.Metrics import *
+from mb.modelbase import DataTypeMapper
+from mb.modelbase import *
 
 import bin.experiments.iris as iris_data
 
