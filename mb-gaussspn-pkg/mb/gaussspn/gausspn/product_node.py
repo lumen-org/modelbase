@@ -6,6 +6,7 @@ from .normal_leaf_node import NormalLeafNode
 from .multi_normal_leaf_node import MultiNormalLeafNode
 from .multi_normal_stat import MultiNormalStat
 
+
 class ProductNode(Node):
 	def __init__(self, n, scope, leaftype, src=None):
 		super(ProductNode, self).__init__(n, scope)

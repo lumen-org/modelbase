@@ -21,32 +21,31 @@ setup(name='mb-modelbase',
           'Tracker': 'https://github.com/lumen-org/modelbase/issues',
       },
       install_requires=[
-          'anytree', #84 requires scipy==1.2, https://github.com/lumen-org/modelbase/issues/84
-          'astropy',
+          #'anytree', #84 requires scipy==1.2, https://github.com/lumen-org/modelbase/issues/84
+          #'astropy',
           'Cython',
           'dill',
           'flask>=1.1.1'
           'flask-cors',
           'flask-socketio',
-          'graphviz',
+          #'graphviz',
           'multiprocessing_on_dill',
-          'networkx',
-          'numba',
-          'numpy==1.18.4',
+          #'networkx',
+          #'numba',
+          #'numpy==1.18.4', woher kommt das festsezten?
           'pandas>=0.24',
           'prettytable',
           'pymc3',
           'pymemcache',
           'pyopenssl',
-          'rpy2>=2.9.4',
+          #'rpy2>=2.9.4',
           'scikit-learn',
-          'scipy==1.2',
-          'statsmodels',
+          #'scipy==1.2', woher kommt das festsezten?
+          #'statsmodels'
           'sympy',
-          'tensorflow==1.14',
+          #'tensorflow==1.14', woher kommt die 1.14??
           'watchdog',
           'xarray',
-          #'setuptools>=40.1.0',
       ],
       zip_safe=False)
 

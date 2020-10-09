@@ -14,7 +14,7 @@ from pandas.core.frame import DataFrame
 from scipy.stats._continuous_distns import chi2
 import time
 
-from mb.modelbase.core.mspn.mlutils.statistics import logchi2sf
+from .statistics import logchi2sf
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 

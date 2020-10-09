@@ -1,13 +1,12 @@
-from rpy2 import robjects
-from rpy2.robjects.packages import importr
-from rpy2.robjects import numpy2ri
-
 import sys
 
-import numpy
 import astropy.stats
+import numpy
+from rpy2 import robjects
+from rpy2.robjects import numpy2ri
+from rpy2.robjects.packages import importr
 
-from mb.modelbase import getHistogramVals
+from .histogram import getHistogramVals
 
 # from rpy2 import robjects
 # from rpy2.robjects.packages import importr

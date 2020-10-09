@@ -10,7 +10,7 @@ import numpy
 import re
 
 from mb.modelbase import numpytoordereddict
-from mb.modelbase.core.mspn.mlutils.statistics import logpoissonpmf
+from ..mlutils.statistics import logpoissonpmf
 
 import h2o
 h2o.init()
