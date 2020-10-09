@@ -2,6 +2,7 @@ import copy
 
 from .node import Node
 
+
 class RootNode(Node):
 	def __init__(self, node):
 		super(RootNode, self).__init__(node.n, node.scope)

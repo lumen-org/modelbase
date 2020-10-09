@@ -9,6 +9,8 @@ setup(name='mb-gaussspn',
       install_requires=[
             'mb.modelbase',
             'numpy',
+            'scipy',
+            'graphviz',
       ],
       zip_safe=False)
 

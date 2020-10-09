@@ -1,6 +1,7 @@
-from mb.modelbase import SumNode
-from mb.modelbase import NormalLeafNode
-from mb.modelbase import MultiNormalLeafNode
+from .sum_node import SumNode
+from .normal_leaf_node import NormalLeafNode
+from .multi_normal_leaf_node import  MultiNormalLeafNode
+
 
 def count_nodes(network):
 	nextnodes = [network.root.children[0]]
@@ -10,6 +11,7 @@ def count_nodes(network):
 		count += 1
 		nextnodes.extend(node.children)
 	return count
+
 
 def count_params(network):
 	nextnodes = [network.root.children[0]]
@@ -25,4 +27,3 @@ def count_params(network):
 			count += k*(k+3)//2
 		nextnodes.extend(node.children)
 	return count
-	

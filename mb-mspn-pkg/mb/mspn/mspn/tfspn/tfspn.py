@@ -15,15 +15,15 @@ from scipy.special import logit
 import scipy.stats
 from sklearn.neighbors import KernelDensity
 
-from mb.modelbase.core.mspn.mlutils.statistics import gaussianpdf, nplogpoissonpmf, \
+from ..mlutils.statistics import gaussianpdf, nplogpoissonpmf, \
     nplogbernoullipmf_fast
-from mb.modelbase.core.mspn.mlutils.statistics import bernoullipmf
-from mb.modelbase.core.mspn.mlutils.statistics import poissonpmf
-from mb.modelbase.core.mspn.mlutils.statistics import gammapdf, betapdf
+from ..mlutils.statistics import bernoullipmf
+from ..mlutils.statistics import poissonpmf
+from ..mlutils.statistics import gammapdf, betapdf
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.distributions as distributions
-from mb.modelbase import two_staged_sampling_piecewise_linear
+from .piecewise import two_staged_sampling_piecewise_linear
 
 
 # log of zero const, to avoid -inf

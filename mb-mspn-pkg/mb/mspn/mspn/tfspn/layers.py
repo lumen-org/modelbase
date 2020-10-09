@@ -3,11 +3,13 @@ Created on May 20, 2017
 
 @author: stelzner
 '''
+from collections import defaultdict
+
+import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.distributions as dist
-import numpy as np
-import mb.modelbase.core.mspn.tfspn.tfspn as tfspn
-from collections import defaultdict
+
+from . import tfspn
 
 # Implementing a layered SPN
 # Goal: reducing the number of tensors and variables in an SPN

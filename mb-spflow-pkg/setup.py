@@ -11,7 +11,6 @@ setup(name='mb-spflow',
             'numpy',
             'scipy',
             'spn',
-            #'spflow>=0.0.39', ??
       ],
       zip_safe=False)
 

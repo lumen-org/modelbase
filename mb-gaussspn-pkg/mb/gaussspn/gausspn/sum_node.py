@@ -3,6 +3,7 @@ from scipy.special import logsumexp
 
 from .node import Node
 
+
 class SumNode(Node):
 	def __init__(self, n, scope):
 		super(SumNode, self).__init__(n, scope)
