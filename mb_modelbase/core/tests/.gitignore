@@ -1,8 +1,0 @@
-# ignore model files as these are created on the fly
-*.mdl
-
-# test data folder
-data/*
-
-# test model folder
-models/*

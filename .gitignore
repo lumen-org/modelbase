@@ -95,7 +95,7 @@ ENV/
 
 # project specific excludes
 stuff/
-mb_modelbase/core/img/
+mb/modelbase/modelbase/core/img/
 
 # backups of any text files
 *.py~

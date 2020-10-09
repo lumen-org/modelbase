@@ -3,7 +3,7 @@ import unittest
 import tempfile
 
 import dill
-from mb_modelbase import ModelBase, Model
+from mb.modelbase import ModelBase, Model
 
 import logging
 

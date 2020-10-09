@@ -20,12 +20,12 @@ how to use it:
 
 import time
 
-from mb_modelbase.server import modelbase as mb
-from mb_modelbase.core import models as md
+from mb.modelbase import modelbase as mb
+from mb.modelbase import models as md
 
-from mb_modelbase.utils.utils import is_running_in_debug_mode
+from mb.modelbase import is_running_in_debug_mode
 if is_running_in_debug_mode():
-    import models_debug
+    pass
 
 ######### CONFIGURE HERE ###
 do_what = 'aggregation cgw'  # aggregation or density

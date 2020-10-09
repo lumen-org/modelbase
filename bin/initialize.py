@@ -5,28 +5,28 @@ import os
 import sys
 import pandas as pd
 
+import mb.modelbase as mbase
+
 _dirname = os.path.dirname(__file__)
+sys.path.append(os.path.join(_dirname, '../doc'))
+from doc.data import titanic
 
 
 def _learn_initial_models():
     """Trains some simple probabilistic models and stores them in ./fitted_models."""
 
-    sys.path.append(os.path.join(_dirname, '../doc'))
-    import doc.data.titanic as titanic
-    import mb_modelbase as mb
-
     print('Training some simple models ...')
     specs = {
-        'mcg_iris': {'class': mb.MixableCondGaussianModel,
+        'mcg_iris': {'class': mbase.MixableCondGaussianModel,
                      'data': pd.read_csv(os.path.join(_dirname, '../doc/data/iris.csv')),
                      'fitopts': {'fit_algo': 'map'}},
-        'mcg_titanic': {'class': mb.MixableCondGaussianModel,
+        'mcg_titanic': {'class': mbase.MixableCondGaussianModel,
                         'data': titanic.mixed(),
                         'fitopts': {'fit_algo': 'map'}},
     }
 
-    models = mb.fit_models(specs)
-    mb.save_models(models, os.path.join(_dirname, './fitted_models'))
+    models = mbase.fit_models(specs)
+    mbase.save_models(models, os.path.join(_dirname, './fitted_models'))
     print('...done.')
 
 
