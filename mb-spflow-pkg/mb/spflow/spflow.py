@@ -25,8 +25,8 @@ from spn.algorithms.Inference import likelihood
 from spn.algorithms.Sampling import sample_instances
 from spn.io.Graphics import plot_spn, plot_spn_to_svg
 
-from . import models as md
-from .. import utils
+from mb.modelbase import models as md
+from mb.modelbase import utils
 
 
 class SPNModel(md.Model):

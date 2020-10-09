@@ -5,8 +5,8 @@ import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
 from sklearn import mixture
 
-from ..utils import utils
-from . import domains as dm, models as md
+from mb.modelbase.utils import utils
+from mb.modelbase.core import domains as dm, models as md
 
 # setup logger
 logger = logging.getLogger(__name__)

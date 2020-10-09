@@ -5,8 +5,8 @@ from numpy import nan
 import xarray as xr
 import logging
 
-from ..utils import utils
-from . import models as md
+from mb.modelbase.utils import utils
+from mb.modelbase.core import models as md
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)

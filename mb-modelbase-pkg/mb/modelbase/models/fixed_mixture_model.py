@@ -3,7 +3,7 @@ import functools
 import logging
 import math
 
-from . import models as md
+from mb.modelbase.core import models as md
 
 # setup logger
 logger = logging.getLogger(__name__)

@@ -9,7 +9,8 @@ from numpy import pi, exp, abs
 from numpy.linalg import inv, det
 from scipy.optimize import minimize
 
-from . import domains as dm, cond_gaussian_wm as cgwm, models as md
+from . import cond_gaussian_wm as cgwm
+from ..core import domains as dm, models as md
 from ..utils import no_nan, validate_opts
 from ..utils import utils, data_import
 

@@ -4,7 +4,7 @@ import logging
 import functools
 import math
 
-from . import domains as dm, models as md
+from mb.modelbase.core import domains as dm, models as md
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)

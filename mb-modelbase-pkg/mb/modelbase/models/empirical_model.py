@@ -1,6 +1,6 @@
 # Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de)
-from .models import Model
-from . import data_aggregation as data_aggr, data_operations as data_op
+from mb.modelbase.core.models import Model
+from mb.modelbase.core import data_aggregation as data_aggr, data_operations as data_op
 
 
 class EmpiricalModel(Model):
