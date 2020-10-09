@@ -7,19 +7,19 @@ setup(name='mb-mspn',
       author_email='julien.klaus@uni-jena.de, philipp.lucas@dlr.de',
       packages=find_namespace_packages(),
       install_requires=[
-            'numpy',
-            'pandas',
-            'scipy',
-            'mb.modelbase',
-            'scikit-learn',
-            'numba',
-            'networkx',
-            'rpy2',
-            'astropy',
-            'tensorflow',
-            'jsonpickle',
-            'mpmath',
-            'statsmodels'
-            #'h2o'
+          'numpy',  # maybe requires 'numpy==1.18.4' ???
+          'pandas',
+          'scipy',
+          'mb.modelbase',
+          'scikit-learn',
+          'numba',
+          'networkx',
+          'rpy2>=2.9.4',
+          'astropy',
+          'tensorflow',  # maybe requires 'tensorflow==1.14' ???
+          'jsonpickle',
+          'mpmath',
+          'statsmodels',
+          'joblib',
       ],
       zip_safe=False)

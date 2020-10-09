@@ -7,8 +7,7 @@ setup(name='mb-libspn',
       author_email='Julien.Klaus@uni-jena.de',
       packages=find_namespace_packages(),
       install_requires=[
-            'libspn',
-            'tensorflow',
+          'libspn',
+          'tensorflow',  # maybe required 'tensorflow==1.14' ???
       ],
       zip_safe=False)
-
