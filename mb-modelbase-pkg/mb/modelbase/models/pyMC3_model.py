@@ -13,8 +13,8 @@ import scipy.optimize as sciopt
 
 from scipy import stats
 
-from . import models as md
-from .. import utils
+from mb.modelbase.core import models as md
+from mb.modelbase import utils
 #from bin.julien.sampler.graphical_model_sampling import gen_samples_for_model
 
 

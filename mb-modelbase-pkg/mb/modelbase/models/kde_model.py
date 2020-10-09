@@ -6,10 +6,9 @@ import numpy as np
 import scipy.optimize as sciopt
 from scipy import stats
 
-from . import models
-from . import data_aggregation as data_aggr
-from ..utils import data_import
-
+from mb.modelbase.core import models
+from mb.modelbase.core import data_aggregation as data_aggr
+from mb.modelbase.utils import data_import
 
 
 class KDEModel(models.Model):

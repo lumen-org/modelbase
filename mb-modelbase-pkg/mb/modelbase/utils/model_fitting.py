@@ -8,8 +8,8 @@ import os.path
 
 import pandas as pd
 
-from ..core.empirical_model import EmpiricalModel
-from ..core.kde_model import KDEModel
+from mb.modelbase.models.empirical_model import EmpiricalModel
+from mb.modelbase.models.kde_model import KDEModel
 
 # setup logger
 logging.basicConfig(

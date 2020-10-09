@@ -6,6 +6,7 @@ import sys
 import pandas as pd
 
 import mb.modelbase as mbase
+from mb.modelbase.utils import model_fitting
 
 _dirname = os.path.dirname(__file__)
 sys.path.append(os.path.join(_dirname, '../doc'))
@@ -25,8 +26,8 @@ def _learn_initial_models():
                         'fitopts': {'fit_algo': 'map'}},
     }
 
-    models = mbase.fit_models(specs)
-    mbase.save_models(models, os.path.join(_dirname, './fitted_models'))
+    models = model_fitting.fit_models(specs)
+    model_fitting.save_models(models, os.path.join(_dirname, './fitted_models'))
     print('...done.')
 
 
