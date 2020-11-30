@@ -11,6 +11,7 @@ from mb_modelbase.models_core import Model
 from spn.structure.Base import Context
 from spn.algorithms.LearningWrappers import learn_parametric, learn_mspn
 from spn.algorithms.Marginalization import marginalize
+from spn.algorithms.MPE import mpe
 from spn.algorithms.Condition import condition
 # from spn.algorithms.Inference import eval_spn_bottom_up
 from spn.algorithms.Inference import likelihood
@@ -145,9 +146,13 @@ class SPNModel(Model):
         except KeyError as err:
             raise ValueError('missing var type information for dimension: {}.'.format(err.args[0]))
 
+        params = kwargs.copy()
+        if "empirical_model_name" in params.keys():
+            del params["empirical_model_name"]
+
         if self._spn_type == 'spn':
             context = Context(parametric_types=var_types).add_domains(df.values)
-            self._spn = learn_parametric(df.values, context)
+            self._spn = learn_parametric(df.values, context, **params)
 
         elif self._spn_type == 'mspn':
             context = Context(meta_types=var_types).add_domains(df.values)
@@ -155,11 +160,6 @@ class SPNModel(Model):
         else:
             raise Exception("Type of SPN not known: " + self._spn_type)
 
-        # TODO: DEBUG OUTPUT for NIPS2020
-        if self._spn:
-            plot_spn(self._spn, fname=Path(f"../../bin/experiments/spn_graphs/{self.name}.pdf"))
-            plot_spn_to_svg(self._spn, fname=Path(
-                f"../../bin/experiments/spn_graphs/{self.name}.svg"))
         return self._unbound_updater,
 
     def _marginalizeout(self, keep, remove):
@@ -259,6 +259,14 @@ class SPNModel(Model):
         return res
 
     def _maximum(self) -> list:
+        mpe_data = [np.nan] * len(self._initial_names_to_index)
+        for rem, value in zip(self._conditioned, self._condition):
+            mpe_data[self._initial_names_to_index[rem]] = value[0]
+        cond_values = self._condition[0]
+        mpe_value = mpe(self._spn, [mpe_data])
+
+        return np.array([mpe_value[0][self._initial_names_to_index[self.names[0]]].tolist()])
+        """
         fun = lambda x: -1 * self._opt_density(x)
         n_samples = 10  # TOOD: make as argument!
         samples = self.data.sample(n_samples)
@@ -269,14 +277,7 @@ class SPNModel(Model):
         maxima = [ x['x'] for x in optima]
         # NIPS2020: returns here
         return max(maxima).tolist()
-
-        # CL version continues as follows:
-        #values = [ x['fun'] for x in optima ]
-
-        #x0 = np.random.rand(len(self.data.columns.values))
-        #xopt = scpo.minimize(fun, x0, method='Nelder-Mead')
-        #res = self._numeric_to_names(list(xopt['x']))
-        #return res
+        """
 
     def _sample(self, n=1, random_state=RandomState(123)):
         placeholder = np.repeat(np.array(self._condition), n, axis=0)
