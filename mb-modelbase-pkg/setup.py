@@ -17,7 +17,7 @@ setup(name='mb-modelbase',
       install_requires=[
           'Cython',
           'dill',
-          'flask>=1.1.1'
+          'flask>=1.1.1',
           'flask-cors',
           'flask-socketio',
           'multiprocessing_on_dill',
@@ -31,6 +31,7 @@ setup(name='mb-modelbase',
           'scipy',
           'sympy',
           'watchdog',
+          'wheel',
           'xarray',
       ],
       zip_safe=False)
