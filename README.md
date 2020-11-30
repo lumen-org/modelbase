@@ -28,7 +28,7 @@ The `modelbase` repository contains the python package `mb_modelbase` in the lik
 
 `modelbase` is part of a larger project, namely [Lumen](https://github.com/lumen-org). Within `Lumen` there exist two main projects: the back-end [modelbase](https://github.com/lumen-org/modelbase) and the front-end [lumen](https://github.com/lumen-org/lumen) (yeah, there is some name clash... :-p).
 
-The `modelbase` package is the kernel of Lumen. It provides a generic modelling and querying backend, similar to what data base management systems are for tabular data alone. 
+The `modelspace` namespace represents the backend part of lumen. It is the kernel that provides a generic modelling and querying backend, similar to what data base management systems are for tabular data alone. 
 
 ### Setup modelbase ###
 
@@ -45,10 +45,10 @@ The `modelbase` package is the kernel of Lumen. It provides a generic modelling 
 *Note: It is strongly recommended to use some virtual environment of python to install this software.* 
 
 1. Clone this repository into a folder of your choice. Let's call it `<root>`.
-2. Install the `mb_modelbase` package locally, i.e, do `cd <root> && pip3 install .`
-3. Install other dependencies that are only available as git repositories (so called submodules):
+2. Install other dependencies that are only available as git repositories (so called submodules):
     * Install the `cgmodsel` package with `git submodule init && git submodule update`
     * Install submodule `pip3 install cgmodsel` from `<root>`.
+3. Install the base package `mb.modelbase` of the backend locally, i.e, do `cd <root>/mb-modelbase-pkg && pip3 install .`
 4. Run `bin/initialize.py`: this will create some simples models to start with in `bin/fitted_models`. This is also a
    a sanity check that things are all right with your installation.    
     
