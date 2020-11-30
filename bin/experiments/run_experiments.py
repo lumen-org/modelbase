@@ -5,8 +5,7 @@ from inspect import getmembers, isfunction
 from pymc3.exceptions import SamplingError
 
 from mb_modelbase import EmpiricalModel
-from mb_modelbase.models_core.mspnmodel import MSPNModel
-from mb_modelbase.models_core.spnmodel import SPNModel
+
 from mb_modelbase.models_core.spflow import SPNModel as SPFlowSPNModel
 from mb_modelbase.utils import fit_models, save_models
 from mb_modelbase.utils.data_type_mapper import DataTypeMapper
@@ -21,7 +20,7 @@ simplefilter(action="ignore", category=UserWarning)
 
 
 # directory where the generated models for lumen are saved
-fitted_models_directory = "./fitted_models/"
+fitted_models_directory = "./../fitted_models/"
 
 sample_size = 45000
 
@@ -29,19 +28,7 @@ sample_size = 45000
 
 fit_bnlearn = False
 fit_spn = True
-fit_sklearn = False
-fit_hand_tuned = True
-bnlearn_iris = False
 
-allbus_forward_map = {'sex': {'Female': 0, 'Male': 1}, 'eastwest': {'East': 0, 'West': 1},
-                       'lived_abroad': {'No': 0, 'Yes': 1}, 'educ': {'e1': 1, 'e2': 2, 'e3': 3, 'e4': 4, 'e5': 5}}
-
-allbus_backward_map = {'sex': {0: 'Female', 1: 'Male'}, 'eastwest': {0: 'East', 1: 'West'},
-                      'lived_abroad': {0: 'No', 1: 'Yes'}, 'educ': {1: 'e1', 2: 'e2', 3: 'e3', 4: 'e4', 5: 'e5'}}
-
-dtm = DataTypeMapper()
-for name, map_ in allbus_backward_map.items():
-    dtm.set_map(forward=allbus_forward_map[name], backward=map_, name=name)
 
 # defined models
 spn_models = {
@@ -50,23 +37,23 @@ spn_models = {
                                 'fitopts': {'empirical_model_name': 'emp_cars'}}),
 
         'spflow_cars': lambda: ({'class': SPFlowSPNModel, 'data': cars.train(),
-                                       'classopts': {'spn_type': 'spn', 'data_mapping': cars.get_dtm()},
+                                       'classopts': {'spn_type': 'spn'},
                                        'fitopts': {'var_types': cars.get_spn_types(),
-                                                    'cols': 'rdc', 'rows': 'rdc', 'min_instances_slice': 12,
+                                                    'cols': 'rdc', 'rows': 'rdc', 'min_instances_slice': 11,
                                                    'min_features_slice': 1, 'multivariate_leaf': False,
-                                                   'cluster_univariate': False, 'threshold': 0.8,
+                                                   'cluster_univariate': False, 'threshold': 0.7,
                                                    'empirical_model_name': 'emp_cars'}}),
 
         'spflow_ht_cars': lambda: ({'class': SPFlowSPNModel, 'data': cars.train(),
-                                 'classopts': {'spn_type': 'spn', 'data_mapping': cars.get_dtm()},
+                                 'classopts': {'spn_type': 'spn'},
                                  'fitopts': {'var_types': cars.get_spn_types(),
                                              'cols': 'rdc', 'rows': 'rdc', 'min_instances_slice': 17,
                                              'min_features_slice': 1, 'multivariate_leaf': False,
-                                             'cluster_univariate': False, 'threshold': 0.8,
+                                             'cluster_univariate': False, 'threshold': 0.7,
                                              'empirical_model_name': 'emp_cars'}}),
 
         'spflow_ht_cars_2': lambda: ({'class': SPFlowSPNModel, 'data': cars.train(),
-                                    'classopts': {'spn_type': 'spn', 'data_mapping': cars.get_dtm()},
+                                    'classopts': {'spn_type': 'spn'},
                                     'fitopts': {'var_types': cars.get_spn_types(),
                                                 'cols': 'rdc', 'rows': 'rdc', 'min_instances_slice': 20,
                                                 'min_features_slice': 1, 'multivariate_leaf': False,
@@ -74,7 +61,15 @@ spn_models = {
                                                 'empirical_model_name': 'emp_cars'}}),
 
         'spflow_ht_cars_3': lambda: ({'class': SPFlowSPNModel, 'data': cars.train(),
-                                    'classopts': {'spn_type': 'spn', 'data_mapping': cars.get_dtm()},
+                                    'classopts': {'spn_type': 'spn'},
+                                    'fitopts': {'var_types': cars.get_spn_types(),
+                                                'cols': 'rdc', 'rows': 'rdc', 'min_instances_slice': 9,
+                                                'min_features_slice': 1, 'multivariate_leaf': False,
+                                                'cluster_univariate': False, 'threshold': 0.7,
+                                                'empirical_model_name': 'emp_cars'}}),
+
+        'spflow_ht_cars_4': lambda: ({'class': SPFlowSPNModel, 'data': cars.train(),
+                                    'classopts': {'spn_type': 'spn'},
                                     'fitopts': {'var_types': cars.get_spn_types(),
                                                 'cols': 'rdc', 'rows': 'rdc', 'min_instances_slice': 9,
                                                 'min_features_slice': 1, 'multivariate_leaf': False,
@@ -93,7 +88,7 @@ if __name__ == "__main__":
         print("Calculate bnlearn models")
         create_functions = []
         # add the hand tuned model
-        if fit_hand_tuned:
+        if fit_bnlearn:
             from bin.experiments.models.pymc_models_cars import create_bnlearn_cars
 
             create_functions.append(create_bnlearn_cars)
