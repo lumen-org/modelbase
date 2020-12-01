@@ -108,14 +108,18 @@ def save_models(models, directory):
     """Saves all models in dict `models` to given directory.
 
     Args:
-        models (dict): Dictionary as returned by fit_models().
+        models (dict or list): Dictionary as returned by fit_models(), or a list of mb.modelbase.models.
         directory (string): Optional, defaults to '../../models'. Path where to store all models.
     Returns:
         None
     """
-    for model in models.values():
-        if model['status'] == 'SUCCESS':
-            model['model'].save(dir=directory)
+    if isinstance(models, dict):
+        for model in models.values():
+            if model['status'] == 'SUCCESS':
+                model['model'].save(dir=directory)
+    else:
+        for model in models:
+            model.save(dir=directory)
 
 
 def fit_models(spec, verbose=False, include=None, exclude=None):

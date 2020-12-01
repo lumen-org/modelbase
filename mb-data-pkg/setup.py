@@ -11,5 +11,6 @@ setup(name='mb-data',
             'numpy',
             'pandas',
       ],
+      namespace_packages=['mb'],
       zip_safe=False)
 
