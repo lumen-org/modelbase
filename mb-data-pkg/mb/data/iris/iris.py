@@ -11,7 +11,7 @@ import os
 try:
     import spn.structure.leaves.parametric.Parametric as spn_parameter_types
     import spn.structure.StatisticalTypes as spn_statistical_types
-except ModuleNotFoundError:
+except ImportError:
     pass
 
 _csvfilepath = os.path.splitext(__file__)[0] + ".csv"
