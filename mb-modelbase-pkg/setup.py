@@ -33,4 +33,5 @@ setup(name='mb-modelbase',
           'wheel',
           'xarray',
       ],
+      namespace_packages=['mb'],
       zip_safe=False)

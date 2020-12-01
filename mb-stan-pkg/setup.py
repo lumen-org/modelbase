@@ -7,7 +7,8 @@ setup(name='mb-stan',
       author_email='christian.lengert@dlr.de',
       packages=find_namespace_packages(),
       install_requires=[
-            'mb.modelbase',
+            'mb-modelbase',
       ],
+      namespace_packages=['mb'],
       zip_safe=False)
 

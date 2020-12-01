@@ -9,5 +9,7 @@ setup(name='mb-libspn',
       install_requires=[
           'libspn',
           'tensorflow',  # maybe required 'tensorflow==1.14' ???
+          'mb-modelbase',
       ],
+      namespace_packages=['mb'],
       zip_safe=False)

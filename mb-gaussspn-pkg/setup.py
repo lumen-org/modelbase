@@ -7,9 +7,10 @@ setup(name='mb-gaussspn',
       author_email='julien.klaus@uni-jena.de, philipp.lucas@dlr.de',
       packages=find_namespace_packages(),
       install_requires=[
-          'mb.modelbase',
+          'mb-modelbase',
           'numpy',  # maybe requires 'numpy==1.18.4' ???
           'scipy',
           'graphviz',
       ],
+      namespace_packages=['mb'],
       zip_safe=False)
