@@ -2,15 +2,12 @@
 # Copyright (C) 2020 , Philipp Lucas, philipp.lucas@dlr.de
 
 import os
-import sys
-import pandas as pd
 
 import mb.modelbase as mbase
 from mb.modelbase.utils import model_fitting
+from mb.data import iris, titanic
 
 _dirname = os.path.dirname(__file__)
-sys.path.append(os.path.join(_dirname, '../doc'))
-from doc.data import titanic
 
 
 def _learn_initial_models():
@@ -19,7 +16,7 @@ def _learn_initial_models():
     print('Training some simple models ...')
     specs = {
         'mcg_iris': {'class': mbase.MixableCondGaussianModel,
-                     'data': pd.read_csv(os.path.join(_dirname, '../doc/data/iris.csv')),
+                     'data': iris.mixed(),
                      'fitopts': {'fit_algo': 'map'}},
         'mcg_titanic': {'class': mbase.MixableCondGaussianModel,
                         'data': titanic.mixed(),
