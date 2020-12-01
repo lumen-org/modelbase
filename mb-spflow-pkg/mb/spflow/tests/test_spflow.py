@@ -1,7 +1,7 @@
 import unittest
 
 import mb.modelbase as mbase
-from mb.modelbase import SPNModel
+from mb.modelbase import SPFlowModel
 from mb.modelbase.utils import data_import
 
 from . import test_allbus
@@ -22,7 +22,7 @@ class TestSPFlowModelAllbus(unittest.TestCase):
             'discrete': [],
             'continuous': [],
             # 'mixed': [EmpiricalModel]
-            'mixed': [SPNModel]
+            'mixed': [SPFlowModel]
         }
 
         def setup(model):
@@ -30,7 +30,7 @@ class TestSPFlowModelAllbus(unittest.TestCase):
             model.set_var_types(test_allbus.spn_metatypes['philipp'])
 
         models_setup = {
-            ('mixed', SPNModel): lambda x: setup(x)
+            ('mixed', SPFlowModel): lambda x: setup(x)
         }
 
         mbase._test_all(models, models_setup, data, depth=1)
@@ -53,7 +53,7 @@ class TestSPFlowModelMPG(unittest.TestCase):
         models = {
             'discrete': [],
             'continuous': [],
-            'mixed': [SPNModel]
+            'mixed': [SPFlowModel]
         }
 
         def setup(model):
@@ -61,7 +61,7 @@ class TestSPFlowModelMPG(unittest.TestCase):
             model.set_var_types(mpg.spflow_metatypes['version_A'])
 
         models_setup = {
-            ('mixed', SPNModel): lambda x: setup(x)
+            ('mixed', SPFlowModel): lambda x: setup(x)
         }
 
         mbase._test_all(models, models_setup, data, depth=1)

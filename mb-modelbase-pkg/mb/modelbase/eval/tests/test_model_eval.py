@@ -1,12 +1,12 @@
 from mb.modelbase import eval
-from mb.modelbase.core.tests import test_iris
+from mb.data import iris
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import numpy as np
 
     # get model
-    iris_model = test_iris.mcg_map_model()
+    iris_model = iris.mcg_map_model()
     # iris_model.marginalize(remove='species')
     # model = iris_model.copy().marginalize(keep='petal_length')
     model = iris_model.copy().marginalize(keep=['petal_length', 'sepal_length'])

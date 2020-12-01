@@ -37,7 +37,7 @@ from mb.modelbase import EmpiricalModel, MockUpModel, MixtureOfGaussiansModel, \
     MixableCondGaussianModel as MCGModel
 from mb.modelbase import domains as dm, models as md
 
-from . import test_allbus
+from mb.data import mpg
 
 # import more models to test here
 
@@ -361,7 +361,7 @@ if __name__ == '__main__':
 
     models_setup = {
         ('continuous', MixtureOfGaussiansModel): lambda x: x.set_k(4),
-        #('mixed', SPNModel): lambda x: x.set_var_types(allbus.spn_metatypes['philipp']) ,
+        #('mixed', SPFlowModel): lambda x: x.set_var_types(allbus.spn_metatypes['philipp']) ,
     }
 
     density_aggregation_flags = {
@@ -370,7 +370,7 @@ if __name__ == '__main__':
         'density_sum': False
     }
 
-    df = test_allbus.mixed()
+    df = mpg.mixed()
     all_, discrete, continuous = data_import.get_columns_by_dtype(df)
     data = {
         'mixed': df

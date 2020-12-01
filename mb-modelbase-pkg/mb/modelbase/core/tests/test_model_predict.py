@@ -8,7 +8,8 @@ import pandas as pd
 
 from mb.modelbase import Density, Probability, Split, Aggregation, Model
 from mb.modelbase import MixableCondGaussianModel as CondGaussian
-from mb.modelbase.core.tests import test_crabs as crabs
+
+from mb.data import crabs
 
 if __name__ == '__main__':
 

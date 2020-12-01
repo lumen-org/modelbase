@@ -25,11 +25,11 @@ from spn.algorithms.Inference import likelihood
 from spn.algorithms.Sampling import sample_instances
 from spn.io.Graphics import plot_spn, plot_spn_to_svg
 
-from mb.modelbase import models as md
+from mb.modelbase import core as core
 from mb.modelbase import utils
 
 
-class SPNModel(md.Model):
+class SPFlowModel(core.Model):
     """
     Parameters:
         .spn_type : string
@@ -319,7 +319,7 @@ if __name__ == "__main__":
 
     iris_data = pd.read_csv('/home/leng_ch/git/lumen/datasets/mb_data/iris/iris.csv')
     print(iris_data)
-    spn = SPNModel(name="spn_test", spn_type='spn')
+    spn = SPFlowModel(name="spn_test", spn_type='spn')
     import spn.structure.leaves.parametric.Parametric as spn_parameter_types
 
     var_types = {
