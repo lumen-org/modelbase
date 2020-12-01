@@ -7,7 +7,7 @@ setup(name='mb-data',
       author_email='philipp.lucas@dlr.de',
       packages=find_namespace_packages(),
       install_requires=[
-            'mb.modelbase',
+            'mb-modelbase',
             'numpy',
             'pandas',
       ],

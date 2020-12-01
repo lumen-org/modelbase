@@ -8,8 +8,11 @@ Data preprocessing and cleansing for the iris data set
 import pandas as pd
 import os
 
-import spn.structure.leaves.parametric.Parametric as spn_parameter_types
-import spn.structure.StatisticalTypes as spn_statistical_types
+try:
+    import spn.structure.leaves.parametric.Parametric as spn_parameter_types
+    import spn.structure.StatisticalTypes as spn_statistical_types
+except ModuleNotFoundError:
+    pass
 
 _csvfilepath = os.path.splitext(__file__)[0] + ".csv"
 _csvfilepath_disc = os.path.splitext(__file__)[0] + "_discretized.csv"
