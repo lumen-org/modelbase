@@ -6,8 +6,11 @@ This data set is taken from: https://github.com/hadley/data-fuel-economy
 import pandas as pd
 import os
 
-import spn.structure.leaves.parametric.Parametric as spn_parameter_types
-import spn.structure.StatisticalTypes as spn_statistical_types
+try:
+    import spn.structure.leaves.parametric.Parametric as spn_parameter_types
+    import spn.structure.StatisticalTypes as spn_statistical_types
+except ModuleNotFoundError:
+    pass
 
 _csvfilepath = os.path.splitext(__file__)[0] + ".csv"
 
@@ -114,33 +117,34 @@ def cg_4cat3cont(file=_csvfilepath, do_not_change=[]):
 
     return df
 
+def spflow_parameter_types():
+    return {
+        'version_A': {
+            # Compatible to cg_4cat3cont(do_not_change=['cylinder'])
+            'transmission': spn_parameter_types.Categorical,
+            'cylinder': spn_parameter_types.Poisson,
+            'car_size': spn_parameter_types.Categorical,
+            'year': spn_parameter_types.Gaussian,
+            'mpg_city': spn_parameter_types.Gaussian,
+            'mpg_highway': spn_parameter_types.Gaussian,
+            'displacement': spn_parameter_types.Gaussian,
+        }
+    }
 
-spflow_parameter_types = {
-    'version_A': {
-        # Compatible to cg_4cat3cont(do_not_change=['cylinder'])
-        'transmission': spn_parameter_types.Categorical,
-        'cylinder': spn_parameter_types.Poisson,
-        'car_size': spn_parameter_types.Categorical,
-        'year': spn_parameter_types.Gaussian,
-        'mpg_city': spn_parameter_types.Gaussian,
-        'mpg_highway': spn_parameter_types.Gaussian,
-        'displacement': spn_parameter_types.Gaussian,
-    },
-}
 
-
-spflow_metatypes = {
-    'version_A': {
-        # Compatible to cg_4cat3cont(do_not_change=['cylinder'])
-        'transmission': spn_statistical_types.MetaType.DISCRETE,
-        'cylinder': spn_statistical_types.MetaType.DISCRETE,
-        'car_size': spn_statistical_types.MetaType.DISCRETE,
-        'year': spn_statistical_types.MetaType.REAL,
-        'mpg_city': spn_statistical_types.MetaType.REAL,
-        'mpg_highway': spn_statistical_types.MetaType.REAL,
-        'displacement': spn_statistical_types.MetaType.REAL,
-    },
-}
+def spflow_metatypes():
+    return {
+        'version_A': {
+            # Compatible to cg_4cat3cont(do_not_change=['cylinder'])
+            'transmission': spn_statistical_types.MetaType.DISCRETE,
+            'cylinder': spn_statistical_types.MetaType.DISCRETE,
+            'car_size': spn_statistical_types.MetaType.DISCRETE,
+            'year': spn_statistical_types.MetaType.REAL,
+            'mpg_city': spn_statistical_types.MetaType.REAL,
+            'mpg_highway': spn_statistical_types.MetaType.REAL,
+            'displacement': spn_statistical_types.MetaType.REAL,
+        }
+    }
 
 
 if __name__ == '__main__':
