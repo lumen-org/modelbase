@@ -15,12 +15,11 @@ from random import shuffle
 import pandas as pd
 
 from mb.modelbase import Aggregation, Split, Condition, SplitTuple, AggregationTuple
-from mb.modelbase import MixableCondGaussianModel
-from mb.modelbase import MockUpModel
-from mb.modelbase import Model
-from . import test_iris
-from . import test_crabs
+from mb.modelbase.models import MixableCondGaussianModel, MockUpModel
+from mb.modelbase.core import Model
 
+import mb.data.crabs as test_crabs
+import mb.data.iris as test_iris
 
 class TestDataSelect(unittest.TestCase):
     """Test the model.select method."""

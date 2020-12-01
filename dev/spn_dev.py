@@ -1,8 +1,8 @@
-from mb.modelbase import SPNModel
+from mb.modelbase import SPFlowModel
 from mb_data.allbus import allbus
 import spn.structure.StatisticalTypes as spn_statistical_types
 
-m = SPNModel("m", spn_type ='mspn')
+m = SPFlowModel("m", spn_type ='mspn')
 df = allbus.categorical_as_strings()
 
 types = {

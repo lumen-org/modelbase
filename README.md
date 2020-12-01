@@ -21,8 +21,8 @@ The `modelbase` repository contains a number directories as follows:
 
  * `bin`: This folder contains scripts to run an instance of the webservice-backend locally. In particular you may execute `webservice.py` to run the webservice as a local Flask app (see below) 
  * `dev`: This folder contains stuff only relevant for development.
- * `docs`: This folder contains documentation.
- * `jupyter`: This directory contains runnable examples that serve as starting points for different use cases and tasks.
+ * `docs`: This folder contains documentation and introductions as jupyter notebooks.
+  These runnable examples that serve as starting points for different use cases and tasks.
  * `cgmodsel`: Contains a required external python package (resolved as a git submodule).
  * `mb-*-pkg`: each is a namespace package under the common namespace `mb`.
  * `tests`: contains tests.
@@ -50,15 +50,21 @@ The `modelbase` repository contains a number directories as follows:
     * Install the `cgmodsel` package with `git submodule init && git submodule update`
     * Install submodule `pip3 install cgmodsel` from `<root>`.
 3. Install the base package `mb.modelbase` of the backend locally, i.e, do `cd <root>/mb-modelbase-pkg && pip3 install .`
+4. Install the data package `mb.data`, i.e, do `cd <root>/mb-data-pkg && pip3 install .`
 4. Run `bin/initialize.py`: this will create some simples models to start with in `bin/fitted_models`. This is also a sanity check that things are all right with your installation.    
     
 **Setup of optional components:**
  
-This project uses the namespace `mb`. In that namespace a number of packages exist. Following the setup instructions above you just installed the core package 'mb.modelbase'- If you want to install additional optional components you simply install the corresponding namespace packages, analogous to above.
+This project uses the namespace `mb`. 
+In that namespace a number of packages exist.
+Following the setup instructions above you just installed the core package 'mb.modelbase' and the data package 'mb.data'.
+If you want to install additional optional components you simply install the corresponding namespace packages, analogous to above.
 
-Note that these subpackages may have conflicting dependencies. Hence, you may not be able to install all components at once.
+Note that these subpackages may have conflicting dependencies. 
+Hence, you may not be able to install all components at once.
  
-The following namespace packages exist. Each of them provide an additional type of model to work with. 
+The following additional optional components and corresponding namespace packages exist.
+Each of them provide an additional type of model to work with. 
  * `mb.pymc3`: Use probabilistic programs / statistical models written in the PyMC3 probabilistic programming language.   
  * `mb.stan`: Use probabilistic programs / statistical models written in the STAN probabilistic programming language.
  * `mb.gaussspn`: A gauss-SPN adapter. SPN stands for Sum-Product-Network.
@@ -68,13 +74,16 @@ The following namespace packages exist. Each of them provide an additional type 
  
 ### Updating modelbase
 
-Since you have installed it as a package in your local python installation, you have to to the following in order to update it to the latest repository version:
-1. uninstall the current version: `pip uninstall mb_modelbase`
-2. change into the local repository
+Since you have installed `modelbase` as a number of packages in your local python installation, you have run the following for each of your packages in order to update it to the latest repository version.
+ Here it is explained with the `mb.modelbase` core package
+
+1. uninstall the current version of all .
+ For instance for the core package to `pip uninstall mb.modelbase`
+2. change into the local repository <root>/mb-modelbase-pkg
 2. pull the latest version from the repo: `git pull origin master`
 3. install the latest version: `pip3 install .`
 
-Alternatively, you can use the `--editable` when installing the packages above. Then, you simply need to pull the latest version from the repo.
+Alternatively, you can use the `--editable` when installing the packages above. Then, you simply need to pull the latest version from the repo. 
 
 ### Using modelbase
 

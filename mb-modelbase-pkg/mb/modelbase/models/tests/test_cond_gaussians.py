@@ -9,7 +9,7 @@ import unittest
 import numpy as np
 
 from mb.modelbase import ConditionallyGaussianModel as CondGauss
-from mb.modelbase.core.cond_gaussian import datasampling
+from mb.modelbase.models.cond_gaussian import datasampling
 
 
 def print_info(model):

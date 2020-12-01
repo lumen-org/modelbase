@@ -4,13 +4,13 @@ import numpy as np
 import pandas as pd
 
 from mb.modelbase import MixableCondGaussianModel as MixCondGauss
-from mb.modelbase.core.tests import test_allbus as ta
+from mb.data import mpg
 
 
 class TestMethods(unittest.TestCase):
 
     def setUp(self):
-        self.data = ta.mixed()
+        self.data = mpg.mixed()
         self.model = MixCondGauss("TestMod")
         self.model.fit(df=self.data)
         pass

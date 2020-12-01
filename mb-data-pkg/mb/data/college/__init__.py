@@ -1,0 +1,1 @@
+from .college import *

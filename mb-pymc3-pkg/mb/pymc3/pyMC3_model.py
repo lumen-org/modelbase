@@ -1,6 +1,8 @@
 # Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de)
-# Copyright (c) 2019 Philipp Lucas (philipp.lucas@dlr.de)
+# Copyright (c) 2019-2020 Philipp Lucas (philipp.lucas@dlr.de)
 # Copyright (c) 2019 Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
+# Copyright (c) 2019-2020 Julien Klaus (Julien.Klaus@uni-jena.de)
+
 
 import copy as cp
 import math

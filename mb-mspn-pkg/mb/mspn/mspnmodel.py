@@ -37,8 +37,7 @@ from mb.modelbase.utils import data_import
 from .mspn.tfspn.SPN import SPN, Splitting
 
 
-class \
-        MSPNModel(md.Model):
+class MSPNModel(md.Model):
     def __init__(self, name, threshold=None, min_instances_slice=None):
         super().__init__(name)
         self.featureTypes = None

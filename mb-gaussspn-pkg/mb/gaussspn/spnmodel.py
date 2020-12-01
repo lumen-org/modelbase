@@ -157,10 +157,9 @@ class SPNModel(md.Model):
        vectors = [i for i in vectors if None not in i]
        return vectors
 
+
 if __name__ == "__main__":
     from sklearn.datasets import load_iris
-
-
     iris = load_iris()
 
     data = pd.DataFrame(data=np.c_[iris['data']],
@@ -172,5 +171,3 @@ if __name__ == "__main__":
     x = spn._maximum()
     print(x, spn._density(x))
     print("start aggregating")
-    
-    

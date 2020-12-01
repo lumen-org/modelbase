@@ -1,8 +1,3 @@
-# ignore model files as these are created on the fly
+models/
+
 *.mdl
-
-# test data folder
-data/pymc3_simplest_model.csv
-
-# test model folder
-models/*

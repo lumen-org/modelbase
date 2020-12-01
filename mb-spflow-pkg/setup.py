@@ -10,7 +10,7 @@ setup(name='mb-spflow',
             'mb.modelbase',
             'numpy',
             'scipy==1.2', # see also: https://github.com/lumen-org/modelbase/issues/84
-            'spn',
+            'spflow>=0.0.39',
       ],
       zip_safe=False)
 

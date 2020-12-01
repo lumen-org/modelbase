@@ -9,6 +9,9 @@ setup(name='mb-pymc3',
       install_requires=[
             'mb.modelbase',
             'pymc3',
+            'numpy',
+            'pandas',
+            'scipy',
       ],
       zip_safe=False)
 
