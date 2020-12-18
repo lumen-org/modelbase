@@ -5,7 +5,7 @@ from numpy import nan
 import xarray as xr
 import logging
 
-from mb.modelbase.utils import utils
+from mb.modelbase.utils import utilities
 from mb.modelbase.core import models as md
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ class CategoricalModel(md.Model):
 
     def _marginalizeout(self, keep, remove):
         keepidx = sorted(self.asindex(keep))
-        removeidx = utils.invert_indexes(keepidx, self.dim)
+        removeidx = utilities.invert_indexes(keepidx, self.dim)
         # the marginal probability is the sum along the variable(s) to marginalize out
         self._p = self._p.sum(dim=[self.names[idx] for idx in removeidx])  # TODO: cant I use integer indexing?!
         return self._unbound_updater,

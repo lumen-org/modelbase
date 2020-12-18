@@ -5,7 +5,7 @@ and returns a particular type of aggregation as a pandas series"""
 # noinspection PyUnresolvedReferences
 import numpy as np
 
-from ..utils import utils
+from ..utils import utilities
 
 DEFAULT_BIN_NUMBER = 10
 
@@ -59,7 +59,7 @@ def most_frequent_equi_sized(data, opts=None):
                 # attached leveled numerical column by cutting it to levels
                 df[colname], bins = pd.cut(x=data[colname], bins=k, retbins=True)
                 # change level values to the later result
-                df[colname].cat.categories = utils.rolling_1d_mean(bins)
+                df[colname].cat.categories = utilities.rolling_1d_mean(bins)
             else:
                 df[colname] = data[colname]
     else:
@@ -110,11 +110,11 @@ def most_frequent_equi_massed(data, opts=None):
         else:
             # attached leveled numerical column
             # TODO: ahhh!! stupid me. I could have used pd.qcut!
-            bins = utils.equiweightedintervals(seq=data[colname].tolist(), k=k, bins=True)
+            bins = utilities.equiweightedintervals(seq=data[colname].tolist(), k=k, bins=True)
             # collapse to unique bins
             bins = sorted(set(bins))
             # turn bins to rolling means and use that as levels - this way we dont need to convert the labels back later
-            labels = utils.rolling_1d_mean(bins)
+            labels = utilities.rolling_1d_mean(bins)
             # cut to levels
             mycopy[colname] = pd.cut(x=data[colname], bins=bins, include_lowest=True, labels=labels)
 
@@ -175,7 +175,7 @@ def average_most_frequent(df, opts=None):
     else:
         num_avg = average(df.iloc[:, num_idx])
         cat_mstfrqt = most_frequent(df.iloc[:, cat_idx])
-        return utils.mergebyidx(num_avg, cat_mstfrqt, num_idx, cat_idx)
+        return utilities.mergebyidx(num_avg, cat_mstfrqt, num_idx, cat_idx)
 
 
 def average(df):

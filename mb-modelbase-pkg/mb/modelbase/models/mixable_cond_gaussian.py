@@ -12,7 +12,7 @@ from scipy.optimize import minimize
 from . import cond_gaussian_wm as cgwm
 from ..core import domains as dm, models as md
 from ..utils import no_nan, validate_opts
-from ..utils import utils, data_import
+from ..utils import utilities, data_import
 
 # setup logger
 logger = logging.getLogger(__name__)
@@ -160,14 +160,14 @@ class Normalizer():
         if num_keep is not None and num_remove is not None:
             raise ValueError("You may not set both arguments, num_keep and num_remove!")
         if num_remove is not None:
-            num_keep = utils.invert_sequence(num_remove, self._nums)
+            num_keep = utilities.invert_sequence(num_remove, self._nums)
 
         if len(num_keep) == 0:
             self._stddev = self._mean = np.array([])
             self._numname2idx = {}
             self._nums = []
         else:
-            num_keep = utils.sort_filter_list(num_keep, self._nums)  # bring num_keep in correct order
+            num_keep = utilities.sort_filter_list(num_keep, self._nums)  # bring num_keep in correct order
             n2i = self._numname2idx
             idxs = [n2i[n] for n in num_keep]
             # slice out sdddev and mean to keep
@@ -422,7 +422,7 @@ class MixableCondGaussianModel(md.Model):
                 mask.loc[name] = True
 
         if cat_conditioned is not None:
-            cat_keep = utils.invert_sequence(cat_conditioned, mask.coords['name'].values.tolist())
+            cat_keep = utilities.invert_sequence(cat_conditioned, mask.coords['name'].values.tolist())
             self._marginalized_mask = mask.loc[cat_keep]
             assert sum(self._marginalized_mask) == len(self._marginalized)
 
@@ -702,12 +702,12 @@ class MixableCondGaussianModel(md.Model):
 
         else:
             # some categoricals are left
-            cum_dens = utils.cumulative_density(self._p.values)
+            cum_dens = utilities.cumulative_density(self._p.values)
             for i in range(0, int(k)):
                 sample_point = []
 
                 # Getting index via inverse transform sampling
-                index = utils.inverse_transform_sampling(cum_dens)
+                index = utilities.inverse_transform_sampling(cum_dens)
                 sample_cat = np.unravel_index(index, p.shape)
 
                 # Get categoricals

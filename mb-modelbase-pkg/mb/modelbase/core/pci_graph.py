@@ -6,7 +6,7 @@
 # see #93
 #from CGmodelselection.graph import get_graph_from_data
 
-from ..utils import utils
+from ..utils import utilities
 
 
 def create(df, **kwargs):
@@ -24,7 +24,7 @@ def create(df, **kwargs):
         'kS': 2,  # regularization parameter for l1 regularization
         'disp': False,
     }
-    opts = utils.update_opts(default_create_opts, kwargs, valid_create_opts)
+    opts = utilities.update_opts(default_create_opts, kwargs, valid_create_opts)
 
     raise NotImplementedError('see issue #93')
 

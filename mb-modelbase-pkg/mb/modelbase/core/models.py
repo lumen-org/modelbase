@@ -23,7 +23,7 @@ import warnings
 from itertools import compress
 
 from .base import Condition, NAME_IDX, METHOD_IDX, OP_IDX, VALUE_IDX
-from ..utils import utils, data_import
+from ..utils import utilities, data_import
 from . import data_aggregation, auto_extent, base, domains as dm, \
     models_predict, data_operations
 
@@ -367,7 +367,7 @@ class Model:
             names = [names]
             sorted_ = True
         if sorted_:
-            return utils.invert_sequence(names, self.names)
+            return utilities.invert_sequence(names, self.names)
         else:
             names = set(names)
             return [name for name in self.names if name not in names]
@@ -377,7 +377,7 @@ class Model:
         same names but in the same order as the fields in the model.
         It silently drops any duplicate names.
         """
-        return utils.sort_filter_list(names, self.names)
+        return utilities.sort_filter_list(names, self.names)
 
     def __init__(self, name="model", description=""):
         """Construct and return a new model.
@@ -495,7 +495,7 @@ class Model:
             'split_data': [True, False],
             #'silently_drop': [True, False]
         }
-        kwargs = utils.update_opts(default_opts, kwargs, valid_opts)
+        kwargs = utilities.update_opts(default_opts, kwargs, valid_opts)
 
         # general clean up
         df = data_import.clean_dataframe(df)
@@ -1195,7 +1195,7 @@ class Model:
                 other_res[idx] = field['domain'].clamp(other_res[idx])
 
             # 5. merge with singular results
-            model_res = utils.mergebyidx(singular_res, other_res, singular_idx, other_idx)
+            model_res = utilities.mergebyidx(singular_res, other_res, singular_idx, other_idx)
         return model_res
 
     def aggregate(self, method, opts=None):
@@ -1846,7 +1846,7 @@ class Model:
         partial_data, split_data = models_predict.generate_all_input(basemodel, splitby, split_names, partial_data)
 
         # (3) execute each aggregation
-        aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
+        aggr_model_id_gen = utilities.linear_id_generator(prefix=self.name + "_aggr")
         result_list = []
         for aggr, aggr_id in zip(aggrs, aggr_ids):
             # derive submodel for aggr
@@ -1909,8 +1909,8 @@ class Model:
             # TODO: save aggr res and input separately in the first place
             # TODO: don't save them as data frames, just as a list of tuples (then I wouldnot need to create the tuples here)
             # TODO: apply reordering right away when the column is computed
-            perms = utils.alignment_permutation(list(base_df.itertuples(index=False, name=None)),
-                                                *[list(r.iloc[:, :n].itertuples(index=False, name=None)) for r in
+            perms = utilities.alignment_permutation(list(base_df.itertuples(index=False, name=None)),
+                                                    *[list(r.iloc[:, :n].itertuples(index=False, name=None)) for r in
                                                   result_list])
 
             # apply permutations (to aggr results only)
@@ -1966,7 +1966,7 @@ class Model:
             'data_category': 'training data',
             'number_of_samples': 200,
         }
-        opts = utils.update_opts(default_opts, kwargs)
+        opts = utilities.update_opts(default_opts, kwargs)
         # TODO: use validation argument for update_opts again, i.e. implement numerical ranges or such
         # opts = utils.update_opts({'data_category': 'training data'}, kwargs, {'data_category': ['training data', 'test data', 'model samples']})
 
@@ -2007,7 +2007,7 @@ class Model:
             if any((label not in self.names for label in what)):
                 raise KeyError('at least one of ' + str(what) + ' is not a column label of the data.')
             else:
-                opts = utils.update_opts({'data_category': 'training data'}, kwargs)
+                opts = utilities.update_opts({'data_category': 'training data'}, kwargs)
                 if opts['data_category'] == 'training data':
                     warnings.warn('at least one of ' + str(what) + ' is not a column label of the data. There might be '
                                   'latent variables among' + str(what) + 'for which no data was observed.')
