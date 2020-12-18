@@ -1,8 +1,7 @@
-# Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2018-2020 Philipp Lucas (philipp.lucas@uni-jena.de)
 # Copyright (c) 2019-2020 Philipp Lucas (philipp.lucas@dlr.de)
 # Copyright (c) 2019 Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
 # Copyright (c) 2019-2020 Julien Klaus (Julien.Klaus@uni-jena.de)
-
 
 import copy as cp
 import math
@@ -15,7 +14,6 @@ import scipy.optimize as sciopt
 from scipy import stats
 
 import mb.modelbase as mbase
-#from bin.julien.sampler.graphical_model_sampling import gen_samples_for_model
 
 
 class ProbabilisticPymc3Model(mbase.Model):
@@ -24,16 +22,16 @@ class ProbabilisticPymc3Model(mbase.Model):
     General principles:
 
     The heart of this class is the generation of posterior samples during the _sample() method. It uses the PyMC3
-    functions sample() and sample_ppc() to generate samples for both latent and observed random variables, and store
+    functions sample() and sample_posterior_predictive() to generate samples for both latent and observed random variables, and store
     them in a pandas dataframe where columns are variables and rows are associated samples. Fitting the
     model essentially means just generating those samples. Computing a probability density for the model is then done by
     setting up a kernel density estimator over the samples with the scipy.stats library and getting the density from
     this estimator. Marginalizing means just dropping columns from the dataframe, conditioning means just dropping
     rows that do not meet a certain condition. Three things to keep in mind for the conditioning:
         - Conditioning in the actual sense of conditioning on one single value is not feasible here: If we have
-          continuous variables, none of the samples probably has this value, so all samples would be discarded. However
-          for the current implementation it is only necessary to condition on intervals, so that is currently not a
-          problem
+          continuous variables, very likely none of the samples has this value, so all samples would be discarded. However
+          for the current implementation of the Lumen front-end it is only necessary to condition on intervals, so that
+          is currently not a problem
         - However a similar problem appears if we have a high-dimensional model and want to condition on a small area
           within that high-dimensional space. Then it is very likely that again none of the samples fall in this space
           and again, all samples would be discarded. We do not have a solution for this yet.
@@ -55,10 +53,11 @@ class ProbabilisticPymc3Model(mbase.Model):
 
         shared_vars : dictionary of theano shared variables
 
+            key: name of the shared variable in the model. value: Theano shared variable.
             If the model has independent variables, they have to be encoded as theano shared variables and provided
             in this dictionary, additional to the general dataframe containing all observed data. Watch out: It is
             NOT guaranteed that shared_vars always holds the original independent variables, since they are changed
-            during the _fit()-method
+            during the _fit()-method.
 
         nr_of_posterior_samples: integer, defaults to 5000.
 
@@ -68,10 +67,10 @@ class ProbabilisticPymc3Model(mbase.Model):
 
         fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
 
-            Some probabilistic models require a fixed length of the data. This is important because normally
-            new data points are generated with a different length than the original data
+            Some probabilistic models require a fixed length of the data. This is important because usually
+            new data points are generated with a different length than the original data.
 
-        data_mapping: dict or DataTypeMapper, optional. Defaults to the identify mapping.
+        data_mapping: dict or mb.modelbase.utils.DataTypeMapper, optional. Defaults to the identify mapping.
 
             The actual probabilistic modelling may require that you encode variables differently than you want to
             expose them to the outside. E.g. a variable may be modelled as an integer value of 0 or 1 but actually
@@ -93,7 +92,6 @@ class ProbabilisticPymc3Model(mbase.Model):
 
             See https://docs.pymc.io/api/inference.html and there the parameter cores of
             .sample(). Setting it to None lets PyMC3 chose it automatically.
-
 
         probabilistic_program_graph: dict, optional. Defaults to None.
 
@@ -383,9 +381,8 @@ class ProbabilisticPymc3Model(mbase.Model):
                 shared_vars_org[col] = self.shared_vars[col].get_value()
                 self.shared_vars[col].set_value(samples_independent_vars[col])
         with self.model_structure:
-            #ppc = pm.sample_ppc(trace)
             ppc = pm.sample_posterior_predictive(trace)
-            # sample_ppc works the following way: For each parameter set generated by pm.sample(), a sequence
+            # sample_posterior_predictive works the following way: For each parameter set generated by pm.sample(), a sequence
             # of points is generated with the same length as the observed data.
             if self.shared_vars:
                 for rv in self.model_structure.observed_RVs:
