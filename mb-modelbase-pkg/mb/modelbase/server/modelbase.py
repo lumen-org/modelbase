@@ -725,6 +725,10 @@ class ModelBase:
     def _automatically_create_model(self, model_name, query_opts):
         """Automatically create model or raise error if not possible.
 
+        This option can be used in any query that references a model.
+        Then the referenced model is created automatically based on the given parameters
+        if it is missing in the modelbase.
+
         The syntax for this particular option in query opts is as follows:
 
         AUTO_CREATE_MODEL: {
@@ -733,7 +737,6 @@ class ModelBase:
             FOR_MODEL: string
                 The name/id of the model to create this new model for.
             }
-
         :return:
         """
         opts = query_opts.get('AUTO_CREATE_MODEL', None)
