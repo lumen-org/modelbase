@@ -703,11 +703,16 @@ class MixableCondGaussianModel(md.Model):
         else:
             # some categoricals are left
             cum_dens = utilities.cumulative_density(self._p.values)
+            cum_dens_idx_len = len(cum_dens)-1
             for i in range(0, int(k)):
                 sample_point = []
 
                 # Getting index via inverse transform sampling
                 index = utilities.inverse_transform_sampling(cum_dens)
+
+                # resolve issue that the resulting index may be cum_dens_len + 1
+                index = cum_dens_idx_len if index > cum_dens_idx_len else index
+
                 sample_cat = np.unravel_index(index, p.shape)
 
                 # Get categoricals
