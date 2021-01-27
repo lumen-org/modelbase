@@ -8,7 +8,7 @@ setup(name='mb-pymc3',
       packages=find_namespace_packages(),
       install_requires=[
             'mb-modelbase',
-            'pymc3',
+            'pymc3>=3.10',
             'numpy',
             'pandas',
             'scipy',
