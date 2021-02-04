@@ -139,6 +139,8 @@ class ProbabilisticPymc3Model(mbase.Model):
             self._data_type_mapper = mbase.utils.DataTypeMapper()
             for name, forward_mapping in data_mapping.items():
                 self._data_type_mapper.set_map(name, forward_mapping, backward='auto')
+        else:
+            raise TypeError(f"argument data_mapping is of unsupported type '{str(type(data_mapping))}' but should be a dict or a mb.modelbase.DataTypeMapper.")
 
         if probabilistic_program_graph:
             mbase.utils.normalize_pp_graph(probabilistic_program_graph)
@@ -158,6 +160,7 @@ class ProbabilisticPymc3Model(mbase.Model):
         # Add column with index to df for later resorting
         df['index'] = df.index
         self._set_data_mixed(df, drop_silently, split_data=False)
+
         # Sort data by original index to make it consistent again with the shared variables
         # The other way (changing the shared vars to be consistent with the data) does not
         # work since dependent variables would not be changed then
@@ -167,10 +170,12 @@ class ProbabilisticPymc3Model(mbase.Model):
         self._update_all_field_derivatives()
         self._update_remove_fields(to_remove=['index'])
         self._update_all_field_derivatives()
+
         # Enforce usage of theano shared variables for independent variables
         # Independent variables are those variables which appear in the data but not in the RVs of the model structure
         model_vars = [rv.name for rv in self.model_structure.basic_RVs]
         ind_vars = [varname for varname in self.data.columns.values if varname not in model_vars]
+
         # When there are no shared variables, there should be no independent variables. Otherwise, raise an error
         if not self.shared_vars:
             assert len(ind_vars) == 0, \
@@ -179,15 +184,17 @@ class ProbabilisticPymc3Model(mbase.Model):
                 'ProbabilisticPymc3Model constructor'
         # When there are shared variables, there should be independent variables. Otherwise, raise an error
         else:
-            assert len(ind_vars) > 0, ' theano shared variables were passed to the ProbabilisticPymc3Model constructor'\
-                                      ' but the model does not appear to include independent variables. Only pass '\
-                                      'shared variables to the constructor if the according variables are independent'
+            assert len(ind_vars) > 0,  \
+                ' theano shared variables were passed to the ProbabilisticPymc3Model constructor'\
+                ' but the model does not appear to include independent variables. Only pass '\
+                'shared variables to the constructor if the according variables are independent'
             # Each independent variable should appear in self.shared_vars. If not, raise an error
             missing_vars = [varname for varname in ind_vars if varname not in self.shared_vars.keys()]
             assert len(missing_vars) == 0, \
                 'The following independent variables do not appear in shared_vars:' + str(missing_vars) + ' Make sure '\
                 'that you pass the data for each independent variable as theano shared variable to the constructor'
-        self.check_data_and_shared_vars_on_equality()
+        self._check_data_and_shared_vars_on_equality()
+
         # Set number of samples to the number of data points. The number of samples must not be chosen
         # arbitrarily, since independent and dependent variables have to have the same dimensions. Otherwise,
         # some models cannot compute posterior predictive samples
@@ -402,7 +409,7 @@ class ProbabilisticPymc3Model(mbase.Model):
             for col in self.shared_vars.keys():
                 self.shared_vars[col].set_value(shared_vars_org[col])
 
-        self.check_data_and_shared_vars_on_equality()
+        self._check_data_and_shared_vars_on_equality()
         return sample
 
     def _sample(self, n, mode='original', pp=False, sample_mode='first'):
@@ -484,8 +491,8 @@ class ProbabilisticPymc3Model(mbase.Model):
         mycopy.sampling_cores = self.sampling_cores
         mycopy.sampling_chains = self.sampling_chains
         mycopy.fixed_data_length = self.fixed_data_length
-        self.check_data_and_shared_vars_on_equality()
-        mycopy.check_data_and_shared_vars_on_equality()
+        self._check_data_and_shared_vars_on_equality()
+        mycopy._check_data_and_shared_vars_on_equality()
         mycopy._data_type_mapper = self._data_type_mapper.copy()
         mycopy.probabilistic_program_graph = cp.copy(self.probabilistic_program_graph)
         mycopy._update_samples_model_representation(recreate_samples_model_repr=False)
@@ -509,11 +516,13 @@ class ProbabilisticPymc3Model(mbase.Model):
             return np.full(self.dim, np.nan)
         return maximum
 
-    def check_data_and_shared_vars_on_equality(self):
+    def _check_data_and_shared_vars_on_equality(self):
         if self.shared_vars and not self.data.empty:
-            for name in list(self.shared_vars.keys()):
-                if name in self.data.columns:
-                    assert np.array_equal(self.shared_vars[name].get_value(), np.asarray(self.data[name]))
+            columns = self.data.columns
+            for name, shared_var in self.shared_vars.items():
+                assert name in columns, f'shared variable {name} is missing in data of model'
+                assert np.array_equal(shared_var.get_value(),\
+                    self._data_type_mapper.forward(self.data[name], inplace=False).values)
 
     def kde_bandwidth(self, bandwidth=None):
         kde = self._samples_kde
