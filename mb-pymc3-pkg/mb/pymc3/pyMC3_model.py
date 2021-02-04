@@ -478,7 +478,14 @@ class ProbabilisticPymc3Model(mbase.Model):
         # the shared vars attribute must not be changed permanently, because doing so would
         # propagate to all model copies
         # TODO: the above seems like the source of very weird future bugs that occur in race conditions ....
-        mycopy = self.__class__(name, self.model_structure, self.shared_vars)
+        mycopy = self.__class__(name, self.model_structure, self.shared_vars,
+                                nr_of_posterior_samples=self.nr_of_posterior_samples,
+                                fixed_data_length=self.fixed_data_length,
+                                data_mapping=self._data_type_mapper,
+                                sampling_chains=self.sampling_chains,
+                                sampling_cores=self.sampling_cores,
+                                probabilistic_program_graph=self.probabilistic_program_graph,
+                                sample_prior_predictive=self.sample_prior_predictive)
         mycopy.data = self.data.copy()
         mycopy.test_data = self.test_data.copy()
         mycopy.fields = cp.deepcopy(self.fields)
@@ -491,8 +498,8 @@ class ProbabilisticPymc3Model(mbase.Model):
         mycopy.sampling_cores = self.sampling_cores
         mycopy.sampling_chains = self.sampling_chains
         mycopy.fixed_data_length = self.fixed_data_length
-        self._check_data_and_shared_vars_on_equality()
-        mycopy._check_data_and_shared_vars_on_equality()
+        #self._check_data_and_shared_vars_on_equality()
+        #mycopy._check_data_and_shared_vars_on_equality()
         mycopy._data_type_mapper = self._data_type_mapper.copy()
         mycopy.probabilistic_program_graph = cp.copy(self.probabilistic_program_graph)
         mycopy._update_samples_model_representation(recreate_samples_model_repr=False)
