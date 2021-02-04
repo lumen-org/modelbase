@@ -881,7 +881,7 @@ class Model:
         # condition data
         if self.mode == 'data' or self.mode == 'both':
             columns = set(self.data.columns)
-            conditions = [c for c in conditions if c.name in columns]
+            conditions = [c for c in conditions if c[0] in columns]  # c[0] is the condition's var name
             self.data = data_operations.condition_data(self.data, conditions)
             self.test_data = data_operations.condition_data(self.test_data, conditions)
         self._update_extents(names)
