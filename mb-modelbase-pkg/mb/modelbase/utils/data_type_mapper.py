@@ -17,6 +17,16 @@ class DataTypeMapper:
         self._forward_map = {}
         self._backward_map = {}
 
+    def __str__(self):
+        str_list = ['Forwarding: ']
+        for k,v in self._forward_map.items():
+            str_list += f'\n{k} -> {v}'
+        str_list += ['\nBackwarding: ']
+        for k,v in self._backward_map.items():
+            str_list += f'\n{k} -> {v}'
+
+        return ''.join(str_list)
+
     def forward(self, data, inplace=True):
         """Map data from original into alternative representation.
         TODO: allow to receive only a list of values, where values are in correct order
