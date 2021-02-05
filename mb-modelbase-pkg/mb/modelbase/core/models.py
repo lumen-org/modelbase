@@ -427,6 +427,7 @@ class Model:
             "data-model name": self._datamodel_name,
             "model type": str(self.model_type),
             "description": self.description,
+            "time stamp created": str(self.time_stamp_created),
         }
         return json
 
