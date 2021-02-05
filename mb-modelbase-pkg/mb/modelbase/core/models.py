@@ -1439,13 +1439,13 @@ class Model:
         return vol * self._density(x + y)
         # return vol * self._density(list(cat_domains) + y)
 
-    def sample(self, n=1):
+    def sample(self, n=1, **kwargs):
         """Returns n samples drawn from the model as a dataframe with suitable column names.
         TODO: make interface similar to select_data
         """
         if self._isempty():
             raise ValueError('Cannot sample from 0-dimensional model')
-        samples = self._sample(n)
+        samples = self._sample(n, **kwargs)
 
         # reorder to correct column order and only the non hidden dims
         if type(samples) is not pd.DataFrame:
@@ -1456,7 +1456,7 @@ class Model:
             samples = samples.loc[:, unhidden_dims]
         return samples
 
-    def _sample(self, n=1):
+    def _sample(self, n=1, **kwargs):
         """Returns n samples drawn from the model.
 
         This method must be implemented by any actual model that derives from the abstract Model class.
@@ -1556,6 +1556,9 @@ class Model:
             filename: string, optional.
                 Name of file (without path) where to save model. Defaults to self._default_filename().
 
+        Returns:
+            self
+
         You can load a stored model using `Model.load()`.
         """
         if filename is None:
@@ -1564,7 +1567,7 @@ class Model:
         path = os.path.join(dir, filename)
         with open(path, 'wb') as output:
             dill.dump(self, output, dill.HIGHEST_PROTOCOL)
-        return path
+        return self
 
     @staticmethod
     def save_static(model, dir, *args, **kwargs):
@@ -1572,7 +1575,7 @@ class Model:
 
         You can load a stored model using `Model.load()`.
         """
-        model.save(dir, *args, **kwargs)
+        return model.save(dir, *args, **kwargs)
 
     @staticmethod
     def load(filename):
