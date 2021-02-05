@@ -10,6 +10,7 @@ It also provides definitions of other essential data types, such as `Field`, `Ag
 """
 
 import copy as cp
+import datetime
 import functools
 import operator
 import dill
@@ -18,6 +19,7 @@ import os
 # noinspection PyUnresolvedReferences
 import pandas as pd
 import pathlib
+import pytz
 import logging
 import warnings
 from itertools import compress
@@ -388,6 +390,7 @@ class Model:
         self.name = name
         self.model_type = type(self).__name__
         self.description = description
+        self.time_stamp_created = datetime.datetime.now(pytz.utc)
         # the following is all done in _fields_set_empty, which is called below
         # self.fields = []
         # self.names = []
@@ -1497,6 +1500,7 @@ class Model:
         mycopy.set_empirical_model_name(self._datamodel_name)
         mycopy.model_type = self.model_type
         mycopy.description = self.description
+        mycopy.time_stamp_created = self.time_stamp_created
         return mycopy
 
     def _condition_values(self, names=None, pairflag=False, to_scalar=True):
