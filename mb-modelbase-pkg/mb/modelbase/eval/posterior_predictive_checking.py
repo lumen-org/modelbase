@@ -78,8 +78,17 @@ def posterior_predictive_check(model, test_quantity_fct, k=None, n=None, referen
         raise ValueError("n must be a positive number > 0.")
 
     ks = np.empty(n)
-    samples = map(lambda _: model.sample(k).values, ks)
-    samples_test = list(map(test_quantity_fct, samples))
+
+    # the old version created k times samples. while this is semantically ok, it is very slow for
+    #   many probabilistic models since each sampling requires a warm-up phase.
+    # hence, we draw as many samples as we want 'at once'
+    # samples = map(lambda _: model.sample(k, sample_mode='new samples').values, ks)
+    # samples_test = list(map(test_quantity_fct, samples))
+
+    samples = model.sample(k*n, sample_mode='new samples').values
+    samples = samples.reshape((n, k))
+
+    samples_test = np.apply_along_axis(func1d=test_quantity_fct, axis=0, arr=samples)
     reference_test = test_quantity_fct(reference_data.values)
 
     # transpose such that first axis corresponds to variables and second to sample set index
