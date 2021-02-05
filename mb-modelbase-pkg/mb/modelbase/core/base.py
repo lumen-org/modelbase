@@ -103,15 +103,15 @@ def Field(name, domain, extent, independent, dtype='numerical', obstype='observe
         domain : `dm.Domain`
             The domain of the field.
         extent : `dm.Domain`
-            The extent of the field. May not be unbounded. The extent of the field that will be used as a fallback
-            for domain if domain is unbounded but a value for domain is required
+            The extent of the field. May not be unbounded. The extent of the field that will be
+            used as a fallback for domain if domain is unbounded but a value for domain is required
         independent : [True, False]
-            Describes if the according variable is an independent/covariate variable
+            Describes whether a variable is an independent variable/ a covariate or not.
         dtype : ['numerical', 'string'] , optional.
             A string identifier of the data type of this field.
         obstype : ['observed', 'latent'], optional.
-            Indicates whether this field is for an observed variable (i.e. training data for that vairable exists) or a
-             latent one.
+            Indicates whether this field is for an observed variable (i.e. training data for that
+             vairiable exists) or a latent (i.e. hidden, unobserved) one.
 
     Returns : dict
         The constructed 'field dictionary'.
