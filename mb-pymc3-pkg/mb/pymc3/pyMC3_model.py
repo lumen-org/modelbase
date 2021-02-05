@@ -148,6 +148,7 @@ class ProbabilisticPymc3Model(mbase.Model):
 
         self._update_samples_model_representation()
         self.samples = None
+        self._sample_trace = None
         self.sample_prior_predictive = sample_prior_predictive
         self._prefetched_samples = None
         self._has_independent_variables = None
@@ -237,9 +238,11 @@ class ProbabilisticPymc3Model(mbase.Model):
         return cartesian_prod
 
     def _fit(self):
-        self.samples, self._samples_model_repr = \
-            self._sample(self.nr_of_posterior_samples, mode='both',
-                         pp=self.sample_prior_predictive, sample_mode='new samples')
+        self._samples_model_repr, self._sample_trace = self._draw_new_samples(
+            self.nr_of_posterior_samples,
+            prior_predictive=self.sample_prior_predictive,
+            return_trace=True)
+        self.samples = self._data_type_mapper.backward(self._samples_model_repr, inplace=False)
 
         # Add parameters to fields
         varnames = [var.name for var in self.model_structure.unobserved_RVs]
@@ -337,19 +340,33 @@ class ProbabilisticPymc3Model(mbase.Model):
     def _negdensity(self, x):
         return -self._density(x)
 
-    def _draw_new_samples(self, n, pp):
-        """Draw n new samples."""
+    def _draw_new_samples(self, n, prior_predictive, return_trace=False):
+        """Draw n new samples.
+
+        Args:
+            return_trace: bool, optional.
+                Set to True to return instead of just the samples a tuple of
+                (samples, trace), where trace is an `pymc3.pm.MultiTrace` object
+                about the sampled traces.
+
+        Returns:
+            A pandas.DataFrame of the samples, or (samples, trace) if
+            `return_trace` is set to True.
+        """
         sample = pd.DataFrame()
 
         # Generate samples for latent random variables
         with self.model_structure:
-            if pp:
+            if prior_predictive:
                 trace = pd.DataFrame(pm.sample_prior_predictive(n))
-                return self._data_type_mapper.backward(trace, inplace=False), trace
+                raise NotImplementedError()
+                # return self._data_type_mapper.backward(trace, inplace=False), trace
+
             trace = pm.sample(n,
                               chains=self.sampling_chains,
                               cores=self.sampling_cores,
-                              progressbar=False)
+                              progressbar=False,
+                              return_inferencedata=False)  # Return pymc3.MultiTrace
 
         for varname in trace.varnames:
             # check if trace consists of more than one variable
@@ -409,17 +426,15 @@ class ProbabilisticPymc3Model(mbase.Model):
             for col in self.shared_vars.keys():
                 self.shared_vars[col].set_value(shared_vars_org[col])
 
-        self._check_data_and_shared_vars_on_equality()
-        return sample
+#        self._check_data_and_shared_vars_on_equality()
+        return (sample, trace) if return_trace else sample
 
-    def _sample(self, n, mode='original', pp=False, sample_mode='first'):
+    def _sample(self, n, prior_predictive=False, sample_mode='first', **kwargs):
         """
         Draw a sample of size n.
         :param n:
-        :param mode: str. one of 'original', 'model', 'both'
-            Chooses in which representation space the samples are returned.
-        :param pp
-            TODO document
+        :param prior_predictive: bool.
+            Set 'True' to get prior samples instead of posterior samples (the default).
         :param sample_mode str.
             Chooses what method to use for generating samples.
             'first' takes the first n elements of self.samples. 'choice' randomly selects n elements
@@ -454,21 +469,13 @@ class ProbabilisticPymc3Model(mbase.Model):
 
         # mode 3: true sampling of new samples
         elif sample_mode == 'new samples':
-            sample = self._draw_new_samples(n, pp)
+            sample = self._draw_new_samples(n, prior_predictive, return_trace=False)
         else:
             raise ValueError('invalid value for sample_mode: {}'.format(sample_mode))
 
         assert(len(sample) == n)
 
-        # map samples from model space in to data space
-        if mode is 'model':
-            return sample
-        elif mode is 'both':
-            return self._data_type_mapper.backward(sample, inplace=False), sample
-        elif mode is 'original':
-            return self._data_type_mapper.backward(sample)
-        else:
-            raise ValueError('invalid value for mode {}'.format(mode))
+        return sample
 
     def copy(self, name=None):
         name = self.name if name is None else name
@@ -494,6 +501,7 @@ class ProbabilisticPymc3Model(mbase.Model):
         mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples.copy()
         mycopy._samples_model_repr = self._samples_model_repr.copy()
+        mycopy._sample_trace = self._sample_trace
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
         mycopy.sampling_cores = self.sampling_cores
         mycopy.sampling_chains = self.sampling_chains
@@ -527,6 +535,7 @@ class ProbabilisticPymc3Model(mbase.Model):
         if self.shared_vars and not self.data.empty:
             columns = self.data.columns
             for name, shared_var in self.shared_vars.items():
+                #if name in columns:
                 assert name in columns, f'shared variable {name} is missing in data of model'
                 assert np.array_equal(shared_var.get_value(),\
                     self._data_type_mapper.forward(self.data[name], inplace=False).values)
