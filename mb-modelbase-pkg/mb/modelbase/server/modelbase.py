@@ -478,9 +478,15 @@ class ModelBase:
             # TODO: issue #XX: it is a questionable design decision: is it a good idea to marginalize a model
             #  just to create marginal samples? e.g. for cg models it should be faster to not marginalize but simply
             #  throw not needed attributes from the samples.
+            k = opts['k']
+            if opts['k']!= None: 
+            	k = round(int(opts['k']));
+            n = None
+            if opts['n'] != None: 
+            	n =round(int(opts['n']));
             marginal_model = base_model.copy().marginalize(keep=var_names)
             res = ppc.posterior_predictive_check(marginal_model, test_quantity_fct,
-                                                 round(opts.get('k', None)), round(opts.get('n', None)))
+                                                 k, n)
             res_dict = {
                 'header': var_names,
                 'reference': res[0],
