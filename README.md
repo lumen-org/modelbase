@@ -9,12 +9,16 @@ Version: 0.95
 
 ### Content ###
 
-`modelbase` can be used to model tabular data with generic probabilistic modelling as well to analyse, use and explore both, the fitted model as well as the data. To this end the fitted models offer different types of operations such as prediction, conditionalization or marginalization. Semantically equivalent operations, namely aggregation, row select and column selection are also available for data.
+`modelbase` can be used to model tabular data with generic probabilistic modelling as well to analyse, use and explore both, the fitted model as well as the data.
+To this end the fitted models offer different types of operations such as prediction, conditionalization or marginalization.
+Semantically equivalent operations, namely aggregation, row select and column selection are also available for data.
  
 An overview over the capabilities of `modelbase` and a short introductory example of its Python API usage can be found in the jupyter-notebook files `doc/Intro_example.ipynb` and `doc/simple_API_usage.ipynb`.
 
-We also developed [lumen](https://github.com/lumen-org/lumen), an interactive web-application for exploration, comparison and validation of probabilistic models and its data.
-`lumen` uses the webservice interface of `modelbase`, and is intended as a high-level user friendly interface to probabilistic models, where as `modelbase` provides low-level API-style interfaces to probabilistic models. 
+`modelbase` provides an API-level access to model and data. 
+It provides a generic modelling and querying backend, similar to what data base management systems are for tabular data alone.
+We have also developed [lumen](https://github.com/lumen-org/lumen) for visual-interactive access to probabiliistic models that requires no coding at all. 
+`lumen` provides a web-application for exploration, comparison and validation of probabilistic models and its data. It uses the webservice interface of `modelbase`. 
 
 ### Repository Overview ###
 
@@ -28,8 +32,6 @@ The `modelbase` repository contains a number directories as follows:
  * `mb-*-pkg`: each is a namespace package under the common namespace `mb`.
  * `tests`: contains tests.
 
-`modelbase` provides a generic modelling and querying backend, similar to what data base management systems are for tabular data alone. 
-
 ### Setup modelbase ###
 
 **Requirements:**
@@ -40,10 +42,10 @@ The `modelbase` repository contains a number directories as follows:
 
 **Setup:**
 
-*Note: It is strongly recommended to use some virtual environment of python to install this software.* 
+*Note: It is strongly recommended to use some virtual environment of Python to install this software.* 
 
 1. Clone this repository into a folder of your choice. Let's call it `<root>`.
-2. Install other dependencies that are only available as git repositories (so called submodules):
+2. Install other dependencies that are only available as git repositories (so called submodules) as follows:
     * Install the `cgmodsel` package with `git submodule init && git submodule update`
     * Install submodule `pip3 install cgmodsel` from `<root>`.
 3. Install the base package `mb.modelbase` of the backend locally, i.e, do `cd <root>/mb-modelbase-pkg && pip3 install .`
@@ -55,7 +57,7 @@ The `modelbase` repository contains a number directories as follows:
  
 This project uses the namespace `mb`. 
 In that namespace a number of packages exist.
-Following the setup instructions above you just installed the core package 'mb.modelbase' and the data package 'mb.data'.
+Following the setup instructions above you just installed the core package `mb.modelbase` and the data package `mb.data`.
 If you want to install additional optional components you simply install the corresponding namespace packages, analogous to above.
 
 Note that these subpackages may have conflicting dependencies, due to particular dependencies on third-party packages. 
@@ -72,11 +74,12 @@ Each of them provide an additional type of model to work with.
  
 ### Updating modelbase
 
-Since you have installed `modelbase` as a number of packages in your local python installation, you have run the following for each of your packages in order to update it to the latest repository version.
- Here it is explained with the `mb.modelbase` core package
+You have installed `modelbase` as a number of (namespace) packages in your local python installation.
+To update `modelbase` you have to update each of these packages to the latest repository version by indivudually uninstalling them, fetching the latest version from git and installing them.
 
-1. uninstall the current version of all .
- For instance for the core package to `pip uninstall mb.modelbase`
+Here it is explained with the `mb.modelbase` core package
+
+1. uninstall the current version: For instance for the core package do: `pip uninstall mb.modelbase`
 2. change into the local repository <root>/mb-modelbase-pkg
 2. pull the latest version from the repo: `git pull origin master`
 3. install the latest version: `pip3 install .`
@@ -100,9 +103,8 @@ Alternatively, you can use the `--editable` when installing the packages above. 
 
 ### Running the modelbase webservice
 
-Apart from the Python packages that you have installed by the above instructions this repo also contains the `bin` directory. 
-This directory contains scipts and configurations files to run a  `modelbase` instance as a webservice. 
-There is two ways to do this:
+This repository contains a number of namespace pacakges which you should have installed by now.
+It also contains the `bin` directory, which contains executable scripts that you can use to run the backend as a webservice.
 
 1. Execute `webservice.py`. 
   This will start a Flask web server locally. 
@@ -119,8 +121,8 @@ There is three ways to configure the webservice.
 In order of precedence (highest to lowest):
 
   * use command line arguments to `webservice.py`.
-   This cannot be used if you run modelbase as a WSGI application.
-    See `webservice.py --help` for available options.
+  This cannot be used if you run modelbase as a WSGI application.
+  See `webservice.py --help` for available options.
   * set options in `run_conf.cfg`. 
   This is respected by both ways of running `modelbase` as a webservice (see above). 
   `run_conf.cfg` may have any subset of the options in `default_run_conf.cfg` and has the same format.
