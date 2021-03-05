@@ -13,7 +13,8 @@ Version: 0.95
  
 An overview over the capabilities of `modelbase` and a short introductory example of its Python API usage can be found in the jupyter-notebook files `doc/Intro_example.ipynb` and `doc/simple_API_usage.ipynb`.
 
-We also developed [lumen](https://github.com/lumen-org/lumen), an interactive web-application for exploration, comparison and validation of probabilistic models and its data. `lumen` uses the webservice interface of `modelbase`. 
+We also developed [lumen](https://github.com/lumen-org/lumen), an interactive web-application for exploration, comparison and validation of probabilistic models and its data.
+`lumen` uses the webservice interface of `modelbase`, and is intended as a high-level user friendly interface to probabilistic models, where as `modelbase` provides low-level API-style interfaces to probabilistic models. 
 
 ### Repository Overview ###
 
@@ -26,10 +27,6 @@ The `modelbase` repository contains a number directories as follows:
  * `cgmodsel`: Contains a required external python package (resolved as a git submodule).
  * `mb-*-pkg`: each is a namespace package under the common namespace `mb`.
  * `tests`: contains tests.
-
-### The Lumen Project ###
-
-`modelbase` is part of a larger project, namely [Lumen](https://github.com/lumen-org). Within `Lumen` there exist two main projects: the back-end [modelbase](https://github.com/lumen-org/modelbase) and the front-end [lumen](https://github.com/lumen-org/lumen). 
 
 `modelbase` provides a generic modelling and querying backend, similar to what data base management systems are for tabular data alone. 
 
@@ -51,7 +48,8 @@ The `modelbase` repository contains a number directories as follows:
     * Install submodule `pip3 install cgmodsel` from `<root>`.
 3. Install the base package `mb.modelbase` of the backend locally, i.e, do `cd <root>/mb-modelbase-pkg && pip3 install .`
 4. Install the data package `mb.data`, i.e, do `cd <root>/mb-data-pkg && pip3 install .`
-4. Run `bin/initialize.py`: this will create some simples models to start with in `bin/fitted_models`. This is also a sanity check that things are all right with your installation.    
+4. Run `bin/initialize.py`: this will create some initial probabilistic models in `bin/fitted_models`. 
+   This is also a sanity check that things are all right with your installation.    
     
 **Setup of optional components:**
  
@@ -60,10 +58,10 @@ In that namespace a number of packages exist.
 Following the setup instructions above you just installed the core package 'mb.modelbase' and the data package 'mb.data'.
 If you want to install additional optional components you simply install the corresponding namespace packages, analogous to above.
 
-Note that these subpackages may have conflicting dependencies. 
+Note that these subpackages may have conflicting dependencies, due to particular dependencies on third-party packages. 
 Hence, you may not be able to install all components at once.
  
-The following additional optional components and corresponding namespace packages exist.
+The following additional optional components and corresponding namespace packages exist:
 Each of them provide an additional type of model to work with. 
  * `mb.pymc3`: Use probabilistic programs / statistical models written in the PyMC3 probabilistic programming language.   
  * `mb.stan`: Use probabilistic programs / statistical models written in the STAN probabilistic programming language.
@@ -89,73 +87,62 @@ Alternatively, you can use the `--editable` when installing the packages above. 
 
 `modelbase` provides three layers of APIs:
 
-1. a webservice that accepts JSON-formatted http/https requests with a SQL inspired syntax.See 'Running the modelbase webservice' and 'configuring the modelbase webservice' below.
+1. a webservice that accepts JSON-formatted http/https requests with a SQL inspired syntax. 
+ See 'Running the modelbase webservice' and 'configuring the modelbase webservice' below.
+   
 2. a python class `ModelBase`. 
-An instance of that class is like a instance of a data base management system - just (also) for probabilistic models. Use its member methods to add, remove models and run queries against it. 
-See the class documentation for more information.
+ An instance of that class is like a instance of a data base management system - just (also) for probabilistic models. 
+ Use its member methods to add, remove models and run queries against it. 
+ See the class documentation for more information.
+   
 3. a python class `Model`, which is the base class of all concrete models implemented in `modelbase'.
- A instance of such a class hence represents one particular model. See the class documentation for more information. Also 
+ A instance of such a class hence represents one particular model. See the class documentation for more information. 
 
 ### Running the modelbase webservice
 
-This repository contains the code for the python package `mb_modelbase` (in the folder with identical name). If you followed the setup steps above this package is installed to your python environment. Apart from the package the repo also contains the `bin` directory which we will use to run the backend. 
+Apart from the Python packages that you have installed by the above instructions this repo also contains the `bin` directory. 
+This directory contains scipts and configurations files to run a  `modelbase` instance as a webservice. 
+There is two ways to do this:
 
-There is two intended ways to run the modelbase backend.
-1. execute `webservice.py`. This starts a simple Flask web server locally. _Note that this should not be used for production environments._
-2. run it as an WSGI application with (for example) apache2. To this end, the `modelbase.wsgi` file is provided. 
+1. Execute `webservice.py`. 
+  This will start a Flask web server locally. 
+  It is the default and recommened way of using `modelbase` if you just use it locally in combination with the sister project [`lumen`](https://github.com/lumen-org/lumen).
+   
+2. Run it as an WSGI application with (for example) apache2. 
+   The `modelbase.wsgi` file is provided for your convenience. 
 
-When you start the webservice it will load the models from the directory you provided (see configuration options).
+When you start the webservice it will load all models from the directory you provided (see configuration options below).
 
 ### Configuring the modelbase webservice
 
-There is three ways to configure the backend. In order of precedence (highest to lowest):
+There is three ways to configure the webservice.
+In order of precedence (highest to lowest):
+
   * use command line arguments to `webservice.py`.
    This cannot be used if you run modelbase as a WSGI application.
     See `webservice.py --help` for available options.
   * set options in `run_conf.cfg`. 
-  This is respected by both ways of running `modelbase` (see above). 
-  `run_conf.cfg` may have any subset of the options in `default_run_conf.cfg` and has the same format. 
-  Note that `run_conf.cfg` does initially *not* exist after cloning the project.
-  To find out what options are available, please see `default_run_conf.cfg`.
+  This is respected by both ways of running `modelbase` as a webservice (see above). 
+  `run_conf.cfg` may have any subset of the options in `default_run_conf.cfg` and has the same format.
+  To find out what options are available, please see `run_conf.cfg`.
   * set options in `default_run_conf.cfg`. 
-  Changing settings here is not recommended. 
+  Changing settings here is not recommended. Use `run_conf.cfg` instead.
 
-#### Hosting models 
+#### Hosting probabilistic models 
 
-Notes:
- * once run the server does not immediately necessarily produce any output on the command line. *that is normal*.
- * don't forget to activate your custom environment, *if you configured one in the process above*.
-
-### Development Setup
-
-This section describes the _recommended_ development setup. 
-
-We recommend using PyCharm as an IDE.
-You can set the virtual python environment to use (if any specific) in PyCharm like [this](https://docs.continuum.io/anaconda/ide_integration#pycharm).
-Moreover, I recommend not installing it as a local package using the `--editable` option of pip. 
-This makes your dev workflow much faster, because you do not need to update the local installation (doing an uninstall & reinstall)when you changed the code in the repository. See as follows:
-
-1. setup public key authentication for the repository. This way you do not need to provide passwords when pulling/pushing.
-2. clone repository to local machine into `<root>`
-3. install [PyCharm IDE](https://www.jetbrains.com/pycharm/)
-4. create python virtual environment for project 
-   * using PyCharm IDE: open project -> settings -> project settings -> project interpreter -> add python interpreter
-   * using pure virtual env: see [here](https://virtualenv.pypa.io/en/stable/userguide/#usage)
-5. install like above in the setup instructions but with the `--editable` flag.
-8. get the data repository [from here](https://ci.inf-i2.uni-jena.de/gemod/mb_data) and install it with the `--editable` flag as well.
-   * This repository provides prepared data set and preset configurations to learn models from the data.
-9. get the front-end [lumen](https://github.com/lumen-org/lumen)
-   * you probably want the front-end as well. See the README of the repository for more details.
+An instance of the webservice watches a directory and loads all models in that directory so that you can execute queries on these models and their data.
+Models are stored as `.mdl` files and are serialized (pickled) instances of `md.Model`, that is, instances of some probabilistic model class.
+By default models are loaded from the `bin/fitted_models` directory, and this directory some models that are created/trained during the setup process of the `modelbase`.
 
 -----
  
 ### Contact ###
 
-For any questions, feedback, bug reports, feature requests, spam, etc please contact: [philipp.lucas@dlr.de](philipp.lucas@dlr.de).
+For any questions, feedback, bug reports, feature requests, rants, etc please contact: [philipp.lucas@dlr.de](philipp.lucas@dlr.de).
 
 ### Copyright and Licence ###
 
-© 2016-2020 Philipp Lucas (philipp.lucas@dlr.de)
+© 2016-2021 Philipp Lucas (philipp.lucas@dlr.de)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
