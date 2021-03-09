@@ -4,6 +4,7 @@ git:
 os: linux
 install:
   - git submodule init && git submodule update
+  - pip3 install cgmodsel
   - pip install ./mb-modelbase-pkg
   - pip install ./mb-data-pkg
   - python bin/initialize.py
