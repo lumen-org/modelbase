@@ -3,8 +3,8 @@ git:
   submodules: false
 os: linux
 install:
-  - pip install mb-modelbase-pkg
-  - pip install mb-data-pkg
+  - pip install ./mb-modelbase-pkg
+  - pip install ./mb-data-pkg
   - python bin/initialize.py
   - pip install pytest-cov
 before_script:
