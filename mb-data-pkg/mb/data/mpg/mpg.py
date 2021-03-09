@@ -46,7 +46,7 @@ def _read(file=_csvfilepath):
 def cg(file=_csvfilepath):
     df = _read(file)
     df = df.loc[:, ['year', 'car_size', 'cylinder', 'displacement', 'mpg_city', 'mpg_highway']]
-    df.drop(df.columns[[0]], axis=1, inplace=True)
+    #df.drop(df.columns[[0]], axis=1, inplace=True)
     df.dropna(axis=0, inplace=True, how="any")
     return df
 
