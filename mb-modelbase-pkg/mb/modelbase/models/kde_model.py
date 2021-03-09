@@ -3,6 +3,7 @@ import copy
 import itertools
 
 import numpy as np
+import pandas as pd
 import scipy.optimize as sciopt
 from scipy import stats
 
