@@ -15,12 +15,18 @@ def _learn_initial_models():
 
     print('Training some simple models ...')
     specs = {
-        'mcg_iris': {'class': mbase.MixableCondGaussianModel,
+        'iris_cond_gauss': {'class': mbase.MixableCondGaussianModel,
                      'data': iris.mixed(),
                      'fitopts': {'fit_algo': 'map'}},
-        'mcg_titanic': {'class': mbase.MixableCondGaussianModel,
+        'iris_kde': {'class': mbase.KDEModel,
+                            'data': iris.mixed(),
+                     },
+        'titanic_cond_gauss': {'class': mbase.MixableCondGaussianModel,
                         'data': titanic.mixed(),
                         'fitopts': {'fit_algo': 'map'}},
+        'titanic_kde':  {'class': mbase.KDEModel,
+                        'data': titanic.mixed(),
+                        },
     }
 
     models = model_fitting.fit_models(specs)
