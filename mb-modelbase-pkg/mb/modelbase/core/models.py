@@ -10,6 +10,7 @@ It also provides definitions of other essential data types, such as `Field`, `Ag
 """
 
 import copy as cp
+import datetime
 import functools
 import operator
 import dill
@@ -18,12 +19,13 @@ import os
 # noinspection PyUnresolvedReferences
 import pandas as pd
 import pathlib
+import pytz
 import logging
 import warnings
 from itertools import compress
 
 from .base import Condition, NAME_IDX, METHOD_IDX, OP_IDX, VALUE_IDX
-from ..utils import utils, data_import
+from ..utils import utilities, data_import
 from . import data_aggregation, auto_extent, base, domains as dm, \
     models_predict, data_operations
 
@@ -367,7 +369,7 @@ class Model:
             names = [names]
             sorted_ = True
         if sorted_:
-            return utils.invert_sequence(names, self.names)
+            return utilities.invert_sequence(names, self.names)
         else:
             names = set(names)
             return [name for name in self.names if name not in names]
@@ -377,7 +379,7 @@ class Model:
         same names but in the same order as the fields in the model.
         It silently drops any duplicate names.
         """
-        return utils.sort_filter_list(names, self.names)
+        return utilities.sort_filter_list(names, self.names)
 
     def __init__(self, name="model", description=""):
         """Construct and return a new model.
@@ -388,6 +390,7 @@ class Model:
         self.name = name
         self.model_type = type(self).__name__
         self.description = description
+        self.time_stamp_created = datetime.datetime.now(pytz.utc)
         # the following is all done in _fields_set_empty, which is called below
         # self.fields = []
         # self.names = []
@@ -424,6 +427,7 @@ class Model:
             "data-model name": self._datamodel_name,
             "model type": str(self.model_type),
             "description": self.description,
+            "time stamp created": str(self.time_stamp_created),
         }
         return json
 
@@ -495,7 +499,7 @@ class Model:
             'split_data': [True, False],
             #'silently_drop': [True, False]
         }
-        kwargs = utils.update_opts(default_opts, kwargs, valid_opts)
+        kwargs = utilities.update_opts(default_opts, kwargs, valid_opts)
 
         # general clean up
         df = data_import.clean_dataframe(df)
@@ -881,7 +885,7 @@ class Model:
         # condition data
         if self.mode == 'data' or self.mode == 'both':
             columns = set(self.data.columns)
-            conditions = [c for c in conditions if c.name in columns]
+            conditions = [c for c in conditions if c[0] in columns]  # c[0] is the condition's var name
             self.data = data_operations.condition_data(self.data, conditions)
             self.test_data = data_operations.condition_data(self.test_data, conditions)
         self._update_extents(names)
@@ -1195,7 +1199,7 @@ class Model:
                 other_res[idx] = field['domain'].clamp(other_res[idx])
 
             # 5. merge with singular results
-            model_res = utils.mergebyidx(singular_res, other_res, singular_idx, other_idx)
+            model_res = utilities.mergebyidx(singular_res, other_res, singular_idx, other_idx)
         return model_res
 
     def aggregate(self, method, opts=None):
@@ -1435,13 +1439,13 @@ class Model:
         return vol * self._density(x + y)
         # return vol * self._density(list(cat_domains) + y)
 
-    def sample(self, n=1):
+    def sample(self, n=1, **kwargs):
         """Returns n samples drawn from the model as a dataframe with suitable column names.
         TODO: make interface similar to select_data
         """
         if self._isempty():
             raise ValueError('Cannot sample from 0-dimensional model')
-        samples = self._sample(n)
+        samples = self._sample(n, **kwargs)
 
         # reorder to correct column order and only the non hidden dims
         if type(samples) is not pd.DataFrame:
@@ -1452,7 +1456,7 @@ class Model:
             samples = samples.loc[:, unhidden_dims]
         return samples
 
-    def _sample(self, n=1):
+    def _sample(self, n=1, **kwargs):
         """Returns n samples drawn from the model.
 
         This method must be implemented by any actual model that derives from the abstract Model class.
@@ -1497,6 +1501,7 @@ class Model:
         mycopy.set_empirical_model_name(self._datamodel_name)
         mycopy.model_type = self.model_type
         mycopy.description = self.description
+        mycopy.time_stamp_created = self.time_stamp_created
         return mycopy
 
     def _condition_values(self, names=None, pairflag=False, to_scalar=True):
@@ -1551,6 +1556,9 @@ class Model:
             filename: string, optional.
                 Name of file (without path) where to save model. Defaults to self._default_filename().
 
+        Returns:
+            self
+
         You can load a stored model using `Model.load()`.
         """
         if filename is None:
@@ -1559,7 +1567,7 @@ class Model:
         path = os.path.join(dir, filename)
         with open(path, 'wb') as output:
             dill.dump(self, output, dill.HIGHEST_PROTOCOL)
-        return path
+        return self
 
     @staticmethod
     def save_static(model, dir, *args, **kwargs):
@@ -1567,7 +1575,7 @@ class Model:
 
         You can load a stored model using `Model.load()`.
         """
-        model.save(dir, *args, **kwargs)
+        return model.save(dir, *args, **kwargs)
 
     @staticmethod
     def load(filename):
@@ -1846,7 +1854,7 @@ class Model:
         partial_data, split_data = models_predict.generate_all_input(basemodel, splitby, split_names, partial_data)
 
         # (3) execute each aggregation
-        aggr_model_id_gen = utils.linear_id_generator(prefix=self.name + "_aggr")
+        aggr_model_id_gen = utilities.linear_id_generator(prefix=self.name + "_aggr")
         result_list = []
         for aggr, aggr_id in zip(aggrs, aggr_ids):
             # derive submodel for aggr
@@ -1909,8 +1917,8 @@ class Model:
             # TODO: save aggr res and input separately in the first place
             # TODO: don't save them as data frames, just as a list of tuples (then I wouldnot need to create the tuples here)
             # TODO: apply reordering right away when the column is computed
-            perms = utils.alignment_permutation(list(base_df.itertuples(index=False, name=None)),
-                                                *[list(r.iloc[:, :n].itertuples(index=False, name=None)) for r in
+            perms = utilities.alignment_permutation(list(base_df.itertuples(index=False, name=None)),
+                                                    *[list(r.iloc[:, :n].itertuples(index=False, name=None)) for r in
                                                   result_list])
 
             # apply permutations (to aggr results only)
@@ -1966,7 +1974,7 @@ class Model:
             'data_category': 'training data',
             'number_of_samples': 200,
         }
-        opts = utils.update_opts(default_opts, kwargs)
+        opts = utilities.update_opts(default_opts, kwargs)
         # TODO: use validation argument for update_opts again, i.e. implement numerical ranges or such
         # opts = utils.update_opts({'data_category': 'training data'}, kwargs, {'data_category': ['training data', 'test data', 'model samples']})
 
@@ -2007,7 +2015,7 @@ class Model:
             if any((label not in self.names for label in what)):
                 raise KeyError('at least one of ' + str(what) + ' is not a column label of the data.')
             else:
-                opts = utils.update_opts({'data_category': 'training data'}, kwargs)
+                opts = utilities.update_opts({'data_category': 'training data'}, kwargs)
                 if opts['data_category'] == 'training data':
                     warnings.warn('at least one of ' + str(what) + ' is not a column label of the data. There might be '
                                   'latent variables among' + str(what) + 'for which no data was observed.')

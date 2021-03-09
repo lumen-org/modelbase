@@ -1,8 +1,7 @@
-# Copyright (c) 2018 Philipp Lucas (philipp.lucas@uni-jena.de)
+# Copyright (c) 2018-2020 Philipp Lucas (philipp.lucas@uni-jena.de)
 # Copyright (c) 2019-2020 Philipp Lucas (philipp.lucas@dlr.de)
 # Copyright (c) 2019 Jonas Gütter (jonas.aaron.guetter@uni-jena.de)
 # Copyright (c) 2019-2020 Julien Klaus (Julien.Klaus@uni-jena.de)
-
 
 import copy as cp
 import math
@@ -12,30 +11,27 @@ import numpy as np
 import pandas as pd
 import pymc3 as pm
 import scipy.optimize as sciopt
-
 from scipy import stats
 
-from mb.modelbase.core import models as md
-from mb.modelbase import utils
-#from bin.julien.sampler.graphical_model_sampling import gen_samples_for_model
+import mb.modelbase as mbase
 
 
-class ProbabilisticPymc3Model(md.Model):
+class ProbabilisticPymc3Model(mbase.Model):
     """A Bayesian model built using the PyMC3 library.
 
     General principles:
 
     The heart of this class is the generation of posterior samples during the _sample() method. It uses the PyMC3
-    functions sample() and sample_ppc() to generate samples for both latent and observed random variables, and store
+    functions sample() and sample_posterior_predictive() to generate samples for both latent and observed random variables, and store
     them in a pandas dataframe where columns are variables and rows are associated samples. Fitting the
     model essentially means just generating those samples. Computing a probability density for the model is then done by
     setting up a kernel density estimator over the samples with the scipy.stats library and getting the density from
     this estimator. Marginalizing means just dropping columns from the dataframe, conditioning means just dropping
     rows that do not meet a certain condition. Three things to keep in mind for the conditioning:
         - Conditioning in the actual sense of conditioning on one single value is not feasible here: If we have
-          continuous variables, none of the samples probably has this value, so all samples would be discarded. However
-          for the current implementation it is only necessary to condition on intervals, so that is currently not a
-          problem
+          continuous variables, very likely none of the samples has this value, so all samples would be discarded. However
+          for the current implementation of the Lumen front-end it is only necessary to condition on intervals, so that
+          is currently not a problem
         - However a similar problem appears if we have a high-dimensional model and want to condition on a small area
           within that high-dimensional space. Then it is very likely that again none of the samples fall in this space
           and again, all samples would be discarded. We do not have a solution for this yet.
@@ -57,10 +53,11 @@ class ProbabilisticPymc3Model(md.Model):
 
         shared_vars : dictionary of theano shared variables
 
+            key: name of the shared variable in the model. value: Theano shared variable.
             If the model has independent variables, they have to be encoded as theano shared variables and provided
             in this dictionary, additional to the general dataframe containing all observed data. Watch out: It is
             NOT guaranteed that shared_vars always holds the original independent variables, since they are changed
-            during the _fit()-method
+            during the _fit()-method.
 
         nr_of_posterior_samples: integer, defaults to 5000.
 
@@ -70,10 +67,10 @@ class ProbabilisticPymc3Model(md.Model):
 
         fixed_data_length: boolean, indicates if the model requires the data to have a fixed length
 
-            Some probabilistic models require a fixed length of the data. This is important because normally
-            new data points are generated with a different length than the original data
+            Some probabilistic models require a fixed length of the data. This is important because usually
+            new data points are generated with a different length than the original data.
 
-        data_mapping: dict or DataTypeMapper, optional. Defaults to the identify mapping.
+        data_mapping: dict or mb.modelbase.utils.DataTypeMapper, optional. Defaults to the identify mapping.
 
             The actual probabilistic modelling may require that you encode variables differently than you want to
             expose them to the outside. E.g. a variable may be modelled as an integer value of 0 or 1 but actually
@@ -95,7 +92,6 @@ class ProbabilisticPymc3Model(md.Model):
 
             See https://docs.pymc.io/api/inference.html and there the parameter cores of
             .sample(). Setting it to None lets PyMC3 chose it automatically.
-
 
         probabilistic_program_graph: dict, optional. Defaults to None.
 
@@ -137,19 +133,22 @@ class ProbabilisticPymc3Model(md.Model):
 
         if data_mapping is None:
             data_mapping = {}
-        if type(data_mapping) is utils.DataTypeMapper:
+        if type(data_mapping) is mbase.utils.DataTypeMapper:
             self._data_type_mapper = data_mapping
         elif type(data_mapping) is dict:
-            self._data_type_mapper = utils.DataTypeMapper()
+            self._data_type_mapper = mbase.utils.DataTypeMapper()
             for name, forward_mapping in data_mapping.items():
                 self._data_type_mapper.set_map(name, forward_mapping, backward='auto')
+        else:
+            raise TypeError(f"argument data_mapping is of unsupported type '{str(type(data_mapping))}' but should be a dict or a mb.modelbase.DataTypeMapper.")
 
         if probabilistic_program_graph:
-            utils.normalize_pp_graph(probabilistic_program_graph)
+            mbase.utils.normalize_pp_graph(probabilistic_program_graph)
         self.probabilistic_program_graph = probabilistic_program_graph
 
         self._update_samples_model_representation()
         self.samples = None
+        self._sample_trace = None
         self.sample_prior_predictive = sample_prior_predictive
         self._prefetched_samples = None
         self._has_independent_variables = None
@@ -162,6 +161,7 @@ class ProbabilisticPymc3Model(md.Model):
         # Add column with index to df for later resorting
         df['index'] = df.index
         self._set_data_mixed(df, drop_silently, split_data=False)
+
         # Sort data by original index to make it consistent again with the shared variables
         # The other way (changing the shared vars to be consistent with the data) does not
         # work since dependent variables would not be changed then
@@ -171,10 +171,12 @@ class ProbabilisticPymc3Model(md.Model):
         self._update_all_field_derivatives()
         self._update_remove_fields(to_remove=['index'])
         self._update_all_field_derivatives()
+
         # Enforce usage of theano shared variables for independent variables
         # Independent variables are those variables which appear in the data but not in the RVs of the model structure
-        model_vars = [str(name) for name in self.model_structure.basic_RVs]
+        model_vars = [rv.name for rv in self.model_structure.basic_RVs]
         ind_vars = [varname for varname in self.data.columns.values if varname not in model_vars]
+
         # When there are no shared variables, there should be no independent variables. Otherwise, raise an error
         if not self.shared_vars:
             assert len(ind_vars) == 0, \
@@ -183,15 +185,17 @@ class ProbabilisticPymc3Model(md.Model):
                 'ProbabilisticPymc3Model constructor'
         # When there are shared variables, there should be independent variables. Otherwise, raise an error
         else:
-            assert len(ind_vars) > 0, ' theano shared variables were passed to the ProbabilisticPymc3Model constructor'\
-                                      ' but the model does not appear to include independent variables. Only pass '\
-                                      'shared variables to the constructor if the according variables are independent'
+            assert len(ind_vars) > 0,  \
+                ' theano shared variables were passed to the ProbabilisticPymc3Model constructor'\
+                ' but the model does not appear to include independent variables. Only pass '\
+                'shared variables to the constructor if the according variables are independent'
             # Each independent variable should appear in self.shared_vars. If not, raise an error
             missing_vars = [varname for varname in ind_vars if varname not in self.shared_vars.keys()]
             assert len(missing_vars) == 0, \
                 'The following independent variables do not appear in shared_vars:' + str(missing_vars) + ' Make sure '\
                 'that you pass the data for each independent variable as theano shared variable to the constructor'
-        self.check_data_and_shared_vars_on_equality()
+        self._check_data_and_shared_vars_on_equality()
+
         # Set number of samples to the number of data points. The number of samples must not be chosen
         # arbitrarily, since independent and dependent variables have to have the same dimensions. Otherwise,
         # some models cannot compute posterior predictive samples
@@ -234,14 +238,16 @@ class ProbabilisticPymc3Model(md.Model):
         return cartesian_prod
 
     def _fit(self):
-        self.samples, self._samples_model_repr = \
-            self._sample(self.nr_of_posterior_samples, mode='both',
-                         pp=self.sample_prior_predictive, sample_mode='new samples')
+        self._samples_model_repr, self._sample_trace = self._draw_new_samples(
+            self.nr_of_posterior_samples,
+            prior_predictive=self.sample_prior_predictive,
+            return_trace=True)
+        self.samples = self._data_type_mapper.backward(self._samples_model_repr, inplace=False)
 
         # Add parameters to fields
-        varnames = [str(var) for var in self.model_structure.unobserved_RVs]
+        varnames = [var.name for var in self.model_structure.unobserved_RVs]
         for var in self.model_structure.unobserved_RVs:
-            varname = str(var)
+            varname = var.name
             # check if trace consists of more than one variable. Below expression is not empty when that is the case
             if var.distribution.shape:
                 # Remove old varname
@@ -252,7 +258,7 @@ class ProbabilisticPymc3Model(md.Model):
             # do not add variables that already exist
             if varname in self.names:
                 varnames.remove(varname)
-        latent_fields = utils.get_numerical_fields(self.samples, varnames)
+        latent_fields = mbase.utils.get_numerical_fields(self.samples, varnames)
         for f in latent_fields:
             f['obstype'] = 'latent'
 
@@ -267,9 +273,10 @@ class ProbabilisticPymc3Model(md.Model):
 
         # Mark variables as independent. Independent variables are variables that appear in the data but
         # not in the observed random variables of the model
+        basic_rv_names = set(var.name for var in self.model_structure.basic_RVs)
         for field in self.fields:
             if field['name'] in self.data.columns and \
-                    field['name'] not in [str(var) for var in self.model_structure.basic_RVs]:
+                    field['name'] not in basic_rv_names:
                     # field['name'] not in [str(var) for var in self.model_structure.observed_RVs]:
                 field['independent'] = True
         self._update_has_independent_variables()
@@ -304,7 +311,7 @@ class ProbabilisticPymc3Model(md.Model):
 
         values = [self.byname(r)['domain'].values() for r in remove]
         conditions = zip(remove, ['in'] * len(values), values)
-        self.samples = utils.data_operations.condition_data(self.samples, conditions)
+        self.samples = mbase.utils.data_operations.condition_data(self.samples, conditions)
         self.samples.dropna(inplace=True)
 
         # is done in _marginalize_out anyway:
@@ -333,19 +340,33 @@ class ProbabilisticPymc3Model(md.Model):
     def _negdensity(self, x):
         return -self._density(x)
 
-    def _draw_new_samples(self, n, pp):
-        """Draw n new samples."""
+    def _draw_new_samples(self, n, prior_predictive, return_trace=False):
+        """Draw n new samples.
+
+        Args:
+            return_trace: bool, optional.
+                Set to True to return instead of just the samples a tuple of
+                (samples, trace), where trace is an `pymc3.pm.MultiTrace` object
+                about the sampled traces.
+
+        Returns:
+            A pandas.DataFrame of the samples, or (samples, trace) if
+            `return_trace` is set to True.
+        """
         sample = pd.DataFrame()
 
         # Generate samples for latent random variables
         with self.model_structure:
-            if pp:
+            if prior_predictive:
                 trace = pd.DataFrame(pm.sample_prior_predictive(n))
-                return self._data_type_mapper.backward(trace, inplace=False), trace
+                raise NotImplementedError()
+                # return self._data_type_mapper.backward(trace, inplace=False), trace
+
             trace = pm.sample(n,
                               chains=self.sampling_chains,
                               cores=self.sampling_cores,
-                              progressbar=False)
+                              progressbar=False,
+                              return_inferencedata=False)  # Return pymc3.MultiTrace
 
         for varname in trace.varnames:
             # check if trace consists of more than one variable
@@ -384,19 +405,19 @@ class ProbabilisticPymc3Model(md.Model):
                 shared_vars_org[col] = self.shared_vars[col].get_value()
                 self.shared_vars[col].set_value(samples_independent_vars[col])
         with self.model_structure:
-            ppc = pm.sample_ppc(trace)
-            # sample_ppc works the following way: For each parameter set generated by pm.sample(), a sequence
+            ppc = pm.sample_posterior_predictive(trace)
+            # sample_posterior_predictive works the following way: For each parameter set generated by pm.sample(), a sequence
             # of points is generated with the same length as the observed data.
             if self.shared_vars:
-                for varname in self.model_structure.observed_RVs:
-                    sample[str(varname)] = [ppc[str(varname)][j][j] for j in
-                                            range(ppc[str(varname)].shape[0])]
+                for rv in self.model_structure.observed_RVs:
+                    varname = rv.name
+                    sample[varname] = [ppc[varname][j][j] for j in range(ppc[varname].shape[0])]
             # When there are no independent variables, I cannot change the length of the sequences. So I just take
             # the first point of each sequence, which is okay since the draws are not based on any independent variables
             else:
-                for varname in self.model_structure.observed_RVs:
-                    sample[str(varname)] = [ppc[str(varname)][j][0] for j in
-                                            range(ppc[str(varname)].shape[0])]
+                for rv in self.model_structure.observed_RVs:
+                    varname = rv.name
+                    sample[varname] = [ppc[varname][j][0] for j in range(ppc[varname].shape[0])]
 
         # Restore independent variables to previous values. This is necessary since pm.sample()
         # requires same length of all variables and also all copies of a model use the same
@@ -405,17 +426,15 @@ class ProbabilisticPymc3Model(md.Model):
             for col in self.shared_vars.keys():
                 self.shared_vars[col].set_value(shared_vars_org[col])
 
-        self.check_data_and_shared_vars_on_equality()
-        return sample
+#        self._check_data_and_shared_vars_on_equality()
+        return (sample, trace) if return_trace else sample
 
-    def _sample(self, n, mode='original', pp=False, sample_mode='first'):
+    def _sample(self, n, prior_predictive=False, sample_mode='first', **kwargs):
         """
         Draw a sample of size n.
         :param n:
-        :param mode: str. one of 'original', 'model', 'both'
-            Chooses in which representation space the samples are returned.
-        :param pp
-            TODO document
+        :param prior_predictive: bool.
+            Set 'True' to get prior samples instead of posterior samples (the default).
         :param sample_mode str.
             Chooses what method to use for generating samples.
             'first' takes the first n elements of self.samples. 'choice' randomly selects n elements
@@ -450,21 +469,13 @@ class ProbabilisticPymc3Model(md.Model):
 
         # mode 3: true sampling of new samples
         elif sample_mode == 'new samples':
-            sample = self._draw_new_samples(n, pp)
+            sample = self._draw_new_samples(n, prior_predictive, return_trace=False)
         else:
             raise ValueError('invalid value for sample_mode: {}'.format(sample_mode))
 
         assert(len(sample) == n)
 
-        # map samples from model space in to data space
-        if mode is 'model':
-            return sample
-        elif mode is 'both':
-            return self._data_type_mapper.backward(sample, inplace=False), sample
-        elif mode is 'original':
-            return self._data_type_mapper.backward(sample)
-        else:
-            raise ValueError('invalid value for mode {}'.format(mode))
+        return sample
 
     def copy(self, name=None):
         name = self.name if name is None else name
@@ -474,7 +485,14 @@ class ProbabilisticPymc3Model(md.Model):
         # the shared vars attribute must not be changed permanently, because doing so would
         # propagate to all model copies
         # TODO: the above seems like the source of very weird future bugs that occur in race conditions ....
-        mycopy = self.__class__(name, self.model_structure, self.shared_vars)
+        mycopy = self.__class__(name, self.model_structure, self.shared_vars,
+                                nr_of_posterior_samples=self.nr_of_posterior_samples,
+                                fixed_data_length=self.fixed_data_length,
+                                data_mapping=self._data_type_mapper,
+                                sampling_chains=self.sampling_chains,
+                                sampling_cores=self.sampling_cores,
+                                probabilistic_program_graph=self.probabilistic_program_graph,
+                                sample_prior_predictive=self.sample_prior_predictive)
         mycopy.data = self.data.copy()
         mycopy.test_data = self.test_data.copy()
         mycopy.fields = cp.deepcopy(self.fields)
@@ -483,12 +501,13 @@ class ProbabilisticPymc3Model(md.Model):
         mycopy.history = cp.deepcopy(self.history)
         mycopy.samples = self.samples.copy()
         mycopy._samples_model_repr = self._samples_model_repr.copy()
+        mycopy._sample_trace = self._sample_trace
         mycopy.nr_of_posterior_samples = self.nr_of_posterior_samples
         mycopy.sampling_cores = self.sampling_cores
         mycopy.sampling_chains = self.sampling_chains
         mycopy.fixed_data_length = self.fixed_data_length
-        self.check_data_and_shared_vars_on_equality()
-        mycopy.check_data_and_shared_vars_on_equality()
+        #self._check_data_and_shared_vars_on_equality()
+        #mycopy._check_data_and_shared_vars_on_equality()
         mycopy._data_type_mapper = self._data_type_mapper.copy()
         mycopy.probabilistic_program_graph = cp.copy(self.probabilistic_program_graph)
         mycopy._update_samples_model_representation(recreate_samples_model_repr=False)
@@ -512,11 +531,14 @@ class ProbabilisticPymc3Model(md.Model):
             return np.full(self.dim, np.nan)
         return maximum
 
-    def check_data_and_shared_vars_on_equality(self):
+    def _check_data_and_shared_vars_on_equality(self):
         if self.shared_vars and not self.data.empty:
-            for name in list(self.shared_vars.keys()):
-                if name in self.data.columns:
-                    assert np.array_equal(self.shared_vars[name].get_value(), np.array(self.data[name]))
+            columns = self.data.columns
+            for name, shared_var in self.shared_vars.items():
+                #if name in columns:
+                assert name in columns, f'shared variable {name} is missing in data of model'
+                assert np.array_equal(shared_var.get_value(),\
+                    self._data_type_mapper.forward(self.data[name], inplace=False).values)
 
     def kde_bandwidth(self, bandwidth=None):
         kde = self._samples_kde

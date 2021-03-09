@@ -3,4 +3,4 @@ from .core import *
 from .eval import *
 from .models import *
 from .server import *
-from .utils import *
+from . import utils as utils

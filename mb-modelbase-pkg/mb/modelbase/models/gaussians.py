@@ -5,7 +5,7 @@ import numpy as np
 from numpy import pi, exp, matrix, ix_, nan
 from sklearn import mixture
 
-from mb.modelbase.utils import utils
+from mb.modelbase.utils import utilities
 from mb.modelbase.core import domains as dm, models as md
 
 # setup logger
@@ -84,10 +84,10 @@ class MultiVariateGaussianModel(md.Model):
 
         # calculate updated mu and sigma for conditional distribution, according to GM script
         j = self.asindex(remove)
-        i = utils.invert_indexes(j, self.dim)
+        i = utilities.invert_indexes(j, self.dim)
         S = self._SInv
         mu = self._mu
-        self._S = utils.schur_complement(S, i)
+        self._S = utilities.schur_complement(S, i)
         self._mu = mu[i] + S[ix_(i, j)] * S[ix_(j, j)].I * (condvalues - mu[j])
 
         return self._unbound_updater,

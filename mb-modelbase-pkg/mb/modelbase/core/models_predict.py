@@ -14,7 +14,7 @@ import multiprocessing_on_dill as mp_dill
 
 from . import splitter as sp
 from .base import NAME_IDX, METHOD_IDX, YIELDS_IDX, ARGS_IDX, Split, Condition
-from ..utils import utils
+from ..utils import utilities
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -146,7 +146,7 @@ def create_data_structures_for_clauses(model, predict, where, splitby, partial_d
            partial_data, partial_data_names)
         A long list of utility data structures. See inline documentation for an explanation of the names.
     """
-    idgen = utils.linear_id_generator()
+    idgen = utilities.linear_id_generator()
     filter_names = [f[NAME_IDX] for f in where]
 
     # predict.* is about the dimensions and columns of the pd.DataFrame to be returned as query result
@@ -747,7 +747,7 @@ def aggregate_maximum_or_average(model, aggr, partial_data, split_series_dict, n
         results.append(res[i])
 
     else:
-        row_id_gen = utils.linear_id_generator(prefix="_row")
+        row_id_gen = utilities.linear_id_generator(prefix="_row")
         rowmodel_name = model.name + next(row_id_gen)
 
         def pred_max_func(row, cond_out_names=cond_out_names, operator_list=cond_out_ops,
