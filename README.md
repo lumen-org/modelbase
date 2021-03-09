@@ -1,9 +1,8 @@
-# README #
 
 [![Travis](https://travis-ci.org/lumen-org/modelbase.svg?branch=ci_travis)](
     https://travis-ci.org/lumen-org/modelbase)
     
-A SQL-like interface for python and the web to query data together with probability models on the data.
+A SQL-like interface for python and the web to query probabilistic models and  the data they were trained on.
 
 Version: 0.95
 
@@ -12,8 +11,8 @@ Version: 0.95
 `modelbase` can be used to model tabular data with generic probabilistic modelling as well to analyse, use and explore both, the fitted model as well as the data.
 To this end the fitted models offer different types of operations such as prediction, conditionalization or marginalization.
 Semantically equivalent operations, namely aggregation, row select and column selection are also available for data.
- 
-An overview over the capabilities of `modelbase` and a short introductory example of its Python API usage can be found in the jupyter-notebook files `doc/Intro_example.ipynb` and `doc/simple_API_usage.ipynb`.
+
+An overview over the capabilities of `modelbase` and a short introductory example of its Python API usage can be found in the jupyter-notebook files [Intro_example.ipynb](doc/Intro_example.ipynb) and [predict_API.ipynb](doc/predict_API.ipynb)
 
 `modelbase` provides an API-level access to model and data. 
 It provides a generic modelling and querying backend, similar to what data base management systems are for tabular data alone.
@@ -140,8 +139,8 @@ By default models are loaded from the `bin/fitted_models` directory, and this di
 
 Check out the jupyter notebooks in `doc/` to get started, and in particular these two
 
- * `doc/Intro_example.ipynb`
- * `doc/predict_API.ipynb`
+ * [doc/Intro_example.ipynb](doc/Intro_example.ipynb)
+ * [doc/predict_API.ipynb](doc/predict_API.ipynb)
 
 -----
  
