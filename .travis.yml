@@ -3,6 +3,7 @@ git:
   submodules: false
 os: linux
 install:
+  - git submodule init && git submodule update
   - pip install ./mb-modelbase-pkg
   - pip install ./mb-data-pkg
   - python bin/initialize.py
