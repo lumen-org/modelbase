@@ -7,7 +7,7 @@ A SQL-like interface for python and the web to query data together with probabil
 
 Version: 0.95
 
-### Content ###
+# Overview
 
 `modelbase` can be used to model tabular data with generic probabilistic modelling as well to analyse, use and explore both, the fitted model as well as the data.
 To this end the fitted models offer different types of operations such as prediction, conditionalization or marginalization.
@@ -20,7 +20,7 @@ It provides a generic modelling and querying backend, similar to what data base 
 We have also developed [lumen](https://github.com/lumen-org/lumen) for visual-interactive access to probabiliistic models that requires no coding at all. 
 `lumen` provides a web-application for exploration, comparison and validation of probabilistic models and its data. It uses the webservice interface of `modelbase`. 
 
-### Repository Overview ###
+## Repository Contents
 
 The `modelbase` repository contains a number directories as follows:
 
@@ -32,15 +32,15 @@ The `modelbase` repository contains a number directories as follows:
  * `mb-*-pkg`: each is a namespace package under the common namespace `mb`.
  * `tests`: contains tests.
 
-### Setup modelbase ###
+## Setup modelbase
 
-**Requirements:**
+### Requirements:
 
  * Python3
  * jupyterlab or jupyternotebook is required to run the intro examples and many other tutorials. See [here](https://jupyter.org/install) for instructions.
  * R may be required for some optional components.
 
-**Setup:**
+### Setup:
 
 *Note: It is strongly recommended to use some virtual environment of Python to install this software.* 
 
@@ -53,7 +53,7 @@ The `modelbase` repository contains a number directories as follows:
 4. Run `bin/initialize.py`: this will create some initial probabilistic models in `bin/fitted_models`. 
    This is also a sanity check that things are all right with your installation.    
     
-**Setup of optional components:**
+### Setup of optional components:
  
 This project uses the namespace `mb`. 
 In that namespace a number of packages exist.
@@ -72,7 +72,7 @@ Each of them provide an additional type of model to work with.
  * `mb.mspn`: A mixed-SPN model adapter, based on some R package. Note that you need to install R for this to work.
  * `mb.spflow` A SPN-adapter based on the Python3 package spflow.
  
-### Updating modelbase
+## Updating modelbase
 
 You have installed `modelbase` as a number of (namespace) packages in your local python installation.
 To update `modelbase` you have to update each of these packages to the latest repository version by indivudually uninstalling them, fetching the latest version from git and installing them.
@@ -86,7 +86,7 @@ Here it is explained with the `mb.modelbase` core package
 
 Alternatively, you can use the `--editable` when installing the packages above. Then, you simply need to pull the latest version from the repo. 
 
-### Using modelbase
+## APIs for using modelbase
 
 `modelbase` provides three layers of APIs:
 
@@ -130,11 +130,18 @@ In order of precedence (highest to lowest):
   * set options in `default_run_conf.cfg`. 
   Changing settings here is not recommended. Use `run_conf.cfg` instead.
 
-#### Hosting probabilistic models 
+### Hosting probabilistic models 
 
 An instance of the webservice watches a directory and loads all models in that directory so that you can execute queries on these models and their data.
 Models are stored as `.mdl` files and are serialized (pickled) instances of `md.Model`, that is, instances of some probabilistic model class.
 By default models are loaded from the `bin/fitted_models` directory, and this directory some models that are created/trained during the setup process of the `modelbase`.
+
+## Getting started
+
+Check out the jupyter notebooks in `doc/` to get started, and in particular these two
+
+ * `doc/Intro_example.ipynb`
+ * `doc/predict_API.ipynb`
 
 -----
  
