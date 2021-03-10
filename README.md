@@ -41,8 +41,6 @@ The `modelbase` repository contains a number directories as follows:
 
 ### Setup:
 
-*Note: It is strongly recommended to use some virtual environment of Python to install this software.* 
-
 1. Clone this repository into a folder of your choice. Let's call it `<root>`.
 2. Install other dependencies that are only available as git repositories (so called submodules) as follows:
     * Install the `cgmodsel` package with `git submodule init && git submodule update`
