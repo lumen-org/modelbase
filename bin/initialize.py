@@ -4,8 +4,8 @@
 import os
 
 import mb.modelbase as mbase
+from mb.data import iris, titanic, mpg
 from mb.modelbase.utils import model_fitting
-from mb.data import iris, titanic
 
 _dirname = os.path.dirname(__file__)
 
@@ -16,17 +16,23 @@ def _learn_initial_models():
     print('Training some simple models ...')
     specs = {
         'iris_cond_gauss': {'class': mbase.MixableCondGaussianModel,
-                     'data': iris.mixed(),
-                     'fitopts': {'fit_algo': 'map'}},
-        'iris_kde': {'class': mbase.KDEModel,
                             'data': iris.mixed(),
+                            'fitopts': {'fit_algo': 'map'}},
+        'iris_kde': {'class': mbase.KDEModel,
+                     'data': iris.mixed(),
                      },
         'titanic_cond_gauss': {'class': mbase.MixableCondGaussianModel,
-                        'data': titanic.mixed(),
-                        'fitopts': {'fit_algo': 'map'}},
-        'titanic_kde':  {'class': mbase.KDEModel,
+                               'data': titanic.mixed(),
+                               'fitopts': {'fit_algo': 'map'}},
+        'titanic_kde': {'class': mbase.KDEModel,
                         'data': titanic.mixed(),
                         },
+        'mpg_cond_gauss': {'class': mbase.MixableCondGaussianModel,
+                           'data': mpg.cg_4cat3cont(),
+                           },
+        'mpg_kde': {'class': mbase.KDEModel,
+                    'data': mpg.cg_4cat3cont(),
+                    },
     }
 
     models = model_fitting.fit_models(specs)

@@ -122,7 +122,7 @@ def spflow_parameter_types():
         'version_A': {
             # Compatible to cg_4cat3cont(do_not_change=['cylinder'])
             'transmission': spn_parameter_types.Categorical,
-            'cylinder': spn_parameter_types.Poisson,
+            'cylinder': spn_parameter_types.Categorical,
             'car_size': spn_parameter_types.Categorical,
             'year': spn_parameter_types.Gaussian,
             'mpg_city': spn_parameter_types.Gaussian,
