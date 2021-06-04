@@ -3,10 +3,14 @@ git:
   submodules: false
 os: linux
 install:
-  - pip install .
+  - git submodule init && git submodule update
+  - pip3 install cgmodsel
+  - pip install ./mb-modelbase-pkg
+  - pip install ./mb-data-pkg
+  - python bin/initialize.py
   - pip install pytest-cov
 before_script:
-  - echo $RUN_CONFIG > bin/run_conf.cfg
+  - echo $RUN_CONFIG > bin/run_conf_defaults.cfg
 script:
   - python -m pytest --cov-report=xml --cov=modelbase tests/
 after_success:
