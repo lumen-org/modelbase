@@ -23,6 +23,7 @@ setup(name='mb-data',
             'mb-modelbase',
             'numpy',
             'pandas',
+            'spflow'
       ],
       namespace_packages=['mb'],
       zip_safe=False,
