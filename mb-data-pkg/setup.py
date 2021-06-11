@@ -22,8 +22,7 @@ setup(name='mb-data',
       install_requires=[
             'mb-modelbase',
             'numpy',
-            'pandas',
-            'spflow'
+            'pandas'
       ],
       namespace_packages=['mb'],
       zip_safe=False,
