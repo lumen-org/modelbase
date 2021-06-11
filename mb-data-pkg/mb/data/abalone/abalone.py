@@ -3,8 +3,11 @@ import os
 
 _csvfilepath = os.path.splitext(__file__)[0] + ".csv"
 
-import spn.structure.leaves.parametric.Parametric as spn_parameter_types
-import spn.structure.StatisticalTypes as spn_statistical_types
+try:
+    import spn.structure.leaves.parametric.Parametric as spn_parameter_types
+    import spn.structure.StatisticalTypes as spn_statistical_types
+except ImportError:
+    pass
 
 
 def cg(file=_csvfilepath):

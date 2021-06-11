@@ -7,8 +7,12 @@ Data Preprocessing and cleansing for the bank data set.
 
 import pandas as pd
 import os
-import spn.structure.leaves.parametric.Parametric as spn_parameter_types
-import spn.structure.StatisticalTypes as spn_statistical_types
+
+try:
+    import spn.structure.leaves.parametric.Parametric as spn_parameter_types
+    import spn.structure.StatisticalTypes as spn_statistical_types
+except ImportError:
+    pass
 
 _csvfilepath = os.path.splitext(__file__)[0] + "-full.csv"
 
