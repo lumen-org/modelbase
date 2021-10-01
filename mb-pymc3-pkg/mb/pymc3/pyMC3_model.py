@@ -288,7 +288,7 @@ class ProbabilisticPymc3Model(mbase.Model):
     def _marginalizeout(self, keep, remove):
         keep_not_in_names = [name for name in keep if name not in self.names]
         if len(keep_not_in_names) > 0:
-            raise ValueError('The following variables in keep do not appear in the model: ' + str(keep_not_in_names) )
+            raise ValueError('The following variables in keep do not appear in the model: ' + str(keep_not_in_names))
         remove_not_in_names = [name for name in remove if name not in self.names]
         if len(remove_not_in_names) > 0:
             raise ValueError('The following variables in remove do not appear in the model: ' + str(remove_not_in_names))
@@ -381,6 +381,8 @@ class ProbabilisticPymc3Model(mbase.Model):
             samples_independent_vars = pd.DataFrame(columns=self.shared_vars.keys())
             data_independent_vars = pd.DataFrame(columns=self.shared_vars.keys())
             for name, value in self.shared_vars.items():
+                # TODO: FIX! values for independent variables should not be retrieved from the shared variables data
+                #  but from the potentially conditionied or otherwise fixed .data array
                 data_independent_vars[name] = value.get_value()
             # Draw without replacement from the observed data. If more values should be drawn than there are in the
             # data, take the whole data multiple times
