@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 from numpy.random.mtrand import RandomState
 import scipy.optimize as scpo
+import pandas as pd
 
 from spn.algorithms.stats.Expectations import Expectation
 from spn.structure.Base import Context
