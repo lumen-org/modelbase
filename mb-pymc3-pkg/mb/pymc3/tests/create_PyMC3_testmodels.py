@@ -600,15 +600,15 @@ if __name__ == '__main__':
         data, m_fitted = func(fit=True)
 
         # create empirical model
-        name = "emp_" + m.name
-        m.set_empirical_model_name(name)
-        m_fitted.set_empirical_model_name(name)
-        emp_model = EmpiricalModel(name=name)
-        emp_model.fit(df=data)
+        #name = "emp_" + m.name
+        #m.set_empirical_model_name(name)
+        #m_fitted.set_empirical_model_name(name)
+        #emp_model = EmpiricalModel(name=name)
+        #emp_model.fit(df=data)
 
         m_fitted.save(testcasemodel_path)
         m.save(testcasemodel_path)
-        emp_model.save(testcasemodel_path)
+        #emp_model.save(testcasemodel_path)
 
         data.to_csv(os.path.join(testcasedata_path, m.name + '.csv'), index=False)
 
