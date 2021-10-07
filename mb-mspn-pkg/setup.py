@@ -7,9 +7,9 @@ setup(name='mb-mspn',
       author_email='julien.klaus@uni-jena.de, philipp.lucas@dlr.de',
       packages=find_namespace_packages(),
       install_requires=[
-          'numpy',  # maybe requires 'numpy==1.18.4' ???
+          'numpy>=1.6.1',  # maybe requires 'numpy==1.18.4' ???
           'pandas',
-          'scipy',
+          'scipy>=0.9',
           'mb-modelbase',
           'scikit-learn',
           'numba',
