@@ -16,6 +16,7 @@ import numpy as np
 from numpy.random.mtrand import RandomState
 import scipy.optimize as scpo
 import pandas as pd
+import dill
 
 from spn.algorithms.stats.Expectations import Expectation
 from spn.structure.Base import Context
@@ -155,11 +156,10 @@ class SPFlowModel(core.Model):
         else:
             raise Exception("Type of SPN not known: " + self._spn_type)
 
-        # TODO: DEBUG OUTPUT for NIPS2020
-        if self._spn:
-            plot_spn(self._spn, fname=Path(f"../../bin/experiments/spn_graphs/{self.name}.pdf"))
-            plot_spn_to_svg(self._spn, fname=Path(
-                f"../../bin/experiments/spn_graphs/{self.name}.svg"))
+        # if self._spn:
+        #     plot_spn(self._spn, fname=Path(f"../../bin/experiments/spn_graphs/{self.name}.pdf"))
+        #     plot_spn_to_svg(self._spn, fname=Path(
+        #         f"../../bin/experiments/spn_graphs/{self.name}.svg"))
         return self._unbound_updater,
 
     def _marginalizeout(self, keep, remove):
