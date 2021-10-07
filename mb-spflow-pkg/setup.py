@@ -12,6 +12,7 @@ setup(name='mb-spflow',
             'scipy==1.2', # see also: https://github.com/lumen-org/modelbase/issues/84
             'spflow>=0.0.39',
             'pandas',
+            'dill',
       ],
       namespace_packages=['mb'],
       zip_safe=False)
