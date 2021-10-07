@@ -315,8 +315,6 @@ class SPFlowModel(core.Model):
 if __name__ == "__main__":
     # from sklearn.datasets import load_iris
     # iris_data = load_iris()
-    import pandas as pd
-    import dill
 
     iris_data = pd.read_csv('/home/leng_ch/git/lumen/datasets/mb_data/iris/iris.csv')
     print(iris_data)
