@@ -19,14 +19,23 @@ _csvfilepath_disc = os.path.splitext(__file__)[0] + "_discretized.csv"
 
 
 def spn_parameters():
-    iris_variable_types = {
-        'sepal_length': spn_parameter_types.Gaussian,
-        'sepal_width': spn_parameter_types.Gaussian,
-        'petal_length': spn_parameter_types.Gaussian,
-        'petal_width': spn_parameter_types.Gaussian,
-        'species': spn_parameter_types.Categorical
+    return {
+        'gaussian_leaves': {
+            'sepal_length': spn_parameter_types.Gaussian,
+            'sepal_width': spn_parameter_types.Gaussian,
+            'petal_length': spn_parameter_types.Gaussian,
+            'petal_width': spn_parameter_types.Gaussian,
+            'species': spn_parameter_types.Categorical
+        },
+        'uniform_leaves': {
+            'sepal_length': spn_parameter_types.Uniform,
+            'sepal_width': spn_parameter_types.Uniform,
+            'petal_length': spn_parameter_types.Uniform,
+            'petal_width': spn_parameter_types.Uniform,
+            'species': spn_parameter_types.Categorical
+        },
     }
-    return iris_variable_types
+
 
 def spn_metaparameters():
     iris_meta_types = {
