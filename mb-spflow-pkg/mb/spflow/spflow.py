@@ -104,10 +104,10 @@ class SPFlowModel(core.Model):
         self._spn_type = spn_type
 
     def _fit(self, var_types=None, **kwargs):
-        if self._spn_type == None:
+        if self._spn_type is None:
             raise Exception("No SPN-type provided")
 
-        if var_types != None:
+        if var_types is not None:
             self.var_types = var_types
         else:
             var_types = self.var_types
