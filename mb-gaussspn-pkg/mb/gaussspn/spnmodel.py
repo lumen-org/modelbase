@@ -23,19 +23,20 @@ from scipy.optimize import minimize
 
 from mb.modelbase import models as md
 from .gausspn import visualize as spnvis
+from .gausspn import spn
 
 
 class SPNModel(md.Model):
-    def __init__(self, name, batchsize=128, mergebatch=128, \
-                 corrthresh=0.1, equalweight=True, updatestruct=True, \
+    def __init__(self, name, batchsize=128, mergebatch=128,
+                 corrthresh=0.1, equalweight=True, updatestruct=True,
                  mvmaxscope=0, leaftype="normal", numcomp=2):
         super().__init__(name)
         self._aggrMethods = {
             'maximum': self._maximum,
             'average': self._maximum
         }
-        self.params = spn.SPNParams(batchsize, mergebatch, corrthresh, \
-                                equalweight, updatestruct, \
+        self.params = spn.SPNParams(batchsize, mergebatch, corrthresh,
+                                equalweight, updatestruct,
                                 mvmaxscope, leaftype)
         self.numcomp = numcomp
         self.index = {}
@@ -57,7 +58,7 @@ class SPNModel(md.Model):
         self._spnmodel = spn.SPN(self.variables, self.numcomp, self.params)
         for i in range(iterations):
             self._spnmodel.update(data)
-        spnvis.generateSPNPdf(self._spnmodel, filename=Path(f"../../scripts/experiments/spn_graphs/{self.name}"))
+        #spnvis.generateSPNPdf(self._spnmodel, filename=Path(f"../../scripts/experiments/spn_graphs/{self.name}"))
         return []
 
     def _marginalizeout(self, keep, remove):
