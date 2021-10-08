@@ -46,9 +46,15 @@ class SPFlowModel(core.Model):
     """
 
     def __init__(self, name,
-                 spn_type=None):
+                 spn_type=None,
+                 var_types=None,
+                 threshold=0.3,
+                 min_instances_slice=200):
         super().__init__(name)
         self._spn_type = spn_type
+        self._var_types = var_types
+        self._threshold = threshold
+        self._min_instances_slice = min_instances_slice
         self._aggrMethods = {
             'maximum': self._maximum,  # TODO use maximum
             'expectation': self._expectation
@@ -98,26 +104,28 @@ class SPFlowModel(core.Model):
             v['int_to_name'] = int_to_name
 
     def set_var_types(self, var_types):
-        self.var_types = var_types
+        self._var_types = var_types
 
     def set_spn_type(self, spn_type):
         self._spn_type = spn_type
 
-    def _fit(self, var_types=None, **kwargs):
+    def _fit(self, var_types=None, min_instances_slice=None, threshold=None, **kwargs):
         if self._spn_type is None:
             raise Exception("No SPN-type provided")
 
         if var_types is not None:
-            self.var_types = var_types
-        else:
-            var_types = self.var_types
+            self._var_types = var_types
+        if min_instances_slice is not None:
+            self._min_instances_slice = min_instances_slice
+        if threshold is not None:
+            self._threshold = threshold
 
         df = self.data.copy()
         # Exchange all object columns for their codes as SPFLOW cannot deal with Strings
         for key, value in self._categorical_variables.items():
             df[key] = value['categorical'].codes
 
-        self._nameToVarType = var_types
+        self._nameToVarType = self._var_types
 
         # Check if variable types are given
         if self._nameToVarType is None:
@@ -148,7 +156,9 @@ class SPFlowModel(core.Model):
 
         if self._spn_type == 'spn':
             context = Context(parametric_types=var_types).add_domains(df.values)
-            self._spn = learn_parametric(df.values, context)
+            self._spn = learn_parametric(df.values, context, 
+                                         min_instances_slice=self._min_instances_slice,
+                                         threshold=self._threshold)
 
         elif self._spn_type == 'mspn':
             context = Context(meta_types=var_types).add_domains(df.values)
@@ -300,6 +310,9 @@ class SPFlowModel(core.Model):
         mycopy = self._defaultcopy(name)
         mycopy._spn = cp.deepcopy(self._spn)
         mycopy._spn_type = cp.copy(self._spn_type)
+        mycopy._var_types = cp.copy(self._var_types)
+        mycopy._threshold = cp.copy(self._threshold)
+        mycopy._min_instances_slice = cp.copy(self._min_instances_slice)
         mycopy._nameToVarType = cp.copy(self._nameToVarType)
         mycopy._initial_names = self._initial_names.copy()
         mycopy._initial_names_count = len(mycopy._initial_names)
