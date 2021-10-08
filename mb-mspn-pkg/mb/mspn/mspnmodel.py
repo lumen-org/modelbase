@@ -90,10 +90,11 @@ class MSPNModel(md.Model):
         # data = np.array(self.data)
         # for i in range(len(data)):
         #     data[i] = [int(j) if self.featureTypes[i] == "categorical" else j for j in data[i]]
-        self._mspnmodel = SPN.LearnStructure(np.array(self._data), featureTypes=self.featureTypes, \
-                                             featureNames=self.names, \
-                                             row_split_method=Splitting.KmeansRows(), \
-                                             col_split_method=Splitting.RDCTest(threshold=self.threshold), \
+        self._mspnmodel = SPN.LearnStructure(np.array(self._data),
+                                             featureTypes=self.featureTypes,
+                                             featureNames=self.names,
+                                             row_split_method=Splitting.KmeansRows(),
+                                             col_split_method=Splitting.RDCTest(threshold=self.threshold),
                                              min_instances_slice=self.min_instances_slice)
 
         self._mspnmodel.save_pdf_graph(outputfile=Path(f"../../scripts/experiments/spn_graphs/{self.name}.pdf"))
@@ -254,7 +255,6 @@ class MSPNModel(md.Model):
        return ranges
            
 
-
 if __name__ == "__main__":
     from sklearn.datasets import load_iris
 
@@ -291,10 +291,4 @@ if __name__ == "__main__":
    
     model:
        mspn_titanic_jk1
-       
-    
-    
-    
-    
     """
-       
