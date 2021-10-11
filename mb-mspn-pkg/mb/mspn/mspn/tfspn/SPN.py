@@ -11,8 +11,10 @@ import pickle
 
 from numpy import float64
 import numpy
-from sklearn.cluster.dbscan_ import DBSCAN
-from sklearn.cluster.k_means_ import KMeans
+#from sklearn.cluster.dbscan_ import DBSCAN
+from sklearn.cluster import DBSCAN
+#from sklearn.cluster.k_means_ import KMeans
+from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfTransformer
 
 from ..mlutils.LSH import above, make_planes
