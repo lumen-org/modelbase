@@ -162,7 +162,9 @@ class SPFlowModel(core.Model):
 
         elif self._spn_type == 'mspn':
             context = Context(meta_types=var_types).add_domains(df.values)
-            self._spn = learn_mspn(df.values, context)
+            self._spn = learn_mspn(df.values, context,
+                                   min_instances_slice=self._min_instances_slice,
+                                   threshold=self._threshold)
         else:
             raise Exception("Type of SPN not known: " + self._spn_type)
 
