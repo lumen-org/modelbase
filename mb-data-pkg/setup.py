@@ -22,7 +22,8 @@ setup(name='mb-data',
       install_requires=[
             'mb-modelbase',
             'numpy',
-            'pandas'
+            'pandas',
+            'seaborn'
       ],
       namespace_packages=['mb'],
       zip_safe=False,
