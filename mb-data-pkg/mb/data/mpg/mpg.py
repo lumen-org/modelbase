@@ -101,12 +101,12 @@ def cg_4cat3cont(file=_csvfilepath, do_not_change=[]):
                          'compact car': 'small'}, inplace=True)
 
     if 'cylinder' not in do_not_change:
-        df.cylinder.replace(to_replace={2: 'few', 3: 'few',
-                                        4: 'medium', 5: 'medium',
-                                        6: 'many', 7: 'many', 8: 'many', 10: 'many', 12: 'many', 16: 'many'}, inplace=True)
-        # df.cylinder.replace(to_replace={2: 'few', 3: 'few', 4: 'few',
-        #                                 5: 'medium', 6: 'medium',
-        #                                 7: 'many', 8: 'many', 10: 'many', 12: 'many', 16: 'many'}, inplace=True)
+        # df.cylinder.replace(to_replace={2: 'few', 3: 'few',
+        #                                 4: 'medium', 5: 'medium',
+        #                                 6: 'many', 7: 'many', 8: 'many', 10: 'many', 12: 'many', 16: 'many'}, inplace=True)
+        df.cylinder.replace(to_replace={2: 'few', 3: 'few', 4: 'few',
+                                        5: 'medium', 6: 'medium',
+                                        7: 'many', 8: 'many', 10: 'many', 12: 'many', 16: 'many'}, inplace=True)
 
     df.replace(to_replace={'transmission': {
         '.*auto.*': 'auto'}}, inplace=True, regex=True)
