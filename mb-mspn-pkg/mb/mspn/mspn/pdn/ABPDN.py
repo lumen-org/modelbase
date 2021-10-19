@@ -10,7 +10,8 @@ import math
 import numpy
 from scipy.stats._discrete_distns import poisson
 from sklearn import tree
-from sklearn.tree.tree import DecisionTreeRegressor
+#from sklearn.tree.tree import DecisionTreeRegressor
+from sklearn.tree import DecisionTreeRegressor
 
 
 class ABPDN:

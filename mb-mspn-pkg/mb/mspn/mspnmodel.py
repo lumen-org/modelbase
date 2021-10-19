@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Fri Jan 26 15:48:00 2018
 
-@author: julien
-@email: julien.klaus@uni-jena.de
+@author: Julien Klaus, Philipp Lucas
+@email: julien.klaus@uni-jena.de, Philipp.Lucas@dlr.de
 
 Note to get it run:
 
@@ -13,6 +11,9 @@ In addition to any dependencies required by the modelbase package you also need:
         pip install rpy2 joblib tensorflow networkx numba mpmath astropy statsmodels
 
     (2) R of version >= 3.5.2 as mvtnorm is otherwise not available
+        For information on how to install R locally without root access, see:
+          * https://unix.stackexchange.com/questions/149451/install-r-in-my-own-directory
+          * https://github.com/Jiefei-Wang/Painless-R-compilation-and-installation-on-Ubuntu/blob/master/README.md
 
     (3) more R packages installed. To install the required packages run from a R console:
         install.packages(c("digest", "histogram", "iterators", "partykit", "foreach", "doMC", "dplyr", "gtools", "igraph", "energy", "dummies"))
