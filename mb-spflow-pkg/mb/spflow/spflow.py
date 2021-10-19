@@ -49,12 +49,14 @@ class SPFlowModel(core.Model):
                  spn_type=None,
                  var_types=None,
                  threshold=0.3,
-                 min_instances_slice=200):
+                 min_instances_slice=200,
+                 min_features_slice=1):
         super().__init__(name)
         self._spn_type = spn_type
         self._var_types = var_types
         self._threshold = threshold
         self._min_instances_slice = min_instances_slice
+        self._min_features_slice = min_features_slice
         self._aggrMethods = {
             'maximum': self._maximum,  # TODO use maximum
             'expectation': self._expectation
@@ -109,7 +111,7 @@ class SPFlowModel(core.Model):
     def set_spn_type(self, spn_type):
         self._spn_type = spn_type
 
-    def _fit(self, var_types=None, min_instances_slice=None, threshold=None, **kwargs):
+    def _fit(self, var_types=None, min_instances_slice=None, min_features_slice=None, threshold=None, **kwargs):
         if self._spn_type is None:
             raise Exception("No SPN-type provided")
 
@@ -117,6 +119,8 @@ class SPFlowModel(core.Model):
             self._var_types = var_types
         if min_instances_slice is not None:
             self._min_instances_slice = min_instances_slice
+        if min_features_slice is not None:
+            self._min_features_slice = min_features_slice
         if threshold is not None:
             self._threshold = threshold
 
@@ -158,6 +162,7 @@ class SPFlowModel(core.Model):
             context = Context(parametric_types=var_types).add_domains(df.values)
             self._spn = learn_parametric(df.values, context, 
                                          min_instances_slice=self._min_instances_slice,
+                                         min_features_slice=self._min_features_slice,
                                          threshold=self._threshold)
 
         elif self._spn_type == 'mspn':
@@ -315,6 +320,7 @@ class SPFlowModel(core.Model):
         mycopy._var_types = cp.copy(self._var_types)
         mycopy._threshold = cp.copy(self._threshold)
         mycopy._min_instances_slice = cp.copy(self._min_instances_slice)
+        mycopy._min_features_slice = cp.copy(self._min_features_slice)
         mycopy._nameToVarType = cp.copy(self._nameToVarType)
         mycopy._initial_names = self._initial_names.copy()
         mycopy._initial_names_count = len(mycopy._initial_names)
