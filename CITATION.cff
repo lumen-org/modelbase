@@ -1,0 +1,27 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: ModelBase
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Philipp
+    family-names: Lucas
+    email: philipp.lucas@gmail.com
+    orcid: 'https://orcid.org/0000-0002-6687-8209'
+    affiliation: Friedrich-Schiller-Universität Jena
+  - given-names: Joachim
+    family-names: Giesen
+    email: joachim.giesen@uni-jena.de
+    affiliation: Friedrich-Schiller-Universität Jena
+repository-code: 'https://github.com/lumen-org/modelbase'
+url: 'https://github.com/lumen-org/modelbase'
+keywords:
+  - probabilistic modeling
+  - statistical modeling
+  - structured query language
+  - python
+license: LGPL-3.0
