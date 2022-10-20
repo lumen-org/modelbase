@@ -102,7 +102,7 @@ class SPNModel(md.Model):
               startVectors.append(np.random.rand(xlength))
         for x0 in startVectors:
            xopt = minimize(fun, x0, method='Nelder-Mead')
-           if xmax is None or self._density(xmax) <=  self._density(xopt.x):
+           if (xmax is None) or (self._density(xmax) <= self._density(xopt.x)):
               xmax = xopt.x
         return xmax
 

@@ -13,13 +13,19 @@ try:
 except ImportError:
     pass
 
-
 def mixed():
     penguins = sns.load_dataset('penguins')
     penguins.dropna(axis=0, inplace=True)
     penguins.columns = ['species', 'island', 'bill length', 'bill depth',
        'flipper length', 'mass', 'sex']
     return penguins
+
+def continuous():
+    df = mixed()
+    del df['species']
+    del df['sex']
+    del df['island']
+    return df
 
 
 spflow_parameter_types = {
